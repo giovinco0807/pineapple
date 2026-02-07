@@ -724,7 +724,7 @@ def evaluate_hand(cards: list, expected_count: int) -> int:
     
     sorted_ranks = sorted(ranks, reverse=True)
     is_flush = len(suit_counts) == 1 and (len(suits) + jokers) == expected_count
-    is_straight = check_straight(sorted_ranks)
+    is_straight = check_straight(sorted_ranks, jokers)
     
     # 3-card hand evaluation
     if expected_count == 3:
@@ -769,16 +769,38 @@ def evaluate_hand(cards: list, expected_count: int) -> int:
     return sorted_ranks[0] if sorted_ranks else 0
 
 
-def check_straight(sorted_ranks: list) -> bool:
-    """Check if ranks form a straight."""
-    if len(sorted_ranks) != 5:
+def check_straight(sorted_ranks: list, jokers: int = 0) -> bool:
+    """Check if ranks form a straight, with joker wildcards."""
+    total = len(sorted_ranks) + jokers
+    if total != 5:
         return False
-    # Check consecutive
-    if sorted_ranks[0] - sorted_ranks[4] == 4 and len(set(sorted_ranks)) == 5:
-        return True
-    # Check wheel (A2345)
-    if sorted_ranks == [14, 5, 4, 3, 2]:
-        return True
+
+    if jokers == 0:
+        # Original logic
+        if sorted_ranks[0] - sorted_ranks[4] == 4 and len(set(sorted_ranks)) == 5:
+            return True
+        if sorted_ranks == [14, 5, 4, 3, 2]:
+            return True
+        return False
+
+    # With jokers: check if unique ranks can form a 5-card straight
+    # by filling gaps with jokers
+    unique = sorted(set(sorted_ranks), reverse=True)
+    if len(unique) != len(sorted_ranks):
+        return False  # Duplicate ranks can't form a straight
+
+    # Try each possible top of straight (14 down to 5)
+    for high in range(14, 4, -1):
+        needed = set(range(high, high - 5, -1))
+        # Wheel: A-2-3-4-5
+        if high == 5:
+            needed = {14, 5, 4, 3, 2}
+        present = needed & set(unique)
+        missing = len(needed) - len(present)
+        extra = len(set(unique) - needed)
+        if missing <= jokers and extra == 0:
+            return True
+
     return False
 
 
