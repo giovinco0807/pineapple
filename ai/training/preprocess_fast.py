@@ -19,71 +19,72 @@ from ai.engine.encoding import Board, Observation, encode_state
 MAX_ACTIONS = 250
 
 
-def action_to_index(action: dict, turn: int) -> int:
+def action_to_index(action: dict, turn: int,
+                    dealt_cards: list = None, board: dict = None) -> int:
     """Convert action to deterministic index (0..MAX_ACTIONS-1).
 
-    Turn 0 (5-card placement): partition-based index.
-      5 cards into (top, mid, bot) with constraints top<=3, mid<=5, bot<=5.
-      Each partition (t,m,b) gets a contiguous block. Within a block,
-      positions are assigned by lexicographic card order.
-    Turn 1-8 (2 placements + 1 discard): pos0*3 + pos1 (0-8).
+    Turn 0: enumerate all valid actions via get_initial_actions in the
+      same deterministic order, then find the matching placement.
+      This gives a collision-free 1:1 mapping.
+    Turn 1-8: pos0*3 + pos1 (0-8), always collision-free.
     """
     placements = action["placements"]
 
-    if turn == 0:
+    if turn == 0 and dealt_cards is not None:
+        from ai.engine.encoding import Board
+        from ai.engine.action_space import get_initial_actions
+
+        # Normalize target action: sorted cards per position
         by_pos = {"top": [], "middle": [], "bottom": []}
-        for p in placements:
-            by_pos[p[1]].append(p[0])
+        for card, pos in placements:
+            by_pos[pos].append(card)
+        target = (
+            tuple(sorted(by_pos["top"])),
+            tuple(sorted(by_pos["middle"])),
+            tuple(sorted(by_pos["bottom"])),
+        )
+
+        # Enumerate all valid actions in deterministic order
+        b = Board.from_dict(board) if board else Board()
+        all_actions = get_initial_actions(dealt_cards, b)
+        for idx, a in enumerate(all_actions):
+            a_pos = {"top": [], "middle": [], "bottom": []}
+            for card, pos in a.placements:
+                a_pos[pos].append(card)
+            a_key = (
+                tuple(sorted(a_pos["top"])),
+                tuple(sorted(a_pos["middle"])),
+                tuple(sorted(a_pos["bottom"])),
+            )
+            if a_key == target:
+                return min(idx, MAX_ACTIONS - 1)
+        return 0  # fallback
+
+    if turn == 0:
+        # Fallback when dealt_cards not provided (legacy): use position hash
+        by_pos = {"top": [], "middle": [], "bottom": []}
+        for card, pos in placements:
+            by_pos[pos].append(card)
         t, m, b = len(by_pos["top"]), len(by_pos["middle"]), len(by_pos["bottom"])
-
-        # Encode partition as a unique small integer
-        # Valid partitions of 5 into (t,m,b) with t<=3, m<=5, b<=5:
-        # We enumerate all valid (t,m,b) tuples and assign sequential IDs
-        partition_id = _partition_id(t, m, b)
-
-        # Within partition: sort cards in each row, then hash deterministically
-        # to a sub-index within a fixed bucket size
         cards_key = (
             tuple(sorted(by_pos["top"])),
             tuple(sorted(by_pos["middle"])),
             tuple(sorted(by_pos["bottom"])),
         )
-        # Use a stable hash (sum of ord values) to distribute within partition bucket
-        bucket_size = 10  # ~250 / ~24 partitions ≈ 10 slots each
-        sub_idx = _stable_hash(cards_key) % bucket_size
-        return min(partition_id * bucket_size + sub_idx, MAX_ACTIONS - 1)
-    else:
-        positions = ["top", "middle", "bottom"]
-        pos0 = placements[0][1] if len(placements) > 0 else "top"
-        pos1 = placements[1][1] if len(placements) > 1 else "top"
-        pos0_idx = positions.index(pos0) if pos0 in positions else 0
-        pos1_idx = positions.index(pos1) if pos1 in positions else 0
-        return pos0_idx * 3 + pos1_idx
+        h = 0
+        for row in cards_key:
+            for card in row:
+                for ch in card:
+                    h = h * 31 + ord(ch)
+        return min(abs(h) % MAX_ACTIONS, MAX_ACTIONS - 1)
 
-
-# Pre-compute partition lookup: (t,m,b) -> sequential ID
-_PARTITION_MAP = {}
-_pid = 0
-for _t in range(4):       # top: 0-3
-    for _m in range(6):    # mid: 0-5
-        _b = 5 - _t - _m
-        if 0 <= _b <= 5:
-            _PARTITION_MAP[(_t, _m, _b)] = _pid
-            _pid += 1
-
-
-def _partition_id(t: int, m: int, b: int) -> int:
-    return _PARTITION_MAP.get((t, m, b), 0)
-
-
-def _stable_hash(cards_key: tuple) -> int:
-    """Deterministic hash based on card characters (no randomization)."""
-    h = 0
-    for row in cards_key:
-        for card in row:
-            for ch in card:
-                h = h * 31 + ord(ch)
-    return abs(h)
+    # Turn 1-8: 9 possible actions
+    positions = ["top", "middle", "bottom"]
+    pos0 = placements[0][1] if len(placements) > 0 else "top"
+    pos1 = placements[1][1] if len(placements) > 1 else "top"
+    pos0_idx = positions.index(pos0) if pos0 in positions else 0
+    pos1_idx = positions.index(pos1) if pos1 in positions else 0
+    return pos0_idx * 3 + pos1_idx
 
 
 def count_lines(path: str) -> int:
@@ -139,7 +140,11 @@ def preprocess_fast(input_path: str, output_dir: str):
                 )
 
                 states_mm[total] = encode_state(obs)
-                actions_mm[total] = action_to_index(tl["action"], tl["turn"])
+                actions_mm[total] = action_to_index(
+                    tl["action"], tl["turn"],
+                    dealt_cards=tl["dealt_cards"],
+                    board=tl["board_self"],
+                )
 
                 player = tl["player"]
                 royalties_mm[total] = hr["royalties"][player]["total"]

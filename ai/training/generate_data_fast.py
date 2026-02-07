@@ -161,15 +161,38 @@ def heuristic_initial(cards: list, board: dict) -> list:
 
 
 def heuristic_turn(cards: list, board: dict) -> tuple:
-    """Fast heuristic for turns 1-8: discard lowest, place remaining."""
+    """Fast heuristic for turns 1-8: keep pair-making cards, discard weakest."""
     sorted_cards = sorted(cards, key=card_rank)
-    discard = sorted_cards[0]  # Discard lowest
-    remaining = sorted_cards[1:]
 
-    # Sometimes discard mid instead of lowest (add randomness)
-    if random.random() < 0.3:
-        discard = sorted_cards[1]
-        remaining = [sorted_cards[0], sorted_cards[2]]
+    # Check if any dealt card pairs with a card already on the board
+    board_ranks = set()
+    for pos in ["top", "middle", "bottom"]:
+        for c in board[pos]:
+            if c not in ("X1", "X2"):
+                board_ranks.add(card_rank(c))
+
+    # Also check for pairs within the 3 dealt cards
+    dealt_ranks = [card_rank(c) for c in sorted_cards]
+    dealt_rc = Counter(dealt_ranks)
+    internal_pair = [c for c in sorted_cards if dealt_rc[card_rank(c)] >= 2]
+    board_pair = [c for c in sorted_cards
+                  if c not in ("X1", "X2") and card_rank(c) in board_ranks]
+
+    if internal_pair:
+        # Keep the internal pair, discard the odd card
+        pair_rank = card_rank(internal_pair[0])
+        discard = next(c for c in sorted_cards if card_rank(c) != pair_rank)
+        remaining = [c for c in sorted_cards if c != discard]
+    elif board_pair:
+        # Keep card that pairs with board, discard the weakest of the rest
+        keep = board_pair[0]
+        others = [c for c in sorted_cards if c != keep]
+        discard = min(others, key=card_rank)
+        remaining = [c for c in sorted_cards if c != discard]
+    else:
+        # No pairs possible: discard lowest rank
+        discard = sorted_cards[0]
+        remaining = sorted_cards[1:]
 
     placements = []
     for c in sorted(remaining, key=card_rank):
@@ -215,17 +238,38 @@ def fast_score(boards: list) -> dict:
                                         royalties[seat]["middle"] +
                                         royalties[seat]["bottom"])
 
-            # Check FL entry
-            if royalties[seat]["top"] >= 3:  # QQ+
+            # Check FL entry: QQ+ (royalty >= 7) or trips (royalty >= 10)
+            if royalties[seat]["top"] >= 7:  # QQ+
                 fl_entry[seat] = True
 
-    # Simple line comparison
-    if busted[0] and not busted[1]:
-        raw_score = [-6, 6]
+    # Line comparison + scoop + royalty difference
+    if busted[0] and busted[1]:
+        raw_score = [0, 0]
+    elif busted[0] and not busted[1]:
+        raw_score = [-6 - royalties[1]["total"], 6 + royalties[1]["total"]]
     elif busted[1] and not busted[0]:
-        raw_score = [6, -6]
-    elif not busted[0] and not busted[1]:
-        raw_score = [0, 0]  # Simplified
+        raw_score = [6 + royalties[0]["total"], -6 - royalties[0]["total"]]
+    else:
+        # Both not busted: compare lines
+        line_vals = [{}, {}]
+        for seat in [0, 1]:
+            b = boards[seat]
+            line_vals[seat] = {
+                "top": quick_eval(b["top"], 3),
+                "middle": quick_eval(b["middle"], 5),
+                "bottom": quick_eval(b["bottom"], 5),
+            }
+        line_total = 0
+        for line in ["top", "middle", "bottom"]:
+            if line_vals[0][line] > line_vals[1][line]:
+                line_total += 1
+            elif line_vals[0][line] < line_vals[1][line]:
+                line_total -= 1
+        scoop_bonus = 3 if abs(line_total) == 3 else 0
+        p0 = line_total
+        p0 += scoop_bonus if line_total > 0 else (-scoop_bonus if line_total < 0 else 0)
+        p0 += royalties[0]["total"] - royalties[1]["total"]
+        raw_score = [p0, -p0]
 
     return {
         "busted": busted,

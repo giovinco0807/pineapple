@@ -50,23 +50,18 @@ def policy_select_action(
     return best_idx, valid_actions
 
 
-def play_eval_hand(
+def play_eval_hand_with_deck(
     policy_a: torch.nn.Module,
     policy_b: torch.nn.Module,
+    deck: list,
     seat_a: int = 0,
     device: str = "cpu",
 ) -> HandResult:
     """
-    Play one hand: model A as seat_a, model B as the other.
-
-    Returns:
-        HandResult
+    Play one hand with a specific deck: model A as seat_a, model B as other.
     """
-    deck = list(ALL_CARDS)
-    random.shuffle(deck)
-    hand = Hand(deck=deck, btn=random.randint(0, 1))
+    hand = Hand(deck=list(deck), btn=0)
     seat_b = 1 - seat_a
-
     policies = {seat_a: policy_a, seat_b: policy_b}
 
     # Turn 0
@@ -106,13 +101,17 @@ def evaluate_models(
     value_a: torch.nn.Module,
     policy_b: torch.nn.Module,
     value_b: torch.nn.Module,
-    num_games: int = 100,
+    num_games: int = 200,
     device: str = "cpu",
 ) -> float:
     """
-    Evaluate model A vs model B.
+    Evaluate model A vs model B using deck pairing.
 
-    Plays num_games hands, alternating sides.
+    For each game, generates a random deck and plays two hands:
+      1. A=seat0, B=seat1
+      2. A=seat1, B=seat0  (same deck)
+    This cancels out luck from card distribution.
+
     Returns win rate of model A (per-hand wins / total).
     """
     policy_a.eval()
@@ -125,40 +124,47 @@ def evaluate_models(
     b_busts = 0
     score_a = 0
     score_b = 0
+    total_hands = 0
 
     for game_idx in range(num_games):
-        # Alternate who is P0 vs P1
-        seat_a = game_idx % 2
+        deck = list(ALL_CARDS)
+        random.shuffle(deck)
 
-        try:
-            result = play_eval_hand(policy_a, policy_b, seat_a, device)
-            seat_b = 1 - seat_a
+        # Play two hands with same deck, swapping seats
+        for seat_a_val in [0, 1]:
+            try:
+                result = play_eval_hand_with_deck(
+                    policy_a, policy_b, deck, seat_a=seat_a_val, device=device
+                )
+                seat_b_val = 1 - seat_a_val
 
-            sa = result.raw_score[seat_a]
-            sb = result.raw_score[seat_b]
-            score_a += sa
-            score_b += sb
+                sa = result.raw_score[seat_a_val]
+                sb = result.raw_score[seat_b_val]
+                score_a += sa
+                score_b += sb
+                total_hands += 1
 
-            if sa > sb:
-                wins_a += 1
-            elif sb > sa:
-                wins_b += 1
-            else:
-                draws += 1
+                if sa > sb:
+                    wins_a += 1
+                elif sb > sa:
+                    wins_b += 1
+                else:
+                    draws += 1
 
-            if result.busted[seat_a]:
-                a_busts += 1
-            if result.busted[seat_b]:
-                b_busts += 1
+                if result.busted[seat_a_val]:
+                    a_busts += 1
+                if result.busted[seat_b_val]:
+                    b_busts += 1
 
-        except Exception as e:
-            print(f"  [WARN] Eval game {game_idx} failed: {e}")
+            except Exception as e:
+                print(f"  [WARN] Eval game {game_idx} seat {seat_a_val} failed: {e}")
 
     total = wins_a + wins_b + draws
     win_rate = wins_a / max(total, 1)
+    avg_margin = (score_a - score_b) / max(total_hands, 1)
 
-    print(f"    Model A: wins={wins_a}, avg={score_a/max(num_games,1):.1f}, busts={a_busts}")
-    print(f"    Model B: wins={wins_b}, avg={score_b/max(num_games,1):.1f}, busts={b_busts}")
-    print(f"    Draws: {draws}")
+    print(f"    Model A: wins={wins_a}, avg={score_a/max(total_hands,1):.1f}, busts={a_busts}")
+    print(f"    Model B: wins={wins_b}, avg={score_b/max(total_hands,1):.1f}, busts={b_busts}")
+    print(f"    Draws: {draws}, Avg margin: {avg_margin:+.2f}/hand")
 
     return win_rate

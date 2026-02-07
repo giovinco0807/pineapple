@@ -242,13 +242,13 @@ class MCTS:
             pred = self.value_net(state_tensor)
 
         # Composite value from BC-learned heads:
-        #   royalty_ev: expected total royalties (higher = better)
-        #   bust_prob: probability of busting (lower = better, penalty = -6)
-        #   fl_prob: probability of FL entry (higher = better, bonus ~10)
+        #   royalty_ev: expected total royalties (directly additive to score)
+        #   bust_prob: probability of busting (penalty ≈ -6 scoop - ~5 opp royalty)
+        #   fl_prob: probability of FL entry (bonus ≈ +8 expected advantage)
         royalty = pred["royalty_ev"].item()
         bust = pred["bust_prob"].item()
         fl = pred["fl_prob"].item()
-        value = royalty * 0.5 - bust * 6.0 + fl * 10.0
+        value = royalty - bust * 11.0 + fl * 8.0
 
         # Normalize to [-1, 1] range (typical game values ~[-20, 30])
         return max(-1.0, min(1.0, value / 20.0))
