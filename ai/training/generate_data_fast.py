@@ -1,0 +1,438 @@
+"""
+OFC Pineapple - Fast Data Generator for Large-Scale Training
+
+Optimized for 1M+ games. Uses simplified action selection
+and batched writing for maximum throughput.
+
+Usage:
+    python ai/training/generate_data_fast.py --games 1000000 --output data/train_1m.jsonl
+"""
+import sys
+import json
+import random
+import time
+from pathlib import Path
+from collections import Counter
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+
+from ai.engine.encoding import ALL_CARDS
+from ai.engine.game_engine import RANK_VALUES
+
+
+def fast_game(deck: list) -> list:
+    """Play one full hand with fast heuristic and collect samples."""
+    btn = random.randint(0, 1)
+    boards = [{"top": [], "middle": [], "bottom": []},
+              {"top": [], "middle": [], "bottom": []}]
+    discards = [[], []]
+    samples = []
+
+    # Deal initial 5 each
+    hands = {0: deck[:5], 1: deck[5:10]}
+    idx = 10
+
+    # Turn 0: heuristic placement
+    for seat in [btn, 1 - btn]:
+        cards = hands[seat]
+        board = boards[seat]
+        board_before = {"top": list(board["top"]), "middle": list(board["middle"]),
+                        "bottom": list(board["bottom"])}
+
+        placements = heuristic_initial(cards, board)
+
+        samples.append({
+            "turn_log": {
+                "turn": 0, "player": seat, "is_btn": seat == btn,
+                "board_self": board_before,
+                "board_opponent": {"top": [], "middle": [], "bottom": []},
+                "dealt_cards": list(cards),
+                "discards_self": [],
+                "action": {"placements": placements, "discard": None},
+            }
+        })
+
+        for card, pos in placements:
+            board[pos].append(card)
+
+    # Turns 1-8
+    for turn in range(1, 9):
+        complete = all(
+            len(b["top"]) == 3 and len(b["middle"]) == 5 and len(b["bottom"]) == 5
+            for b in boards
+        )
+        if complete:
+            break
+
+        hands = {0: deck[idx:idx + 3], 1: deck[idx + 3:idx + 6]}
+        idx += 6
+
+        for seat in [btn, 1 - btn]:
+            cards = hands[seat]
+            if not cards or len(cards) < 3:
+                continue
+            board = boards[seat]
+
+            if (len(board["top"]) == 3 and len(board["middle"]) == 5
+                    and len(board["bottom"]) == 5):
+                continue
+
+            board_before = {"top": list(board["top"]), "middle": list(board["middle"]),
+                            "bottom": list(board["bottom"])}
+
+            placements, discard = heuristic_turn(cards, board)
+
+            samples.append({
+                "turn_log": {
+                    "turn": turn, "player": seat, "is_btn": seat == btn,
+                    "board_self": board_before,
+                    "board_opponent": boards[1 - seat].copy(),
+                    "dealt_cards": list(cards),
+                    "discards_self": list(discards[seat]),
+                    "action": {"placements": placements, "discard": discard},
+                }
+            })
+
+            for card, pos in placements:
+                board[pos].append(card)
+            if discard:
+                discards[seat].append(discard)
+
+    # Score
+    hand_result = fast_score(boards)
+
+    for s in samples:
+        s["hand_result"] = hand_result
+
+    return samples
+
+
+def card_rank(card: str) -> int:
+    if card in ("X1", "X2"):
+        return 14
+    return RANK_VALUES.get(card[0], 7)
+
+
+def heuristic_initial(cards: list, board: dict) -> list:
+    """Fast heuristic for turn 0: sort by rank, put low top, high bottom."""
+    sorted_cards = sorted(cards, key=card_rank)
+
+    # Find pairs
+    ranks = [card_rank(c) for c in sorted_cards]
+    rc = Counter(ranks)
+    pairs = [(r, [c for c in sorted_cards if card_rank(c) == r])
+             for r, cnt in rc.items() if cnt >= 2]
+
+    placements = []
+    used = set()
+
+    if pairs:
+        # Put best pair in bottom
+        best_pair = max(pairs, key=lambda x: x[0])
+        for c in best_pair[1][:2]:
+            placements.append((c, "bottom"))
+            used.add(c)
+
+    remaining = [c for c in sorted_cards if c not in used]
+
+    # Fill: lowest to top, rest to middle, overflow to bottom
+    positions = []
+    top_space = 3 - len(board["top"])
+    mid_space = 5 - len(board["middle"])
+    bot_space = 5 - len(board["bottom"]) - len([p for p in placements if p[1] == "bottom"])
+
+    for c in remaining:
+        if top_space > 0:
+            positions.append("top")
+            top_space -= 1
+        elif mid_space > 0:
+            positions.append("middle")
+            mid_space -= 1
+        elif bot_space > 0:
+            positions.append("bottom")
+            bot_space -= 1
+        else:
+            positions.append("middle")
+
+    for c, p in zip(remaining, positions):
+        placements.append((c, p))
+
+    return placements
+
+
+def heuristic_turn(cards: list, board: dict) -> tuple:
+    """Fast heuristic for turns 1-8: discard lowest, place remaining."""
+    sorted_cards = sorted(cards, key=card_rank)
+    discard = sorted_cards[0]  # Discard lowest
+    remaining = sorted_cards[1:]
+
+    # Sometimes discard mid instead of lowest (add randomness)
+    if random.random() < 0.3:
+        discard = sorted_cards[1]
+        remaining = [sorted_cards[0], sorted_cards[2]]
+
+    placements = []
+    for c in sorted(remaining, key=card_rank):
+        r = card_rank(c)
+        # Try to place strategically
+        if r <= 8 and len(board["top"]) < 3:
+            placements.append((c, "top"))
+        elif r >= 10 and len(board["bottom"]) < 5:
+            placements.append((c, "bottom"))
+        elif len(board["middle"]) < 5:
+            placements.append((c, "middle"))
+        elif len(board["bottom"]) < 5:
+            placements.append((c, "bottom"))
+        elif len(board["top"]) < 3:
+            placements.append((c, "top"))
+        else:
+            placements.append((c, "middle"))
+
+    return placements, discard
+
+
+def fast_score(boards: list) -> dict:
+    """Quick scoring without full hand evaluation."""
+    busted = [False, False]
+    royalties = [{"top": 0, "middle": 0, "bottom": 0, "total": 0},
+                 {"top": 0, "middle": 0, "bottom": 0, "total": 0}]
+    fl_entry = [False, False]
+    raw_score = [0, 0]
+
+    for seat in [0, 1]:
+        b = boards[seat]
+        top_val = quick_eval(b["top"], 3)
+        mid_val = quick_eval(b["middle"], 5)
+        bot_val = quick_eval(b["bottom"], 5)
+
+        if top_val > mid_val or mid_val > bot_val:
+            busted[seat] = True
+        else:
+            royalties[seat]["top"] = quick_top_royalty(b["top"])
+            royalties[seat]["middle"] = quick_mid_royalty(b["middle"])
+            royalties[seat]["bottom"] = quick_bot_royalty(b["bottom"])
+            royalties[seat]["total"] = (royalties[seat]["top"] +
+                                        royalties[seat]["middle"] +
+                                        royalties[seat]["bottom"])
+
+            # Check FL entry
+            if royalties[seat]["top"] >= 3:  # QQ+
+                fl_entry[seat] = True
+
+    # Simple line comparison
+    if busted[0] and not busted[1]:
+        raw_score = [-6, 6]
+    elif busted[1] and not busted[0]:
+        raw_score = [6, -6]
+    elif not busted[0] and not busted[1]:
+        raw_score = [0, 0]  # Simplified
+
+    return {
+        "busted": busted,
+        "royalties": royalties,
+        "fl_entry": fl_entry,
+        "raw_score": raw_score,
+    }
+
+
+def quick_eval(cards: list, expected: int) -> int:
+    """Fast hand evaluation (value for ordering check)."""
+    if len(cards) != expected:
+        return 0
+    ranks = []
+    suits = []
+    jokers = 0
+    for c in cards:
+        if c in ("X1", "X2"):
+            jokers += 1
+        else:
+            ranks.append(RANK_VALUES.get(c[0], 0))
+            suits.append(c[1])
+    if not ranks:
+        return 4000 + 14  # All jokers = trips
+
+    rc = Counter(ranks)
+    best = max(rc.values())
+
+    if expected == 3:
+        if best + jokers >= 3:
+            return 4000 + max(ranks)
+        if best + jokers >= 2:
+            return 2000 + max(r for r, c in rc.items() if c + jokers >= 2)
+        return max(ranks)
+    else:
+        # Check flush
+        sc = Counter(suits)
+        is_flush = (max(sc.values()) + jokers >= 5) if sc else jokers >= 5
+
+        # Check straight
+        is_straight = _quick_check_straight(sorted(ranks, reverse=True), jokers)
+
+        # Straight flush / Royal flush
+        if is_flush and is_straight:
+            return 9000 + (max(ranks) if ranks else 14)
+        # Four of a kind
+        if best + jokers >= 4:
+            return 8000 + max(ranks)
+        # Full house (tightened: need trips + pair)
+        if best >= 3 and len(rc) == 2:
+            return 7000 + max(ranks)
+        if best >= 2 and jokers >= 1 and len(rc) == 2:
+            return 7000 + max(ranks)
+        # Flush
+        if is_flush:
+            return 6000 + max(ranks)
+        # Straight
+        if is_straight:
+            return 5000 + max(ranks)
+        # Three of a kind
+        if best + jokers >= 3:
+            return 4000 + max(ranks)
+        pairs = [r for r, c in rc.items() if c >= 2]
+        if len(pairs) >= 2:
+            return 3000 + max(pairs)
+        if best >= 2 or jokers >= 1:
+            return 2000 + max(ranks)
+        return max(ranks)
+
+
+def _quick_check_straight(sorted_ranks: list, jokers: int) -> bool:
+    """Check if ranks can form a straight (with jokers)."""
+    if len(sorted_ranks) + jokers < 5:
+        return False
+    unique = sorted(set(sorted_ranks), reverse=True)
+    # Check A-high straight: A K Q J T
+    if 14 in unique:
+        unique_with_low = unique + [1]
+    else:
+        unique_with_low = unique
+
+    for start_idx in range(len(unique_with_low)):
+        high = unique_with_low[start_idx]
+        needed = 0
+        for i in range(5):
+            if (high - i) not in unique_with_low:
+                needed += 1
+        if needed <= jokers:
+            return True
+    return False
+
+
+def quick_mid_royalty(cards: list) -> int:
+    """Quick middle row royalty."""
+    val = quick_eval(cards, 5)
+    if val >= 9014: return 50   # Royal flush
+    if val >= 9000: return 30   # Straight flush
+    if val >= 8000: return 20   # Four of a kind
+    if val >= 7000: return 12   # Full house
+    if val >= 6000: return 8    # Flush
+    if val >= 5000: return 4    # Straight
+    if val >= 4000: return 2    # Three of a kind
+    return 0
+
+
+def quick_bot_royalty(cards: list) -> int:
+    """Quick bottom row royalty."""
+    val = quick_eval(cards, 5)
+    if val >= 9014: return 25   # Royal flush
+    if val >= 9000: return 15   # Straight flush
+    if val >= 8000: return 10   # Four of a kind
+    if val >= 7000: return 6    # Full house
+    if val >= 6000: return 4    # Flush
+    if val >= 5000: return 2    # Straight
+    return 0
+
+
+def quick_top_royalty(cards: list) -> int:
+    """Quick top row royalty."""
+    ranks = []
+    jokers = 0
+    for c in cards:
+        if c in ("X1", "X2"):
+            jokers += 1
+        else:
+            ranks.append(RANK_VALUES.get(c[0], 0))
+    rc = Counter(ranks)
+    for r in sorted(rc.keys(), reverse=True):
+        if rc[r] + jokers >= 3:
+            return 10 + (r - 2)
+        if rc[r] + jokers >= 2 and r >= 6:
+            return r - 5
+    return 0
+
+
+def generate_dataset(num_games: int, output_path: str):
+    """Generate training data at scale."""
+    output = Path(output_path)
+    output.parent.mkdir(parents=True, exist_ok=True)
+
+    total_samples = 0
+    total_busts = 0
+    total_fl = 0
+    errors = 0
+    start_time = time.time()
+
+    BATCH_SIZE = 10000
+    buffer = []
+
+    with open(output, "w", encoding="utf-8") as f:
+        for i in range(num_games):
+            try:
+                deck = list(ALL_CARDS)
+                random.shuffle(deck)
+                samples = fast_game(deck)
+                buffer.extend(samples)
+
+                for s in samples:
+                    p = s["turn_log"]["player"]
+                    if s["hand_result"]["busted"][p]:
+                        total_busts += 1
+                    if s["hand_result"]["fl_entry"][p]:
+                        total_fl += 1
+                total_samples += len(samples)
+
+            except Exception as e:
+                errors += 1
+
+            if len(buffer) >= BATCH_SIZE:
+                for s in buffer:
+                    f.write(json.dumps(s, ensure_ascii=False) + "\n")
+                buffer.clear()
+
+            if (i + 1) % 100000 == 0:
+                elapsed = time.time() - start_time
+                rate = (i + 1) / elapsed
+                eta = (num_games - i - 1) / rate
+                print(f"  {i+1:,}/{num_games:,} games "
+                      f"({total_samples:,} samples, "
+                      f"{rate:.0f} games/s, "
+                      f"ETA {eta/60:.1f}min)")
+
+        # Flush remaining
+        for s in buffer:
+            f.write(json.dumps(s, ensure_ascii=False) + "\n")
+
+    elapsed = time.time() - start_time
+    bust_rate = total_busts / max(total_samples, 1)
+    fl_rate = total_fl / max(total_samples, 1)
+
+    print(f"\n--- Generation Complete ---")
+    print(f"  Games: {num_games - errors:,} ({errors} errors)")
+    print(f"  Samples: {total_samples:,}")
+    print(f"  Bust rate: {bust_rate:.1%}")
+    print(f"  FL rate: {fl_rate:.1%}")
+    print(f"  Time: {elapsed:.1f}s ({num_games/elapsed:.0f} games/s)")
+    print(f"  Output: {output}")
+
+
+if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser(description="Fast data generator")
+    parser.add_argument("--games", type=int, default=1000000)
+    parser.add_argument("--output", default="data/train_1m.jsonl")
+    parser.add_argument("--seed", type=int, default=42)
+    args = parser.parse_args()
+
+    random.seed(args.seed)
+    print(f"Generating {args.games:,} games...")
+    generate_dataset(args.games, args.output)

@@ -1,0 +1,60 @@
+.card {
+    width: 50px;
+    height: 70px;
+    border: 2px solid #333;
+    border-radius: 6px;
+    background: linear-gradient(145deg, #fff, #f0f0f0);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    user-select: none;
+}
+
+.card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.card.selected {
+    border-color: #4CAF50;
+    box-shadow: 0 0 10px rgba(76, 175, 80, 0.6);
+    transform: translateY(-5px);
+}
+
+.card-back {
+    background: linear-gradient(145deg, #1a237e, #3f51b5);
+    color: white;
+    font-size: 28px;
+}
+
+.card-joker {
+    background: linear-gradient(145deg, #9c27b0, #e91e63);
+    color: white;
+}
+
+.rank {
+    font-size: 18px;
+    font-weight: bold;
+}
+
+.suit {
+    font-size: 20px;
+}
+
+.suit-label {
+    font-size: 12px;
+    margin-top: 2px;
+}
+
+/* Drag state */
+.card[draggable="true"] {
+    cursor: grab;
+}
+
+.card[draggable="true"]:active {
+    cursor: grabbing;
+}

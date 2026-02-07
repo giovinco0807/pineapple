@@ -1,0 +1,60 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+dist/
+build/
+.eggs/
+*.so
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Training data (large files)
+data/*.jsonl
+data/*.npy
+data/processed_*/
+data/raw/
+
+# Model checkpoints (large files)
+ai/models/checkpoints/
+ai/models/checkpoints_v3/
+ai/models/selfplay/
+ai/models/selfplay_v2/
+ai/models/selfplay_test/
+ai/models/*.pt
+ai/models/*.zip
+*.pt
+*.zip
+
+# Node
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/.next/
+
+# Rust
+**/target/
+*.pyd
+*.dll
+
+# Logs
+*.log
+nohup.out
+
+# Environment
+.env
+.env.local

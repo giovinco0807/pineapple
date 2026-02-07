@@ -1,0 +1,190 @@
+﻿############################################################
+  OFC Pineapple Self-Play Test
+  3 hands, starting chips: [200, 200]
+############################################################
+
+============================================================
+  New Hand (BTN=P0)
+============================================================
+  P0 dealt: ['2s', 'Td', '7s', '6c', '8d']
+    -> Top:['8d', 'Td'] Mid:['7s'] Bot:['2s', '6c']
+  P1 dealt: ['Js', '5d', '7c', '4c', 'Jh']
+    -> Top:['4c'] Mid:['5d', 'Js'] Bot:['7c', 'Jh']
+
+  --- Turn 1 ---
+  P0 dealt: ['Kh', 'Qd', '5c'] -> discard=5c
+    Kh -> middle
+    Qd -> bottom
+  P1 dealt: ['Qs', '9c', '5h'] -> discard=5h
+    Qs -> top
+    9c -> middle
+
+  --- Turn 2 ---
+  P0 dealt: ['9d', '8s', '6h'] -> discard=8s
+    9d -> middle
+    6h -> middle
+  P1 dealt: ['X2', 'Qh', 'Qc'] -> discard=Qc
+    X2 -> middle
+    Qh -> top
+
+  --- Turn 3 ---
+  P0 dealt: ['Jd', '4s', 'Kd'] -> discard=Jd
+    4s -> bottom
+    Kd -> bottom
+  P1 dealt: ['2h', 'Ad', '9s'] -> discard=2h
+    Ad -> bottom
+    9s -> middle
+
+  --- Turn 4 ---
+  P0 dealt: ['7d', 'Jc', 'X1'] -> discard=7d
+    Jc -> top
+    X1 -> middle
+  P1 dealt: ['2c', 'Ah', 'Ac'] -> discard=Ac
+    2c -> bottom
+    Ah -> bottom
+
+  ========================================
+  RESULT:
+  P0: [BUST] 
+    Top:    ['8d', 'Td', 'Jc']             繝上う繧ｫ繝ｼ繝・          R=0
+    Middle: ['7s', 'Kh', '9d', '6h', 'X1'] 繝ｯ繝ｳ繝壹い            R=0
+    Bottom: ['2s', '6c', 'Qd', '4s', 'Kd'] 繝上う繧ｫ繝ｼ繝・          R=0
+    Total Royalty: 0
+  P1: [BUST] 
+    Top:    ['4c', 'Qs', 'Qh']             Q縺ｮ繝壹い            R=0
+    Middle: ['5d', 'Js', '9c', 'X2', '9s'] 繝輔Ν繝上え繧ｹ           R=0
+    Bottom: ['7c', 'Jh', 'Ad', '2c', 'Ah'] 繝ｯ繝ｳ繝壹い            R=0
+    Total Royalty: 0
+
+  Lines: Top=+0 Mid=+0 Bot=+0
+  Scoop: No
+  Score: P0=+0 P1=+0
+
+  Chips: P0=200 P1=200
+
+============================================================
+  New Hand (BTN=P1)
+============================================================
+  P1 dealt: ['5d', '4c', '2s', 'Jc', '7c']
+    -> Top:['7c', 'Jc'] Mid:['2s', '4c', '5d'] Bot:[]
+  P0 dealt: ['2h', '8d', 'As', 'Kc', '2c']
+    -> Top:['2c', 'Kc'] Mid:['2h'] Bot:['8d', 'As']
+
+  --- Turn 1 ---
+  P1 dealt: ['Jh', 'X1', 'Js'] -> discard=X1
+    Jh -> bottom
+    Js -> top
+  P0 dealt: ['5h', 'Ks', 'Kh'] -> discard=Kh
+    5h -> middle
+    Ks -> top
+
+  --- Turn 2 ---
+  P1 dealt: ['4s', '3c', 'Ad'] -> discard=3c
+    4s -> bottom
+    Ad -> middle
+  P0 dealt: ['4h', '6c', 'Ah'] -> discard=6c
+    4h -> middle
+    Ah -> bottom
+
+  --- Turn 3 ---
+  P1 dealt: ['9h', 'Ac', '7s'] -> discard=Ac
+    9h -> middle
+    7s -> bottom
+  P0 dealt: ['3h', '9c', 'Td'] -> discard=3h
+    9c -> bottom
+    Td -> middle
+
+  --- Turn 4 ---
+  P1 dealt: ['Ts', '8s', 'Qc'] -> discard=Qc
+    Ts -> bottom
+    8s -> bottom
+  P0 dealt: ['9d', '8c', 'Th'] -> discard=8c
+    9d -> bottom
+    Th -> middle
+
+  ========================================
+  RESULT:
+  P0: [BUST] 
+    Top:    ['2c', 'Kc', 'Ks']             K縺ｮ繝壹い            R=0
+    Middle: ['2h', '5h', '4h', 'Td', 'Th'] 繝ｯ繝ｳ繝壹い            R=0
+    Bottom: ['8d', 'As', 'Ah', '9c', '9d'] 繝・・繝壹い            R=0
+    Total Royalty: 0
+  P1: [BUST] 
+    Top:    ['7c', 'Jc', 'Js']             J縺ｮ繝壹い            R=0
+    Middle: ['2s', '4c', '5d', 'Ad', '9h'] 繝上う繧ｫ繝ｼ繝・          R=0
+    Bottom: ['Jh', '4s', '7s', 'Ts', '8s'] 繝上う繧ｫ繝ｼ繝・          R=0
+    Total Royalty: 0
+
+  Lines: Top=+0 Mid=+0 Bot=+0
+  Scoop: No
+  Score: P0=+0 P1=+0
+
+  Chips: P0=200 P1=200
+
+============================================================
+  New Hand (BTN=P0)
+============================================================
+  P0 dealt: ['3h', '8d', 'Ts', '4d', '2s']
+    -> Top:['3h'] Mid:['2s', 'Ts'] Bot:['4d', '8d']
+  P1 dealt: ['X1', '7d', '7c', '8s', '2c']
+    -> Top:['2c', '7d', 'X1'] Mid:['7c', '8s'] Bot:[]
+
+  --- Turn 1 ---
+  P0 dealt: ['Kh', '4s', '4h'] -> discard=4h
+    Kh -> top
+    4s -> top
+  P1 dealt: ['Ah', '8c', '9s'] -> discard=Ah
+    8c -> middle
+    9s -> bottom
+
+  --- Turn 2 ---
+  P0 dealt: ['8h', '9d', '6c'] -> discard=8h
+    9d -> middle
+    6c -> bottom
+  P1 dealt: ['As', 'Jd', '4c'] -> discard=4c
+    As -> bottom
+    Jd -> bottom
+
+  --- Turn 3 ---
+  P0 dealt: ['Kc', 'Th', 'Ad'] -> discard=Th
+    Kc -> bottom
+    Ad -> bottom
+  P1 dealt: ['Qd', 'Qc', '3d'] -> discard=Qd
+    Qc -> middle
+    3d -> bottom
+
+  --- Turn 4 ---
+  P0 dealt: ['X2', '2d', 'Qs'] -> discard=Qs
+    X2 -> middle
+    2d -> middle
+  P1 dealt: ['Tc', 'Td', '6d'] -> discard=Tc
+    Td -> bottom
+    6d -> middle
+
+  ========================================
+  RESULT:
+  P0: [BUST] 
+    Top:    ['3h', 'Kh', '4s']             繝上う繧ｫ繝ｼ繝・          R=0
+    Middle: ['2s', 'Ts', '9d', 'X2', '2d'] 繝輔Ν繝上え繧ｹ           R=0
+    Bottom: ['4d', '8d', '6c', 'Kc', 'Ad'] 繝上う繧ｫ繝ｼ繝・          R=0
+    Total Royalty: 0
+  P1: [BUST] 
+    Top:    ['2c', '7d', 'X1']             7縺ｮ繝壹い            R=0
+    Middle: ['7c', '8s', '8c', 'Qc', '6d'] 繝ｯ繝ｳ繝壹い            R=0
+    Bottom: ['9s', 'As', 'Jd', '3d', 'Td'] 繝上う繧ｫ繝ｼ繝・          R=0
+    Total Royalty: 0
+
+  Lines: Top=+0 Mid=+0 Bot=+0
+  Scoop: No
+  Score: P0=+0 P1=+0
+
+  Chips: P0=200 P1=200
+
+############################################################
+  SESSION COMPLETE
+  Hands played: 3
+  Final chips: P0=200 P1=200
+  Busts: P0=3 P1=3
+  FL entries: P0=0 P1=0
+  Winner: DRAW
+############################################################

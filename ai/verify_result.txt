@@ -1,0 +1,42 @@
+﻿======================================================================
+【配られた14枚】
+======================================================================
+python : Traceback 
+(most recent call l
+ast):
+発生場所 行:1 文字:1
++ python ai/verify_
+one.py 2>&1 | Out-F
+ile -Encoding utf8 
+ai/verify_resu ...
++ ~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~
+    + CategoryInfo 
+             : No  
+  tSpecified: (T   
+ raceback (most    
+ recent call l    a
+st)::String)     []
+, RemoteExce    pti
+on
+    + FullyQualifi 
+   edErrorId : Na  
+  tiveCommandErr   
+ or
+ 
+  File "C:\Users\Ow
+ner\.gemini\antigra
+vity\scratch\ofc-pi
+neapple\ai\verify_o
+ne.py", line 20, in
+ <module>
+    print(cards_to_
+str(hand))
+    ~~~~~^^^^^^^^^^
+^^^^^^^^^^
+UnicodeEncodeError:
+ 'cp932' codec can'
+t encode character 
+'\u2660' in positio
+n 1: illegal multib
+yte sequence

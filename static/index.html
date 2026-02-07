@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OFC Pineapple</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="game-container">
+        <header class="game-header">
+            <h1>OFC Pineapple</h1>
+            <div class="stacks">
+                <span class="stack player-stack">You: <span id="player-stack">200</span></span>
+                <span class="stack ai-stack">AI: <span id="ai-stack">200</span></span>
+            </div>
+        </header>
+
+        <main class="game-board">
+            <!-- AI Board (opponent) -->
+            <div class="board opponent-board">
+                <h3>AI</h3>
+                <div class="row top-row" id="ai-top">
+                    <div class="card-slot"></div>
+                    <div class="card-slot"></div>
+                    <div class="card-slot"></div>
+                </div>
+                <div class="row middle-row" id="ai-middle">
+                    <div class="card-slot"></div>
+                    <div class="card-slot"></div>
+                    <div class="card-slot"></div>
+                    <div class="card-slot"></div>
+                    <div class="card-slot"></div>
+                </div>
+                <div class="row bottom-row" id="ai-bottom">
+                    <div class="card-slot"></div>
+                    <div class="card-slot"></div>
+                    <div class="card-slot"></div>
+                    <div class="card-slot"></div>
+                    <div class="card-slot"></div>
+                </div>
+            </div>
+
+            <!-- Player Board -->
+            <div class="board player-board">
+                <h3>You</h3>
+                <div class="row top-row droppable" id="player-top" data-row="top">
+                    <div class="card-slot"></div>
+                    <div class="card-slot"></div>
+                    <div class="card-slot"></div>
+                </div>
+                <div class="row middle-row droppable" id="player-middle" data-row="middle">
+                    <div class="card-slot"></div>
+                    <div class="card-slot"></div>
+                    <div class="card-slot"></div>
+                    <div class="card-slot"></div>
+                    <div class="card-slot"></div>
+                </div>
+                <div class="row bottom-row droppable" id="player-bottom" data-row="bottom">
+                    <div class="card-slot"></div>
+                    <div class="card-slot"></div>
+                    <div class="card-slot"></div>
+                    <div class="card-slot"></div>
+                    <div class="card-slot"></div>
+                </div>
+            </div>
+
+            <!-- Player Hand -->
+            <div class="hand-area">
+                <h3>Hand</h3>
+                <div class="hand" id="player-hand"></div>
+                <div class="discard-area" id="discard-area" style="display: none;">
+                    <span>Discard:</span>
+                    <div class="discard-slot" id="discard-slot"></div>
+                </div>
+            </div>
+        </main>
+
+        <footer class="game-controls">
+            <div class="phase-info">
+                <span id="phase-text">Click "New Game" to start</span>
+                <span id="round-info"></span>
+            </div>
+            <div class="buttons">
+                <button id="new-game-btn" class="btn btn-primary">New Game</button>
+                <button id="confirm-btn" class="btn btn-success" disabled>Confirm</button>
+                <button id="next-round-btn" class="btn btn-primary" style="display: none;">Next Round</button>
+                <button id="end-session-btn" class="btn btn-danger" style="display: none;">End Session</button>
+            </div>
+        </footer>
+
+        <!-- Score Modal -->
+        <div class="modal" id="score-modal" style="display: none;">
+            <div class="modal-content">
+                <h2>Round Result</h2>
+                <div id="score-details"></div>
+                <button id="close-modal-btn" class="btn btn-primary">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/game.js"></script>
+</body>
+</html>
