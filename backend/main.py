@@ -349,6 +349,17 @@ async def handle_message(room: GameRoom, player_id: str, seat: int, data: dict):
             room.game = GameState(room.room_id, room.players)
             hand_info = room.game.start_hand()
             
+            # Log session and hand start to DB
+            try:
+                db_logger.log_session_start(
+                    room.game.session_id, room.room_id,
+                    room.players[0], room.players[1] if len(room.players) > 1 else "")
+                db_logger.log_hand_start(
+                    room.game.hand_id, room.game.session_id,
+                    room.game.hands_played, room.game.btn, room.game.chips)
+            except Exception as e:
+                print(f"[WARN] DB log session/hand start: {e}")
+            
             await room.broadcast({
                 "type": "session_start",
                 "session_id": room.game.session_id,
@@ -401,6 +412,15 @@ async def handle_message(room: GameRoom, player_id: str, seat: int, data: dict):
                 if room.game.is_hand_complete():
                     # Hand complete - score it
                     result = calculate_scores(room.game)
+                    
+                    # Log hand end to DB
+                    try:
+                        db_logger.log_hand_end(
+                            room.game.hand_id, room.game.chips,
+                            result["raw_score"], result["actual_score"], result)
+                    except Exception as e:
+                        print(f"[WARN] DB log hand end: {e}")
+                    
                     await room.broadcast({
                         "type": "hand_end",
                         "result": result
@@ -445,6 +465,14 @@ async def handle_message(room: GameRoom, player_id: str, seat: int, data: dict):
             room.game.next_btn()
             hand_info = room.game.start_hand()
             
+            # Log hand start to DB
+            try:
+                db_logger.log_hand_start(
+                    room.game.hand_id, room.game.session_id,
+                    room.game.hands_played, room.game.btn, room.game.chips)
+            except Exception as e:
+                print(f"[WARN] DB log hand start: {e}")
+            
             # Auto-solve FL hands
             for s in [0, 1]:
                 if room.game.is_fantasyland[s]:
@@ -470,6 +498,15 @@ async def handle_message(room: GameRoom, player_id: str, seat: int, data: dict):
                     })
                 # Score immediately
                 result = calculate_scores(room.game)
+                
+                # Log hand end to DB
+                try:
+                    db_logger.log_hand_end(
+                        room.game.hand_id, room.game.chips,
+                        result["raw_score"], result["actual_score"], result)
+                except Exception as e:
+                    print(f"[WARN] DB log hand end: {e}")
+                
                 await room.broadcast({
                     "type": "hand_end",
                     "result": result

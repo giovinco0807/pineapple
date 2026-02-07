@@ -98,11 +98,34 @@ class LogWriter:
                   1 if fl_stay else 0, datetime.utcnow().isoformat()))
     
     def export_to_jsonl(self, output_path: str = "data/logs/training_data.jsonl"):
-        """Export turns to JSONL for AI training."""
+        """Export turns to JSONL for AI training (BC-compatible format)."""
         Path(output_path).parent.mkdir(parents=True, exist_ok=True)
         
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
+
+            # Load hand results (busted, royalties, fl_entry, raw_score)
+            hand_results = {}
+            hand_cursor = conn.execute("""
+                SELECT hand_id, result_detail, raw_score
+                FROM hands WHERE result_detail IS NOT NULL
+            """)
+            for hrow in hand_cursor:
+                try:
+                    detail = json.loads(hrow["result_detail"]) if hrow["result_detail"] else {}
+                    raw = json.loads(hrow["raw_score"]) if hrow["raw_score"] else [0, 0]
+                    hand_results[hrow["hand_id"]] = {
+                        "busted": detail.get("busted", [False, False]),
+                        "royalties": detail.get("royalties", [
+                            {"top": 0, "middle": 0, "bottom": 0, "total": 0},
+                            {"top": 0, "middle": 0, "bottom": 0, "total": 0},
+                        ]),
+                        "fl_entry": detail.get("fl_entry", [False, False]),
+                        "raw_score": raw,
+                    }
+                except Exception:
+                    pass
+
             cursor = conn.execute("""
                 SELECT t.*, h.hand_number, h.btn, s.session_id
                 FROM turns t
@@ -111,27 +134,32 @@ class LogWriter:
                 ORDER BY t.timestamp
             """)
             
+            count = 0
             with open(output_path, 'w') as f:
                 for row in cursor:
+                    hid = row["hand_id"]
+                    hr = hand_results.get(hid)
+                    if not hr:
+                        continue  # Skip turns without hand result
+
                     record = {
-                        "session_id": row["session_id"],
-                        "hand_id": row["hand_id"],
-                        "hand_number": row["hand_number"],
-                        "turn": row["turn"],
-                        "player": row["player"],
-                        "btn": row["btn"],
-                        "is_btn": row["player"] == row["btn"],
-                        "board_self": json.loads(row["board_self"]),
-                        "board_opponent": json.loads(row["board_opponent"]),
-                        "dealt_cards": json.loads(row["dealt_cards"]),
-                        "known_discards_self": json.loads(row["known_discards"]),
-                        "action": {
-                            "placements": json.loads(row["action_placements"]),
-                            "discard": row["action_discard"]
+                        "turn_log": {
+                            "turn": row["turn"],
+                            "player": row["player"],
+                            "is_btn": row["player"] == row["btn"],
+                            "board_self": json.loads(row["board_self"]),
+                            "board_opponent": json.loads(row["board_opponent"]),
+                            "dealt_cards": json.loads(row["dealt_cards"]),
+                            "discards_self": json.loads(row["known_discards"]),
+                            "action": {
+                                "placements": json.loads(row["action_placements"]),
+                                "discard": row["action_discard"]
+                            },
                         },
-                        "think_time_ms": row["think_time_ms"],
-                        "timestamp": row["timestamp"]
+                        "hand_result": hr,
                     }
                     f.write(json.dumps(record) + "\n")
+                    count += 1
         
+        print(f"Exported {count} turns to {output_path}")
         return output_path
