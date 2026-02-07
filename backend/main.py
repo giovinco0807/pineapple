@@ -203,9 +203,17 @@ class GameRoom:
                 except:
                     pass
     
-    def log_turn(self, seat: int, placements: list, discard: Optional[str]):
+    def log_turn(self, seat: int, placements: list, discard: Optional[str],
+                 board_before: Optional[dict] = None, opp_board_before: Optional[dict] = None):
         if not self.game:
             return
+        # Use pre-captured board if provided, else current (deep copy)
+        bs = board_before if board_before else {
+            k: list(v) for k, v in self.game.boards[seat].items()
+        }
+        ob = opp_board_before if opp_board_before else {
+            k: list(v) for k, v in self.game.boards[1-seat].items()
+        }
         log_entry = {
             "session_id": self.game.session_id,
             "hand_id": self.game.hand_id,
@@ -215,8 +223,8 @@ class GameRoom:
             "btn": self.game.btn,
             "is_btn": seat == self.game.btn,
             "chips": self.game.chips.copy(),
-            "board_self": self.game.boards[seat].copy(),
-            "board_opponent": self.game.boards[1-seat].copy(),
+            "board_self": bs,
+            "board_opponent": ob,
             "dealt_cards": self.game.dealt_cards.get(seat, []),
             "known_discards_self": self.game.discards[seat].copy(),
             "action": {
@@ -389,9 +397,20 @@ async def handle_message(room: GameRoom, player_id: str, seat: int, data: dict):
         placements = data.get("placements", [])
         discard = data.get("discard")
         
+        # Capture pre-action board state (deep copy - inner lists too)
+        board_before = {
+            k: list(v) for k, v in room.game.boards[seat].items()
+        }
+        opp_board_before = {
+            k: list(v) for k, v in room.game.boards[1-seat].items()
+        }
+        
         # Apply placement
         if room.game.apply_placement(seat, placements, discard):
-            room.log_turn(seat, placements, discard)
+            # Log with pre-action board state
+            room.log_turn(seat, placements, discard,
+                          board_before=board_before,
+                          opp_board_before=opp_board_before)
             
             # Notify opponent (hide FL board)
             opponent_seat = 1 - seat
@@ -572,7 +591,7 @@ def calculate_scores(game: GameState) -> dict:
             royalties[seat]["top"] = get_top_royalty(board["top"])
             royalties[seat]["middle"] = get_middle_royalty(board["middle"])
             royalties[seat]["bottom"] = get_bottom_royalty(board["bottom"])
-            royalties[seat]["total"] = sum(royalties[seat].values()) - royalties[seat]["total"]
+            royalties[seat]["total"] = royalties[seat]["top"] + royalties[seat]["middle"] + royalties[seat]["bottom"]
             
             # Check FL entry
             fl, cards = check_fl_entry(board["top"])
@@ -704,7 +723,7 @@ def evaluate_hand(cards: list, expected_count: int) -> int:
     suit_counts = Counter(suits)
     
     sorted_ranks = sorted(ranks, reverse=True)
-    is_flush = len(suit_counts) == 1 and len(suits) == expected_count
+    is_flush = len(suit_counts) == 1 and (len(suits) + jokers) == expected_count
     is_straight = check_straight(sorted_ranks)
     
     # 3-card hand evaluation
