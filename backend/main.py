@@ -654,10 +654,17 @@ def calculate_scores(game: GameState) -> dict:
             royalties[seat]["bottom"] = get_bottom_royalty(board["bottom"])
             royalties[seat]["total"] = royalties[seat]["top"] + royalties[seat]["middle"] + royalties[seat]["bottom"]
             
-            # Check FL entry
-            fl, cards = check_fl_entry(board["top"])
-            fl_entry[seat] = fl
-            fl_card_count[seat] = cards
+            # Check FL entry/stay
+            if game.is_fantasyland[seat] and not busted[seat]:
+                # Already in FL → check FL STAY conditions
+                fl_s, fl_c = check_fl_stay(board, hand_values[seat])
+                fl_entry[seat] = fl_s
+                fl_card_count[seat] = fl_c
+            elif not busted[seat]:
+                # Not in FL → check FL ENTRY (top row QQ+)
+                fl, cards = check_fl_entry(board["top"])
+                fl_entry[seat] = fl
+                fl_card_count[seat] = cards
     
     # Calculate line results (P0 perspective: +1 win, -1 loss, 0 tie)
     line_results = [0, 0, 0]
@@ -1036,8 +1043,40 @@ def check_fl_entry(top_cards: list) -> tuple:
     return False, 0
 
 
+def check_fl_stay(board: dict, hand_vals: dict) -> tuple:
+    """Check if a player already in FL qualifies to STAY.
+    
+    FL Stay conditions (any one triggers stay with 14 cards):
+    - Trips on top
+    - Full House or better on middle (cat >= 6)
+    - Quads or better on bottom (cat >= 7)
+    
+    Returns (qualifies: bool, card_count: int)
+    """
+    # Check trips on top
+    top_cat = hand_category(hand_vals["top"])
+    if top_cat >= 3:  # Trips (cat 3 for 3-card hand)
+        return True, 14
+    
+    # Check Full House+ on middle  
+    mid_cat = hand_category(hand_vals["middle"])
+    if mid_cat >= 6:  # Full House (6), Quads (7), Str Flush (8)
+        return True, 14
+    
+    # Check Quads+ on bottom
+    bot_cat = hand_category(hand_vals["bottom"])
+    if bot_cat >= 7:  # Quads (7), Str Flush (8)
+        return True, 14
+    
+    return False, 0
+
+
 def check_session_end(game: GameState) -> Optional[dict]:
-    """Check if session should end."""
+    """Check if session should end. Skip if any player has FL."""
+    # Don't end game if either player qualifies for FL
+    if game.is_fantasyland[0] or game.is_fantasyland[1]:
+        return None
+    
     if game.chips[0] <= 0:
         return {"winner": 1, "final_chips": game.chips, "hands_played": game.hands_played, "reason": "bankrupt"}
     if game.chips[1] <= 0:
