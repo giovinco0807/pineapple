@@ -1,0 +1,6 @@
+﻿Top:    ['4s', '2d', '3s']
+Middle: ['Ah', 'Kd', 'Qh', 'Jc', 'Th']
+Bottom: ['5d', '6d', '8d', '9d', 'JK*']
+Score:  49.0
+FL Stay: True
+Royalties: None

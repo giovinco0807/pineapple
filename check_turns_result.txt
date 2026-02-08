@@ -1,0 +1,46 @@
+﻿---
+  id: 1
+  hand_id: f29b2358-8925-4181-8707-250dff253b2a
+  turn: 0
+  player: 0
+  board_self: {"top": [], "middle": [], "bottom": []}
+  board_opponent: {"top": [], "middle": [], "bottom": []}
+  dealt_cards: ["Jd", "Ts", "Td", "X2", "Qs"]
+  known_discards: []
+  action_placements: [["Ts", "middle"], ["Td", "middle"], ["Jd", "bottom"], ["Qs", "bottom"], ["X2", "top"]]
+  action_discard: None
+  think_time_ms: 0
+  timestamp: 2026-02-08T02:20:44.015323
+---
+  id: 2
+  hand_id: f29b2358-8925-4181-8707-250dff253b2a
+  turn: 0
+  player: 1
+  board_self: {"top": [], "middle": [], "bottom": []}
+  board_opponent: {"top": ["X2"], "middle": ["Ts", "Td"], "bottom": ["Jd", "Qs"]}
+  dealt_cards: ["8h", "7h", "Kc", "2c", "7s"]
+  known_discards: []
+  action_placements: [["Kc", "top"], ["7h", "middle"], ["2c", "middle"], ["7s", "middle"], ["8h", "bottom"]]
+  action_discard: None
+  think_time_ms: 0
+  timestamp: 2026-02-08T02:20:54.900161
+---
+  id: 3
+  hand_id: f29b2358-8925-4181-8707-250dff253b2a
+  turn: 1
+  player: 0
+  board_self: {"top": ["X2"], "middle": ["Ts", "Td"], "bottom": ["Jd", "Qs"]}
+  board_opponent: {"top": ["Kc"], "middle": ["7h", "2c", "7s"], "bottom": ["8h"]}
+  dealt_cards: ["Ah", "Ks", "Js"]
+  known_discards: ["Ks"]
+  action_placements: [["Js", "bottom"], ["Ah", "top"]]
+  action_discard: Ks
+  think_time_ms: 0
+  timestamp: 2026-02-08T02:21:00.956067
+
+Total turns with placements: 903
+  Turn 0: 282 rows
+  Turn 1: 156 rows
+  Turn 2: 155 rows
+  Turn 3: 155 rows
+  Turn 4: 155 rows

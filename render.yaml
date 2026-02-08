@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: ofc-pineapple
+    runtime: docker
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: PORT
+        value: 8080

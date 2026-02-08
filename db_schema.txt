@@ -1,0 +1,70 @@
+
+sessions (21 rows):
+  session_id (TEXT)
+  room_id (TEXT)
+  started_at (TEXT)
+  finished_at (TEXT)
+  player0_id (TEXT)
+  player1_id (TEXT)
+  initial_chips (INTEGER)
+  final_chips_p0 (INTEGER)
+  final_chips_p1 (INTEGER)
+  winner (INTEGER)
+  finish_reason (TEXT)
+  hands_played (INTEGER)
+
+hands (98 rows):
+  hand_id (TEXT)
+  session_id (TEXT)
+  hand_number (INTEGER)
+  started_at (TEXT)
+  finished_at (TEXT)
+  btn (INTEGER)
+  chips_before (TEXT)
+  chips_after (TEXT)
+  raw_score (TEXT)
+  actual_score (TEXT)
+  result_detail (TEXT)
+
+turns (634 rows):
+  id (INTEGER)
+  hand_id (TEXT)
+  turn (INTEGER)
+  player (INTEGER)
+  board_self (TEXT)
+  board_opponent (TEXT)
+  dealt_cards (TEXT)
+  known_discards (TEXT)
+  action_placements (TEXT)
+  action_discard (TEXT)
+  think_time_ms (INTEGER)
+  timestamp (TEXT)
+
+sqlite_sequence (1 rows):
+  name ()
+  seq ()
+
+fantasyland (0 rows):
+  id (INTEGER)
+  hand_id (TEXT)
+  player (INTEGER)
+  card_count (INTEGER)
+  dealt_cards (TEXT)
+  solver_placement (TEXT)
+  solver_score (REAL)
+  fl_stay (INTEGER)
+  timestamp (TEXT)
+
+
+--- Sample hand ---
+  hand_id: 3fbabe42-a267-444f-bcfc-9e7d312853de
+  session_id: 19d51e4a-1224-4d4e-9e55-531e177c75d6
+  hand_number: 6
+  started_at: 2026-02-08T11:34:54.713780
+  finished_at: 2026-02-08T11:34:54.886169
+  btn: NULL
+  chips_before: [201, 199]
+  chips_after: [180, 220]
+  raw_score: [-21, 21]
+  actual_score: [-21, 21]
+  result_detail: {"boards": [{"top": ["Kd", "Th", "Ks"], "middle": ["Td", "6d", "7c", "8h", "9s"], "bottom": ["Ad", "2c", "3s", "4d", "5h"]}, {"top": ["6c", "As", "Ah"], "middle": ["7h", "6s", "4s", "5d", "8d"], "bott

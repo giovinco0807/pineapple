@@ -1,0 +1,20 @@
+﻿Raw samples: 903
+Augmented samples: 5418 (6.0x)
+Model parameters: 357,140
+State dim: 595
+Training: 4877, Validation: 541
+Device: cuda
+
+Epoch   1/150: loss=1.1715 train=45.6% val=56.3% lr=2.0e-04
+Epoch   5/150: loss=0.1874 train=94.2% val=96.2% lr=1.0e-03
+Epoch  10/150: loss=0.0467 train=98.6% val=99.7% lr=1.0e-03
+Epoch  15/150: loss=0.0210 train=99.4% val=99.9% lr=9.9e-04
+Epoch  20/150: loss=0.0096 train=99.7% val=100.0% lr=9.7e-04
+Epoch  25/150: loss=0.0100 train=99.8% val=99.9% lr=9.5e-04
+Epoch  30/150: loss=0.0157 train=99.5% val=99.8% lr=9.3e-04
+Epoch  35/150: loss=0.0056 train=99.8% val=100.0% lr=9.0e-04
+
+Early stopping at epoch 35 (no improvement for 15 epochs)
+
+Best validation accuracy: 100.0%
+Models saved to ai/models/bc_game/

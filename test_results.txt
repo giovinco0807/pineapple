@@ -1,0 +1,74 @@
+﻿[BUST MISMATCH] Hand f29b2358 Seat 0: logged=True computed=False
+  Board: {'top': ['X2', 'Ah', '9s'], 'middle': ['Ts', 'Td', '6d', '4d', '8c'], 'bottom': ['Jd', 'Qs', 'Js', 'Qd', 'Qh']}
+[BUST MISMATCH] Hand 860d7660 Seat 1: logged=True computed=False
+  Board: {'top': ['3c', 'Qd', 'Qs'], 'middle': ['8d', '9d', '7h', 'Jh', 'Th'], 'bottom': ['3s', '4s', '6s', '7s', 'JK']}
+[ROYALTY MISMATCH] Hand da3e138f Seat 0 middle: logged=2 computed=0
+  Board: {'top': ['Kc', 'X1', 'Ac'], 'middle': ['3h', 'X2', '4d', '5s', '4s'], 'bottom': ['Td', '9c', '7s', '9h', 'Th']}
+  Cat: 2
+[ROYALTY MISMATCH] Hand da3e138f Seat 0 total: logged=11 computed=9
+  Board: {'top': ['Kc', 'X1', 'Ac'], 'middle': ['3h', 'X2', '4d', '5s', '4s'], 'bottom': ['Td', '9c', '7s', '9h', 'Th']}
+  Cat: -1
+[NAME MISMATCH] Hand da3e138f Seat 0 middle: logged='スリーカード' computed='ツーペア'
+[FL EXTRA] Hand 7b07fb62 Seat 0: logged FL=True but top doesn't qualify (could be FL stay)
+[ROYALTY MISMATCH] Hand d1f397dc Seat 1 top: logged=20 computed=7
+  Board: {'top': ['Qh', 'X2', 'Qd'], 'middle': ['5c', '5h', '4s', '2d', '2c'], 'bottom': ['Ts', '7s', '8s', '9d', 'Jd']}
+  Cat: 1
+[ROYALTY MISMATCH] Hand d1f397dc Seat 1 total: logged=22 computed=9
+  Board: {'top': ['Qh', 'X2', 'Qd'], 'middle': ['5c', '5h', '4s', '2d', '2c'], 'bottom': ['Ts', '7s', '8s', '9d', 'Jd']}
+  Cat: -1
+[FL EXTRA] Hand 60cad01d Seat 0: logged FL=True but top doesn't qualify (could be FL stay)
+[FL EXTRA] Hand 60cad01d Seat 1: logged FL=True but top doesn't qualify (could be FL stay)
+[FL EXTRA] Hand c83d56ad Seat 1: logged FL=True but top doesn't qualify (could be FL stay)
+[FL EXTRA] Hand d476bd7e Seat 1: logged FL=True but top doesn't qualify (could be FL stay)
+[FL MISSED] Hand b177193d Seat 0: should enter FL but logged=False
+[FL EXTRA] Hand b177193d Seat 1: logged FL=True but top doesn't qualify (could be FL stay)
+[FL EXTRA] Hand 989afe6e Seat 1: logged FL=True but top doesn't qualify (could be FL stay)
+[FL EXTRA] Hand 589b0922 Seat 1: logged FL=True but top doesn't qualify (could be FL stay)
+[FL MISSED] Hand de07d618 Seat 1: should enter FL but logged=False
+[FL MISSED] Hand 923f44d6 Seat 1: should enter FL but logged=False
+[FL EXTRA] Hand b5948751 Seat 0: logged FL=True but top doesn't qualify (could be FL stay)
+[FL EXTRA] Hand dc9d1b90 Seat 1: logged FL=True but top doesn't qualify (could be FL stay)
+[FL EXTRA] Hand c9cb44c8 Seat 1: logged FL=True but top doesn't qualify (could be FL stay)
+[FL MISSED] Hand 9d0cc6f1 Seat 1: should enter FL but logged=False
+[FL EXTRA] Hand b09a9418 Seat 1: logged FL=True but top doesn't qualify (could be FL stay)
+[FL EXTRA] Hand dc544583 Seat 1: logged FL=True but top doesn't qualify (could be FL stay)
+[FL MISSED] Hand a4114d57 Seat 1: should enter FL but logged=False
+[FL EXTRA] Hand 7a81cee5 Seat 1: logged FL=True but top doesn't qualify (could be FL stay)
+[FL EXTRA] Hand 019ee113 Seat 1: logged FL=True but top doesn't qualify (could be FL stay)
+[FL MISSED] Hand 1fee4a77 Seat 0: should enter FL but logged=False
+[FL MISSED] Hand 62f8ab58 Seat 1: should enter FL but logged=False
+[FL EXTRA] Hand 6b657ec8 Seat 1: logged FL=True but top doesn't qualify (could be FL stay)
+[FL MISSED] Hand 42d4f29e Seat 1: should enter FL but logged=False
+[FL MISSED] Hand 56265c30 Seat 1: should enter FL but logged=False
+[FL EXTRA] Hand b9763c96 Seat 1: logged FL=True but top doesn't qualify (could be FL stay)
+[FL EXTRA] Hand ff0adf74 Seat 0: logged FL=True but top doesn't qualify (could be FL stay)
+[FL EXTRA] Hand 5e89f7bc Seat 0: logged FL=True but top doesn't qualify (could be FL stay)
+[FL EXTRA] Hand 48e44324 Seat 0: logged FL=True but top doesn't qualify (could be FL stay)
+[FL MISSED] Hand b7b00667 Seat 0: should enter FL but logged=False
+[FL MISSED] Hand c86e2580 Seat 1: should enter FL but logged=False
+[FL MISSED] Hand 9865c91f Seat 0: should enter FL but logged=False
+[FL MISSED] Hand 9690b08d Seat 0: should enter FL but logged=False
+[FL MISSED] Hand 9690b08d Seat 1: should enter FL but logged=False
+[FL EXTRA] Hand b582a5a5 Seat 1: logged FL=True but top doesn't qualify (could be FL stay)
+[FL EXTRA] Hand 9744a8f1 Seat 0: logged FL=True but top doesn't qualify (could be FL stay)
+[FL MISSED] Hand 3fbabe42 Seat 1: should enter FL but logged=False
+[FL EXTRA] Hand ea7e3720 Seat 0: logged FL=True but top doesn't qualify (could be FL stay)
+[FL MISSED] Hand 60afa381 Seat 1: should enter FL but logged=False
+[FL EXTRA] Hand 5cdb88a2 Seat 0: logged FL=True but top doesn't qualify (could be FL stay)
+[FL EXTRA] Hand f3e59a9c Seat 1: logged FL=True but top doesn't qualify (could be FL stay)
+[FL MISSED] Hand 47f2913a Seat 1: should enter FL but logged=False
+[FL MISSED] Hand fe4b98dd Seat 0: should enter FL but logged=False
+[FL MISSED] Hand 9fe78a41 Seat 1: should enter FL but logged=False
+[FL MISSED] Hand 4a9b4e6f Seat 0: should enter FL but logged=False
+[FL MISSED] Hand c3496f23 Seat 1: should enter FL but logged=False
+[FL MISSED] Hand 551b1923 Seat 0: should enter FL but logged=False
+[FL MISSED] Hand 89b0478e Seat 0: should enter FL but logged=False
+[FL EXTRA] Hand 47ded519 Seat 1: logged FL=True but top doesn't qualify (could be FL stay)
+[FL MISSED] Hand a91b462c Seat 0: should enter FL but logged=False
+[FL EXTRA] Hand 6228b681 Seat 1: logged FL=True but top doesn't qualify (could be FL stay)
+
+==================================================
+Results: 138 hands tested
+  Errors: 6
+  Warnings: 52
+  FAILURES DETECTED - see details above

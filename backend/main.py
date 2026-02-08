@@ -40,6 +40,33 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Health check for Render
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
+
+# Serve frontend static files (production)
+_frontend_dist = Path(__file__).parent.parent / "frontend" / "dist"
+if _frontend_dist.exists():
+    from starlette.staticfiles import StaticFiles
+    from starlette.responses import FileResponse
+    
+    @app.get("/")
+    async def serve_root():
+        return FileResponse(str(_frontend_dist / "index.html"))
+    
+    # Mount static assets
+    if (_frontend_dist / "assets").exists():
+        app.mount("/assets", StaticFiles(directory=str(_frontend_dist / "assets")), name="assets")
+    
+    # SPA fallback - serve index.html for unmatched routes
+    @app.get("/{path:path}")
+    async def spa_fallback(path: str):
+        file_path = _frontend_dist / path
+        if file_path.exists() and file_path.is_file():
+            return FileResponse(str(file_path))
+        return FileResponse(str(_frontend_dist / "index.html"))
+
 # ========== CARD CONSTANTS ==========
 RANKS = ['2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K', 'A']
 SUITS = ['h', 'd', 'c', 's']
@@ -1179,4 +1206,6 @@ def check_session_end(game: GameState) -> Optional[dict]:
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8080)
+    import os
+    port = int(os.environ.get("PORT", 8080))
+    uvicorn.run(app, host="0.0.0.0", port=port)

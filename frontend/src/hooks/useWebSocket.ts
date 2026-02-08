@@ -14,7 +14,18 @@ interface UseWebSocketReturn {
     disconnect: () => void;
 }
 
-export const useWebSocket = (serverUrl: string = 'ws://localhost:8080'): UseWebSocketReturn => {
+// Auto-detect WS URL: in production, use same host; in dev, use localhost
+const getDefaultWsUrl = () => {
+    if (import.meta.env.VITE_WS_URL) return import.meta.env.VITE_WS_URL;
+    const loc = window.location;
+    if (loc.hostname === 'localhost' || loc.hostname === '127.0.0.1') {
+        return 'ws://localhost:8080';
+    }
+    const protocol = loc.protocol === 'https:' ? 'wss:' : 'ws:';
+    return `${protocol}//${loc.host}`;
+};
+
+export const useWebSocket = (serverUrl: string = getDefaultWsUrl()): UseWebSocketReturn => {
     const [connected, setConnected] = useState(false);
     const [messages, setMessages] = useState<WebSocketMessage[]>([]);
     const [lastMessage, setLastMessage] = useState<WebSocketMessage | null>(null);

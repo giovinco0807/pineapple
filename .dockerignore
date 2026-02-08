@@ -1,0 +1,21 @@
+# Ignore everything except what's needed for backend
+**/__pycache__
+**/.git
+**/node_modules
+**/frontend
+**/.venv
+**/training
+**/models
+**/*.pyc
+**/ai/docs
+**/ai/logs
+**/*.txt
+**/*.md
+**/check_*.py
+**/test_*.py
+**/debug_*.py
+**/verify_*.py
+**/show_*.py
+**/stats_*.py
+*.webp
+*.png
