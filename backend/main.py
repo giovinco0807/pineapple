@@ -706,14 +706,13 @@ def calculate_scores(game: GameState) -> dict:
     game.is_fantasyland = fl_entry
     game.fl_card_count = fl_card_count
     
-    # Get hand names for display
+    # Get hand names for display - use constrained values, not raw re-evaluation
     hand_names = [{}, {}]
     for seat in [0, 1]:
-        board = game.boards[seat]
         hand_names[seat] = {
-            "top": get_hand_name(board["top"], 3),
-            "middle": get_hand_name(board["middle"], 5),
-            "bottom": get_hand_name(board["bottom"], 5)
+            "top": hand_name_from_val(hand_values[seat]["top"], 3),
+            "middle": hand_name_from_val(hand_values[seat]["middle"], 5),
+            "bottom": hand_name_from_val(hand_values[seat]["bottom"], 5)
         }
     
     result = {
@@ -796,6 +795,31 @@ def get_hand_name(cards: list, expected_count: int) -> str:
             name = "ロイヤルフラッシュ"
         return name
 
+
+def hand_name_from_val(val: int, expected_count: int) -> str:
+    """Get hand name from pre-computed encoded value (no re-evaluation)."""
+    if val == 0:
+        return "---"
+    cat = hand_category(val)
+    rank_names = {2:'2',3:'3',4:'4',5:'5',6:'6',7:'7',8:'8',
+                  9:'9',10:'T',11:'J',12:'Q',13:'K',14:'A'}
+    r1 = (val // (_B ** 4)) % _B
+    r_name = rank_names.get(r1, '?')
+    if expected_count == 3:
+        if cat == 3:
+            return f"{r_name}のスリーカード"
+        elif cat == 1:
+            return f"{r_name}のペア"
+        else:
+            return "ハイカード"
+    else:
+        names = {8: "ストレートフラッシュ", 7: "フォーカード", 6: "フルハウス",
+                 5: "フラッシュ", 4: "ストレート", 3: "スリーカード",
+                 2: "ツーペア", 1: "ワンペア", 0: "ハイカード"}
+        name = names.get(cat, "ハイカード")
+        if cat == 8 and r1 == 14:
+            name = "ロイヤルフラッシュ"
+        return name
 
 def evaluate_hand(cards: list, expected_count: int) -> int:
     """Evaluate hand strength with full rank encoding for tiebreaking.
