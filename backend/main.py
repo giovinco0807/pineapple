@@ -648,10 +648,40 @@ def calculate_scores(game: GameState) -> dict:
         if top_val > mid_val or mid_val > bot_val:
             busted[seat] = True
         else:
-            # Calculate royalties (only if not busted)
-            royalties[seat]["top"] = get_top_royalty(board["top"])
-            royalties[seat]["middle"] = get_middle_royalty(board["middle"])
-            royalties[seat]["bottom"] = get_bottom_royalty(board["bottom"])
+            # Calculate royalties from constrained values (not raw cards)
+            top_val = hand_values[seat]["top"]
+            mid_val = hand_values[seat]["middle"]
+            bot_val = hand_values[seat]["bottom"]
+            
+            # Top royalties from constrained value
+            top_cat = hand_category(top_val)
+            top_r1 = (top_val // (_B ** 4)) % _B
+            if top_cat >= 3:  # Trips
+                royalties[seat]["top"] = 10 + (top_r1 - 2)  # 222=10, AAA=22
+            elif top_cat == 1 and top_r1 >= 6:  # Pair 66+
+                royalties[seat]["top"] = top_r1 - 5  # 66=1, 77=2, ... AA=9
+            
+            # Middle royalties from constrained value
+            mid_cat = hand_category(mid_val)
+            mid_r1 = (mid_val // (_B ** 4)) % _B
+            if mid_cat == 8 and mid_r1 == 14: royalties[seat]["middle"] = 50
+            elif mid_cat == 8: royalties[seat]["middle"] = 30
+            elif mid_cat == 7: royalties[seat]["middle"] = 20
+            elif mid_cat == 6: royalties[seat]["middle"] = 12
+            elif mid_cat == 5: royalties[seat]["middle"] = 8
+            elif mid_cat == 4: royalties[seat]["middle"] = 4
+            elif mid_cat == 3: royalties[seat]["middle"] = 2
+            
+            # Bottom royalties from constrained value
+            bot_cat = hand_category(bot_val)
+            bot_r1 = (bot_val // (_B ** 4)) % _B
+            if bot_cat == 8 and bot_r1 == 14: royalties[seat]["bottom"] = 25
+            elif bot_cat == 8: royalties[seat]["bottom"] = 15
+            elif bot_cat == 7: royalties[seat]["bottom"] = 10
+            elif bot_cat == 6: royalties[seat]["bottom"] = 6
+            elif bot_cat == 5: royalties[seat]["bottom"] = 4
+            elif bot_cat == 4: royalties[seat]["bottom"] = 2
+            
             royalties[seat]["total"] = royalties[seat]["top"] + royalties[seat]["middle"] + royalties[seat]["bottom"]
             
             # Check FL entry/stay
