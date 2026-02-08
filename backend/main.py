@@ -691,10 +691,22 @@ def calculate_scores(game: GameState) -> dict:
                 fl_entry[seat] = fl_s
                 fl_card_count[seat] = fl_c
             elif not busted[seat]:
-                # Not in FL → check FL ENTRY (top row QQ+)
-                fl, cards = check_fl_entry(board["top"])
-                fl_entry[seat] = fl
-                fl_card_count[seat] = cards
+                # Not in FL → check FL ENTRY from constrained top value
+                top_cat = hand_category(hand_values[seat]["top"])
+                top_r1 = (hand_values[seat]["top"] // (_B ** 4)) % _B
+                if top_cat >= 3:  # Trips
+                    fl_entry[seat] = True
+                    fl_card_count[seat] = 17
+                elif top_cat == 1:  # Pair
+                    if top_r1 == 12:    # QQ
+                        fl_entry[seat] = True
+                        fl_card_count[seat] = 14
+                    elif top_r1 == 13:  # KK
+                        fl_entry[seat] = True
+                        fl_card_count[seat] = 15
+                    elif top_r1 == 14:  # AA
+                        fl_entry[seat] = True
+                        fl_card_count[seat] = 16
     
     # Calculate line results (P0 perspective: +1 win, -1 loss, 0 tie)
     line_results = [0, 0, 0]
