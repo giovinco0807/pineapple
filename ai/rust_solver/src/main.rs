@@ -118,6 +118,34 @@ fn is_straight_possible(rank_counts: &[u8; 15], jokers: u8) -> (bool, bool) {
     (is_straight, is_broadway)
 }
 
+/// Get the high card of a straight. For wheel (A2345), returns 5.
+fn get_straight_high_card(rank_counts: &[u8; 15], jokers: u8) -> u8 {
+    let straights: [[u8; 5]; 10] = [
+        [14, 2, 3, 4, 5],   // high = 5 (wheel)
+        [2, 3, 4, 5, 6],    // high = 6
+        [3, 4, 5, 6, 7],    // high = 7
+        [4, 5, 6, 7, 8],    // high = 8
+        [5, 6, 7, 8, 9],    // high = 9
+        [6, 7, 8, 9, 10],   // high = 10
+        [7, 8, 9, 10, 11],  // high = 11
+        [8, 9, 10, 11, 12], // high = 12
+        [9, 10, 11, 12, 13],// high = 13
+        [10, 11, 12, 13, 14],// high = 14
+    ];
+    let high_cards: [u8; 10] = [5, 6, 7, 8, 9, 10, 11, 12, 13, 14];
+    
+    let mut best_high = 0u8;
+    for (i, s) in straights.iter().enumerate() {
+        let missing: u8 = s.iter()
+            .filter(|&&r| rank_counts[r as usize] == 0)
+            .count() as u8;
+        if missing <= jokers {
+            best_high = best_high.max(high_cards[i]);
+        }
+    }
+    best_high
+}
+
 fn evaluate_5_card(cards: &[Card]) -> (HandRank, u32) {
     let jokers = count_jokers(cards);
     let rank_counts = count_ranks(cards);
@@ -332,8 +360,18 @@ fn compare_5_hands(a: &[Card], b: &[Card]) -> i32 {
             }
             if str_a > str_b { 1 } else if str_a < str_b { -1 } else { 0 }
         }
+        HandRank::Straight | HandRank::StraightFlush | HandRank::RoyalFlush => {
+            // For straights, compare by high card (wheel=5, not Ace=14)
+            let rc_a = count_ranks(a);
+            let rc_b = count_ranks(b);
+            let j_a = count_jokers(a);
+            let j_b = count_jokers(b);
+            let high_a = get_straight_high_card(&rc_a, j_a);
+            let high_b = get_straight_high_card(&rc_b, j_b);
+            if high_a > high_b { 1 } else if high_a < high_b { -1 } else { 0 }
+        }
         _ => {
-            // For high card, straights, flushes - compare kickers
+            // For high card, flushes - compare kickers
             if str_a > str_b { 1 } else if str_a < str_b { -1 } else { 0 }
         }
     }
