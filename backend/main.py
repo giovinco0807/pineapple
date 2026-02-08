@@ -1121,7 +1121,6 @@ def check_fl_stay(board: dict, hand_vals: dict, current_fl_cards: int) -> tuple:
     
     FL Stay conditions (any one triggers stay, preserving original card count):
     - Trips on top
-    - Full House or better on middle (cat >= 6)
     - Quads or better on bottom (cat >= 7)
     
     Returns (qualifies: bool, card_count: int)
@@ -1129,11 +1128,6 @@ def check_fl_stay(board: dict, hand_vals: dict, current_fl_cards: int) -> tuple:
     # Check trips on top
     top_cat = hand_category(hand_vals["top"])
     if top_cat >= 3:  # Trips (cat 3 for 3-card hand)
-        return True, current_fl_cards
-    
-    # Check Full House+ on middle  
-    mid_cat = hand_category(hand_vals["middle"])
-    if mid_cat >= 6:  # Full House (6), Quads (7), Str Flush (8)
         return True, current_fl_cards
     
     # Check Quads+ on bottom
