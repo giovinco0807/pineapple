@@ -758,10 +758,18 @@ def calculate_scores(game: GameState) -> dict:
         p0_score += royalties[0]["total"] - royalties[1]["total"]
         raw_score = [p0_score, -p0_score]
     
-    # Update chips (floor at 0, max 400)
+    # Update chips (zero-sum: transfer capped by loser's available chips)
     old_chips = game.chips.copy()
-    game.chips[0] = max(0, game.chips[0] + raw_score[0])
-    game.chips[1] = max(0, game.chips[1] + raw_score[1])
+    if raw_score[0] >= 0:
+        # Seat 0 wins - transfer capped by seat 1's chips
+        transfer = min(raw_score[0], old_chips[1])
+        game.chips[0] = old_chips[0] + transfer
+        game.chips[1] = old_chips[1] - transfer
+    else:
+        # Seat 1 wins - transfer capped by seat 0's chips
+        transfer = min(raw_score[1], old_chips[0])
+        game.chips[1] = old_chips[1] + transfer
+        game.chips[0] = old_chips[0] - transfer
     actual_score = [game.chips[0] - old_chips[0], game.chips[1] - old_chips[1]]
     
     # Update FL state in game
