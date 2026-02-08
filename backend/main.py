@@ -687,7 +687,7 @@ def calculate_scores(game: GameState) -> dict:
             # Check FL entry/stay
             if game.is_fantasyland[seat] and not busted[seat]:
                 # Already in FL → check FL STAY conditions
-                fl_s, fl_c = check_fl_stay(board, hand_values[seat])
+                fl_s, fl_c = check_fl_stay(board, hand_values[seat], game.fl_card_count[seat])
                 fl_entry[seat] = fl_s
                 fl_card_count[seat] = fl_c
             elif not busted[seat]:
@@ -1097,10 +1097,10 @@ def check_fl_entry(top_cards: list) -> tuple:
     return False, 0
 
 
-def check_fl_stay(board: dict, hand_vals: dict) -> tuple:
+def check_fl_stay(board: dict, hand_vals: dict, current_fl_cards: int) -> tuple:
     """Check if a player already in FL qualifies to STAY.
     
-    FL Stay conditions (any one triggers stay with 14 cards):
+    FL Stay conditions (any one triggers stay, preserving original card count):
     - Trips on top
     - Full House or better on middle (cat >= 6)
     - Quads or better on bottom (cat >= 7)
@@ -1110,17 +1110,17 @@ def check_fl_stay(board: dict, hand_vals: dict) -> tuple:
     # Check trips on top
     top_cat = hand_category(hand_vals["top"])
     if top_cat >= 3:  # Trips (cat 3 for 3-card hand)
-        return True, 14
+        return True, current_fl_cards
     
     # Check Full House+ on middle  
     mid_cat = hand_category(hand_vals["middle"])
     if mid_cat >= 6:  # Full House (6), Quads (7), Str Flush (8)
-        return True, 14
+        return True, current_fl_cards
     
     # Check Quads+ on bottom
     bot_cat = hand_category(hand_vals["bottom"])
     if bot_cat >= 7:  # Quads (7), Str Flush (8)
-        return True, 14
+        return True, current_fl_cards
     
     return False, 0
 
