@@ -1,0 +1,16 @@
+=== Tiebreaking Tests ===
+KK994=2208150 vs KK992=2207700 => KK994 wins? OK
+AA993=2258550 vs KK993=2207925 => AA wins? OK
+AK9=754650 vs AQ9=751275 => AK9 wins? OK
+AA9(3-card)=1498500 vs AA987(5-card)=1500405 => mid wins? OK
+FlushA=4541268 vs FlushK=4490643 => A wins? OK
+StrA=3746250 vs StrT=3543750 => A wins? OK
+
+=== Hand Names ===
+KK994: ツーペア
+AKQJT: ストレート
+AA9 top: Aのペア
+AKQJT flush: ロイヤルフラッシュ
+
+=== Joker constraint ===
+mid=1294035 top_constrained=1262250 no_bust? OK

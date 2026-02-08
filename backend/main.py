@@ -968,34 +968,29 @@ def get_top_royalty(cards: list) -> int:
 def get_middle_royalty(cards: list) -> int:
     """Middle row royalties: Trips=2, Straight=4, Flush=8, FH=12, Quads=20, SF=30, RF=50"""
     val = evaluate_hand(cards, 5)
-    if val >= 9000:
-        return 50 if val >= 9014 else 30  # RF or SF
-    elif val >= 8000:
-        return 20  # Quads
-    elif val >= 7000:
-        return 12  # FH
-    elif val >= 6000:
-        return 8  # Flush
-    elif val >= 5000:
-        return 4  # Straight
-    elif val >= 4000:
-        return 2  # Trips
+    cat = hand_category(val)
+    r1 = (val // (_B ** 4)) % _B
+    if cat == 8 and r1 == 14: return 50  # Royal flush
+    if cat == 8: return 30               # Straight flush
+    if cat == 7: return 20               # Quads
+    if cat == 6: return 12               # Full house
+    if cat == 5: return 8                # Flush
+    if cat == 4: return 4                # Straight
+    if cat == 3: return 2                # Trips
     return 0
 
 
 def get_bottom_royalty(cards: list) -> int:
     """Bottom row royalties: Straight=2, Flush=4, FH=6, Quads=10, SF=15, RF=25"""
     val = evaluate_hand(cards, 5)
-    if val >= 9000:
-        return 25 if val >= 9014 else 15  # RF or SF
-    elif val >= 8000:
-        return 10  # Quads
-    elif val >= 7000:
-        return 6  # FH
-    elif val >= 6000:
-        return 4  # Flush
-    elif val >= 5000:
-        return 2  # Straight
+    cat = hand_category(val)
+    r1 = (val // (_B ** 4)) % _B
+    if cat == 8 and r1 == 14: return 25  # Royal flush
+    if cat == 8: return 15               # Straight flush
+    if cat == 7: return 10               # Quads
+    if cat == 6: return 6                # Full house
+    if cat == 5: return 4                # Flush
+    if cat == 4: return 2                # Straight
     return 0
 
 

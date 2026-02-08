@@ -200,11 +200,54 @@ class GameEngine:
 
 
 # ============================================================
-# Hand evaluation
+# Hand evaluation (base-15 multi-rank encoding)
 # ============================================================
 
+_B = 15
+_B5 = _B ** 5  # 759375
+
+
+def hand_category(val: int) -> int:
+    """Extract hand category (0-8) from encoded hand value."""
+    return val // _B5
+
+
+def _encode_hand(cat: int, *ranks) -> int:
+    """Encode: cat * 15^5 + r1 * 15^4 + r2 * 15^3 + r3 * 15^2 + r4 * 15 + r5."""
+    val = cat
+    for i in range(5):
+        val = val * _B + (ranks[i] if i < len(ranks) else 0)
+    return val
+
+
+def _straight_high(sorted_ranks: List[int], jokers: int = 0) -> int:
+    """Find the high card of a straight (assumes it IS a straight)."""
+    if jokers == 0:
+        if sorted_ranks == [14, 5, 4, 3, 2]:
+            return 5
+        return sorted_ranks[0]
+    unique = sorted(set(sorted_ranks), reverse=True)
+    for high in range(14, 4, -1):
+        needed = set(range(high, high - 5, -1))
+        if high == 5:
+            needed = {14, 5, 4, 3, 2}
+        present = needed & set(unique)
+        missing = len(needed) - len(present)
+        extra = len(set(unique) - needed)
+        if missing <= jokers and extra == 0:
+            return high
+    return sorted_ranks[0] if sorted_ranks else 0
+
+
 def evaluate_hand(cards: List[str], expected_count: int) -> int:
-    """Evaluate hand strength. Higher = stronger."""
+    """Evaluate hand strength with full rank encoding for tiebreaking.
+
+    Uses base-15 positional encoding:
+        value = cat * 15^5 + r1 * 15^4 + r2 * 15^3 + r3 * 15^2 + r4 * 15 + r5
+
+    Categories: 0=High Card, 1=Pair, 2=Two Pair, 3=Trips,
+                4=Straight, 5=Flush, 6=Full House, 7=Quads, 8=Str Flush
+    """
     if len(cards) != expected_count:
         return 0
 
@@ -219,53 +262,90 @@ def evaluate_hand(cards: List[str], expected_count: int) -> int:
             suits.append(c[1])
 
     rank_counts = Counter(ranks)
-    best_count = max(rank_counts.values()) if rank_counts else 0
-
-    if expected_count == 3:
-        # 3-card hand
-        if best_count + jokers >= 3:
-            r = max(r for r, c in rank_counts.items() if c + jokers >= 3) if rank_counts else 14
-            return 4000 + r
-        if best_count + jokers >= 2:
-            pair_ranks = [r for r, c in rank_counts.items() if c + jokers >= 2]
-            return 2000 + max(pair_ranks)
-        return max(ranks) if ranks else 14
-
-    # 5-card hand
     suit_counts = Counter(suits)
-    is_flush = (max(suit_counts.values()) + jokers >= 5) if suit_counts else jokers >= 5
-
     sorted_ranks = sorted(ranks, reverse=True)
+
+    is_flush = len(suit_counts) == 1 and (len(suits) + jokers) == expected_count
     is_straight = check_straight(sorted_ranks, jokers)
 
-    # Straight flush / Royal flush
+    # -- 3-card hand --
+    if expected_count == 3:
+        best = max(rank_counts.values()) if rank_counts else 0
+        if best + jokers >= 3:
+            if best >= 3:
+                r = max(r for r, c in rank_counts.items() if c >= 3)
+            elif best >= 2:
+                r = max(r for r, c in rank_counts.items() if c >= 2)
+            else:
+                r = sorted_ranks[0] if sorted_ranks else 14
+            return _encode_hand(3, r)
+        if best + jokers >= 2:
+            if best >= 2:
+                pr = max(r for r, c in rank_counts.items() if c >= 2)
+                k = sorted([r for r in ranks if r != pr], reverse=True)
+            else:
+                pr = sorted_ranks[0]
+                k = sorted_ranks[1:]
+            return _encode_hand(1, pr, k[0] if k else 0)
+        return _encode_hand(0, *sorted_ranks)
+
+    # -- 5-card hand --
+    best = max(rank_counts.values()) if rank_counts else 0
+    pairs = sorted([r for r, c in rank_counts.items() if c >= 2], reverse=True)
+
+    # 8: Straight Flush
     if is_flush and is_straight:
-        return 9000 + (max(ranks) if ranks else 14)
-    # Four of a kind
-    if best_count + jokers >= 4:
-        return 8000 + max(r for r, c in rank_counts.items() if c >= 2)
-    # Full house: need trips + pair (exactly 2 distinct ranks, or joker helps)
-    if best_count >= 3 and len(rank_counts) == 2:
-        # Natural trips + natural pair (e.g. AAA KK)
-        return 7000 + (max(ranks) if ranks else 14)
-    if best_count >= 3 and len(rank_counts) == 1 and jokers >= 2:
-        # Trips + jokers making a pair (e.g. AAA + 2 jokers)
-        return 7000 + (max(ranks) if ranks else 14)
-    if best_count >= 2 and jokers >= 1 and len(rank_counts) == 2:
-        # Pair + joker -> trips, with another pair (e.g. AA KK + joker)
-        return 7000 + (max(ranks) if ranks else 14)
+        return _encode_hand(8, _straight_high(sorted_ranks, jokers))
+    # 7: Four of a Kind
+    if best + jokers >= 4:
+        if best >= 4:
+            qr = max(r for r, c in rank_counts.items() if c >= 4)
+        elif best >= 3:
+            qr = max(r for r, c in rank_counts.items() if c >= 3)
+        else:
+            qr = pairs[0] if pairs else (sorted_ranks[0] if sorted_ranks else 0)
+        kicker = max((r for r in ranks if r != qr), default=0)
+        return _encode_hand(7, qr, kicker)
+    # 6: Full House
+    if best >= 3:
+        tr = max(r for r, c in rank_counts.items() if c >= 3)
+        pc = [r for r, c in rank_counts.items() if c >= 2 and r != tr]
+        if pc:
+            return _encode_hand(6, tr, max(pc))
+    if jokers >= 1 and len(pairs) >= 2:
+        return _encode_hand(6, pairs[0], pairs[1])
+    # 5: Flush
     if is_flush:
-        return 6000 + max(ranks)
+        return _encode_hand(5, *sorted_ranks[:5])
+    # 4: Straight
     if is_straight:
-        return 5000 + max(ranks)
-    if best_count + jokers >= 3:
-        return 4000 + max(r for r, c in rank_counts.items() if c >= 2)
-    pairs = [r for r, c in rank_counts.items() if c >= 2]
+        return _encode_hand(4, _straight_high(sorted_ranks, jokers))
+    # 3: Three of a Kind
+    if best + jokers >= 3:
+        if best >= 3:
+            tr = max(r for r, c in rank_counts.items() if c >= 3)
+        elif best >= 2:
+            tr = max(r for r, c in rank_counts.items() if c >= 2)
+        else:
+            tr = sorted_ranks[0] if sorted_ranks else 0
+        k = sorted([r for r in ranks if r != tr], reverse=True)
+        return _encode_hand(3, tr, k[0] if len(k) > 0 else 0, k[1] if len(k) > 1 else 0)
+    # 2: Two Pair
     if len(pairs) >= 2:
-        return 3000 + max(pairs)
-    if best_count >= 2 or jokers >= 1:
-        return 2000 + (max(pairs) if pairs else max(ranks))
-    return sorted_ranks[0] if sorted_ranks else 0
+        kicker = max((r for r in ranks if r not in pairs[:2]), default=0)
+        return _encode_hand(2, pairs[0], pairs[1], kicker)
+    # 1: One Pair
+    if best >= 2 or jokers >= 1:
+        if pairs:
+            pr = pairs[0]
+            k = sorted([r for r in ranks if r != pr], reverse=True)
+        else:
+            pr = sorted_ranks[0] if sorted_ranks else 0
+            k = sorted_ranks[1:]
+        return _encode_hand(1, pr, k[0] if len(k) > 0 else 0,
+                           k[1] if len(k) > 1 else 0, k[2] if len(k) > 2 else 0)
+    # 0: High Card
+    return _encode_hand(0, *sorted_ranks[:5])
 
 
 def check_straight(sorted_ranks: List[int], jokers: int = 0) -> bool:
@@ -314,25 +394,29 @@ def get_top_royalty(cards: List[str]) -> int:
 def get_middle_royalty(cards: List[str]) -> int:
     """Middle row royalties."""
     val = evaluate_hand(cards, 5)
-    if val >= 9014: return 50   # Royal flush (A-high SF)
-    if val >= 9000: return 30   # Straight flush
-    if val >= 8000: return 20   # Four of a kind
-    if val >= 7000: return 12   # Full house
-    if val >= 6000: return 8    # Flush
-    if val >= 5000: return 4    # Straight
-    if val >= 4000: return 2    # Three of a kind
+    cat = hand_category(val)
+    r1 = (val // (_B ** 4)) % _B
+    if cat == 8 and r1 == 14: return 50  # Royal flush
+    if cat == 8: return 30               # Straight flush
+    if cat == 7: return 20               # Four of a kind
+    if cat == 6: return 12               # Full house
+    if cat == 5: return 8                # Flush
+    if cat == 4: return 4                # Straight
+    if cat == 3: return 2                # Three of a kind
     return 0
 
 
 def get_bottom_royalty(cards: List[str]) -> int:
     """Bottom row royalties."""
     val = evaluate_hand(cards, 5)
-    if val >= 9014: return 25   # Royal flush (A-high SF)
-    if val >= 9000: return 15   # Straight flush
-    if val >= 8000: return 10   # Four of a kind
-    if val >= 7000: return 6    # Full house
-    if val >= 6000: return 4    # Flush
-    if val >= 5000: return 2    # Straight
+    cat = hand_category(val)
+    r1 = (val // (_B ** 4)) % _B
+    if cat == 8 and r1 == 14: return 25  # Royal flush
+    if cat == 8: return 15               # Straight flush
+    if cat == 7: return 10               # Four of a kind
+    if cat == 6: return 6                # Full house
+    if cat == 5: return 4                # Flush
+    if cat == 4: return 2                # Straight
     return 0
 
 
@@ -363,23 +447,22 @@ def get_hand_name(cards: List[str], expected_count: int) -> str:
     val = evaluate_hand(cards, expected_count)
     if val == 0:
         return "---"
+    cat = hand_category(val)
+    rank_names = {2:'2',3:'3',4:'4',5:'5',6:'6',7:'7',8:'8',
+                  9:'9',10:'T',11:'J',12:'Q',13:'K',14:'A'}
+    r1 = (val // (_B ** 4)) % _B
+    r_name = rank_names.get(r1, '?')
     if expected_count == 3:
-        if val >= 4000:
-            return "スリーカード"
-        elif val >= 2000:
-            rank = val - 2000
-            names = {2:'2',3:'3',4:'4',5:'5',6:'6',7:'7',8:'8',9:'9',
-                     10:'T',11:'J',12:'Q',13:'K',14:'A'}
-            return f"{names.get(rank,'?')}のペア"
+        if cat == 3:
+            return f"{r_name}のスリーカード"
+        elif cat == 1:
+            return f"{r_name}のペア"
         return "ハイカード"
     else:
-        if val >= 9014: return "ロイヤルフラッシュ"
-        if val >= 9000: return "ストレートフラッシュ"
-        if val >= 8000: return "フォーカード"
-        if val >= 7000: return "フルハウス"
-        if val >= 6000: return "フラッシュ"
-        if val >= 5000: return "ストレート"
-        if val >= 4000: return "スリーカード"
-        if val >= 3000: return "ツーペア"
-        if val >= 2000: return "ワンペア"
-        return "ハイカード"
+        names = {8: "ストレートフラッシュ", 7: "フォーカード", 6: "フルハウス",
+                 5: "フラッシュ", 4: "ストレート", 3: "スリーカード",
+                 2: "ツーペア", 1: "ワンペア", 0: "ハイカード"}
+        name = names.get(cat, "ハイカード")
+        if cat == 8 and r1 == 14:
+            name = "ロイヤルフラッシュ"
+        return name
