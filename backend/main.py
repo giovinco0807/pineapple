@@ -561,6 +561,55 @@ async def handle_message(room: GameRoom, player_id: str, seat: int, data: dict):
                         })
 
 
+def _evaluate_with_joker_constraint(cards: list, expected_count: int, 
+                                     max_value: int) -> int:
+    """Evaluate hand with joker bust-prevention.
+    
+    Joker picks the strongest hand that doesn't exceed max_value.
+    If no joker is present, or best hand is already ≤ max_value, returns normal eval.
+    If even the weakest joker substitution exceeds max_value, player is genuinely busted.
+    """
+    jokers = [c for c in cards if c in ("X1", "X2")]
+    if not jokers:
+        return evaluate_hand(cards, expected_count)
+    
+    best_val = evaluate_hand(cards, expected_count)
+    if best_val <= max_value:
+        return best_val  # No constraint violation
+    
+    # Try all possible joker substitutions to find best ≤ max_value
+    non_joker = [c for c in cards if c not in ("X1", "X2")]
+    card_set = set(cards)
+    
+    RANKS = "23456789TJQKA"
+    SUITS = "hdcs"
+    
+    best_constrained = -1
+    
+    if len(jokers) == 1:
+        for r in RANKS:
+            for s in SUITS:
+                sub = r + s
+                if sub in card_set:
+                    continue
+                test = non_joker + [sub]
+                val = evaluate_hand(test, expected_count)
+                if val <= max_value and val > best_constrained:
+                    best_constrained = val
+    else:
+        # 2 jokers (rare but possible)
+        all_subs = [r + s for r in RANKS for s in SUITS if r + s not in card_set]
+        for i, sub1 in enumerate(all_subs):
+            for sub2 in all_subs[i+1:]:
+                test = non_joker + [sub1, sub2]
+                val = evaluate_hand(test, expected_count)
+                if val <= max_value and val > best_constrained:
+                    best_constrained = val
+    
+    # If no valid substitution found, player is genuinely busted
+    return best_constrained if best_constrained >= 0 else best_val
+
+
 def calculate_scores(game: GameState) -> dict:
     """Calculate hand scores with full implementation."""
     from collections import Counter
@@ -573,13 +622,25 @@ def calculate_scores(game: GameState) -> dict:
         {"top": 0, "middle": 0, "bottom": 0, "total": 0}
     ]
     
-    # Evaluate hands and check for bust
-    hand_values = [{}, {}]  # Store evaluated hands for each player
+    # Evaluate hands with joker bust-prevention:
+    # Joker picks the strongest hand that doesn't violate ordering.
+    # Evaluate bottom-up: bottom (unconstrained), middle (≤ bottom), top (≤ middle)
+    hand_values = [{}, {}]
     for seat in [0, 1]:
         board = game.boards[seat]
-        top_val = evaluate_hand(board["top"], 3)
-        mid_val = evaluate_hand(board["middle"], 5)
+        
+        # Bottom: unconstrained (always best hand)
         bot_val = evaluate_hand(board["bottom"], 5)
+        
+        # Middle: must be ≤ bottom
+        mid_val = _evaluate_with_joker_constraint(
+            board["middle"], 5, max_value=bot_val
+        )
+        
+        # Top: must be ≤ middle
+        top_val = _evaluate_with_joker_constraint(
+            board["top"], 3, max_value=mid_val
+        )
         
         hand_values[seat] = {"top": top_val, "middle": mid_val, "bottom": bot_val}
         
