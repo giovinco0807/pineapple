@@ -460,11 +460,14 @@ async def handle_message(room: GameRoom, player_id: str, seat: int, data: dict):
                     # Deal next turn
                     room.game.deal_turn()
                     for s in [0, 1]:
+                        opp = 1 - s
+                        # Hide FL player's board from non-FL player
+                        opp_board = room.game.boards[opp] if not room.game.is_fantasyland[opp] else {"top": [], "middle": [], "bottom": []}
                         await room.send_to_seat(s, {
                             "type": "deal",
                             "turn": room.game.turn,
                             "cards": room.game.dealt_cards[s],
-                            "opponent_board": room.game.boards[1-s]
+                            "opponent_board": opp_board
                         })
         else:
             await room.send_to_seat(seat, {"type": "error", "message": "Invalid placement"})
@@ -690,10 +693,12 @@ def calculate_scores(game: GameState) -> dict:
                 fl_s, fl_c = check_fl_stay(board, hand_values[seat], game.fl_card_count[seat])
                 fl_entry[seat] = fl_s
                 fl_card_count[seat] = fl_c
+                print(f"[DEBUG] Seat {seat} FL STAY check: stay={fl_s}, cards={fl_c}")
             elif not busted[seat]:
                 # Not in FL → check FL ENTRY from constrained top value
                 top_cat = hand_category(hand_values[seat]["top"])
                 top_r1 = (hand_values[seat]["top"] // (_B ** 4)) % _B
+                print(f"[DEBUG] Seat {seat} FL ENTRY check: top_cat={top_cat}, top_r1={top_r1}, is_fl={game.is_fantasyland[seat]}")
                 if top_cat >= 3:  # Trips
                     fl_entry[seat] = True
                     fl_card_count[seat] = 17
