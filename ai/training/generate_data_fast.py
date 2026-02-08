@@ -279,65 +279,92 @@ def fast_score(boards: list) -> dict:
     }
 
 
+_B = 15
+_B5 = _B ** 5
+
+def _qenc(cat, *ranks):
+    val = cat
+    for i in range(5):
+        val = val * _B + (ranks[i] if i < len(ranks) else 0)
+    return val
+
+def _qstraight_high(sr, jokers=0):
+    if jokers == 0:
+        if sr == [14,5,4,3,2]: return 5
+        return sr[0]
+    unique = sorted(set(sr), reverse=True)
+    for high in range(14, 4, -1):
+        needed = set(range(high, high-5, -1))
+        if high == 5: needed = {14,5,4,3,2}
+        if len(needed - set(unique)) <= jokers and len(set(unique) - needed) == 0:
+            return high
+    return sr[0] if sr else 0
+
 def quick_eval(cards: list, expected: int) -> int:
-    """Fast hand evaluation (value for ordering check)."""
+    """Fast hand evaluation with base-15 encoding."""
     if len(cards) != expected:
         return 0
-    ranks = []
-    suits = []
-    jokers = 0
+    ranks = []; suits = []; jokers = 0
     for c in cards:
-        if c in ("X1", "X2"):
-            jokers += 1
+        if c in ("X1", "X2"): jokers += 1
         else:
             ranks.append(RANK_VALUES.get(c[0], 0))
             suits.append(c[1])
     if not ranks:
-        return 4000 + 14  # All jokers = trips
-
+        return _qenc(3, 14)  # All jokers = trips
     rc = Counter(ranks)
     best = max(rc.values())
-
+    sr = sorted(ranks, reverse=True)
     if expected == 3:
         if best + jokers >= 3:
-            return 4000 + max(ranks)
+            if best >= 3: r = max(r for r,c in rc.items() if c >= 3)
+            elif best >= 2: r = max(r for r,c in rc.items() if c >= 2)
+            else: r = sr[0]
+            return _qenc(3, r)
         if best + jokers >= 2:
-            return 2000 + max(r for r, c in rc.items() if c + jokers >= 2)
-        return max(ranks)
-    else:
-        # Check flush
-        sc = Counter(suits)
-        is_flush = (max(sc.values()) + jokers >= 5) if sc else jokers >= 5
-
-        # Check straight
-        is_straight = _quick_check_straight(sorted(ranks, reverse=True), jokers)
-
-        # Straight flush / Royal flush
-        if is_flush and is_straight:
-            return 9000 + (max(ranks) if ranks else 14)
-        # Four of a kind
-        if best + jokers >= 4:
-            return 8000 + max(ranks)
-        # Full house (tightened: need trips + pair)
-        if best >= 3 and len(rc) == 2:
-            return 7000 + max(ranks)
-        if best >= 2 and jokers >= 1 and len(rc) == 2:
-            return 7000 + max(ranks)
-        # Flush
-        if is_flush:
-            return 6000 + max(ranks)
-        # Straight
-        if is_straight:
-            return 5000 + max(ranks)
-        # Three of a kind
-        if best + jokers >= 3:
-            return 4000 + max(ranks)
-        pairs = [r for r, c in rc.items() if c >= 2]
-        if len(pairs) >= 2:
-            return 3000 + max(pairs)
-        if best >= 2 or jokers >= 1:
-            return 2000 + max(ranks)
-        return max(ranks)
+            if best >= 2:
+                pr = max(r for r,c in rc.items() if c >= 2)
+                k = sorted([r for r in ranks if r != pr], reverse=True)
+            else: pr = sr[0]; k = sr[1:]
+            return _qenc(1, pr, k[0] if k else 0)
+        return _qenc(0, *sr)
+    # 5-card
+    sc = Counter(suits)
+    is_flush = len(sc) == 1 and (len(suits) + jokers) == expected
+    is_straight = _quick_check_straight(sr, jokers)
+    pairs = sorted([r for r,c in rc.items() if c >= 2], reverse=True)
+    if is_flush and is_straight:
+        return _qenc(8, _qstraight_high(sr, jokers))
+    if best + jokers >= 4:
+        if best >= 4: qr = max(r for r,c in rc.items() if c >= 4)
+        elif best >= 3: qr = max(r for r,c in rc.items() if c >= 3)
+        else: qr = pairs[0] if pairs else sr[0]
+        kicker = max((r for r in ranks if r != qr), default=0)
+        return _qenc(7, qr, kicker)
+    if best >= 3:
+        tr = max(r for r,c in rc.items() if c >= 3)
+        pc = [r for r,c in rc.items() if c >= 2 and r != tr]
+        if pc: return _qenc(6, tr, max(pc))
+    if jokers >= 1 and len(pairs) >= 2:
+        return _qenc(6, pairs[0], pairs[1])
+    if is_flush:
+        return _qenc(5, *sr[:5])
+    if is_straight:
+        return _qenc(4, _qstraight_high(sr, jokers))
+    if best + jokers >= 3:
+        if best >= 3: tr = max(r for r,c in rc.items() if c >= 3)
+        elif best >= 2: tr = max(r for r,c in rc.items() if c >= 2)
+        else: tr = sr[0]
+        k = sorted([r for r in ranks if r != tr], reverse=True)
+        return _qenc(3, tr, k[0] if len(k)>0 else 0, k[1] if len(k)>1 else 0)
+    if len(pairs) >= 2:
+        kicker = max((r for r in ranks if r not in pairs[:2]), default=0)
+        return _qenc(2, pairs[0], pairs[1], kicker)
+    if best >= 2 or jokers >= 1:
+        if pairs: pr=pairs[0]; k=sorted([r for r in ranks if r!=pr], reverse=True)
+        else: pr=sr[0]; k=sr[1:]
+        return _qenc(1, pr, k[0] if len(k)>0 else 0, k[1] if len(k)>1 else 0, k[2] if len(k)>2 else 0)
+    return _qenc(0, *sr[:5])
 
 
 def _quick_check_straight(sorted_ranks: list, jokers: int) -> bool:
@@ -365,25 +392,29 @@ def _quick_check_straight(sorted_ranks: list, jokers: int) -> bool:
 def quick_mid_royalty(cards: list) -> int:
     """Quick middle row royalty."""
     val = quick_eval(cards, 5)
-    if val >= 9014: return 50   # Royal flush
-    if val >= 9000: return 30   # Straight flush
-    if val >= 8000: return 20   # Four of a kind
-    if val >= 7000: return 12   # Full house
-    if val >= 6000: return 8    # Flush
-    if val >= 5000: return 4    # Straight
-    if val >= 4000: return 2    # Three of a kind
+    cat = val // _B5
+    r1 = (val // (_B ** 4)) % _B
+    if cat == 8 and r1 == 14: return 50
+    if cat == 8: return 30
+    if cat == 7: return 20
+    if cat == 6: return 12
+    if cat == 5: return 8
+    if cat == 4: return 4
+    if cat == 3: return 2
     return 0
 
 
 def quick_bot_royalty(cards: list) -> int:
     """Quick bottom row royalty."""
     val = quick_eval(cards, 5)
-    if val >= 9014: return 25   # Royal flush
-    if val >= 9000: return 15   # Straight flush
-    if val >= 8000: return 10   # Four of a kind
-    if val >= 7000: return 6    # Full house
-    if val >= 6000: return 4    # Flush
-    if val >= 5000: return 2    # Straight
+    cat = val // _B5
+    r1 = (val // (_B ** 4)) % _B
+    if cat == 8 and r1 == 14: return 25
+    if cat == 8: return 15
+    if cat == 7: return 10
+    if cat == 6: return 6
+    if cat == 5: return 4
+    if cat == 4: return 2
     return 0
 
 
