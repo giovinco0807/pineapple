@@ -501,6 +501,17 @@ async def handle_message(room: GameRoom, player_id: str, seat: int, data: dict):
                     fl_result = solve_fantasyland(room.game.dealt_cards[s])
                     if fl_result:
                         print(f"[DEBUG] FL Solver result for seat {s}: {fl_result}")
+                        # Validate solver output - check for bust
+                        from backend.main import evaluate_hand, _evaluate_with_joker_constraint
+                        bot_v = evaluate_hand(fl_result["bottom"], 5)
+                        mid_v = _evaluate_with_joker_constraint(fl_result["middle"], 5, max_value=bot_v)
+                        top_v = _evaluate_with_joker_constraint(fl_result["top"], 3, max_value=mid_v)
+                        if top_v > mid_v or mid_v > bot_v:
+                            print(f"[WARN] FL Solver returned BUST for seat {s}! top={top_v} mid={mid_v} bot={bot_v}")
+                            print(f"[WARN] Rejecting solver result, will use fallback")
+                            fl_result = None
+                    
+                    if fl_result:
                         room.game.boards[s] = {
                             "top": fl_result["top"],
                             "middle": fl_result["middle"],
@@ -508,6 +519,8 @@ async def handle_message(room: GameRoom, player_id: str, seat: int, data: dict):
                         }
                         room.game.placed_this_turn[s] = True
                         room.log_turn(s, [[c, "auto"] for c in fl_result["top"] + fl_result["middle"] + fl_result["bottom"]], None)
+                    else:
+                        print(f"[WARN] FL Solver failed for seat {s}, cards: {room.game.dealt_cards[s]}")
             
             # Check if both players are already done (both FL)
             if room.game.placed_this_turn[0] and room.game.placed_this_turn[1]:
