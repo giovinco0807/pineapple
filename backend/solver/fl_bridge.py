@@ -63,16 +63,26 @@ def solve_fantasyland(cards: list[str]) -> Optional[dict]:
                 if response.get("success") and response.get("placement"):
                     placement = response["placement"]
                     
+                    # Track original joker names for restoration
+                    joker_names = [c for c in cards if c in ("X1", "X2")]
+                    joker_idx = 0
+                    
                     # Convert back to card strings
                     def cards_to_str(cards_list):
+                        nonlocal joker_idx
                         result = []
-                        rank_rev = {0: 'JK', 2: '2', 3: '3', 4: '4', 5: '5', 6: '6',
+                        rank_rev = {2: '2', 3: '3', 4: '4', 5: '5', 6: '6',
                                    7: '7', 8: '8', 9: '9', 10: 'T', 11: 'J',
                                    12: 'Q', 13: 'K', 14: 'A'}
-                        suit_rev = {0: 'h', 1: 'd', 2: 'c', 3: 's', 4: 'X'}
+                        suit_rev = {0: 'h', 1: 'd', 2: 'c', 3: 's'}
                         for c in cards_list:
                             if c.get("rank", 0) == 0:
-                                result.append("JK")
+                                # Use original joker name (X1/X2)
+                                if joker_idx < len(joker_names):
+                                    result.append(joker_names[joker_idx])
+                                    joker_idx += 1
+                                else:
+                                    result.append("X1")
                             else:
                                 r = rank_rev.get(c["rank"], '?')
                                 s = suit_rev.get(c["suit"], '?')

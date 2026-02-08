@@ -255,7 +255,7 @@ def evaluate_hand(cards: List[str], expected_count: int) -> int:
     suits = []
     jokers = 0
     for c in cards:
-        if c in ("X1", "X2"):
+        if c in ("X1", "X2", "JK"):
             jokers += 1
         else:
             ranks.append(RANK_VALUES.get(c[0], 0))
@@ -375,7 +375,7 @@ def get_top_royalty(cards: List[str]) -> int:
     ranks = []
     jokers = 0
     for c in cards:
-        if c in ("X1", "X2"):
+        if c in ("X1", "X2", "JK"):
             jokers += 1
         else:
             ranks.append(RANK_VALUES.get(c[0], 0))

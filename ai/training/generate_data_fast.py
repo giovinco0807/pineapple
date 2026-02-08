@@ -306,7 +306,7 @@ def quick_eval(cards: list, expected: int) -> int:
         return 0
     ranks = []; suits = []; jokers = 0
     for c in cards:
-        if c in ("X1", "X2"): jokers += 1
+        if c in ("X1", "X2", "JK"): jokers += 1
         else:
             ranks.append(RANK_VALUES.get(c[0], 0))
             suits.append(c[1])

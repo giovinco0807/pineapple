@@ -569,7 +569,7 @@ def _evaluate_with_joker_constraint(cards: list, expected_count: int,
     If no joker is present, or best hand is already ≤ max_value, returns normal eval.
     If even the weakest joker substitution exceeds max_value, player is genuinely busted.
     """
-    jokers = [c for c in cards if c in ("X1", "X2")]
+    jokers = [c for c in cards if c in ("X1", "X2", "JK")]
     if not jokers:
         return evaluate_hand(cards, expected_count)
     
@@ -578,7 +578,7 @@ def _evaluate_with_joker_constraint(cards: list, expected_count: int,
         return best_val  # No constraint violation
     
     # Try all possible joker substitutions to find best ≤ max_value
-    non_joker = [c for c in cards if c not in ("X1", "X2")]
+    non_joker = [c for c in cards if c not in ("X1", "X2", "JK")]
     card_set = set(cards)
     
     RANKS = "23456789TJQKA"
@@ -809,7 +809,7 @@ def evaluate_hand(cards: list, expected_count: int) -> int:
     suits = []
     jokers = 0
     for card in cards:
-        if card in ("X1", "X2"):
+        if card in ("X1", "X2", "JK"):
             jokers += 1
         else:
             ranks.append(RANK_VALUES.get(card[0], 0))
@@ -946,7 +946,7 @@ def get_top_royalty(cards: list) -> int:
     ranks = []
     jokers = 0
     for c in cards:
-        if c in ["X1", "X2"]:
+        if c in ("X1", "X2", "JK"):
             jokers += 1
         else:
             ranks.append(RANK_VALUES.get(c[0], 0))
