@@ -1,16 +1,13 @@
-# Ignore everything except what's needed for backend
+# Ignore everything except what's needed
 **/__pycache__
 **/.git
 **/node_modules
-**/frontend
 **/.venv
 **/training
 **/models
 **/*.pyc
 **/ai/docs
 **/ai/logs
-**/*.txt
-**/*.md
 **/check_*.py
 **/test_*.py
 **/debug_*.py
@@ -19,3 +16,6 @@
 **/stats_*.py
 *.webp
 *.png
+bc_*.txt
+test_*.txt
+self_play_result.txt
