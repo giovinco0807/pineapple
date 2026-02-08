@@ -745,9 +745,11 @@ def calculate_scores(game: GameState) -> dict:
         p0_score += royalties[0]["total"] - royalties[1]["total"]
         raw_score = [p0_score, -p0_score]
     
-    # Update chips
-    game.chips[0] += raw_score[0]
-    game.chips[1] += raw_score[1]
+    # Update chips (floor at 0, max 400)
+    old_chips = game.chips.copy()
+    game.chips[0] = max(0, game.chips[0] + raw_score[0])
+    game.chips[1] = max(0, game.chips[1] + raw_score[1])
+    actual_score = [game.chips[0] - old_chips[0], game.chips[1] - old_chips[1]]
     
     # Update FL state in game
     game.is_fantasyland = fl_entry
@@ -770,7 +772,7 @@ def calculate_scores(game: GameState) -> dict:
         "line_results": line_results,
         "scoop": scoop,
         "raw_score": raw_score,
-        "actual_score": raw_score,
+        "actual_score": actual_score,
         "chips": game.chips.copy(),
         "fl_entry": fl_entry,
         "fl_card_count": fl_card_count
@@ -1143,15 +1145,17 @@ def check_fl_stay(board: dict, hand_vals: dict, current_fl_cards: int) -> tuple:
 
 
 def check_session_end(game: GameState) -> Optional[dict]:
-    """Check if session should end. Skip if any player has FL."""
-    # Don't end game if either player qualifies for FL
-    if game.is_fantasyland[0] or game.is_fantasyland[1]:
-        return None
-    
+    """Check if session should end. Bankruptcy always ends; chip_lead skipped during FL."""
+    # Bankruptcy always ends the game, even during FL
     if game.chips[0] <= 0:
         return {"winner": 1, "final_chips": game.chips, "hands_played": game.hands_played, "reason": "bankrupt"}
     if game.chips[1] <= 0:
         return {"winner": 0, "final_chips": game.chips, "hands_played": game.hands_played, "reason": "bankrupt"}
+    
+    # Don't end on chip_lead if either player qualifies for FL
+    if game.is_fantasyland[0] or game.is_fantasyland[1]:
+        return None
+    
     if abs(game.chips[0] - game.chips[1]) >= 40:
         winner = 0 if game.chips[0] > game.chips[1] else 1
         return {"winner": winner, "final_chips": game.chips, "hands_played": game.hands_played, "reason": "chip_lead"}
