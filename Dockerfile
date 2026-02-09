@@ -7,7 +7,7 @@ COPY frontend/ .
 RUN npm run build
 
 # Stage 2: Build Rust solver
-FROM rust:1.75-slim AS rust-build
+FROM rust:1.82-slim AS rust-build
 WORKDIR /app/ai/rust_solver
 COPY ai/rust_solver/ .
 RUN cargo build --release
