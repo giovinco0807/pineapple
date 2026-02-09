@@ -20,7 +20,7 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy backend
+# Copy backend and dependencies
 COPY backend/ backend/
 COPY ai/engine/ ai/engine/
 

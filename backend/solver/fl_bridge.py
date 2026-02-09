@@ -8,7 +8,10 @@ from pathlib import Path
 from typing import Optional
 
 
-FL_SOLVER_PATH = Path(__file__).parent.parent.parent / "ai" / "rust_solver" / "target" / "release" / "fl_solver.exe"
+import platform
+
+_solver_name = "fl_solver.exe" if platform.system() == "Windows" else "fl_solver"
+FL_SOLVER_PATH = Path(__file__).parent.parent.parent / "ai" / "rust_solver" / "target" / "release" / _solver_name
 
 
 def solve_fantasyland(cards: list[str]) -> Optional[dict]:
