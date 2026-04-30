@@ -79,16 +79,20 @@ enum Commands {
         hands: usize,
 
         /// Number of Monte Carlo samples per placement
-        #[arg(long, default_value_t = 1000)]
+        #[arg(long, default_value_t = 30)]
         samples: usize,
 
         /// Output JSONL file path
-        #[arg(long, default_value = "t0_batch.jsonl")]
+        #[arg(long, default_value = "t0_train.jsonl")]
         output: String,
 
         /// Random seed
         #[arg(long, default_value_t = 42)]
         seed: u64,
+
+        /// Nesting depth for nested MC (comma-separated, e.g. "5,3,2")
+        #[arg(long, default_value = "5,3,2")]
+        nesting: String,
     },
 
     /// Measure FL statistics (R_N, p_FL) for corrected EV model
@@ -155,8 +159,14 @@ fn main() {
         Commands::T0Eval { hand, samples, seed, top_n } => {
             run_t0_eval(&hand, samples, seed, top_n);
         }
-        Commands::T0Batch { hands, samples, output, seed } => {
-            t0_eval::run_batch(hands, samples, &output, seed);
+        Commands::T0Batch { hands, samples, output, seed, nesting } => {
+            let parts: Vec<usize> = nesting.split(',').filter_map(|s| s.trim().parse().ok()).collect();
+            if parts.len() != 3 {
+                eprintln!("Error: --nesting must be 3 comma-separated values (e.g. 5,3,2)");
+                std::process::exit(1);
+            }
+            let nest = [parts[0], parts[1], parts[2]];
+            t0_eval::run_batch(hands, samples, &output, seed, nest);
         }
         Commands::FlStats { hands, samples, seed } => {
             t0_eval::measure_fl_stats(hands, samples, seed);

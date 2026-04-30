@@ -13,15 +13,15 @@ use rand::Rng;
 
 use crate::action_gen::{Board, Action, get_placed_cards, get_discard, generate_t0_actions, generate_turn_actions};
 
-/// FL Chain EV values — calibrated via measure_fl_stats.
+/// FL Chain EV values — calibrated via imperfect-info rollouts.
 /// Formula: Delta = (R_FL - R_N) / (1 - S + p_FL)
-/// R_N = 11.9, p_FL = 0.73 (measured from 20 hands × 300 samples)
+/// R_N = 2.850, p_FL = 0.4436 (measured [10,6,3] nesting, 20 hands × 200 rollouts)
 pub fn fl_chain_ev(fl_cards: u8) -> f64 {
     match fl_cards {
-        14 => 2.6,    // QQ   (was 14.0)
-        15 => 5.9,    // KK   (was 27.9)
-        16 => 10.9,   // AA   (was 52.4)
-        17 => 17.3,   // Trips (was 104.5)
+        14 => 11.79,   // QQ   (S=38.44%)
+        15 => 17.20,   // KK   (S=48.69%)
+        16 => 26.10,   // AA   (S=64.09%)
+        17 => 38.27,   // Trips (S=77.60%)
         _ => 0.0,
     }
 }

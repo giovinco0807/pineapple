@@ -211,11 +211,11 @@ fn best_score_from_turn(cb: &CompactBoard, deals: &Deals, turn: usize) -> f64 {
 /// Index 1 = how many T3 futures when evaluating T2,
 /// Index 2 = how many T4 futures when evaluating T3.
 /// Higher = more accurate but slower. Total cost ∝ N0 × N1 × N2.
-const NESTED_SAMPLES: [usize; 3] = [100, 60, 30];
+const NESTED_SAMPLES: [usize; 3] = [10, 6, 3];
 
 /// Lighter nesting for FL stats rollouts.
 /// Each rollout is cheap; statistical accuracy comes from many rollouts.
-const ROLLOUT_NESTED: [usize; 3] = [25, 15, 5];
+const ROLLOUT_NESTED: [usize; 3] = [10, 6, 3];
 
 /// Evaluate the best action at a given turn with imperfect information.
 /// `nesting` controls sample counts at each depth level.
@@ -303,6 +303,7 @@ fn estimate_future_ev(
 fn evaluate_t0_sample_imperfect(
     t0_board: &CompactBoard,
     remaining: &[Card],
+    nesting: &[usize; 3],
     rng: &mut SmallRng,
 ) -> f64 {
     let len = remaining.len();
@@ -317,7 +318,7 @@ fn evaluate_t0_sample_imperfect(
     let t1_hand: [Card; 3] = [deck_buf[0], deck_buf[1], deck_buf[2]];
     let t1_remaining: Vec<Card> = deck_buf[3..len].to_vec();
 
-    imperfect_best_score(t0_board, &t1_hand, &t1_remaining, 0, &NESTED_SAMPLES, rng)
+    imperfect_best_score(t0_board, &t1_hand, &t1_remaining, 0, nesting, rng)
 }
 
 /// Play out a complete game (T1-T4) from a T0 board using imperfect-info decisions.
@@ -463,7 +464,7 @@ pub fn evaluate_t0(hand: &[Card; 5], n_samples: usize, seed: u64) -> Vec<(String
                 .wrapping_add(action_idx as u64 * 10_000_019)
                 .wrapping_add(sample_idx as u64);
             let mut rng = SmallRng::seed_from_u64(combined_seed);
-            evaluate_t0_sample_imperfect(&t0_boards[action_idx], &remaining, &mut rng)
+            evaluate_t0_sample_imperfect(&t0_boards[action_idx], &remaining, &NESTED_SAMPLES, &mut rng)
         })
         .collect();
 
@@ -491,7 +492,8 @@ pub fn evaluate_t0(hand: &[Card; 5], n_samples: usize, seed: u64) -> Vec<(String
 use std::io::Write;
 
 /// Quiet version of evaluate_t0  Eno stdout, just returns results.
-pub fn evaluate_t0_quiet(hand: &[Card; 5], n_samples: usize, seed: u64) -> Vec<(String, f64)> {
+/// Quiet version of evaluate_t0, accepts configurable nesting.
+pub fn evaluate_t0_quiet(hand: &[Card; 5], n_samples: usize, seed: u64, nesting: &[usize; 3]) -> Vec<(String, f64)> {
     let board = Board::new();
     let actions = generate_t0_actions(hand, &board);
 
@@ -512,6 +514,7 @@ pub fn evaluate_t0_quiet(hand: &[Card; 5], n_samples: usize, seed: u64) -> Vec<(
         .map(|action| apply_t0_action(hand, action))
         .collect();
 
+    // Use imperfect-info MC evaluation (same as evaluate_t0)
     let scores: Vec<f64> = (0..total_tasks)
         .into_par_iter()
         .map(|task_id| {
@@ -521,8 +524,7 @@ pub fn evaluate_t0_quiet(hand: &[Card; 5], n_samples: usize, seed: u64) -> Vec<(
                 .wrapping_add(action_idx as u64 * 10_000_019)
                 .wrapping_add(sample_idx as u64);
             let mut rng = SmallRng::seed_from_u64(combined_seed);
-            let deals = sample_deals(&remaining, &mut rng);
-            best_score_from_turn(&t0_boards[action_idx], &deals, 0)
+            evaluate_t0_sample_imperfect(&t0_boards[action_idx], &remaining, nesting, &mut rng)
         })
         .collect();
 
@@ -596,8 +598,9 @@ fn classify_hand(hand: &[Card; 5]) -> String {
 }
 
 /// Run batch evaluation: generate N random hands, evaluate each, save to JSONL.
+/// Saves ALL placements with EVs for supervised learning.
 /// Supports resumption by counting existing lines in the output file.
-pub fn run_batch(n_hands: usize, n_samples: usize, output_path: &str, seed: u64) {
+pub fn run_batch(n_hands: usize, n_samples: usize, output_path: &str, seed: u64, nesting: [usize; 3]) {
     use std::fs::{OpenOptions};
     use std::io::{BufRead, BufReader};
     use rand::seq::SliceRandom;
@@ -616,12 +619,12 @@ pub fn run_batch(n_hands: usize, n_samples: usize, output_path: &str, seed: u64)
     }
 
     let remaining_hands = n_hands - completed;
-    println!("=== T0 Batch Evaluation ===");
-    println!("Target: {} hands | Samples/hand: {} | Output: {}", n_hands, n_samples, output_path);
+    println!("=== T0 Batch Evaluation (Imperfect-Info MC) ===");
+    println!("Target: {} hands | Samples/hand: {} | Nesting: {:?}", n_hands, n_samples, nesting);
+    println!("Output: {} | Format: ALL placements per hand", output_path);
     if completed > 0 {
         println!("Resuming from hand #{} ({} already done)", completed + 1, completed);
     }
-    println!("Estimated time: ~{:.0} min", remaining_hands as f64 * 4.7);
     println!();
 
     let mut file = OpenOptions::new()
@@ -641,27 +644,26 @@ pub fn run_batch(n_hands: usize, n_samples: usize, output_path: &str, seed: u64)
         let hand_type = classify_hand(&hand);
 
         let eval_seed = seed.wrapping_add(hand_idx as u64 * 1_000_000_007);
-        let results = evaluate_t0_quiet(&hand, n_samples, eval_seed);
+        let results = evaluate_t0_quiet(&hand, n_samples, eval_seed, &nesting);
 
         if results.is_empty() {
             continue;
         }
 
-        // Build JSON: top 5 placements + best/worst
-        let top5: Vec<String> = results.iter().take(5).map(|(desc, ev)| {
-            format!("{{\"placement\":\"{}\",\"ev\":{:.3}}}", desc, ev)
+        // Build JSON with ALL placements (sorted by EV desc)
+        let all_placements: Vec<String> = results.iter().map(|(desc, ev)| {
+            format!("{{\"p\":\"{}\",\"ev\":{:.3}}}", desc, ev)
         }).collect();
 
         let json = format!(
-            "{{\"hand_idx\":{},\"hand\":\"{}\",\"type\":\"{}\",\"n_placements\":{},\"n_samples\":{},\"best\":{{\"placement\":\"{}\",\"ev\":{:.3}}},\"worst\":{{\"placement\":\"{}\",\"ev\":{:.3}}},\"top5\":[{}]}}",
+            "{{\"hand_idx\":{},\"hand\":\"{}\",\"type\":\"{}\",\"n_placements\":{},\"n_samples\":{},\"nesting\":\"{:?}\",\"placements\":[{}]}}",
             hand_idx,
             hand_str,
             hand_type,
             results.len(),
             n_samples,
-            results[0].0, results[0].1,
-            results.last().unwrap().0, results.last().unwrap().1,
-            top5.join(","),
+            nesting,
+            all_placements.join(","),
         );
 
         writeln!(file, "{}", json).expect("Failed to write");
@@ -673,9 +675,10 @@ pub fn run_batch(n_hands: usize, n_samples: usize, output_path: &str, seed: u64)
         let eta = avg * (remaining_hands - done) as f64;
 
         println!(
-            "[{:>4}/{}] {} ({}) ↁEBest: {} EV:{:+.2} | {:.0}s/hand | ETA: {:.0}min",
+            "[{:>4}/{}] {} ({}) | {} placements | Best: {} EV:{:+.2} | {:.0}s/hand | ETA: {:.0}min",
             hand_idx + 1, n_hands,
             hand_str, hand_type,
+            results.len(),
             results[0].0, results[0].1,
             avg, eta / 60.0,
         );
