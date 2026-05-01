@@ -491,9 +491,17 @@ pub fn evaluate_t0(hand: &[Card; 5], n_samples: usize, seed: u64) -> Vec<(String
 
 use std::io::Write;
 
-/// Quiet version of evaluate_t0  Eno stdout, just returns results.
-/// Quiet version of evaluate_t0, accepts configurable nesting.
+/// Quiet version of evaluate_t0 -- no stdout, just returns results.
+/// Backward-compatible wrapper: evaluates all placements.
 pub fn evaluate_t0_quiet(hand: &[Card; 5], n_samples: usize, seed: u64, nesting: &[usize; 3]) -> Vec<(String, f64)> {
+    evaluate_t0_quiet_topk(hand, n_samples, seed, nesting, 0)
+}
+
+/// Two-pass top-K evaluation:
+///   Pass 1: Screen ALL placements with cheap nesting=[1,1,1], samples=5
+///   Pass 2: Only evaluate top-K placements with full nesting & samples
+/// If top_k == 0, evaluates all placements (no screening).
+pub fn evaluate_t0_quiet_topk(hand: &[Card; 5], n_samples: usize, seed: u64, nesting: &[usize; 3], top_k: usize) -> Vec<(String, f64)> {
     let board = Board::new();
     let actions = generate_t0_actions(hand, &board);
 
@@ -507,19 +515,61 @@ pub fn evaluate_t0_quiet(hand: &[Card; 5], n_samples: usize, seed: u64, nesting:
         return Vec::new();
     }
 
-    let total_tasks = actions.len() * n_samples;
     let n_actions = actions.len();
 
     let t0_boards: Vec<CompactBoard> = actions.iter()
         .map(|action| apply_t0_action(hand, action))
         .collect();
 
-    // Use imperfect-info MC evaluation (same as evaluate_t0)
-    let scores: Vec<f64> = (0..total_tasks)
+    // Determine which action indices to deeply evaluate
+    let deep_indices: Vec<usize> = if top_k > 0 && top_k < n_actions {
+        // --- Pass 1: Cheap screening ---
+        let screen_nesting: [usize; 3] = [1, 1, 1];
+        let screen_samples: usize = 5;
+        let screen_tasks = n_actions * screen_samples;
+
+        let screen_scores: Vec<f64> = (0..screen_tasks)
+            .into_par_iter()
+            .map(|task_id| {
+                let action_idx = task_id / screen_samples;
+                let sample_idx = task_id % screen_samples;
+                let combined_seed = seed
+                    .wrapping_add(action_idx as u64 * 10_000_019)
+                    .wrapping_add(sample_idx as u64)
+                    .wrapping_add(77777); // offset to avoid seed collision with pass 2
+                let mut rng = SmallRng::seed_from_u64(combined_seed);
+                evaluate_t0_sample_imperfect(&t0_boards[action_idx], &remaining, &screen_nesting, &mut rng)
+            })
+            .collect();
+
+        // Aggregate screening scores
+        let mut screen_evs: Vec<(usize, f64)> = (0..n_actions)
+            .map(|ai| {
+                let start = ai * screen_samples;
+                let end = start + screen_samples;
+                let total: f64 = screen_scores[start..end].iter().sum();
+                (ai, total / screen_samples as f64)
+            })
+            .collect();
+
+        // Sort by EV descending, take top-K
+        screen_evs.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        screen_evs.iter().take(top_k).map(|(idx, _)| *idx).collect()
+    } else {
+        // No screening: evaluate all
+        (0..n_actions).collect()
+    };
+
+    let n_deep = deep_indices.len();
+
+    // --- Pass 2: Deep evaluation of selected placements ---
+    let deep_tasks = n_deep * n_samples;
+    let scores: Vec<f64> = (0..deep_tasks)
         .into_par_iter()
         .map(|task_id| {
-            let action_idx = task_id / n_samples;
+            let deep_idx = task_id / n_samples;
             let sample_idx = task_id % n_samples;
+            let action_idx = deep_indices[deep_idx];
             let combined_seed = seed
                 .wrapping_add(action_idx as u64 * 10_000_019)
                 .wrapping_add(sample_idx as u64);
@@ -528,11 +578,11 @@ pub fn evaluate_t0_quiet(hand: &[Card; 5], n_samples: usize, seed: u64, nesting:
         })
         .collect();
 
-    let results: Vec<(String, f64)> = actions.iter()
+    let results: Vec<(String, f64)> = deep_indices.iter()
         .enumerate()
-        .map(|(action_idx, action)| {
-            let desc = format_placement(hand, action);
-            let start = action_idx * n_samples;
+        .map(|(deep_idx, &action_idx)| {
+            let desc = format_placement(hand, &actions[action_idx]);
+            let start = deep_idx * n_samples;
             let end = start + n_samples;
             let total: f64 = scores[start..end].iter().sum();
             let ev = total / n_samples as f64;
@@ -544,7 +594,6 @@ pub fn evaluate_t0_quiet(hand: &[Card; 5], n_samples: usize, seed: u64, nesting:
     sorted.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
     sorted
 }
-
 /// Generate a random 5-card hand from the deck.
 fn generate_random_hand(rng: &mut SmallRng) -> [Card; 5] {
     let mut deck = create_deck(true);
@@ -598,9 +647,10 @@ fn classify_hand(hand: &[Card; 5]) -> String {
 }
 
 /// Run batch evaluation: generate N random hands, evaluate each, save to JSONL.
-/// Saves ALL placements with EVs for supervised learning.
+/// Saves top-K placements (or all if top_k=0) with EVs for supervised learning.
+/// Uses 2-pass screening when top_k > 0 to save compute.
 /// Supports resumption by counting existing lines in the output file.
-pub fn run_batch(n_hands: usize, n_samples: usize, output_path: &str, seed: u64, nesting: [usize; 3]) {
+pub fn run_batch(n_hands: usize, n_samples: usize, output_path: &str, seed: u64, nesting: [usize; 3], top_k: usize) {
     use std::fs::{OpenOptions};
     use std::io::{BufRead, BufReader};
     use rand::seq::SliceRandom;
@@ -621,7 +671,10 @@ pub fn run_batch(n_hands: usize, n_samples: usize, output_path: &str, seed: u64,
     let remaining_hands = n_hands - completed;
     println!("=== T0 Batch Evaluation (Imperfect-Info MC) ===");
     println!("Target: {} hands | Samples/hand: {} | Nesting: {:?}", n_hands, n_samples, nesting);
-    println!("Output: {} | Format: ALL placements per hand", output_path);
+    if top_k > 0 {
+        println!("Two-pass mode: screen all → deep eval top-{}", top_k);
+    }
+    println!("Output: {} | Format: {} placements per hand", output_path, if top_k > 0 { format!("top-{}", top_k) } else { "ALL".to_string() });
     if completed > 0 {
         println!("Resuming from hand #{} ({} already done)", completed + 1, completed);
     }
@@ -644,25 +697,26 @@ pub fn run_batch(n_hands: usize, n_samples: usize, output_path: &str, seed: u64,
         let hand_type = classify_hand(&hand);
 
         let eval_seed = seed.wrapping_add(hand_idx as u64 * 1_000_000_007);
-        let results = evaluate_t0_quiet(&hand, n_samples, eval_seed, &nesting);
+        let results = evaluate_t0_quiet_topk(&hand, n_samples, eval_seed, &nesting, top_k);
 
         if results.is_empty() {
             continue;
         }
 
-        // Build JSON with ALL placements (sorted by EV desc)
+        // Build JSON with placements (sorted by EV desc)
         let all_placements: Vec<String> = results.iter().map(|(desc, ev)| {
             format!("{{\"p\":\"{}\",\"ev\":{:.3}}}", desc, ev)
         }).collect();
 
         let json = format!(
-            "{{\"hand_idx\":{},\"hand\":\"{}\",\"type\":\"{}\",\"n_placements\":{},\"n_samples\":{},\"nesting\":\"{:?}\",\"placements\":[{}]}}",
+            "{{\"hand_idx\":{},\"hand\":\"{}\",\"type\":\"{}\",\"n_placements\":{},\"n_samples\":{},\"nesting\":\"{:?}\",\"top_k\":{},\"placements\":[{}]}}",
             hand_idx,
             hand_str,
             hand_type,
             results.len(),
             n_samples,
             nesting,
+            top_k,
             all_placements.join(","),
         );
 
