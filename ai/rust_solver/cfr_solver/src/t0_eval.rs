@@ -692,6 +692,181 @@ pub fn run_batch(n_hands: usize, n_samples: usize, output_path: &str, seed: u64,
     println!("Output: {}", output_path);
 }
 
+/// Run filtered batch evaluation: read pre-filtered placements from Python JSON,
+/// evaluate only those placements with MC, and save results to JSONL.
+/// This is the same as run_batch but only evaluates the top-K placements
+/// selected by the PolicyNet, enabling higher sample counts.
+pub fn run_batch_filtered(input_path: &str, n_samples: usize, output_path: &str, seed: u64, nesting: [usize; 3]) {
+    use std::fs::{File, OpenOptions};
+    use std::io::{BufRead, BufReader};
+
+    // Read pre-filtered JSON
+    let input_data: String = std::fs::read_to_string(input_path)
+        .expect("Failed to read input JSON");
+    let entries: Vec<serde_json::Value> = serde_json::from_str(&input_data)
+        .expect("Failed to parse input JSON");
+
+    let n_hands = entries.len();
+
+    // Check how many hands already completed (for resumption)
+    let completed = if std::path::Path::new(output_path).exists() {
+        let file = File::open(output_path).unwrap();
+        BufReader::new(file).lines().count()
+    } else {
+        0
+    };
+
+    if completed >= n_hands {
+        println!("Already completed {} hands (target: {}). Nothing to do.", completed, n_hands);
+        return;
+    }
+
+    let remaining_hands = n_hands - completed;
+    println!("=== T0 Filtered Batch Evaluation (PolicyNet Pruned) ===");
+    println!("Input: {} | Hands: {} | Samples/hand: {} | Nesting: {:?}", input_path, n_hands, n_samples, nesting);
+    println!("Output: {} | Format: filtered placements per hand", output_path);
+    if completed > 0 {
+        println!("Resuming from hand #{} ({} already done)", completed + 1, completed);
+    }
+    println!();
+
+    let mut file = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(output_path)
+        .expect("Failed to open output file");
+
+    let start = std::time::Instant::now();
+
+    for hand_idx in completed..n_hands {
+        let entry = &entries[hand_idx];
+        let hand_str = entry["hand"].as_str().unwrap();
+        let hand = match parse_hand(hand_str) {
+            Some(h) => h,
+            None => {
+                eprintln!("Skipping invalid hand: {}", hand_str);
+                continue;
+            }
+        };
+
+        let hand_type = classify_hand(&hand);
+
+        // Get the filtered placement descriptions from Python
+        let filtered_descs: Vec<String> = entry["filtered_placements"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| v.as_str().unwrap().to_string())
+            .collect();
+
+        // Generate all T0 actions and filter to match
+        let board = Board::new();
+        let all_actions = generate_t0_actions(&hand, &board);
+
+        // Build a set of filtered placement descriptions for fast lookup
+        let filter_set: std::collections::HashSet<String> = filtered_descs.iter().cloned().collect();
+
+        // Filter actions: keep only those whose format_placement matches
+        let filtered_actions: Vec<_> = all_actions.iter()
+            .filter(|action| {
+                let desc = format_placement(&hand, action);
+                filter_set.contains(&desc)
+            })
+            .collect();
+
+        let n_filtered = filtered_actions.len();
+        if n_filtered == 0 {
+            eprintln!("[{}/{}] No matching placements for hand {}", hand_idx + 1, n_hands, hand_str);
+            continue;
+        }
+
+        // Pre-compute T0 boards for filtered actions
+        let full_deck = create_deck(true);
+        let remaining: Vec<Card> = full_deck.iter()
+            .filter(|c| !hand.iter().any(|h| h.rank == c.rank && h.suit == c.suit))
+            .copied()
+            .collect();
+
+        if remaining.len() != 49 { continue; }
+
+        let t0_boards: Vec<CompactBoard> = filtered_actions.iter()
+            .map(|action| apply_t0_action(&hand, action))
+            .collect();
+
+        let eval_seed = seed.wrapping_add(hand_idx as u64 * 1_000_000_007);
+        let total_tasks = n_filtered * n_samples;
+
+        // Parallel MC evaluation (same as evaluate_t0_quiet)
+        let scores: Vec<f64> = (0..total_tasks)
+            .into_par_iter()
+            .map(|task_id| {
+                let action_idx = task_id / n_samples;
+                let sample_idx = task_id % n_samples;
+                let combined_seed = eval_seed
+                    .wrapping_add(action_idx as u64 * 10_000_019)
+                    .wrapping_add(sample_idx as u64);
+                let mut rng = SmallRng::seed_from_u64(combined_seed);
+                evaluate_t0_sample_imperfect(&t0_boards[action_idx], &remaining, &nesting, &mut rng)
+            })
+            .collect();
+
+        // Aggregate results
+        let mut results: Vec<(String, f64)> = filtered_actions.iter()
+            .enumerate()
+            .map(|(action_idx, action)| {
+                let desc = format_placement(&hand, action);
+                let start_i = action_idx * n_samples;
+                let end_i = start_i + n_samples;
+                let total: f64 = scores[start_i..end_i].iter().sum();
+                let ev = total / n_samples as f64;
+                (desc, ev)
+            })
+            .collect();
+
+        results.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+
+        // Build JSON output (same format as run_batch)
+        let all_placements: Vec<String> = results.iter().map(|(desc, ev)| {
+            format!("{{\"p\":\"{}\",\"ev\":{:.3}}}", desc, ev)
+        }).collect();
+
+        let json = format!(
+            "{{\"hand_idx\":{},\"hand\":\"{}\",\"type\":\"{}\",\"n_placements\":{},\"n_samples\":{},\"nesting\":\"{:?}\",\"placements\":[{}]}}",
+            hand_idx,
+            hand_str,
+            hand_type,
+            results.len(),
+            n_samples,
+            nesting,
+            all_placements.join(","),
+        );
+
+        writeln!(file, "{}", json).expect("Failed to write");
+        file.flush().unwrap();
+
+        let elapsed = start.elapsed().as_secs_f64();
+        let done = hand_idx - completed + 1;
+        let avg = elapsed / done as f64;
+        let eta = avg * (remaining_hands - done) as f64;
+
+        println!(
+            "[{:>4}/{}] {} ({}) | {}/{} placements | Best: {} EV:{:+.2} | {:.0}s/hand | ETA: {:.0}min",
+            hand_idx + 1, n_hands,
+            hand_str, hand_type,
+            n_filtered, all_actions.len(),
+            results[0].0, results[0].1,
+            avg, eta / 60.0,
+        );
+    }
+
+    let total = start.elapsed().as_secs_f64();
+    println!("\n=== Filtered Batch Complete ===");
+    println!("Hands evaluated: {}", remaining_hands);
+    println!("Total time: {:.1}min", total / 60.0);
+    println!("Avg: {:.1}s/hand", total / remaining_hands as f64);
+    println!("Output: {}", output_path);
+}
+
 // ─── Real-time Turn Evaluator (T1-T4) ───
 
 /// Sample deals for remaining turns from the deck.
