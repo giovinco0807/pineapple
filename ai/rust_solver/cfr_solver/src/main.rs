@@ -74,6 +74,10 @@ enum Commands {
         /// Nesting depth for nested MC (comma-separated, e.g. "3,2,1")
         #[arg(long, default_value = "3,2,1")]
         nesting: String,
+
+        /// Top-K filtering: compare full vs top-K screening (0 = full only)
+        #[arg(long, default_value_t = 0)]
+        top_k: usize,
     },
 
     /// Batch evaluate random T0 hands and save to JSONL
@@ -187,10 +191,10 @@ fn main() {
         Commands::Bench { iterations } => {
             run_benchmark(iterations);
         }
-        Commands::T0Eval { hand, samples, seed, top_n, nesting } => {
+        Commands::T0Eval { hand, samples, seed, top_n, nesting, top_k } => {
             let parts: Vec<usize> = nesting.split(',').filter_map(|s| s.trim().parse().ok()).collect();
             let nest = if parts.len() == 3 { [parts[0], parts[1], parts[2]] } else { [3, 2, 1] };
-            run_t0_eval(&hand, samples, seed, top_n, nest);
+            run_t0_eval(&hand, samples, seed, top_n, nest, top_k);
         }
         Commands::T0Batch { hands, samples, output, seed, nesting, top_k } => {
             let parts: Vec<usize> = nesting.split(',').filter_map(|s| s.trim().parse().ok()).collect();
@@ -277,7 +281,7 @@ fn run_turn_eval(top: &str, mid: &str, bot: &str, hand_str: &str, turn: usize, s
     println!("Time: {:.2}s", elapsed);
 }
 
-fn run_t0_eval(hand_str: &str, samples: usize, seed: u64, top_n: usize, nesting: [usize; 3]) {
+fn run_t0_eval(hand_str: &str, samples: usize, seed: u64, top_n: usize, nesting: [usize; 3], top_k: usize) {
     let hand = match t0_eval::parse_hand(hand_str) {
         Some(h) => h,
         None => {
@@ -290,30 +294,69 @@ fn run_t0_eval(hand_str: &str, samples: usize, seed: u64, top_n: usize, nesting:
     };
 
     println!("=== OFC Pineapple T0 EV Evaluator ===");
-    let start = Instant::now();
 
-    let results = t0_eval::evaluate_t0(&hand, samples, seed, nesting);
+    // --- Full evaluation (all placements) ---
+    println!("\n--- [FULL] All placements, nesting={:?}, samples={} ---", nesting, samples);
+    let start_full = Instant::now();
+    let results_full = t0_eval::evaluate_t0(&hand, samples, seed, nesting);
+    let elapsed_full = start_full.elapsed().as_secs_f64();
 
-    let elapsed = start.elapsed().as_secs_f64();
-
-    let show = if top_n == 0 || top_n >= results.len() { results.len() } else { top_n };
-
-    println!("=== Results (top {} of {}) ===", show, results.len());
-    println!("{:<4} {:<40} {:>10}", "Rank", "Placement", "EV");
-    println!("{}", "-".repeat(56));
-
-    for (i, (desc, ev)) in results.iter().take(show).enumerate() {
-        println!("{:<4} {:<40} {:>+10.3}", i + 1, desc, ev);
+    let show = if top_n == 0 || top_n >= results_full.len() { results_full.len() } else { top_n };
+    println!("=== FULL Results (top {} of {}) === ({:.1}s)", show, results_full.len(), elapsed_full);
+    println!("{:<4} {:<50} {:>10}", "Rank", "Placement", "EV");
+    println!("{}", "-".repeat(66));
+    for (i, (desc, ev)) in results_full.iter().take(show).enumerate() {
+        println!("{:<4} {:<50} {:>+10.3}", i + 1, desc, ev);
     }
 
-    if results.len() > show {
-        println!("  ... and {} more placements", results.len() - show);
-    }
+    // --- Top-K evaluation (2-pass) ---
+    if top_k > 0 {
+        println!("\n--- [TOP-K={}] 2-pass screening, nesting={:?}, samples={} ---", top_k, nesting, samples);
+        let start_topk = Instant::now();
+        let results_topk = t0_eval::evaluate_t0_quiet_topk(&hand, samples, seed, &nesting, top_k);
+        let elapsed_topk = start_topk.elapsed().as_secs_f64();
 
-    println!();
-    println!("Best:  {} → EV: {:+.3}", results[0].0, results[0].1);
-    println!("Worst: {} → EV: {:+.3}", results.last().unwrap().0, results.last().unwrap().1);
-    println!("Total time: {:.1}s", elapsed);
+        let show_k = if top_n == 0 || top_n >= results_topk.len() { results_topk.len() } else { top_n };
+        println!("=== TOP-K Results (top {} of {}) === ({:.1}s)", show_k, results_topk.len(), elapsed_topk);
+        println!("{:<4} {:<50} {:>10}  {:>10}", "Rank", "Placement", "EV", "FullRank");
+        println!("{}", "-".repeat(78));
+
+        // Build lookup from full results for comparison
+        let full_rank: std::collections::HashMap<&str, usize> = results_full.iter()
+            .enumerate()
+            .map(|(i, (desc, _))| (desc.as_str(), i + 1))
+            .collect();
+
+        for (i, (desc, ev)) in results_topk.iter().take(show_k).enumerate() {
+            let fr = full_rank.get(desc.as_str()).copied().unwrap_or(999);
+            println!("{:<4} {:<50} {:>+10.3}  {:>10}", i + 1, desc, ev, fr);
+        }
+
+        // Summary: how many of full top-N are in topk top-N?
+        println!("\n=== Accuracy Summary ===");
+        println!("Full eval: {:.1}s | Top-K eval: {:.1}s | Speedup: {:.1}x", elapsed_full, elapsed_topk, elapsed_full / elapsed_topk);
+        let full_top_set: std::collections::HashSet<&str> = results_full.iter().take(top_k).map(|(d, _)| d.as_str()).collect();
+        let topk_set: std::collections::HashSet<&str> = results_topk.iter().map(|(d, _)| d.as_str()).collect();
+        let overlap = full_top_set.intersection(&topk_set).count();
+        println!("Full top-{} ∩ TopK result: {}/{} ({:.1}%)", top_k, overlap, top_k.min(results_full.len()), 100.0 * overlap as f64 / top_k.min(results_full.len()) as f64);
+
+        // Check if full #1 is in top-K results
+        let best_full = &results_full[0].0;
+        let in_topk = results_topk.iter().any(|(d, _)| d == best_full);
+        println!("Full #1 ({}) in Top-K: {}", best_full, if in_topk { "YES ✓" } else { "MISSED ✗" });
+
+        for check in [1, 5, 10, 20] {
+            if check > results_full.len() { continue; }
+            let full_n: std::collections::HashSet<&str> = results_full.iter().take(check).map(|(d, _)| d.as_str()).collect();
+            let topk_n: std::collections::HashSet<&str> = results_topk.iter().take(check).map(|(d, _)| d.as_str()).collect();
+            let ov = full_n.intersection(&topk_n).count();
+            println!("Top-{:>3} overlap: {}/{} ({:.0}%)", check, ov, check, 100.0 * ov as f64 / check as f64);
+        }
+    } else {
+        println!("\nBest:  {} → EV: {:+.3}", results_full[0].0, results_full[0].1);
+        println!("Worst: {} → EV: {:+.3}", results_full.last().unwrap().0, results_full.last().unwrap().1);
+        println!("Total time: {:.1}s", elapsed_full);
+    }
 }
 
 fn run_training(iterations: u64, log_interval: u64) {

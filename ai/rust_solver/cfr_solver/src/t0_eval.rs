@@ -415,6 +415,11 @@ fn format_placement(hand: &[Card], action: &crate::action_gen::Action) -> String
         }
     }
 
+    // Sort cards within each row for canonical matching with Python
+    top_cards.sort();
+    mid_cards.sort();
+    bot_cards.sort();
+
     format!(
         "Top[{}] Mid[{}] Bot[{}]",
         top_cards.join(" "),
