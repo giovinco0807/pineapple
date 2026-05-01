@@ -425,23 +425,27 @@ fn format_placement(hand: &[Card], action: &crate::action_gen::Action) -> String
 
 /// Evaluate all T0 placements for a given hand.
 /// Returns sorted (placement_description, EV) pairs.
-pub fn evaluate_t0(hand: &[Card; 5], n_samples: usize, seed: u64) -> Vec<(String, f64)> {
+pub fn evaluate_t0(hand: &[Card; 5], n_samples: usize, seed: u64, nesting: [usize; 3]) -> Vec<(String, f64)> {
     let board = Board::new();
     let actions = generate_t0_actions(hand, &board);
 
     println!("Hand: {}", hand.iter().map(|c| card_to_string(c)).collect::<Vec<_>>().join(" "));
     println!("Valid T0 placements: {}", actions.len());
-    println!("Samples per placement: {} (imperfect-info MC, nested: {:?})", n_samples, NESTED_SAMPLES);
+    println!("Samples per placement: {} (imperfect-info MC, nested: {:?})", n_samples, nesting);
     println!();
 
-    // Build remaining deck (54 cards minus the 5 in hand)
-    let full_deck = create_deck(true);
-    let remaining: Vec<Card> = full_deck.iter()
-        .filter(|c| !hand.iter().any(|h| h.rank == c.rank && h.suit == c.suit))
-        .copied()
-        .collect();
-
-    assert_eq!(remaining.len(), 49, "Should have 49 remaining cards");
+    // Build remaining deck (54 cards = 52 + 2 Jokers, minus the 5 in hand)
+    // Note: Both Jokers are identical (rank=0, suit=4), so we must remove exactly
+    // one card per hand card, not all matching cards.
+    let full_deck = create_deck(true); // 54 cards
+    let mut remaining = full_deck.clone();
+    for h in hand.iter() {
+        if let Some(pos) = remaining.iter().position(|c| c.rank == h.rank && c.suit == h.suit) {
+            remaining.remove(pos);
+        }
+    }
+    // 54 - 5 = 49
+    assert_eq!(remaining.len(), 49, "Should have 49 remaining cards (deck=54, hand=5)");
 
     // Flatten all work units: (action_idx, sample_idx) for maximum parallelism
     let total_tasks = actions.len() * n_samples;
@@ -464,7 +468,7 @@ pub fn evaluate_t0(hand: &[Card; 5], n_samples: usize, seed: u64) -> Vec<(String
                 .wrapping_add(action_idx as u64 * 10_000_019)
                 .wrapping_add(sample_idx as u64);
             let mut rng = SmallRng::seed_from_u64(combined_seed);
-            evaluate_t0_sample_imperfect(&t0_boards[action_idx], &remaining, &NESTED_SAMPLES, &mut rng)
+            evaluate_t0_sample_imperfect(&t0_boards[action_idx], &remaining, &nesting, &mut rng)
         })
         .collect();
 
@@ -497,12 +501,13 @@ pub fn evaluate_t0_quiet(hand: &[Card; 5], n_samples: usize, seed: u64, nesting:
     let board = Board::new();
     let actions = generate_t0_actions(hand, &board);
 
-    let full_deck = create_deck(true);
-    let remaining: Vec<Card> = full_deck.iter()
-        .filter(|c| !hand.iter().any(|h| h.rank == c.rank && h.suit == c.suit))
-        .copied()
-        .collect();
-
+    let full_deck = create_deck(true); // 54 cards
+    let mut remaining = full_deck.clone();
+    for h in hand.iter() {
+        if let Some(pos) = remaining.iter().position(|c| c.rank == h.rank && c.suit == h.suit) {
+            remaining.remove(pos);
+        }
+    }
     if remaining.len() != 49 {
         return Vec::new();
     }
@@ -781,12 +786,15 @@ pub fn run_batch_filtered(input_path: &str, n_samples: usize, output_path: &str,
         }
 
         // Pre-compute T0 boards for filtered actions
-        let full_deck = create_deck(true);
-        let remaining: Vec<Card> = full_deck.iter()
-            .filter(|c| !hand.iter().any(|h| h.rank == c.rank && h.suit == c.suit))
-            .copied()
-            .collect();
-
+        // Use position-based removal to handle duplicate Jokers correctly
+        let full_deck = create_deck(true); // 54 cards
+        let mut remaining = full_deck.clone();
+        for h in hand.iter() {
+            if let Some(pos) = remaining.iter().position(|c| c.rank == h.rank && c.suit == h.suit) {
+                remaining.remove(pos);
+            }
+        }
+        // 54 - 5 = 49
         if remaining.len() != 49 { continue; }
 
         let t0_boards: Vec<CompactBoard> = filtered_actions.iter()
@@ -1219,12 +1227,13 @@ pub fn measure_fl_stats(n_hands: usize, n_samples: usize, seed: u64) {
         let board = crate::action_gen::Board::new();
         let actions = crate::action_gen::generate_t0_actions(&hand, &board);
 
-        let full_deck = create_deck(true);
-        let remaining: Vec<Card> = full_deck.iter()
-            .filter(|c| !hand.iter().any(|h| h.rank == c.rank && h.suit == c.suit))
-            .copied()
-            .collect();
-
+        let full_deck = create_deck(true); // 54 cards
+        let mut remaining = full_deck.clone();
+        for h in hand.iter() {
+            if let Some(pos) = remaining.iter().position(|c| c.rank == h.rank && c.suit == h.suit) {
+                remaining.remove(pos);
+            }
+        }
         if remaining.len() != 49 { continue; }
 
         let t0_boards: Vec<CompactBoard> = actions.iter()
