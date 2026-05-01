@@ -87,15 +87,8 @@ pub struct Action {
 /// Check if assigning card to row satisfies per-card constraints.
 /// Returns false if this assignment violates a constraint.
 #[inline(always)]
-fn is_card_row_valid(card: &Card, row: Row) -> bool {
-    if card.is_joker() {
-        // Joker → top or bottom only
-        return row != Row::Middle;
-    }
-    if card.rank == 14 {
-        // Ace → top or middle only
-        return row != Row::Bottom;
-    }
+fn is_card_row_valid(_card: &Card, _row: Row) -> bool {
+    // No card-row restrictions: any card can go to any row per OFC rules.
     true
 }
 

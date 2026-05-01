@@ -60,7 +60,7 @@ enum Commands {
         hand: String,
 
         /// Number of Monte Carlo samples per placement
-        #[arg(long, default_value_t = 10000)]
+        #[arg(long, default_value_t = 100)]
         samples: usize,
 
         /// Random seed
@@ -70,6 +70,10 @@ enum Commands {
         /// Show top N results (0 = all)
         #[arg(long, default_value_t = 20)]
         top_n: usize,
+
+        /// Nesting depth for nested MC (comma-separated, e.g. "3,2,1")
+        #[arg(long, default_value = "3,2,1")]
+        nesting: String,
     },
 
     /// Batch evaluate random T0 hands and save to JSONL
@@ -183,8 +187,10 @@ fn main() {
         Commands::Bench { iterations } => {
             run_benchmark(iterations);
         }
-        Commands::T0Eval { hand, samples, seed, top_n } => {
-            run_t0_eval(&hand, samples, seed, top_n);
+        Commands::T0Eval { hand, samples, seed, top_n, nesting } => {
+            let parts: Vec<usize> = nesting.split(',').filter_map(|s| s.trim().parse().ok()).collect();
+            let nest = if parts.len() == 3 { [parts[0], parts[1], parts[2]] } else { [3, 2, 1] };
+            run_t0_eval(&hand, samples, seed, top_n, nest);
         }
         Commands::T0Batch { hands, samples, output, seed, nesting, top_k } => {
             let parts: Vec<usize> = nesting.split(',').filter_map(|s| s.trim().parse().ok()).collect();
@@ -271,7 +277,7 @@ fn run_turn_eval(top: &str, mid: &str, bot: &str, hand_str: &str, turn: usize, s
     println!("Time: {:.2}s", elapsed);
 }
 
-fn run_t0_eval(hand_str: &str, samples: usize, seed: u64, top_n: usize) {
+fn run_t0_eval(hand_str: &str, samples: usize, seed: u64, top_n: usize, nesting: [usize; 3]) {
     let hand = match t0_eval::parse_hand(hand_str) {
         Some(h) => h,
         None => {
@@ -286,7 +292,7 @@ fn run_t0_eval(hand_str: &str, samples: usize, seed: u64, top_n: usize) {
     println!("=== OFC Pineapple T0 EV Evaluator ===");
     let start = Instant::now();
 
-    let results = t0_eval::evaluate_t0(&hand, samples, seed);
+    let results = t0_eval::evaluate_t0(&hand, samples, seed, nesting);
 
     let elapsed = start.elapsed().as_secs_f64();
 
