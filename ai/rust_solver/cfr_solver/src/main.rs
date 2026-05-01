@@ -99,6 +99,29 @@ enum Commands {
         top_k: usize,
     },
 
+    /// Filtered batch evaluation: read PolicyNet pre-filtered placements and evaluate
+    T0BatchFiltered {
+        /// Input JSON file from generate_filtered_t0.py
+        #[arg(long)]
+        input: String,
+
+        /// Number of Monte Carlo samples per placement
+        #[arg(long, default_value_t = 30)]
+        samples: usize,
+
+        /// Output JSONL file path
+        #[arg(long, default_value = "t0_filtered_train.jsonl")]
+        output: String,
+
+        /// Random seed
+        #[arg(long, default_value_t = 42)]
+        seed: u64,
+
+        /// Nesting depth for nested MC (comma-separated, e.g. "10,6,3")
+        #[arg(long, default_value = "10,6,3")]
+        nesting: String,
+    },
+
     /// Measure FL statistics (R_N, p_FL) for corrected EV model
     FlStats {
         /// Number of random hands to evaluate
@@ -171,6 +194,15 @@ fn main() {
             }
             let nest = [parts[0], parts[1], parts[2]];
             t0_eval::run_batch(hands, samples, &output, seed, nest, top_k);
+        }
+        Commands::T0BatchFiltered { input, samples, output, seed, nesting } => {
+            let parts: Vec<usize> = nesting.split(',').filter_map(|s| s.trim().parse().ok()).collect();
+            if parts.len() != 3 {
+                eprintln!("Error: --nesting must be 3 comma-separated values (e.g. 10,6,3)");
+                std::process::exit(1);
+            }
+            let nest = [parts[0], parts[1], parts[2]];
+            t0_eval::run_batch_filtered(&input, samples, &output, seed, nest);
         }
         Commands::FlStats { hands, samples, seed } => {
             t0_eval::measure_fl_stats(hands, samples, seed);
