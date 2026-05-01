@@ -97,6 +97,10 @@ enum Commands {
         /// Nesting depth for nested MC (comma-separated, e.g. "5,3,2")
         #[arg(long, default_value = "5,3,2")]
         nesting: String,
+
+        /// Top-K filtering: screen all placements, then deep-eval top K only (0 = all)
+        #[arg(long, default_value_t = 0)]
+        top_k: usize,
     },
 
     /// Filtered batch evaluation: read PolicyNet pre-filtered placements and evaluate
@@ -188,14 +192,14 @@ fn main() {
             let nest = if parts.len() == 3 { [parts[0], parts[1], parts[2]] } else { [3, 2, 1] };
             run_t0_eval(&hand, samples, seed, top_n, nest);
         }
-        Commands::T0Batch { hands, samples, output, seed, nesting } => {
+        Commands::T0Batch { hands, samples, output, seed, nesting, top_k } => {
             let parts: Vec<usize> = nesting.split(',').filter_map(|s| s.trim().parse().ok()).collect();
             if parts.len() != 3 {
                 eprintln!("Error: --nesting must be 3 comma-separated values (e.g. 5,3,2)");
                 std::process::exit(1);
             }
             let nest = [parts[0], parts[1], parts[2]];
-            t0_eval::run_batch(hands, samples, &output, seed, nest);
+            t0_eval::run_batch(hands, samples, &output, seed, nest, top_k);
         }
         Commands::T0BatchFiltered { input, samples, output, seed, nesting } => {
             let parts: Vec<usize> = nesting.split(',').filter_map(|s| s.trim().parse().ok()).collect();
