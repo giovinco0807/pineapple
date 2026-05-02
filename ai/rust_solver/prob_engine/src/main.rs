@@ -393,7 +393,7 @@ fn compute_5card_distribution(existing: &[Card], remaining_deck: &[Card], is_mid
 
 fn fl_ev_for_cards(cards: u8) -> f64 {
     match cards {
-        14 => 14.0,
+        14 => 16.8,
         15 => 27.9,
         16 => 52.4,
         17 => 104.5,

@@ -1,0 +1,21 @@
+[package]
+name = "t1_gen"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "t1_gen"
+path = "src/main.rs"
+
+[dependencies]
+ofc_core = { path = "../ofc_core" }
+rayon = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+rand = { workspace = true }
+clap = { workspace = true }
+
+[profile.release]
+lto = true
+codegen-units = 1
+opt-level = 3

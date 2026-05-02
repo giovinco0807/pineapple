@@ -1456,3 +1456,179 @@ pub fn measure_fl_stats(n_hands: usize, n_samples: usize, seed: u64) {
     let total_time = start.elapsed().as_secs_f64();
     println!("Total time: {:.1}min", total_time / 60.0);
 }
+
+// ─── Turn Batch Evaluation ───
+
+fn json_to_card(v: &serde_json::Value) -> Option<Card> {
+    let rank_str = v.get("rank")?.as_str()?;
+    let suit_str = v.get("suit")?.as_str()?;
+
+    if rank_str.eq_ignore_ascii_case("joker") {
+        return Some(Card { rank: 0, suit: 4 });
+    }
+
+    let rank = match rank_str.to_ascii_uppercase().chars().next()? {
+        '2' => 2, '3' => 3, '4' => 4, '5' => 5, '6' => 6, '7' => 7,
+        '8' => 8, '9' => 9, 'T' => 10, 'J' => 11, 'Q' => 12, 'K' => 13, 'A' => 14,
+        _ => return None,
+    };
+
+    let suit = match suit_str.to_ascii_lowercase().chars().next()? {
+        's' => 0,
+        'h' => 1,
+        'd' => 2,
+        'c' => 3,
+        _ => return None,
+    };
+
+    Some(Card { rank, suit })
+}
+
+fn json_to_board(v: &serde_json::Value) -> Option<CompactBoard> {
+    let mut cb = CompactBoard {
+        top: [Card { rank: 0, suit: 0 }; 3],
+        mid: [Card { rank: 0, suit: 0 }; 5],
+        bot: [Card { rank: 0, suit: 0 }; 5],
+        top_len: 0,
+        mid_len: 0,
+        bot_len: 0,
+    };
+    
+    if let Some(arr) = v.get("top").and_then(|v| v.as_array()) {
+        for val in arr {
+            cb.top[cb.top_len as usize] = json_to_card(val)?;
+            cb.top_len += 1;
+        }
+    }
+    if let Some(arr) = v.get("mid").and_then(|v| v.as_array()) {
+        for val in arr {
+            cb.mid[cb.mid_len as usize] = json_to_card(val)?;
+            cb.mid_len += 1;
+        }
+    }
+    if let Some(arr) = v.get("bot").and_then(|v| v.as_array()) {
+        for val in arr {
+            cb.bot[cb.bot_len as usize] = json_to_card(val)?;
+            cb.bot_len += 1;
+        }
+    }
+    Some(cb)
+}
+
+pub fn run_turn_batch(input_path: &str, n_samples: usize, output_path: &str, seed: u64) {
+    use std::fs::{File, OpenOptions};
+    use std::io::{BufRead, BufReader};
+
+    let input_data = match std::fs::read_to_string(input_path) {
+        Ok(data) => data,
+        Err(e) => {
+            eprintln!("Failed to read input file {}: {}", input_path, e);
+            return;
+        }
+    };
+    
+    let entries: Vec<serde_json::Value> = input_data.lines()
+        .filter(|line| !line.trim().is_empty())
+        .map(|line| serde_json::from_str(line).expect("Failed to parse JSONL line"))
+        .collect();
+
+    let n_hands = entries.len();
+
+    let completed = if std::path::Path::new(output_path).exists() {
+        let file = File::open(output_path).unwrap();
+        BufReader::new(file).lines().count()
+    } else {
+        0
+    };
+
+    if completed >= n_hands {
+        println!("Already completed {} hands. Nothing to do.", n_hands);
+        return;
+    }
+
+    let remaining_hands = n_hands - completed;
+    println!("=== Turn Batch Evaluation ===");
+    println!("Input: {} | Hands: {} | Samples/hand: {}", input_path, n_hands, n_samples);
+    println!("Output: {}", output_path);
+    if completed > 0 {
+        println!("Resuming from hand #{} ({} already done)", completed + 1, completed);
+    }
+    println!();
+    
+    let mut file = OpenOptions::new().create(true).append(true).open(output_path).unwrap();
+    let start = std::time::Instant::now();
+
+    for hand_idx in completed..n_hands {
+        let entry = &entries[hand_idx];
+        let turn = entry["turn"].as_u64().unwrap_or(1) as usize;
+        
+        let board = match json_to_board(&entry["board"]) {
+            Some(b) => b,
+            None => {
+                eprintln!("[{}/{}] Invalid board JSON", hand_idx + 1, n_hands);
+                continue;
+            }
+        };
+        
+        let hand_arr = entry["hand"].as_array().unwrap();
+        let hand = [
+            json_to_card(&hand_arr[0]).unwrap(),
+            json_to_card(&hand_arr[1]).unwrap(),
+            json_to_card(&hand_arr[2]).unwrap(),
+        ];
+
+        let turns_after = 4 - turn;
+        let mut known = board_cards(&board);
+        known.extend_from_slice(&hand);
+
+        let eval_seed = seed.wrapping_add(hand_idx as u64 * 1_000_000_007);
+        
+        // Evaluate the turn!
+        let results = evaluate_turn(&board, &hand, &known, turns_after, n_samples, eval_seed);
+
+        let all_placements: Vec<String> = results.iter().map(|res| {
+            format!("{{\"d\":\"{}\",\"p\":\"{}\",\"ev\":{:.3}}}", res.discard, res.placement_desc, res.ev)
+        }).collect();
+
+        // Let's create a compact string representing the board and hand for logging
+        let mut top_cards = Vec::new();
+        for i in 0..board.top_len as usize { top_cards.push(card_to_string(&board.top[i])); }
+        let mut mid_cards = Vec::new();
+        for i in 0..board.mid_len as usize { mid_cards.push(card_to_string(&board.mid[i])); }
+        let mut bot_cards = Vec::new();
+        for i in 0..board.bot_len as usize { bot_cards.push(card_to_string(&board.bot[i])); }
+        
+        let board_str = format!("Top[{}] Mid[{}] Bot[{}]", top_cards.join(" "), mid_cards.join(" "), bot_cards.join(" "));
+        let hand_str = format!("{} {} {}", card_to_string(&hand[0]), card_to_string(&hand[1]), card_to_string(&hand[2]));
+
+        let original_ev = entry.get("original_ev").and_then(|v| v.as_f64()).unwrap_or(0.0);
+
+        let json = format!(
+            "{{\"hand_idx\":{},\"turn\":{},\"board\":\"{}\",\"hand\":\"{}\",\"original_ev\":{},\"n_placements\":{},\"n_samples\":{},\"placements\":[{}]}}",
+            hand_idx, turn, board_str, hand_str, original_ev, results.len(), n_samples, all_placements.join(",")
+        );
+
+        writeln!(file, "{}", json).expect("Failed to write");
+        file.flush().unwrap();
+
+        let elapsed = start.elapsed().as_secs_f64();
+        let done = hand_idx - completed + 1;
+        let avg = elapsed / done as f64;
+        let eta = avg * (remaining_hands - done) as f64;
+
+        let best_ev = if results.is_empty() { 0.0 } else { results[0].ev };
+
+        println!(
+            "[{:>4}/{}] T{} {} + {} | {} placements | Best EV:{:+.2} | {:.1}s/hand | ETA: {:.1}min",
+            hand_idx + 1, n_hands, turn, board_str, hand_str,
+            results.len(),
+            best_ev,
+            avg, eta / 60.0
+        );
+    }
+
+    let total = start.elapsed().as_secs_f64();
+    println!("\n=== Turn Batch Complete ===");
+    println!("Hands evaluated: {}", remaining_hands);
+    println!("Total time: {:.1}min", total / 60.0);
+}

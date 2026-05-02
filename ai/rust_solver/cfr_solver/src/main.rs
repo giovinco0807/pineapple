@@ -179,6 +179,25 @@ enum Commands {
         #[arg(long, default_value_t = 42)]
         seed: u64,
     },
+
+    /// Batch evaluate T1-T4 turns and save to JSONL
+    TurnBatch {
+        /// Input JSONL file from generate_turn_data.py
+        #[arg(long, default_value = "t1_inputs.jsonl")]
+        input: String,
+
+        /// Number of Monte Carlo samples for future turns
+        #[arg(long, default_value_t = 300)]
+        samples: usize,
+
+        /// Output JSONL file path
+        #[arg(long, default_value = "t1_train.jsonl")]
+        output: String,
+
+        /// Random seed
+        #[arg(long, default_value_t = 42)]
+        seed: u64,
+    },
 }
 
 fn main() {
@@ -219,6 +238,9 @@ fn main() {
         }
         Commands::TurnEval { top, mid, bot, hand, turn, samples, top_n, seed } => {
             run_turn_eval(&top, &mid, &bot, &hand, turn, samples, top_n, seed);
+        }
+        Commands::TurnBatch { input, samples, output, seed } => {
+            t0_eval::run_turn_batch(&input, samples, &output, seed);
         }
     }
 }

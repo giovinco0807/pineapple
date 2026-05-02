@@ -1,5 +1,5 @@
 [workspace]
-members = ["ofc_core", "fl_solver", "backward", "prob_engine", "cfr_solver"]
+members = ["ofc_core", "fl_solver", "backward", "prob_engine", "cfr_solver", "t1_gen"]
 resolver = "2"
 
 [workspace.dependencies]

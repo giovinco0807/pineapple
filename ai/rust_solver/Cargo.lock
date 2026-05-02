@@ -393,6 +393,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "t1_gen"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "ofc_core",
+ "rand",
+ "rayon",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "unicode-ident"
 version = "1.0.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
