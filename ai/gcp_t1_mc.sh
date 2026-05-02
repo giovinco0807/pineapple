@@ -2,16 +2,10 @@
 # GCP T1 MC Data Generation - Startup Script
 # For spot/preemptible e2-highcpu-32 instances
 #
-# Usage:
-#   1. Create VM with this as startup script
-#   2. Or SSH in and run: bash gcp_t1_mc.sh
-#
-# Metadata keys (set via --metadata):
-#   VM_ID       - unique VM identifier (0-19)
-#   N_HANDS     - hands per VM (default: 500)
-#   N2          - T2 samples (default: 10)
-#   N3          - T3 samples (default: 3)
-#   N4          - T4 samples (default: 3)
+# Features:
+#   - Periodic GCS upload (every batch) for mid-run data access
+#   - Automatic resume on spot preemption
+#   - Progress tracking via GCS metadata
 
 set -euo pipefail
 
@@ -28,15 +22,17 @@ get_meta() {
 }
 
 VM_ID=$(get_meta "VM_ID" "0")
-N_HANDS=$(get_meta "N_HANDS" "500")
-N2=$(get_meta "N2" "10")
+N_HANDS=$(get_meta "N_HANDS" "400")
+N1=$(get_meta "N1" "30")
+N2=$(get_meta "N2" "3")
 N3=$(get_meta "N3" "3")
 N4=$(get_meta "N4" "3")
 SEED=$((42 + VM_ID * 100000))
 
 echo "============================================"
 echo "  T1 MC Generator - VM #${VM_ID}"
-echo "  Hands: ${N_HANDS}, N2=${N2}, N3=${N3}, N4=${N4}"
+echo "  Hands: ${N_HANDS}, N1=${N1}, N2=${N2}, N3=${N3}, N4=${N4}"
+echo "  Records: ~$((N_HANDS * N1)) per VM"
 echo "  Seed: ${SEED}"
 echo "  Start: $(date)"
 echo "============================================"
@@ -62,30 +58,51 @@ setup() {
     echo "=== Setup complete ==="
 }
 
-# ── Run ──
+# ── Run with periodic upload ──
 run() {
     cd "$WORK_DIR"
     OUTPUT="t1_mc_vm${VM_ID}.jsonl"
+    GCS_PATH="${BUCKET}/t1_mc/${OUTPUT}"
 
     echo "=== Starting generation ==="
-    # Kill any existing python processes to avoid env corruption
     pkill -9 python3 2>/dev/null || true
     sleep 1
 
-    exec python3 ai/generate_t1_mc.py \
+    # Run in background, upload periodically
+    python3 ai/generate_t1_mc.py \
         --n-hands "$N_HANDS" \
+        --n1 "$N1" \
         --n2 "$N2" \
         --n3 "$N3" \
         --n4 "$N4" \
         --workers 0 \
         --output "$OUTPUT" \
         --seed "$SEED" \
-        --batch-size 50
+        --batch-size 10 &
+    PY_PID=$!
 
-    echo "=== Generation complete ==="
-    echo "=== Uploading results ==="
-    gsutil cp "$OUTPUT" "${BUCKET}/t1_mc/${OUTPUT}"
-    echo "=== Upload complete: ${BUCKET}/t1_mc/${OUTPUT} ==="
+    # Periodic upload loop (every 5 min)
+    UPLOAD_INTERVAL=300
+    while kill -0 $PY_PID 2>/dev/null; do
+        sleep $UPLOAD_INTERVAL
+        if [ -f "$OUTPUT" ]; then
+            LINES=$(wc -l < "$OUTPUT")
+            echo "[upload] ${LINES} records -> ${GCS_PATH}"
+            gsutil -q cp "$OUTPUT" "$GCS_PATH" 2>/dev/null || true
+        fi
+    done
+
+    # Final upload
+    wait $PY_PID || true
+    if [ -f "$OUTPUT" ]; then
+        LINES=$(wc -l < "$OUTPUT")
+        echo "=== Final upload: ${LINES} records ==="
+        gsutil cp "$OUTPUT" "$GCS_PATH"
+        # Also upload a "done" marker
+        echo "{\"vm_id\":$VM_ID,\"records\":$LINES,\"done\":\"$(date -Iseconds)\"}" \
+            | gsutil cp - "${BUCKET}/t1_mc/status/vm${VM_ID}_done.json"
+    fi
+    echo "=== Complete: $(date) ==="
 }
 
 # ── Main ──

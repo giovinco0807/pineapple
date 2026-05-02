@@ -311,77 +311,90 @@ def expectimax_t2(board, deck_list, n2, n3, n4, rng):
 
 # ── Worker ──
 def generate_one_hand(args):
-    hand_idx, n2, n3, n4, seed = args
+    hand_idx, n1, n2, n3, n4, seed = args
     rng = random.Random(seed)
-    # T0: deal 5, NN top50
+    # T0: deal 5, NN top5
     deck=list(ALL_CARDS_STR); rng.shuffle(deck)
     t0_hand=deck[:5]; remaining=deck[5:]
-    top50=t0_nn_top50(t0_hand)
-    if not top50: return None
+    top5=t0_nn_top50(t0_hand)
+    if not top5: return None
     
-    # T1: deal 3
-    rng.shuffle(remaining)
-    t1_hand=remaining[:3]; deck_after=remaining[3:]
-    
-    results=[]
-    for ci, t0_placement in enumerate(top50):
-        board=Board()
-        for i,row in enumerate(t0_placement): board.place(t0_hand[i],row)
+    # T1: deal n1 different hands, evaluate all T0 x T1 action combos
+    all_records=[]
+    for t1_deal_idx in range(n1):
+        rng.shuffle(remaining)
+        t1_hand=remaining[:3]; deck_after=remaining[3:]
         
-        actions=gen_actions(t1_hand, board)
-        if not actions: continue
-        
-        for a in actions:
-            b2=apply_action(board,a)
-            d2=[c for c in deck_after if c!=a['discard']]
-            ev=expectimax_t2(b2, d2, n2, n3, n4, rng)
-            d,p=fmt_action(a)
-            t0_fmt = ", ".join(f"{t0_hand[i]}->{ROW_NAMES[t0_placement[i]]}" for i in range(5))
-            results.append({
-                't0_idx': ci,
-                't0_p': t0_fmt,
-                'd': d,
-                'p': p,
-                'ev': round(ev,3)
-            })
+        results=[]
+        for ci, t0_placement in enumerate(top5):
+            board=Board()
+            for i,row in enumerate(t0_placement): board.place(t0_hand[i],row)
             
-    if not results: return None
-    results.sort(key=lambda x:x['ev'],reverse=True)
-    return {'hand_idx':hand_idx,'turn':1,
-            't0_hand':" ".join(t0_hand),
-            't1_hand':" ".join(t1_hand),
-            'n_placements':len(results),
-            'nesting':[n2,n3,n4],'placements':results}
+            actions=gen_actions(t1_hand, board)
+            if not actions: continue
+            
+            for a in actions:
+                b2=apply_action(board,a)
+                d2=[c for c in deck_after if c!=a['discard']]
+                ev=expectimax_t2(b2, d2, n2, n3, n4, rng)
+                d,p=fmt_action(a)
+                t0_fmt = ", ".join(f"{t0_hand[i]}->{ROW_NAMES[t0_placement[i]]}" for i in range(5))
+                results.append({
+                    't0_idx': ci,
+                    't0_p': t0_fmt,
+                    'd': d,
+                    'p': p,
+                    'ev': round(ev,3)
+                })
+        
+        if results:
+            results.sort(key=lambda x:x['ev'],reverse=True)
+            all_records.append({
+                'hand_idx': hand_idx,
+                't1_deal': t1_deal_idx,
+                'turn': 1,
+                't0_hand': " ".join(t0_hand),
+                't1_hand': " ".join(t1_hand),
+                'n_placements': len(results),
+                'nesting': [n1, n2, n3, n4],
+                'placements': results
+            })
+    
+    return all_records if all_records else None
 
 # ── Main ──
 def main():
     ap=argparse.ArgumentParser(description="T1 Expectimax data generator")
     ap.add_argument('--n-hands',type=int,default=50000)
+    ap.add_argument('--n1',type=int,default=30,help="T1 deal samples per hand")
     ap.add_argument('--n2',type=int,default=3,help="T2 deal samples")
     ap.add_argument('--n3',type=int,default=3,help="T3 deal samples")
     ap.add_argument('--n4',type=int,default=3,help="T4 deal samples")
     ap.add_argument('--workers',type=int,default=0)
     ap.add_argument('--output',type=str,default='t1_mc_50k.jsonl')
     ap.add_argument('--seed',type=int,default=42)
-    ap.add_argument('--batch-size',type=int,default=500)
+    ap.add_argument('--batch-size',type=int,default=50)
     args=ap.parse_args()
     nw=args.workers if args.workers>0 else max(1,cpu_count()-2)
     print(f"=== T1 Expectimax Generator ===")
     print(f"  Hands:    {args.n_hands:,}")
+    print(f"  T1 deals: {args.n1} per hand")
     print(f"  Nesting:  T2={args.n2}, T3={args.n3}, T4={args.n4}")
     print(f"  Workers:  {nw}")
     print(f"  Output:   {args.output}")
+    print(f"  Data points: ~{args.n_hands * args.n1:,} records")
     print(flush=True)
-    items=[(i,args.n2,args.n3,args.n4,args.seed+i*1000) for i in range(args.n_hands)]
+    items=[(i,args.n1,args.n2,args.n3,args.n4,args.seed+i*1000) for i in range(args.n_hands)]
     Path(args.output).parent.mkdir(parents=True,exist_ok=True)
     t0=time.time(); done=0; written=0
     with open(args.output,'w',encoding='utf-8') as f:
         with Pool(nw) as pool:
-            for res in pool.imap_unordered(generate_one_hand, items, chunksize=10):
+            for res in pool.imap_unordered(generate_one_hand, items, chunksize=1):
                 done+=1
                 if res:
-                    f.write(json.dumps(res,ensure_ascii=False)+'\n')
-                    written+=1
+                    for record in res:
+                        f.write(json.dumps(record,ensure_ascii=False)+'\n')
+                        written+=1
                 if done%args.batch_size==0:
                     el=time.time()-t0; rate=done/el
                     eta=(args.n_hands-done)/rate if rate>0 else 0
@@ -389,7 +402,8 @@ def main():
                           f"rate={rate:.2f}/s ETA={eta:.0f}s ({eta/3600:.1f}h)",flush=True)
                     f.flush()
     el=time.time()-t0
-    print(f"\n=== Done === {el:.0f}s ({el/3600:.1f}h) | {written:,} hands | {args.output}")
+    print(f"\n=== Done === {el:.0f}s ({el/3600:.1f}h) | {written:,} records from {done} hands | {args.output}")
 
 if __name__=='__main__':
     main()
+
