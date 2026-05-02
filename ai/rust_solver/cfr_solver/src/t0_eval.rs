@@ -764,11 +764,19 @@ pub fn run_batch_filtered(input_path: &str, n_samples: usize, output_path: &str,
     use std::fs::{File, OpenOptions};
     use std::io::{BufRead, BufReader};
 
-    // Read pre-filtered JSON
+    // Read pre-filtered JSON (supports both JSON array and JSONL formats)
     let input_data: String = std::fs::read_to_string(input_path)
-        .expect("Failed to read input JSON");
-    let entries: Vec<serde_json::Value> = serde_json::from_str(&input_data)
-        .expect("Failed to parse input JSON");
+        .expect("Failed to read input file");
+    let entries: Vec<serde_json::Value> = match serde_json::from_str(&input_data) {
+        Ok(arr) => arr,
+        Err(_) => {
+            // Try JSONL (one JSON object per line)
+            input_data.lines()
+                .filter(|line| !line.trim().is_empty())
+                .map(|line| serde_json::from_str(line).expect("Failed to parse JSONL line"))
+                .collect()
+        }
+    };
 
     let n_hands = entries.len();
 
