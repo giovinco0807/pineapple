@@ -1,279 +1,248 @@
 """
-T0 PolicyNet Pre-Filter: Generate top-50 placements per hand for Rust evaluation.
+T0 PlacementNet v4 Pre-Filter: Generate top-50 placements per hand for Rust.
 
-Uses the trained T0 BC PolicyNet to rank all valid T0 placements,
-selects the top-50 by probability, and outputs them in Rust-compatible format.
+Uses the T0 PlacementNet v4 (Config F with hand features) to score all 232
+valid T0 placements, selects top-50 by likelihood, outputs Rust-compatible format.
 
-Output JSON format (one hand per line):
-  {"hand": "Ad 8c 4s 3d 2s", "filtered_placements": ["Top[Ad] Mid[8c 4s] Bot[3d 2s]", ...]}
+Output JSONL (one hand per line):
+  {"hand": "Ad 8c 4s 3d 2s", "n_total": 232, "n_filtered": 50, "filtered_placements": [...]}
 
 Usage:
-    python ai/training/generate_filtered_t0.py --n-hands 500 --top-k 50 --output ai/data/filtered_t0.json
-    python ai/training/generate_filtered_t0.py --n-hands 10 --top-k 50 --output test_filter.json --verbose
+    python ai/training/generate_filtered_t0.py --n-hands 500 --top-k 50
+    python ai/training/generate_filtered_t0.py --n-hands 10 --top-k 50 --verbose
 """
 import json
 import sys
 import random
 import argparse
 from pathlib import Path
+from itertools import combinations
+from collections import Counter
 
 import torch
 import numpy as np
 
-# Add project root to path
+# Add project root
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
-from ai.engine.encoding import Board, Observation, encode_state, STATE_DIM, ALL_CARDS
-from ai.engine.action_space import get_initial_actions, MAX_ACTIONS
-from ai.models.networks import PolicyNetwork
-
-# Rust uses "JK" for jokers; Python encoding uses "X1"/"X2"
-# Rust card_to_string: rank_to_char(rank) + suit_to_char(suit)
-# Python ALL_CARDS: "2h".."Ac" + "X1","X2"
-
-PYTHON_RANKS = "23456789TJQKA"
-PYTHON_SUITS = "hdcs"
-
-# Mapping: Python card strings to Rust card strings
-def python_to_rust_card(card: str) -> str:
-    """Convert Python card notation to Rust notation.
-    
-    Python: '2h', 'Ts', 'Ah', 'X1', 'X2'
-    Rust:   '2h', 'Ts', 'Ah', 'JK', 'JK'
-    
-    The suit order is the same (h,d,c,s → mapped to Rust's s,h,d,c).
-    Actually let's check: Python SUITS = "hdcs", Rust SUIT_CHARS = ['s','h','d','c']
-    Python suit indices: h=0, d=1, c=2, s=3
-    Rust suit indices:   s=0, h=1, d=2, c=3
-    
-    But in card strings both use the literal character, so "Ah" is "Ah" in both.
-    The only difference is Jokers.
-    """
-    if card.startswith("X"):
-        return "JK"
-    return card
+from ai.train_t0_placement import T0PlacementNet, encode_card, compute_hand_features
+from ai.train_t0_placement import CARD_DIM, NUM_ROWS, MAX_CARDS
 
 
-def rust_to_python_card(card: str) -> str:
-    """Convert Rust card notation to Python notation."""
-    if card == "JK":
-        return "X1"  # We'll track joker count separately
-    return card
+# Card notation
+RANKS = "23456789TJQKA"
+SUITS = "shdc"
 
 
-def generate_deck_python() -> list:
-    """Generate the full 54-card deck in Python notation."""
-    deck = []
-    for s in PYTHON_SUITS:
-        for r in PYTHON_RANKS:
-            deck.append(f"{r}{s}")
-    deck.append("X1")
-    deck.append("X2")
+def generate_deck():
+    deck = [f"{r}{s}" for s in SUITS for r in RANKS]
+    deck += ["X1", "X2"]  # Jokers
     return deck
 
 
-def action_to_rust_placement(action, dealt_cards: list) -> str:
-    """Convert a Python Action to Rust placement string format.
+def card_str_to_dict(card_str):
+    """Convert '2h' → {'rank':'2','suit':'hearts'} etc."""
+    suit_map = {'s':'spades','h':'hearts','d':'diamonds','c':'clubs'}
+    if card_str.startswith("X") or card_str == "JK":
+        return {'rank':'Joker','suit':'joker'}
+    return {'rank': card_str[0], 'suit': suit_map.get(card_str[1], card_str[1])}
+
+
+def card_dict_to_rust(card_dict):
+    """{'rank':'A','suit':'hearts'} → 'Ah'"""
+    suit_map = {'spades':'s','hearts':'h','diamonds':'d','clubs':'c','joker':''}
+    if card_dict.get('rank') == 'Joker':
+        return 'JK'
+    return f"{card_dict['rank']}{suit_map[card_dict['suit']]}"
+
+
+def enumerate_t0_placements(hand_dicts):
+    """Enumerate all valid T0 placements (232 total for 5 cards).
     
-    IMPORTANT: Must iterate dealt_cards in index order (0→4) to match
-    Rust's format_placement which iterates hand[0]..hand[4].
-    
-    Format: "Top[Ks 2h] Mid[6s] Bot[9d Jh]"
+    Constraints: top <= 3, mid <= 5, bot <= 5
+    T0 has 5 cards, so valid splits sum to 5.
+    Returns list of dicts: [{'top': [...], 'mid': [...], 'bot': [...]}, ...]
     """
-    # Build card→position lookup
-    card_to_pos = {}
-    for card, pos in action.placements:
-        card_to_pos[card] = pos
+    placements = []
+    cards = list(range(5))
     
-    # Iterate in hand order (same as Rust's format_placement)
-    by_pos = {"top": [], "middle": [], "bottom": []}
-    for card in dealt_cards:
-        pos = card_to_pos.get(card)
-        if pos:
-            rust_card = python_to_rust_card(card)
-            by_pos[pos].append(rust_card)
-    
-    top_str = " ".join(by_pos["top"])
-    mid_str = " ".join(by_pos["middle"])
-    bot_str = " ".join(by_pos["bottom"])
-    
-    return f"Top[{top_str}] Mid[{mid_str}] Bot[{bot_str}]"
+    # Enumerate all ways to assign 5 cards to 3 rows
+    for t in range(min(4, 6)):  # top: 0-3
+        for m in range(6 - t):  # mid: 0-5
+            b = 5 - t - m  # bot: remainder
+            if b < 0 or b > 5 or m > 5 or t > 3:
+                continue
+            # Generate all combinations for this split
+            for top_cards in combinations(cards, t):
+                remaining = [c for c in cards if c not in top_cards]
+                for mid_cards in combinations(remaining, m):
+                    bot_cards = [c for c in remaining if c not in mid_cards]
+                    placements.append({
+                        'top': [hand_dicts[i] for i in top_cards],
+                        'mid': [hand_dicts[i] for i in mid_cards],
+                        'bot': [hand_dicts[i] for i in bot_cards],
+                    })
+    return placements
 
 
-def load_policy_net(model_path: str, device: str = "cpu") -> PolicyNetwork:
-    """Load the trained T0 BC PolicyNet."""
-    checkpoint = torch.load(model_path, map_location=device, weights_only=True)
+def score_placement(model, features_tensor, hand_dicts, placement, device):
+    """Score a single placement using the model's per-card log-probabilities."""
+    # Map each card to its row in this placement
+    card_rows = {}
+    for row_name, row_idx in [('top', 0), ('mid', 1), ('bot', 2)]:
+        for card in placement[row_name]:
+            key = f"{card['rank']}_{card['suit']}"
+            card_rows[key] = row_idx
     
-    # Detect input_dim from checkpoint
-    first_key = list(checkpoint.keys())[0]
-    input_dim = checkpoint[first_key].shape[1] if first_key == "net.0.weight" else STATE_DIM
+    # Sum log-probs for each card's assigned row
+    with torch.no_grad():
+        logits, _ = model(features_tensor)
+        probs = torch.softmax(logits, dim=-1)[0]  # (5, 3)
     
-    model = PolicyNetwork(input_dim=input_dim, max_actions=MAX_ACTIONS)
-    model.load_state_dict(checkpoint)
+    score = 0.0
+    for i, card in enumerate(hand_dicts):
+        key = f"{card['rank']}_{card['suit']}"
+        row = card_rows.get(key, 2)
+        score += torch.log(probs[i, row] + 1e-8).item()
+    
+    return score
+
+
+def format_rust_placement(placement):
+    """Format placement as Rust string: 'Top[Ks 2h] Mid[6s] Bot[9d Jh]'"""
+    parts = []
+    for row_name in ['top', 'mid', 'bot']:
+        cards_str = " ".join(card_dict_to_rust(c) for c in placement[row_name])
+        label = row_name.capitalize() if row_name != 'mid' else 'Mid'
+        parts.append(f"{label}[{cards_str}]")
+    return " ".join(parts)
+
+
+def load_model(model_path, device):
+    """Load T0 PlacementNet v4."""
+    checkpoint = torch.load(model_path, map_location=device, weights_only=False)
+    config = checkpoint.get('config', {})
+    
+    model = T0PlacementNet(
+        d_model=config.get('d_model', 128),
+        nhead=4,
+        num_layers=config.get('num_layers', 4),
+        dim_ff=config.get('d_model', 128) * 2,
+        dropout=config.get('dropout', 0.2),
+    )
+    model.load_state_dict(checkpoint['model_state_dict'])
     model.eval()
     model.to(device)
+    
+    print(f"Loaded model: v={config.get('version','?')}, "
+          f"d={config.get('d_model',128)}, "
+          f"params={config.get('n_params','?')}, "
+          f"val_hand_acc={checkpoint.get('val_hand_acc',0):.4f}")
     return model
 
 
-def encode_t0_state(dealt_cards: list) -> np.ndarray:
-    """Encode the T0 state (empty board + dealt cards)."""
-    obs = Observation(
-        board_self=Board(),
-        board_opponent=Board(),
-        dealt_cards=dealt_cards,
-        known_discards_self=[],
-        turn=0,
-        is_btn=True,
-    )
-    return encode_state(obs)
-
-
-def get_top_k_placements(
-    model: PolicyNetwork,
-    dealt_cards: list,
-    top_k: int = 50,
-    device: str = "cpu",
-) -> list:
-    """Get top-K placements for a given hand using PolicyNet.
+def filter_hand(model, hand_strs, top_k, device):
+    """Filter placements for one hand. Returns (n_total, top_k_placements)."""
+    hand_dicts = [card_str_to_dict(c) for c in hand_strs]
     
-    Returns: list of (placement_string, probability) tuples, sorted by probability desc.
-    """
-    # 1. Get all valid actions
-    board = Board()
-    all_actions = get_initial_actions(dealt_cards, board)
-    n_actions = len(all_actions)
+    # Encode features (base + hand features)
+    base_features = np.stack([encode_card(c) for c in hand_dicts])
+    hand_features = compute_hand_features(hand_dicts)
+    features = np.concatenate([base_features, hand_features], axis=1)
+    features_tensor = torch.from_numpy(features).unsqueeze(0).to(device)
     
-    if n_actions == 0:
-        return []
-    
-    # 2. Encode state
-    state = encode_t0_state(dealt_cards)
-    state_tensor = torch.tensor(state, dtype=torch.float32).unsqueeze(0).to(device)
-    
-    # 3. Create valid mask
-    valid_mask = torch.zeros(1, MAX_ACTIONS, dtype=torch.bool, device=device)
-    valid_mask[0, :n_actions] = True
-    
-    # 4. Forward pass
+    # Get model predictions once
     with torch.no_grad():
-        probs = model(state_tensor, valid_mask)  # (1, MAX_ACTIONS)
+        logits, _ = model(features_tensor)
+        log_probs = torch.log_softmax(logits, dim=-1)[0]  # (5, 3)
     
-    probs = probs[0].cpu().numpy()
+    # Enumerate all placements
+    all_placements = enumerate_t0_placements(hand_dicts)
     
-    # 5. Get top-K action indices
-    actual_k = min(top_k, n_actions)
-    top_indices = np.argsort(probs)[::-1][:actual_k]
+    # Score each placement
+    scored = []
+    for p in all_placements:
+        score = 0.0
+        for i, card in enumerate(hand_dicts):
+            key = f"{card['rank']}_{card['suit']}"
+            # Find which row this card is in
+            row = 2  # default bot
+            for rn, ri in [('top', 0), ('mid', 1), ('bot', 2)]:
+                for pc in p[rn]:
+                    if pc['rank'] == card['rank'] and pc['suit'] == card['suit']:
+                        row = ri
+                        break
+            score += log_probs[i, row].item()
+        scored.append((score, p))
     
-    # 6. Convert to Rust placement strings
-    results = []
-    for idx in top_indices:
-        if idx < n_actions:
-            action = all_actions[idx]
-            placement_str = action_to_rust_placement(action, dealt_cards)
-            results.append((placement_str, float(probs[idx])))
+    scored.sort(key=lambda x: x[0], reverse=True)
     
-    return results
-
-
-def generate_random_hand(rng: random.Random) -> list:
-    """Generate a random 5-card hand from the 54-card deck."""
-    deck = generate_deck_python()
-    rng.shuffle(deck)
-    return deck[:5]
-
-
-def hand_to_rust_string(dealt_cards: list) -> str:
-    """Convert Python hand to Rust hand string."""
-    return " ".join(python_to_rust_card(c) for c in dealt_cards)
+    actual_k = min(top_k, len(scored))
+    top_placements = [(format_rust_placement(p), s) for s, p in scored[:actual_k]]
+    
+    return len(all_placements), top_placements
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Generate PolicyNet-filtered T0 placements")
-    parser.add_argument("--n-hands", type=int, default=500,
-                        help="Number of random hands to generate")
-    parser.add_argument("--top-k", type=int, default=50,
-                        help="Number of top placements to keep per hand")
-    parser.add_argument("--output", type=str, default="ai/data/filtered_t0.json",
-                        help="Output JSON file path")
-    parser.add_argument("--model", type=str, 
-                        default="ai/models/t0_bc/bc_policy_best.pt",
-                        help="Path to trained PolicyNet weights")
-    parser.add_argument("--seed", type=int, default=42,
-                        help="Random seed")
-    parser.add_argument("--verbose", action="store_true",
-                        help="Print detailed per-hand info")
+    parser = argparse.ArgumentParser(description="T0 PlacementNet v4 Pre-Filter")
+    parser.add_argument("--n-hands", type=int, default=500)
+    parser.add_argument("--top-k", type=int, default=50)
+    parser.add_argument("--output", type=str, default="ai/data/filtered_t0_v4.jsonl")
+    parser.add_argument("--model", type=str, default="ai/models/t0_placement_net_v4.pt")
+    parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--verbose", action="store_true")
     args = parser.parse_args()
+
+    print(f"=== T0 PlacementNet v4 Pre-Filter ===")
+    print(f"Hands: {args.n_hands}, Top-K: {args.top_k}")
     
-    print(f"=== T0 PolicyNet Pre-Filter ===")
-    print(f"Hands: {args.n_hands}")
-    print(f"Top-K: {args.top_k}")
-    print(f"Model: {args.model}")
-    print(f"Output: {args.output}")
-    print(f"Seed: {args.seed}")
-    print()
-    
-    # Load model
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"Device: {device}")
-    model = load_policy_net(args.model, device)
-    print(f"Model loaded: input_dim={model.net[0].in_features}, "
-          f"output_dim={model.net[-1].out_features}")
-    print()
-    
-    # Generate hands and filter
+    model = load_model(args.model, device)
+
     rng = random.Random(args.seed)
+    deck = generate_deck()
+    
     output_path = Path(args.output)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     
-    results = []
     total_placements = 0
     total_filtered = 0
     
-    for i in range(args.n_hands):
-        hand = generate_random_hand(rng)
-        rust_hand = hand_to_rust_string(hand)
-        
-        # Get all valid actions count
-        all_actions = get_initial_actions(hand, Board())
-        n_total = len(all_actions)
-        
-        # Get top-K
-        top_placements = get_top_k_placements(model, hand, args.top_k, device)
-        n_filtered = len(top_placements)
-        
-        total_placements += n_total
-        total_filtered += n_filtered
-        
-        record = {
-            "hand_idx": i,
-            "hand": rust_hand,
-            "n_total": n_total,
-            "n_filtered": n_filtered,
-            "filtered_placements": [p[0] for p in top_placements],
-        }
-        results.append(record)
-        
-        if args.verbose or (i + 1) % 50 == 0:
-            top_prob = top_placements[0][1] if top_placements else 0
-            coverage = sum(p[1] for p in top_placements) if top_placements else 0
-            print(f"[{i+1:>4}/{args.n_hands}] {rust_hand} | "
-                  f"{n_total} → {n_filtered} placements | "
-                  f"Top-1 prob: {top_prob:.4f} | "
-                  f"Top-{n_filtered} coverage: {coverage:.4f}")
-    
-    # Save output
-    with open(output_path, "w") as f:
-        json.dump(results, f, indent=2)
+    with open(output_path, 'w') as fout:
+        for i in range(args.n_hands):
+            rng.shuffle(deck)
+            hand = deck[:5]
+            rust_hand = " ".join("JK" if c.startswith("X") else c for c in hand)
+            
+            n_total, top_placements = filter_hand(model, hand, args.top_k, device)
+            n_filtered = len(top_placements)
+            
+            total_placements += n_total
+            total_filtered += n_filtered
+            
+            record = {
+                "hand_idx": i,
+                "hand": rust_hand,
+                "n_total_actions": n_total,
+                "n_selected": n_filtered,
+                "filtered_placements": [p[0] for p in top_placements],
+            }
+            fout.write(json.dumps(record) + '\n')
+            
+            if args.verbose or (i + 1) % 100 == 0:
+                top_score = top_placements[0][1] if top_placements else 0
+                print(f"[{i+1:>4}/{args.n_hands}] {rust_hand} | "
+                      f"{n_total} → {n_filtered} | top_score={top_score:.3f}")
     
     avg_total = total_placements / args.n_hands
     avg_filtered = total_filtered / args.n_hands
-    reduction = (1 - avg_filtered / avg_total) * 100 if avg_total > 0 else 0
+    reduction = (1 - avg_filtered / avg_total) * 100
     
     print(f"\n=== Summary ===")
-    print(f"Hands generated: {args.n_hands}")
-    print(f"Avg placements/hand: {avg_total:.1f} → {avg_filtered:.1f} "
-          f"({reduction:.1f}% reduction)")
-    print(f"Output: {output_path} ({output_path.stat().st_size / 1024:.1f} KB)")
+    print(f"Hands: {args.n_hands}")
+    print(f"Avg: {avg_total:.0f} → {avg_filtered:.0f} ({reduction:.1f}% reduction)")
+    print(f"Output: {output_path}")
 
 
 if __name__ == "__main__":

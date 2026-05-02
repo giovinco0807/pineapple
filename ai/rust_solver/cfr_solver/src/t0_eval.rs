@@ -1148,7 +1148,7 @@ pub fn board_cards(cb: &CompactBoard) -> Vec<Card> {
 /// Parse a card string like "Ad", "8c", "Ts", "Jo"
 pub fn parse_card(s: &str) -> Option<Card> {
     let s = s.trim();
-    if s.eq_ignore_ascii_case("jo") || s.eq_ignore_ascii_case("joker") {
+    if s.eq_ignore_ascii_case("jo") || s.eq_ignore_ascii_case("jk") || s.eq_ignore_ascii_case("joker") {
         return Some(Card { rank: 0, suit: 4 });
     }
 
