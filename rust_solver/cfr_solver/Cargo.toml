@@ -1,0 +1,13 @@
+[package]
+name = "cfr_solver"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+ofc_core = { path = "../ofc_core" }
+rayon = { workspace = true }
+rand = { version = "0.8", features = ["small_rng"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+clap = { workspace = true }
+rustc-hash = "1.1"
