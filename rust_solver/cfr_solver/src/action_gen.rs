@@ -293,11 +293,6 @@ pub fn generate_turn_actions(hand: &[Card], board: &Board) -> Vec<Action> {
     actions
 }
 
-#[inline(always)]
-fn card_key(c: &Card) -> u16 {
-    (c.rank as u16) * 10 + c.suit as u16
-}
-
 /// Get the cards to place from a turn action and hand.
 #[inline]
 pub fn get_placed_cards(hand: &[Card], action: &Action) -> Vec<(Card, Row)> {

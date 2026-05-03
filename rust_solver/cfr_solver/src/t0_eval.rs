@@ -11,12 +11,12 @@ use ofc_core::{
     get_top_royalty, get_middle_royalty, get_bottom_royalty,
     is_valid_placement, check_fl_entry,
 };
-use rand::seq::SliceRandom;
 use rand::SeedableRng;
 use rand::rngs::SmallRng;
+use rand::seq::SliceRandom;
 use rayon::prelude::*;
 
-use crate::action_gen::{Board, Row, generate_t0_actions, generate_turn_actions};
+use crate::action_gen::{Board, Row, generate_t0_actions};
 use crate::game_state::fl_chain_ev;
 
 // ─── Compact Board for fast tree search (stack-allocated) ───
@@ -33,28 +33,7 @@ pub struct CompactBoard {
 }
 
 impl CompactBoard {
-    fn from_board(board: &Board) -> Self {
-        let mut cb = CompactBoard {
-            top: [Card { rank: 0, suit: 0 }; 3],
-            mid: [Card { rank: 0, suit: 0 }; 5],
-            bot: [Card { rank: 0, suit: 0 }; 5],
-            top_len: board.top.len() as u8,
-            mid_len: board.middle.len() as u8,
-            bot_len: board.bottom.len() as u8,
-        };
-        for (i, c) in board.top.iter().enumerate() { cb.top[i] = *c; }
-        for (i, c) in board.middle.iter().enumerate() { cb.mid[i] = *c; }
-        for (i, c) in board.bottom.iter().enumerate() { cb.bot[i] = *c; }
-        cb
-    }
 
-    fn to_board(&self) -> Board {
-        Board {
-            top: self.top[..self.top_len as usize].to_vec(),
-            middle: self.mid[..self.mid_len as usize].to_vec(),
-            bottom: self.bot[..self.bot_len as usize].to_vec(),
-        }
-    }
 
     #[inline]
     fn push(&mut self, row: Row, card: Card) {
@@ -135,7 +114,7 @@ use rand::Rng;
 /// Calls the callback with each valid (discard_idx, row0, row1) combo.
 #[inline]
 fn for_each_turn_action(
-    hand: &[Card; 3],
+    _hand: &[Card; 3],
     cb: &CompactBoard,
     mut callback: impl FnMut(usize, Row, Row),
 ) {
@@ -144,7 +123,7 @@ fn for_each_turn_action(
     let bot_space = 5 - cb.bot_len as usize;
 
     for discard_idx in 0..3usize {
-        let kept = [
+        let _kept = [
             (discard_idx + 1) % 3,
             (discard_idx + 2) % 3,
         ];
@@ -211,7 +190,7 @@ fn best_score_from_turn(cb: &CompactBoard, deals: &Deals, turn: usize) -> f64 {
 /// Index 1 = how many T3 futures when evaluating T2,
 /// Index 2 = how many T4 futures when evaluating T3.
 /// Higher = more accurate but slower. Total cost ∝ N0 × N1 × N2.
-const NESTED_SAMPLES: [usize; 3] = [10, 6, 3];
+
 
 /// Lighter nesting for FL stats rollouts.
 /// Each rollout is cheap; statistical accuracy comes from many rollouts.
@@ -502,9 +481,6 @@ use std::io::Write;
 
 /// Quiet version of evaluate_t0 -- no stdout, just returns results.
 /// Backward-compatible wrapper: evaluates all placements.
-pub fn evaluate_t0_quiet(hand: &[Card; 5], n_samples: usize, seed: u64, nesting: &[usize; 3]) -> Vec<(String, f64)> {
-    evaluate_t0_quiet_topk(hand, n_samples, seed, nesting, 0)
-}
 
 /// Two-pass top-K evaluation:
 ///   Pass 1: Screen ALL placements with cheap nesting=[1,1,1], samples=5
@@ -663,7 +639,6 @@ fn classify_hand(hand: &[Card; 5]) -> String {
 pub fn run_batch(n_hands: usize, n_samples: usize, output_path: &str, seed: u64, nesting: [usize; 3], top_k: usize) {
     use std::fs::{OpenOptions};
     use std::io::{BufRead, BufReader};
-    use rand::seq::SliceRandom;
 
     // Check how many hands already completed (for resumption)
     let completed = if std::path::Path::new(output_path).exists() {
@@ -1307,36 +1282,6 @@ fn score_raw_royalty(cb: &CompactBoard) -> f64 {
 /// Exhaustive search returning both score AND final board.
 /// Uses the FULL score (including FL bonus) for decision-making,
 /// but returns the completed board for post-hoc analysis.
-fn best_board_from_turn(cb: &CompactBoard, deals: &Deals, turn: usize) -> (f64, CompactBoard) {
-    if turn >= 4 || cb.is_complete() {
-        return (score_final_board(cb), *cb);
-    }
-
-    let hand = &deals[turn];
-    let mut best_score = f64::NEG_INFINITY;
-    let mut best_board = *cb;
-
-    for_each_turn_action(hand, cb, |discard_idx, row0, row1| {
-        let kept0 = (discard_idx + 1) % 3;
-        let kept1 = (discard_idx + 2) % 3;
-
-        let mut new_cb = *cb;
-        new_cb.push(row0, hand[kept0]);
-        new_cb.push(row1, hand[kept1]);
-
-        let (score, board) = best_board_from_turn(&new_cb, deals, turn + 1);
-        if score > best_score {
-            best_score = score;
-            best_board = board;
-        }
-    });
-
-    if best_score == f64::NEG_INFINITY {
-        (score_final_board(cb), *cb)
-    } else {
-        (best_score, best_board)
-    }
-}
 
 /// Per-sample result for FL stats.
 struct SampleResult {
@@ -1598,123 +1543,6 @@ fn json_to_board(v: &serde_json::Value) -> Option<CompactBoard> {
     Some(cb)
 }
 
-pub fn run_turn_batch(input_path: &str, n_samples: usize, output_path: &str, seed: u64) {
-    use std::fs::{File, OpenOptions};
-    use std::io::{BufRead, BufReader};
-
-    let input_data = match std::fs::read_to_string(input_path) {
-        Ok(data) => data,
-        Err(e) => {
-            eprintln!("Failed to read input file {}: {}", input_path, e);
-            return;
-        }
-    };
-    
-    let entries: Vec<serde_json::Value> = input_data.lines()
-        .filter(|line| !line.trim().is_empty())
-        .map(|line| serde_json::from_str(line).expect("Failed to parse JSONL line"))
-        .collect();
-
-    let n_hands = entries.len();
-
-    let completed = if std::path::Path::new(output_path).exists() {
-        let file = File::open(output_path).unwrap();
-        BufReader::new(file).lines().count()
-    } else {
-        0
-    };
-
-    if completed >= n_hands {
-        println!("Already completed {} hands. Nothing to do.", n_hands);
-        return;
-    }
-
-    let remaining_hands = n_hands - completed;
-    println!("=== Turn Batch Evaluation ===");
-    println!("Input: {} | Hands: {} | Samples/hand: {}", input_path, n_hands, n_samples);
-    println!("Output: {}", output_path);
-    if completed > 0 {
-        println!("Resuming from hand #{} ({} already done)", completed + 1, completed);
-    }
-    println!();
-    
-    let mut file = OpenOptions::new().create(true).append(true).open(output_path).unwrap();
-    let start = std::time::Instant::now();
-
-    for hand_idx in completed..n_hands {
-        let entry = &entries[hand_idx];
-        let turn = entry["turn"].as_u64().unwrap_or(1) as usize;
-        
-        let board = match json_to_board(&entry["board"]) {
-            Some(b) => b,
-            None => {
-                eprintln!("[{}/{}] Invalid board JSON", hand_idx + 1, n_hands);
-                continue;
-            }
-        };
-        
-        let hand_arr = entry["hand"].as_array().unwrap();
-        let hand = [
-            json_to_card(&hand_arr[0]).unwrap(),
-            json_to_card(&hand_arr[1]).unwrap(),
-            json_to_card(&hand_arr[2]).unwrap(),
-        ];
-
-        let turns_after = 4 - turn;
-        let mut known = board_cards(&board);
-        known.extend_from_slice(&hand);
-
-        let eval_seed = seed.wrapping_add(hand_idx as u64 * 1_000_000_007);
-        
-        // Evaluate the turn!
-        let results = evaluate_turn(&board, &hand, &known, turns_after, n_samples, eval_seed);
-
-        let all_placements: Vec<String> = results.iter().map(|res| {
-            format!("{{\"d\":\"{}\",\"p\":\"{}\",\"ev\":{:.3}}}", res.discard, res.placement_desc, res.ev)
-        }).collect();
-
-        // Let's create a compact string representing the board and hand for logging
-        let mut top_cards = Vec::new();
-        for i in 0..board.top_len as usize { top_cards.push(card_to_string(&board.top[i])); }
-        let mut mid_cards = Vec::new();
-        for i in 0..board.mid_len as usize { mid_cards.push(card_to_string(&board.mid[i])); }
-        let mut bot_cards = Vec::new();
-        for i in 0..board.bot_len as usize { bot_cards.push(card_to_string(&board.bot[i])); }
-        
-        let board_str = format!("Top[{}] Mid[{}] Bot[{}]", top_cards.join(" "), mid_cards.join(" "), bot_cards.join(" "));
-        let hand_str = format!("{} {} {}", card_to_string(&hand[0]), card_to_string(&hand[1]), card_to_string(&hand[2]));
-
-        let original_ev = entry.get("original_ev").and_then(|v| v.as_f64()).unwrap_or(0.0);
-
-        let json = format!(
-            "{{\"hand_idx\":{},\"turn\":{},\"board\":\"{}\",\"hand\":\"{}\",\"original_ev\":{},\"n_placements\":{},\"n_samples\":{},\"placements\":[{}]}}",
-            hand_idx, turn, board_str, hand_str, original_ev, results.len(), n_samples, all_placements.join(",")
-        );
-
-        writeln!(file, "{}", json).expect("Failed to write");
-        file.flush().unwrap();
-
-        let elapsed = start.elapsed().as_secs_f64();
-        let done = hand_idx - completed + 1;
-        let avg = elapsed / done as f64;
-        let eta = avg * (remaining_hands - done) as f64;
-
-        let best_ev = if results.is_empty() { 0.0 } else { results[0].ev };
-
-        println!(
-            "[{:>4}/{}] T{} {} + {} | {} placements | Best EV:{:+.2} | {:.1}s/hand | ETA: {:.1}min",
-            hand_idx + 1, n_hands, turn, board_str, hand_str,
-            results.len(),
-            best_ev,
-            avg, eta / 60.0
-        );
-    }
-
-    let total = start.elapsed().as_secs_f64();
-    println!("\n=== Turn Batch Complete ===");
-    println!("Hands evaluated: {}", remaining_hands);
-    println!("Total time: {:.1}min", total / 60.0);
-}
 
 pub fn run_turn_batch_imperfect(input_path: &str, n_samples: usize, output_path: &str, seed: u64, nesting: &[usize; 3]) {
     use std::fs::{File, OpenOptions};

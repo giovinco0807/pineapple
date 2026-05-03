@@ -53,18 +53,6 @@ impl InfoSetData {
         }
     }
 
-    /// Get the average (converged) strategy.
-    pub fn get_average_strategy(&self) -> Vec<f64> {
-        let total: f64 = self.cumulative_strategy.iter().sum();
-        if total > 0.0 {
-            self.cumulative_strategy.iter()
-                .map(|&s| s / total)
-                .collect()
-        } else {
-            let p = 1.0 / self.n_actions as f64;
-            vec![p; self.n_actions]
-        }
-    }
 }
 
 /// Storage for all information sets.
