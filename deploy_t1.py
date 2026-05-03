@@ -29,7 +29,7 @@ CONFIG = {
     "hands": 20,       # 50 VMs * 20 hands = 1000 hands total
     "n1": 3,           # 3 deals per hand
     "samples": 300,
-    "nesting": "5,2",
+    "nesting": "5-2",
     "base_seed": 7000000,
     "seed_step": 10000,
     "gcs_dest": "gs://ofc-solver-485418/t1_mc_data",
@@ -81,6 +81,32 @@ def create_vm(name, zone, worker_id, seed):
     return True, ""
 
 
+import concurrent.futures
+from threading import Lock
+
+def deploy_instance(i, prefix, count, lock, state):
+    name = f"{prefix}-{i}"
+    seed = CONFIG["base_seed"] + i * CONFIG["seed_step"]
+    zone = ZONES[i % len(ZONES)]
+
+    ok, err = create_vm(name, zone, i, seed)
+    if ok:
+        with lock:
+            state["created"] += 1
+            print(f"  [{state['created']:>2}/{count}] {name} in {zone} (seed={seed})")
+    else:
+        # Retry
+        alt_zone = ZONES[(i + 15) % len(ZONES)]
+        ok2, err2 = create_vm(name, alt_zone, i, seed)
+        if ok2:
+            with lock:
+                state["created"] += 1
+                print(f"  [{state['created']:>2}/{count}] {name} in {alt_zone} (seed={seed}) [fallback]")
+        else:
+            with lock:
+                state["failed"].append((name, err2[:100]))
+                print(f"  [FAIL] {name}: {err2[:80]}")
+
 def deploy_fleet():
     prefix = CONFIG["prefix"]
     count = CONFIG["count"]
@@ -92,36 +118,19 @@ def deploy_fleet():
     print(f"  GCS: {CONFIG['gcs_dest']}")
     print(f"{'='*60}\n")
 
-    created = 0
-    failed = []
+    lock = Lock()
+    state = {"created": 0, "failed": []}
 
-    for i in range(count):
-        name = f"{prefix}-{i}"
-        seed = CONFIG["base_seed"] + i * CONFIG["seed_step"]
-        zone = ZONES[i % len(ZONES)]
-
-        ok, err = create_vm(name, zone, i, seed)
-        if ok:
-            created += 1
-            print(f"  [{created:>2}/{count}] {name} in {zone} (seed={seed})")
-        else:
-            # Retry
-            alt_zone = ZONES[(i + 15) % len(ZONES)]
-            ok2, err2 = create_vm(name, alt_zone, i, seed)
-            if ok2:
-                created += 1
-                print(f"  [{created:>2}/{count}] {name} in {alt_zone} (seed={seed}) [fallback]")
-            else:
-                failed.append((name, err2[:100]))
-                print(f"  [FAIL] {name}: {err2[:80]}")
+    with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+        futures = [executor.submit(deploy_instance, i, prefix, count, lock, state) for i in range(count)]
+        concurrent.futures.wait(futures)
 
     print(f"\n{'='*60}")
-    print(f"SUMMARY: {created}/{count} VMs created. {len(failed)} failed.")
-    if failed:
-        for name, err in failed:
+    print(f"SUMMARY: {state['created']}/{count} VMs created. {len(state['failed'])} failed.")
+    if state["failed"]:
+        for name, err in state["failed"]:
             print(f"  {name}: {err}")
     print(f"{'='*60}")
-
 
 if __name__ == "__main__":
     deploy_fleet()

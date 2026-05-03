@@ -215,12 +215,12 @@ fn main() {
             run_benchmark(iterations);
         }
         Commands::T0Eval { hand, samples, seed, top_n, nesting, top_k } => {
-            let parts: Vec<usize> = nesting.split(',').filter_map(|s| s.trim().parse().ok()).collect();
+            let parts: Vec<usize> = nesting.split(|c| c == ',' || c == '_' || c == '-').filter_map(|s| s.trim().parse().ok()).collect();
             let nest = if parts.len() == 3 { [parts[0], parts[1], parts[2]] } else { [3, 2, 1] };
             run_t0_eval(&hand, samples, seed, top_n, nest, top_k);
         }
         Commands::T0Batch { hands, samples, output, seed, nesting, top_k } => {
-            let parts: Vec<usize> = nesting.split(',').filter_map(|s| s.trim().parse().ok()).collect();
+            let parts: Vec<usize> = nesting.split(|c| c == ',' || c == '_' || c == '-').filter_map(|s| s.trim().parse().ok()).collect();
             if parts.len() != 3 {
                 eprintln!("Error: --nesting must be 3 comma-separated values (e.g. 5,3,2)");
                 std::process::exit(1);
@@ -229,7 +229,7 @@ fn main() {
             t0_eval::run_batch(hands, samples, &output, seed, nest, top_k);
         }
         Commands::T0BatchFiltered { input, samples, output, seed, nesting } => {
-            let parts: Vec<usize> = nesting.split(',').filter_map(|s| s.trim().parse().ok()).collect();
+            let parts: Vec<usize> = nesting.split(|c| c == ',' || c == '_' || c == '-').filter_map(|s| s.trim().parse().ok()).collect();
             if parts.len() != 3 {
                 eprintln!("Error: --nesting must be 3 comma-separated values (e.g. 10,6,3)");
                 std::process::exit(1);
@@ -244,7 +244,7 @@ fn main() {
             run_turn_eval(&top, &mid, &bot, &hand, turn, samples, top_n, seed);
         }
         Commands::TurnBatchImperfect { input, samples, output, nesting, seed } => {
-            let parts: Vec<usize> = nesting.split(',').filter_map(|s| s.trim().parse().ok()).collect();
+            let parts: Vec<usize> = nesting.split(|c| c == ',' || c == '_' || c == '-').filter_map(|s| s.trim().parse().ok()).collect();
             let nest = if parts.len() == 2 { [parts[0], parts[1], 1] } else { [5, 2, 1] };
             t0_eval::run_turn_batch_imperfect(&input, samples, &output, seed, &nest);
         }
