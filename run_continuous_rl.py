@@ -6,7 +6,7 @@ import shutil
 
 GAMES_PER_ITERATION = 200
 ITERATIONS = 500
-WORKER_CMD = ["../../target/release/self_play_worker", str(GAMES_PER_ITERATION)]
+WORKER_CMD = ["../target/release/self_play_worker", str(GAMES_PER_ITERATION)]
 
 def main():
     print("Starting OFC Pineapple Continuous RL Pipeline...")
