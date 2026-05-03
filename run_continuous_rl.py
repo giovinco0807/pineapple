@@ -4,9 +4,13 @@ import subprocess
 import time
 import shutil
 
+import sys
+
 GAMES_PER_ITERATION = 200
 ITERATIONS = 500
-WORKER_CMD = ["../target/release/self_play_worker", str(GAMES_PER_ITERATION)]
+exe_ext = ".exe" if sys.platform == "win32" else ""
+# Executable is resolved relative to the parent python script's cwd, not the subprocess cwd
+WORKER_CMD = [os.path.abspath(f"rust_solver/target/release/self_play_worker{exe_ext}"), str(GAMES_PER_ITERATION)]
 
 def main():
     print("Starting OFC Pineapple Continuous RL Pipeline...")
@@ -82,11 +86,16 @@ def main():
                     shutil.copy(src, f"ai/models/checkpoint_{model_name}_iter{i+1}.pt")
                     
         print("[6] Syncing artifacts to GCS...")
-        subprocess.run(["gsutil", "-m", "rsync", "-r", "ai/models", "gs://ofc-solver-485418/rl_output/models"], check=False)
-        if os.path.exists("ai/training_metrics.csv"):
-            subprocess.run(["gsutil", "cp", "ai/training_metrics.csv", "gs://ofc-solver-485418/rl_output/"], check=False)
-        if os.path.exists("metrics.png"):
-            subprocess.run(["gsutil", "cp", "metrics.png", "gs://ofc-solver-485418/rl_output/"], check=False)
+        try:
+            # Use shell=True on Windows to allow running .cmd/.bat scripts like gsutil
+            is_win = (sys.platform == "win32")
+            subprocess.run(["gsutil", "-m", "rsync", "-r", "ai/models", "gs://ofc-solver-485418/rl_output/models"], check=False, shell=is_win)
+            if os.path.exists("ai/training_metrics.csv"):
+                subprocess.run(["gsutil", "cp", "ai/training_metrics.csv", "gs://ofc-solver-485418/rl_output/"], check=False, shell=is_win)
+            if os.path.exists("ai/training_progress.png"):
+                subprocess.run(["gsutil", "cp", "ai/training_progress.png", "gs://ofc-solver-485418/rl_output/"], check=False, shell=is_win)
+        except FileNotFoundError:
+            print("[!] gsutil not found or cannot execute, skipping GCS sync.")
                     
 if __name__ == '__main__':
     main()

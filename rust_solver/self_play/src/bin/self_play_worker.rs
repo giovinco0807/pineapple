@@ -1,13 +1,13 @@
 use self_play::{GameState, PlayerBoard, Turn, Row};
 use self_play::inference::{InferenceClient, InferenceRequest};
-use self_play::mcts::{MCTS, Node, PlacementAction, Action as MctsAction};
+use self_play::mcts::{MCTS, PlacementAction, Action as MctsAction};
 use ofc_core::Card;
 use serde::Serialize;
 use std::fs::OpenOptions;
 use std::io::Write;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
-
+use rayon::prelude::*;
 #[derive(Serialize)]
 struct TrainingSample {
     model: String,
@@ -242,6 +242,23 @@ fn format_placement(placement: &PlacementAction) -> (String, String) {
     (d, p_parts.join(", "))
 }
 
+struct GameResult {
+    samples: Vec<TrainingSample>,
+    score_p1: f64,
+    p1_bust: u32,
+    p2_bust: u32,
+    p1_fl_qq: u32,
+    p1_fl_kk: u32,
+    p1_fl_aa: u32,
+    p1_fl_trips: u32,
+    p2_fl_qq: u32,
+    p2_fl_kk: u32,
+    p2_fl_aa: u32,
+    p2_fl_trips: u32,
+    p1_royalty: i32,
+    p2_royalty: i32,
+}
+
 fn main() -> std::io::Result<()> {
     let args: Vec<String> = std::env::args().collect();
     let num_games = if args.len() > 1 {
@@ -251,11 +268,122 @@ fn main() -> std::io::Result<()> {
     };
     
     println!("Starting Self-Play Worker... (Generating {} games)", num_games);
-    let mut client = InferenceClient::new("127.0.0.1:5555")?;
     
+    let results: Vec<GameResult> = (0..num_games).into_par_iter().map_init(
+        || InferenceClient::new("127.0.0.1:5555").expect("Failed to connect to inference server"),
+        |client, game_idx| {
+            if game_idx % 10 == 0 {
+                println!("Playing game {}", game_idx);
+            }
+            
+            let mut deck = build_deck();
+            deck.shuffle(&mut thread_rng());
+            
+            let mut state = GameState::new(deck.clone());
+            let mut deck_idx = 0;
+            let mut game_samples = Vec::new();
+            
+            // Game Loop
+            while state.turn != Turn::Showdown {
+                let n_cards = if state.turn == Turn::T0 { 5 } else { 3 };
+                
+                let hand: Vec<Card> = (0..n_cards).map(|_| {
+                    let c = deck[deck_idx];
+                    deck_idx += 1;
+                    c
+                }).collect();
+                
+                let turn_str = format!("{:?}", state.turn);
+                let pos_str = if state.current_player == 1 { "BB" } else { "BTN" };
+                let model_str = format!("{}_{}", turn_str.to_lowercase(), pos_str.to_lowercase());
+                
+                let (my_board, opp_board) = if state.current_player == 1 {
+                    (&state.p1_board, &state.p2_board)
+                } else {
+                    (&state.p2_board, &state.p1_board)
+                };
+                
+                // GCP deployment: 300 simulations for deeper search
+                let simulations = 300;
+                let mcts_results = run_mcts(&state, &hand, client, simulations);
+                
+                let mut placements = Vec::new();
+                for (action, prob) in &mcts_results {
+                    let (d, p) = format_placement(action);
+                    placements.push(PlacementData {
+                        d,
+                        p,
+                        visit_prob: *prob,
+                    });
+                }
+                
+                let sample = TrainingSample {
+                    model: model_str,
+                    turn: turn_str,
+                    position: pos_str.to_string(),
+                    board: board_to_string(my_board),
+                    hand: cards_to_string(&hand),
+                    opp_top: cards_to_string(&opp_board.top),
+                    opp_mid: cards_to_string(&opp_board.mid),
+                    opp_bot: cards_to_string(&opp_board.bot),
+                    dead_cards: "".to_string(),
+                    placements,
+                };
+                
+                game_samples.push(sample);
+                
+                // Choose the best action based on MCTS visit counts
+                let best_action = mcts_results.into_iter().max_by(|a, b| a.1.partial_cmp(&b.1).unwrap()).unwrap().0;
+                
+                let apply_action = self_play::mcts::Action {
+                    placement: best_action,
+                    prior_prob: 1.0,
+                };
+                state.apply_placement(&apply_action);
+            }
+            
+            let mut res = GameResult {
+                samples: game_samples,
+                score_p1: GameState::calculate_reward(&state.p1_board, &state.p2_board),
+                p1_bust: if state.p1_board.busted { 1 } else { 0 },
+                p2_bust: if state.p2_board.busted { 1 } else { 0 },
+                p1_fl_qq: 0, p1_fl_kk: 0, p1_fl_aa: 0, p1_fl_trips: 0,
+                p2_fl_qq: 0, p2_fl_kk: 0, p2_fl_aa: 0, p2_fl_trips: 0,
+                p1_royalty: state.p1_board.total_royalty(),
+                p2_royalty: state.p2_board.total_royalty(),
+            };
+            
+            // FL tracking
+            let p1_top_royalty = ofc_core::get_top_royalty(&state.p1_board.top);
+            if !state.p1_board.busted && p1_top_royalty >= 7 { 
+                match p1_top_royalty {
+                    7 => res.p1_fl_qq = 1,
+                    8 => res.p1_fl_kk = 1,
+                    9 => res.p1_fl_aa = 1,
+                    _ => res.p1_fl_trips = 1,
+                }
+            }
+            
+            let p2_top_royalty = ofc_core::get_top_royalty(&state.p2_board.top);
+            if !state.p2_board.busted && p2_top_royalty >= 7 { 
+                match p2_top_royalty {
+                    7 => res.p2_fl_qq = 1,
+                    8 => res.p2_fl_kk = 1,
+                    9 => res.p2_fl_aa = 1,
+                    _ => res.p2_fl_trips = 1,
+                }
+            }
+            
+            res
+        }
+    ).collect();
+
+    // Now aggregate results and write file
     let mut file = OpenOptions::new().create(true).append(true).open("self_play_data.jsonl")?;
     
     let mut total_score_p1 = 0.0;
+    let mut p1_bust_count = 0;
+    let mut p2_bust_count = 0;
     let mut p1_fl_count = 0;
     let mut p2_fl_count = 0;
     let mut p1_fl_qq = 0;
@@ -266,117 +394,35 @@ fn main() -> std::io::Result<()> {
     let mut p2_fl_kk = 0;
     let mut p2_fl_aa = 0;
     let mut p2_fl_trips = 0;
-    let mut p1_bust_count = 0;
-    let mut p2_bust_count = 0;
     let mut p1_royalty_total = 0;
     let mut p2_royalty_total = 0;
-    
-    for game_idx in 0..num_games {
-        if game_idx % 10 == 0 {
-            println!("Playing game {}/{}", game_idx, num_games);
-        }
-        
-        let mut deck = build_deck();
-        deck.shuffle(&mut thread_rng());
-        
-        let mut state = GameState::new(deck.clone());
-        let mut deck_idx = 0;
-        
-        // Game Loop
-        while state.turn != Turn::Showdown {
-            let n_cards = if state.turn == Turn::T0 { 5 } else { 3 };
-            
-            let hand: Vec<Card> = (0..n_cards).map(|_| {
-                let c = deck[deck_idx];
-                deck_idx += 1;
-                c
-            }).collect();
-            
-            let turn_str = format!("{:?}", state.turn);
-            let pos_str = if state.current_player == 1 { "BB" } else { "BTN" };
-            let model_str = format!("{}_{}", turn_str.to_lowercase(), pos_str.to_lowercase());
-            
-            let (my_board, opp_board) = if state.current_player == 1 {
-                (&state.p1_board, &state.p2_board)
-            } else {
-                (&state.p2_board, &state.p1_board)
-            };
-            
-            // Run MCTS with actual simulations
-            // GCP deployment: 300 simulations for deeper search
-            let simulations = 300;
-            let mcts_results = run_mcts(&state, &hand, &mut client, simulations);
-            
-            let mut placements = Vec::new();
-            for (action, prob) in &mcts_results {
-                let (d, p) = format_placement(action);
-                placements.push(PlacementData {
-                    d,
-                    p,
-                    visit_prob: *prob,
-                });
-            }
-            
-            let sample = TrainingSample {
-                model: model_str,
-                turn: turn_str,
-                position: pos_str.to_string(),
-                board: board_to_string(my_board),
-                hand: cards_to_string(&hand),
-                opp_top: cards_to_string(&opp_board.top),
-                opp_mid: cards_to_string(&opp_board.mid),
-                opp_bot: cards_to_string(&opp_board.bot),
-                dead_cards: "".to_string(),
-                placements,
-            };
-            
+
+    for mut res in results {
+        for sample in res.samples.drain(..) {
             file.write_all(serde_json::to_string(&sample)?.as_bytes())?;
             file.write_all(b"\n")?;
-            
-            // Choose the best action based on MCTS visit counts
-            let best_action = mcts_results.into_iter().max_by(|a, b| a.1.partial_cmp(&b.1).unwrap()).unwrap().0;
-            
-            // We need to convert PlacementAction back to Action format expected by apply_placement
-            let mut apply_action = self_play::mcts::Action {
-                placement: best_action,
-                prior_prob: 1.0, // Not strictly needed for apply
-            };
-            state.apply_placement(&apply_action);
         }
         
-        let score = GameState::calculate_reward(&state.p1_board, &state.p2_board);
-        total_score_p1 += score;
+        total_score_p1 += res.score_p1;
+        p1_bust_count += res.p1_bust;
+        p2_bust_count += res.p2_bust;
         
-        if state.p1_board.busted { p1_bust_count += 1; }
-        if state.p2_board.busted { p2_bust_count += 1; }
+        let p1_fl = res.p1_fl_qq + res.p1_fl_kk + res.p1_fl_aa + res.p1_fl_trips;
+        p1_fl_count += p1_fl;
+        p1_fl_qq += res.p1_fl_qq;
+        p1_fl_kk += res.p1_fl_kk;
+        p1_fl_aa += res.p1_fl_aa;
+        p1_fl_trips += res.p1_fl_trips;
         
-        let p1_royalty = state.p1_board.total_royalty();
-        let p2_royalty = state.p2_board.total_royalty();
-        p1_royalty_total += p1_royalty;
-        p2_royalty_total += p2_royalty;
+        let p2_fl = res.p2_fl_qq + res.p2_fl_kk + res.p2_fl_aa + res.p2_fl_trips;
+        p2_fl_count += p2_fl;
+        p2_fl_qq += res.p2_fl_qq;
+        p2_fl_kk += res.p2_fl_kk;
+        p2_fl_aa += res.p2_fl_aa;
+        p2_fl_trips += res.p2_fl_trips;
         
-        // FL tracking
-        let p1_top_royalty = ofc_core::get_top_royalty(&state.p1_board.top);
-        if !state.p1_board.busted && p1_top_royalty >= 7 { 
-            p1_fl_count += 1;
-            match p1_top_royalty {
-                7 => p1_fl_qq += 1,
-                8 => p1_fl_kk += 1,
-                9 => p1_fl_aa += 1,
-                _ => p1_fl_trips += 1,
-            }
-        }
-        
-        let p2_top_royalty = ofc_core::get_top_royalty(&state.p2_board.top);
-        if !state.p2_board.busted && p2_top_royalty >= 7 { 
-            p2_fl_count += 1; 
-            match p2_top_royalty {
-                7 => p2_fl_qq += 1,
-                8 => p2_fl_kk += 1,
-                9 => p2_fl_aa += 1,
-                _ => p2_fl_trips += 1,
-            }
-        }
+        p1_royalty_total += res.p1_royalty;
+        p2_royalty_total += res.p2_royalty;
     }
     
     let n_f64 = num_games as f64;

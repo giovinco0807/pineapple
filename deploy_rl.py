@@ -10,7 +10,7 @@ CONFIG = {
     "name": "rl-worker-1",
     "zone": "us-central1-a",
     "git_branch": "verify-gcp-phase-one-20260501",
-    "machine_type": "c2-standard-60" # High CPU for MCTS
+    "machine_type": "n2-highcpu-64" # High CPU for MCTS
 }
 
 def create_vm():
