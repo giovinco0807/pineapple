@@ -10,7 +10,7 @@
 set -eo pipefail
 
 # ── Config ──
-export HOME="${HOME:-/root}"
+export HOME="/root"
 REPO="https://github.com/giovinco0807/pineapple.git"
 BRANCH="verify-gcp-phase-one-20260501"
 WORK_DIR="$HOME/ofc"

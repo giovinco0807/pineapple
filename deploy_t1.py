@@ -24,13 +24,13 @@ ZONES = [
 ]
 
 CONFIG = {
-    "prefix": "t1-mc",
-    "count": 50,
-    "hands": 20,       # 50 VMs * 20 hands = 1000 hands total
-    "n1": 3,           # 3 deals per hand
-    "samples": 300,
+    "prefix": "t1-rust",
+    "count": 10,
+    "hands": 20,       # 10 VMs * 20 hands = 200 hands total
+    "n1": 50,          # 50 deals per hand
+    "samples": 10,
     "nesting": "5-2",
-    "base_seed": 7000000,
+    "base_seed": 8000000,
     "seed_step": 10000,
     "gcs_dest": "gs://ofc-solver-485418/t1_mc_data",
     "git_branch": "verify-gcp-phase-one-20260501",

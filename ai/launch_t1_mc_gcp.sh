@@ -2,9 +2,9 @@
 # Launch 20 spot VMs for T1 MC data generation
 #
 # Total target: 10,000 hands (500 hands/VM × 20 VMs)
-# Settings: T0=top5, n2=10, n3=3, n4=3
-# Estimated time: ~35h/VM
-# Estimated cost: ~$210 total (20 × 35h × $0.30/h)
+# Settings: T0=top5, n2=5, n3=2, n4=3
+# Estimated time: ~12h/VM
+# Estimated cost: ~$72 total (20 × 12h × $0.30/h)
 
 set -euo pipefail
 
@@ -12,8 +12,8 @@ PROJECT="ofc-solver-485418"
 MACHINE="e2-highcpu-32"
 N_VMS=20
 HANDS_PER_VM=500
-N2=10
-N3=3
+N2=5
+N3=2
 N4=3
 
 # Regions to spread across (avoid quota issues)
@@ -48,11 +48,11 @@ echo "  Settings: n2=$N2, n3=$N3, n4=$N4"
 echo ""
 
 # First, push code to git
-echo "=== Pushing latest code ==="
-cd "$(dirname "$0")/.."
-git add -A
-git commit -m "GCP T1 MC: top5, n2=$N2, FL_EV corrected" || echo "Nothing to commit"
-git push || echo "Push failed, continuing..."
+# echo "=== Pushing latest code ==="
+# cd "$(dirname "$0")/.."
+# git add -A
+# git commit -m "GCP T1 MC: top5, n2=$N2, FL_EV corrected" || echo "Nothing to commit"
+# git push || echo "Push failed, continuing..."
 
 for i in $(seq 0 $((N_VMS - 1))); do
     ZONE="${ZONES[$i]}"

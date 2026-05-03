@@ -35,6 +35,7 @@ def eval_topk(model_path, data_path):
     top3 = 0
     top5 = 0
     top10 = 0
+    top15 = 0
     total = 0
 
     for sample in samples:
@@ -108,6 +109,7 @@ def eval_topk(model_path, data_path):
             if rank < 3: top3 += 1
             if rank < 5: top5 += 1
             if rank < 10: top10 += 1
+            if rank < 15: top15 += 1
         total += 1
         
     print(f"\n--- Evaluation Results ---")
@@ -116,6 +118,7 @@ def eval_topk(model_path, data_path):
     print(f"Top-3 Accuracy  : {top3/total*100:.2f}%")
     print(f"Top-5 Accuracy  : {top5/total*100:.2f}%")
     print(f"Top-10 Accuracy : {top10/total*100:.2f}%")
+    print(f"Top-15 Accuracy : {top15/total*100:.2f}%")
 
 if __name__ == '__main__':
     eval_topk('ai/models/t1_placement_net_v2.pt', 'ai/data/t1_local_test.jsonl')
