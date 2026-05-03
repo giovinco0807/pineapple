@@ -1,7 +1,7 @@
 """Flask application for OFC Pineapple."""
 from flask import Flask, render_template, jsonify, request, session
 from game import GameState, GamePhase, Card, Row
-from ai import RandomAI
+from ai.ofc_agent import OFCAgent
 import os
 
 app = Flask(__name__, static_folder='static', template_folder='static')
@@ -9,7 +9,7 @@ app.secret_key = os.urandom(24)
 
 # Store game states (in production, use a proper session store)
 games = {}
-ai_player = RandomAI()
+ai_player = OFCAgent()
 
 
 def get_game() -> GameState:

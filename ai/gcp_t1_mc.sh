@@ -56,6 +56,10 @@ setup() {
     pip3 install --quiet torch numpy --break-system-packages 2>/dev/null || \
     pip3 install --quiet torch numpy
 
+    echo "=== Downloading model files ==="
+    mkdir -p "$WORK_DIR/ai/models"
+    gsutil -q cp gs://ofc-solver-results/models/t0_placement_net_v4.pt "$WORK_DIR/ai/models/"
+
     echo "=== Setup complete ==="
 }
 
