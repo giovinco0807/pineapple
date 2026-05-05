@@ -1,0 +1,15 @@
+[package]
+name = "mcts_gen"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+ofc_core = { path = "../ofc_core" }
+rand.workspace = true
+rayon.workspace = true
+clap.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+ort = { version = "2.0.0-rc.12", features = ["ndarray"] }
+ndarray = "0.17.2"
+rand_distr = "0.4"
