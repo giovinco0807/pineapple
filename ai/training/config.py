@@ -26,11 +26,12 @@ class TrainingConfig:
 
     # Self-Play
     sp_lr: float = 1e-4
-    sp_games_per_iter: int = 200
-    sp_mcts_simulations: int = 200
+    sp_games_per_iter: int = 1000
+    sp_mcts_simulations: int = 2000
     sp_iterations: int = 100
     sp_c_puct: float = 1.5
     sp_temperature: float = 1.0
+    sp_threads: int = 4
 
     # Evaluation
     eval_interval: int = 10
