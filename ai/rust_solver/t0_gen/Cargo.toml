@@ -1,0 +1,17 @@
+[package]
+name = "t0_gen"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "t0_gen"
+path = "src/main.rs"
+
+[dependencies]
+ofc_core = { path = "../ofc_core" }
+rayon = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+rand = { workspace = true }
+clap = { workspace = true }
+
