@@ -1,0 +1,148 @@
+import os
+import sys
+import json
+import time
+import subprocess
+import numpy as np
+import multiprocessing as mp
+from pathlib import Path
+
+# Add paths for encoding and generator
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+from ai.engine.encoding import Board, Observation, encode_state
+from ai.heuristic_bot.t3_generator import generate_random_t3_state
+
+def worker_process(worker_id, num_states, exe_path):
+    """
+    Worker process:
+    1. Generates `num_states` using heuristic bot.
+    2. Runs t3_exact.exe and passes all states via stdin JSON lines.
+    3. Reads EV results.
+    4. Encodes states to tensors.
+    Returns: list of (tensor, ev)
+    """
+    states = []
+    # 1. Generate states
+    for _ in range(num_states):
+        while True:
+            state = generate_random_t3_state()
+            if state is not None:
+                states.append(state)
+                break
+                
+    env = os.environ.copy()
+    env["RAYON_NUM_THREADS"] = "1"
+    
+    # 2. Run Rust solver
+    proc = subprocess.Popen(
+        [exe_path],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        env=env
+    )
+    results = []
+    
+    # 2. Write and Read line by line to prevent OS pipe buffer deadlock
+    for i, state in enumerate(states):
+        req = {
+            "board_top": state["board_top"],
+            "board_mid": state["board_mid"],
+            "board_bot": state["board_bot"],
+            "discards": state["discards"],
+            "dealt": state["dealt"],
+            "bust_penalty": -4.0,
+            "fl_ev": {"14": 24.92, "15": 31.43, "16": 39.77, "17": 47.74}
+        }
+        
+        proc.stdin.write(json.dumps(req) + "\n")
+        proc.stdin.flush()
+        
+        line = proc.stdout.readline()
+        if not line:
+            break
+            
+        res = json.loads(line)
+        if "error" in res:
+            continue
+            
+        best_ev = res["best_ev"]
+        
+        # Encode state
+        board_obj = Board(
+            top=states[i]["board_top"],
+            middle=states[i]["board_mid"],
+            bottom=states[i]["board_bot"]
+        )
+        
+        obs = Observation(
+            board_self=board_obj,
+            board_opponent=Board(), # Ignore opponent for God Mode absolute EV
+            dealt_cards=states[i]["dealt"],
+            known_discards_self=states[i]["discards"],
+            turn=3, # T3
+            is_btn=False
+        )
+        
+        tensor = encode_state(obs)
+        results.append((tensor, best_ev))
+        
+    proc.wait()
+    return results
+
+import argparse
+
+def main():
+    parser = argparse.ArgumentParser(description="Generate T3 Dataset")
+    parser.add_argument("--states", type=int, default=10000, help="Total number of states to generate")
+    args = parser.parse_args()
+    
+    total_states = args.states
+    num_workers = min(60, mp.cpu_count() - 1)
+    if num_workers < 1: num_workers = 1
+    
+    states_per_worker = total_states // num_workers
+    remainder = total_states % num_workers
+    
+    exe_path = str(Path(__file__).resolve().parent / "target" / "release" / "t3_exact.exe")
+    if not os.path.exists(exe_path):
+        print(f"Error: Could not find t3_exact.exe at {exe_path}. Please build it first.")
+        sys.exit(1)
+        
+    print(f"Starting generation of {total_states} T3 states using {num_workers} workers...")
+    start_time = time.time()
+    
+    pool_args = []
+    for i in range(num_workers):
+        n = states_per_worker + (1 if i < remainder else 0)
+        pool_args.append((i, n, exe_path))
+        
+    with mp.Pool(num_workers) as pool:
+        results = pool.starmap(worker_process, pool_args)
+        
+    # Flatten results
+    all_tensors = []
+    all_evs = []
+    for worker_res in results:
+        for tensor, ev in worker_res:
+            all_tensors.append(tensor)
+            all_evs.append(ev)
+            
+    all_tensors = np.array(all_tensors, dtype=np.float32)
+    all_evs = np.array(all_evs, dtype=np.float32)
+    
+    print(f"Generation complete in {time.time() - start_time:.2f}s")
+    print(f"Collected {len(all_tensors)} states.")
+    print(f"Average EV: {np.mean(all_evs):.2f}")
+    
+    output_dir = Path("data/t3_dataset")
+    output_dir.mkdir(parents=True, exist_ok=True)
+    
+    np.save(output_dir / "states.npy", all_tensors)
+    np.save(output_dir / "ev_targets.npy", all_evs)
+    
+    print(f"Saved dataset to {output_dir}")
+
+if __name__ == "__main__":
+    main()
