@@ -34,7 +34,7 @@ git checkout verify-gcp-phase-one-20260501
 python3 -m venv venv
 source venv/bin/activate
 pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
-pip install numpy pandas matplotlib gymnasium
+pip install numpy pandas matplotlib gymnasium tqdm
 
 # Create directories
 mkdir -p data/t3_dataset
