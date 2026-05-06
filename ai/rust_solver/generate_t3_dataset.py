@@ -56,16 +56,10 @@ def worker_process(worker_id, num_states, exe_path):
             "fl_ev": {"14": 13.0, "15": 40.0, "16": 55.1, "17": 90.7}
         }
         
-        with open("debug_t3_state.json", "w") as f:
-            f.write(json.dumps(req))
-            
-        print(f"Writing state {i} to Rust...")
         proc.stdin.write(json.dumps(req) + "\n")
         proc.stdin.flush()
         
-        print("Waiting for Rust output...")
         line = proc.stdout.readline()
-        print("Received Rust output.")
         if not line:
             break
             
