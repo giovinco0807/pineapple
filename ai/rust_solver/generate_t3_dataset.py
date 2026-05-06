@@ -152,9 +152,6 @@ def main():
     num_workers = min(60, mp.cpu_count() - 1)
     if num_workers < 1: num_workers = 1
     
-    states_per_worker = total_states // num_workers
-    remainder = total_states % num_workers
-    
     exe_path = str(Path(__file__).resolve().parent / "target" / "release" / "t3_exact.exe")
     if not os.path.exists(exe_path):
         print(f"Error: Could not find t3_exact.exe at {exe_path}. Please build it first.")
@@ -163,39 +160,59 @@ def main():
     print(f"Starting generation of {total_states} T3 states using {num_workers} workers...")
     start_time = time.time()
     
-    pool_args = []
-    for i in range(num_workers):
-        n = states_per_worker + (1 if i < remainder else 0)
-        pool_args.append((i, n, exe_path))
-        
-    with mp.Pool(num_workers) as pool:
-        results = pool.starmap(worker_process, pool_args)
-        
-    # Flatten results
-    all_tensors = []
-    all_evs = []
-    all_masks = []
-    for worker_res in results:
-        for tensor, action_evs, action_mask in worker_res:
-            all_tensors.append(tensor)
-            all_evs.append(action_evs)
-            all_masks.append(action_mask)
-            
-    all_tensors = np.array(all_tensors, dtype=np.float32)
-    all_evs = np.array(all_evs, dtype=np.float32)
-    all_masks = np.array(all_masks, dtype=bool)
-    
-    print(f"Generation complete in {time.time() - start_time:.2f}s")
-    print(f"Collected {len(all_tensors)} states.")
-    
     output_dir = Path("data/t3_dataset")
     output_dir.mkdir(parents=True, exist_ok=True)
     
-    np.save(output_dir / "states.npy", all_tensors)
-    np.save(output_dir / "action_evs.npy", all_evs)
-    np.save(output_dir / "action_masks.npy", all_masks)
+    chunk_size = 10000
+    num_chunks = (total_states + chunk_size - 1) // chunk_size
+    states_generated = 0
     
-    print(f"Saved dataset to {output_dir}")
+    for chunk_idx in range(num_chunks):
+        chunk_states = min(chunk_size, total_states - states_generated)
+        states_per_worker = chunk_states // num_workers
+        remainder = chunk_states % num_workers
+        
+        pool_args = []
+        for i in range(num_workers):
+            n = states_per_worker + (1 if i < remainder else 0)
+            if n > 0:
+                pool_args.append((i, n, exe_path))
+                
+        print(f"\n--- Generating Chunk {chunk_idx+1}/{num_chunks} ({chunk_states} states) ---")
+        with mp.Pool(num_workers) as pool:
+            results = pool.starmap(worker_process, pool_args)
+            
+        all_tensors = []
+        all_evs = []
+        all_masks = []
+        for worker_res in results:
+            for tensor, action_evs, action_mask in worker_res:
+                all_tensors.append(tensor)
+                all_evs.append(action_evs)
+                all_masks.append(action_mask)
+                
+        all_tensors = np.array(all_tensors, dtype=np.float32)
+        all_evs = np.array(all_evs, dtype=np.float32)
+        all_masks = np.array(all_masks, dtype=bool)
+        
+        np.save(output_dir / f"states_chunk_{chunk_idx}.npy", all_tensors)
+        np.save(output_dir / f"action_evs_chunk_{chunk_idx}.npy", all_evs)
+        np.save(output_dir / f"action_masks_chunk_{chunk_idx}.npy", all_masks)
+        
+        states_generated += chunk_states
+        
+        print(f"Saved chunk {chunk_idx+1} to {output_dir}")
+        print("Uploading to GCS...")
+        try:
+            subprocess.run(
+                ["gsutil", "-m", "rsync", "-r", str(output_dir), "gs://ofc-solver-485418/ofc_rl_output/t3_dataset/"],
+                check=False
+            )
+            print("Upload complete.")
+        except Exception as ex:
+            print(f"Upload failed: {ex}")
+            
+    print(f"\nGeneration complete in {time.time() - start_time:.2f}s")
 
 if __name__ == "__main__":
     main()
