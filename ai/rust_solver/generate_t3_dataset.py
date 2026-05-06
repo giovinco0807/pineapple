@@ -53,7 +53,7 @@ def worker_process(worker_id, num_states, exe_path):
             "discards": state["discards"],
             "dealt": state["dealt"],
             "bust_penalty": -4.0,
-            "fl_ev": {"14": 24.92, "15": 31.43, "16": 39.77, "17": 47.74}
+            "fl_ev": {"14": 13.0, "15": 40.0, "16": 55.1, "17": 90.7}
         }
         
         proc.stdin.write(json.dumps(req) + "\n")
@@ -65,6 +65,7 @@ def worker_process(worker_id, num_states, exe_path):
             
         res = json.loads(line)
         if "error" in res:
+            print(f"Rust solver error: {res['error']}")
             continue
             
         best_ev = res["best_ev"]

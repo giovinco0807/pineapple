@@ -318,12 +318,14 @@ fn main() {
             Ok(r) => r,
             Err(e) => {
                 writeln!(stdout, "{{\"error\":\"JSON parse error: {}\"}}", e).unwrap();
+                stdout.flush().unwrap();
                 continue;
             }
         };
 
         if req.dealt.len() != 3 {
             writeln!(stdout, "{{\"error\":\"dealt must be exactly 3 cards\"}}").unwrap();
+            stdout.flush().unwrap();
             continue;
         }
 
@@ -377,10 +379,10 @@ fn main() {
         
         // Default FL EV if not provided
         if fl_ev_map.is_empty() {
-            fl_ev_map.insert(14, 12.0);
-            fl_ev_map.insert(15, 14.0);
-            fl_ev_map.insert(16, 16.0);
-            fl_ev_map.insert(17, 18.0);
+            fl_ev_map.insert(14, 13.0);   // QQ
+            fl_ev_map.insert(15, 40.0);   // KK
+            fl_ev_map.insert(16, 55.1);   // AA
+            fl_ev_map.insert(17, 90.7);   // Trips
         }
 
         let config = FlEvConfig {
