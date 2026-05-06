@@ -136,18 +136,59 @@ def get_turn_actions(dealt_cards: List[str], board: Board) -> List[Action]:
     return unique
 
 
+def _get_sorted_cards(action: Action) -> List[str]:
+    """Recover and canonically sort dealt cards from an action."""
+    from .encoding import card_to_idx
+    cards = [action.discard] if action.discard else []
+    cards.extend([c for c, p in action.placements])
+    return sorted(cards, key=lambda c: card_to_idx(c))
+
+def _get_canonical_action_index(action: Action, sorted_cards: List[str]) -> int:
+    """Map a Turn 1-8 action (3 cards) to a fixed index 0..26."""
+    discard_idx = sorted_cards.index(action.discard)
+    remaining = [c for c in sorted_cards if c != action.discard]
+    
+    p_dict = {c: pos for c, pos in action.placements}
+    pos0 = p_dict[remaining[0]]
+    pos1 = p_dict[remaining[1]]
+    
+    pos_map = {"top": 0, "middle": 1, "bottom": 2}
+    return discard_idx * 9 + pos_map[pos0] * 3 + pos_map[pos1]
+
 def create_action_mask(valid_actions: List[Action]) -> "np.ndarray":
-    """Create boolean mask of shape (MAX_ACTIONS,) for valid actions."""
+    """Create boolean mask of shape (MAX_ACTIONS,) for valid actions.
+    Uses canonical semantic mapping for Turn 1-8 (3 cards) to avoid aliasing.
+    """
     import numpy as np
     mask = np.zeros(MAX_ACTIONS, dtype=bool)
-    for i in range(min(len(valid_actions), MAX_ACTIONS)):
-        mask[i] = True
+    if not valid_actions:
+        return mask
+        
+    cards = _get_sorted_cards(valid_actions[0])
+    
+    if len(cards) == 3:
+        for a in valid_actions:
+            idx = _get_canonical_action_index(a, cards)
+            mask[idx] = True
+    else:
+        # Fallback for Turn 0 (5 cards)
+        for i in range(min(len(valid_actions), MAX_ACTIONS)):
+            mask[i] = True
+            
     return mask
 
 
 def encode_action(action: Action, valid_actions: List[Action]) -> int:
-    """Find the index of an action within the valid action list."""
-    for i, a in enumerate(valid_actions):
-        if a == action:
-            return i
+    """Encode an Action to an integer index.
+    Uses canonical semantic mapping for Turn 1-8 (3 cards) to avoid aliasing.
+    """
+    cards = _get_sorted_cards(action)
+    
+    if len(cards) == 3:
+        return _get_canonical_action_index(action, cards)
+    else:
+        # Fallback for Turn 0
+        for i, a in enumerate(valid_actions):
+            if a == action:
+                return i
     raise ValueError(f"Action not found in valid actions: {action}")
