@@ -54,8 +54,8 @@ cd ai/rust_solver
 cargo build --release --bin t3_exact
 cd ../../
 
-# Generate 50,000 states (Takes ~30 mins on 55 cores)
-python3 ai/rust_solver/generate_t3_dataset.py --states 50000 > t3_generation.log 2>&1
+# Generate 2,000,000 states (Takes ~22 hours on 55 cores)
+python3 ai/rust_solver/generate_t3_dataset.py --states 2000000 > t3_generation.log 2>&1
 
 echo "Uploading dataset to GCS..."
 gsutil -m rsync -r data/t3_dataset gs://ofc-solver-485418/ofc_rl_output/t3_dataset/
