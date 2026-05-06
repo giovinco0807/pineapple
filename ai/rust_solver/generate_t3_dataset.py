@@ -38,7 +38,7 @@ def worker_process(worker_id, num_states, exe_path):
         [exe_path],
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
         text=True,
         env=env
     )
@@ -56,10 +56,16 @@ def worker_process(worker_id, num_states, exe_path):
             "fl_ev": {"14": 13.0, "15": 40.0, "16": 55.1, "17": 90.7}
         }
         
+        with open("debug_t3_state.json", "w") as f:
+            f.write(json.dumps(req))
+            
+        print(f"Writing state {i} to Rust...")
         proc.stdin.write(json.dumps(req) + "\n")
         proc.stdin.flush()
         
+        print("Waiting for Rust output...")
         line = proc.stdout.readline()
+        print("Received Rust output.")
         if not line:
             break
             
@@ -138,6 +144,7 @@ def worker_process(worker_id, num_states, exe_path):
         tensor = encode_state(obs)
         results.append((tensor, action_evs, action_mask))
         
+    proc.stdin.close()
     proc.wait()
     return results
 
@@ -146,11 +153,15 @@ import argparse
 def main():
     parser = argparse.ArgumentParser(description="Generate T3 Dataset")
     parser.add_argument("--states", type=int, default=10000, help="Total number of states to generate")
+    parser.add_argument("--workers", type=int, default=-1, help="Number of worker processes")
     args = parser.parse_args()
     
     total_states = args.states
-    num_workers = min(60, mp.cpu_count() - 1)
-    if num_workers < 1: num_workers = 1
+    if args.workers > 0:
+        num_workers = args.workers
+    else:
+        num_workers = min(60, mp.cpu_count() - 1)
+        if num_workers < 1: num_workers = 1
     
     exe_name = "t3_exact.exe" if os.name == "nt" else "t3_exact"
     exe_path = str(Path(__file__).resolve().parent / "target" / "release" / exe_name)
