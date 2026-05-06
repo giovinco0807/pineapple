@@ -20,9 +20,11 @@ sudo apt-get update
 sudo apt-get install -y git python3-pip python3-venv tmux curl build-essential
 
 # Install Rust
+export RUSTUP_HOME=/root/.rustup
+export CARGO_HOME=/root/.cargo
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-source "`$HOME/.cargo/env"
-export PATH="`$HOME/.cargo/bin:`$PATH"
+source "/root/.cargo/env"
+export PATH="/root/.cargo/bin:`$PATH"
 
 # Clone Repository
 git clone https://github.com/giovinco0807/pineapple.git /ofc-pineapple

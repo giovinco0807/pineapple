@@ -152,9 +152,10 @@ def main():
     num_workers = min(60, mp.cpu_count() - 1)
     if num_workers < 1: num_workers = 1
     
-    exe_path = str(Path(__file__).resolve().parent / "target" / "release" / "t3_exact.exe")
+    exe_name = "t3_exact.exe" if os.name == "nt" else "t3_exact"
+    exe_path = str(Path(__file__).resolve().parent / "target" / "release" / exe_name)
     if not os.path.exists(exe_path):
-        print(f"Error: Could not find t3_exact.exe at {exe_path}. Please build it first.")
+        print(f"Error: Could not find {exe_name} at {exe_path}. Please build it first.")
         sys.exit(1)
         
     print(f"Starting generation of {total_states} T3 states using {num_workers} workers...")
@@ -179,8 +180,11 @@ def main():
                 pool_args.append((i, n, exe_path))
                 
         print(f"\n--- Generating Chunk {chunk_idx+1}/{num_chunks} ({chunk_states} states) ---")
-        with mp.Pool(num_workers) as pool:
-            results = pool.starmap(worker_process, pool_args)
+        if num_workers == 1:
+            results = [worker_process(*pool_args[0])]
+        else:
+            with mp.Pool(num_workers) as pool:
+                results = pool.starmap(worker_process, pool_args)
             
         all_tensors = []
         all_evs = []
