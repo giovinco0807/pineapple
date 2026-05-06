@@ -565,11 +565,23 @@ pub fn card_to_string(card: &Card) -> String {
 }
 
 // ============================================================
-//  Joker Bust-Prevention (Constrained Evaluation)
+//  Joker Bust-Prevention (Optimized Analytical Approach)
 // ============================================================
+//
+// Key insight: We don't need to find which physical card the joker
+// "becomes". We only need to determine the hand rank and whether
+// it causes a bust (Top ≤ Mid ≤ Bot violation).
+//
+// The existing evaluate_5_card / evaluate_3_card already treat
+// jokers as optimal wildcards. The problem is that "optimal" might
+// make mid stronger than bot, causing a bust.
+//
+// Solution: For each row with jokers that would cause a bust,
+// we analytically downgrade the joker's contribution by trying
+// hand ranks from strongest to weakest until we find one that
+// doesn't violate the constraint. This is O(1) instead of O(47^n).
 
 /// Result of constrained board evaluation.
-/// Cards may have jokers substituted to avoid busting.
 pub struct BoardEval {
     pub busted: bool,
     pub top: Vec<Card>,
@@ -580,14 +592,58 @@ pub struct BoardEval {
 /// Evaluate board with joker bust-prevention.
 /// Bottom-up: bot (max strength), mid (max ≤ bot), top (max ≤ mid).
 /// Jokers pick the strongest hand that doesn't violate Top ≤ Mid ≤ Bot.
+///
+/// Optimized: Instead of substituting physical cards, we use the
+/// existing abstract evaluation (which already handles jokers as
+/// wildcards) and only check if the placement is valid.
+/// 
+/// The key realization: evaluate_5_card and evaluate_3_card already
+/// compute the BEST possible hand rank with jokers. If this best
+/// rank doesn't bust, we're done. If it does bust, then for the
+/// purposes of EV calculation, the joker acts as a low card that
+/// doesn't improve the hand beyond the constraint.
 pub fn evaluate_board_with_joker_constraint(
     top: &[Card], mid: &[Card], bot: &[Card],
 ) -> BoardEval {
+    // The existing evaluate functions already handle jokers as
+    // optimal wildcards. is_valid_placement uses these evaluations.
+    // 
+    // Case 1: No jokers anywhere, or jokers only in bot
+    //   → Bot jokers are unconstrained (bigger is always better)
+    //   → Just check is_valid_placement normally
+    //
+    // Case 2: Jokers in mid and/or top
+    //   → The joker ALWAYS has a valid assignment (worst case: 2 of
+    //     the lowest rank not in hand, which is weaker than anything)
+    //   → So busted = false whenever there's a joker in mid/top,
+    //     UNLESS even the weakest possible hand would bust.
+    //
+    // But wait - in OFC Pineapple, if mid has a joker:
+    //   - The joker CAN become any card
+    //   - It should become the strongest card that keeps mid ≤ bot
+    //   - If even a "do nothing" card (lowest rank) still makes mid > bot,
+    //     then it's truly busted (this is extremely rare with jokers)
+    //
+    // For royalty/score calculation purposes, we need to know the
+    // ACTUAL hand rank after constraint. The simplest correct approach:
+    //   1. Evaluate bot normally (jokers unconstrained → best hand)
+    //   2. Evaluate mid normally (jokers → best hand)
+    //   3. If mid ≤ bot: great, no constraint needed
+    //   4. If mid > bot: the joker in mid must downgrade.
+    //      Try making joker a "neutral" card (doesn't help the hand).
+    //      Since evaluate functions already abstract away specific cards,
+    //      we can check: does a hand with (n-1) jokers still bust?
+    //      If a joker becomes a useless card, it's equivalent to removing
+    //      the joker contribution.
+    //
+    // Practical approach for T3/T4 terminal evaluation:
+    // The joker's "best non-busting" assignment can be determined
+    // analytically by checking hand categories from top down.
+
     let top_has_joker = top.iter().any(|c| c.is_joker());
     let mid_has_joker = mid.iter().any(|c| c.is_joker());
 
-    // Fast path: no jokers in top or mid → standard check
-    // (bot jokers are unconstrained, existing evaluate handles them)
+    // Fast path: no jokers in constrained rows → standard check
     if !top_has_joker && !mid_has_joker {
         return BoardEval {
             busted: !is_valid_placement(top, mid, bot),
@@ -597,16 +653,16 @@ pub fn evaluate_board_with_joker_constraint(
         };
     }
 
-    // Mid: constrain to ≤ bot
+    // Step 1: Evaluate mid with constraint against bot
     let mid_final = if mid_has_joker {
-        constrain_5_vs_5(mid, bot)
+        constrain_mid_analytical(mid, bot)
     } else {
         mid.to_vec()
     };
 
-    // Top: constrain to ≤ mid_final
+    // Step 2: Evaluate top with constraint against mid_final
     let top_final = if top_has_joker {
-        constrain_3_vs_5(top, &mid_final)
+        constrain_top_analytical(top, &mid_final)
     } else {
         top.to_vec()
     };
@@ -621,7 +677,67 @@ pub fn evaluate_board_with_joker_constraint(
     }
 }
 
-/// Check if 3-card top ≤ 5-card mid (extracted from is_valid_placement)
+/// Analytically constrain mid (5-card with jokers) to be ≤ bot (5-card).
+/// Instead of trying all 47+ card substitutions, we:
+///   1. Check if the joker-maximized hand already fits (fast path)
+///   2. If not, substitute the joker with a "downgrade" card that 
+///      makes the hand as strong as possible while staying ≤ bot
+///
+/// For the downgrade, we only need to try a small number of candidates:
+///   - Cards that pair with existing cards (to get pairs/trips)
+///   - A card of the dominant suit (for flushes)
+///   - Cards that complete straights
+///   - A completely neutral low card (worst case fallback)
+fn constrain_mid_analytical(mid: &[Card], bot: &[Card]) -> Vec<Card> {
+    // Fast path: if mid with optimal joker ≤ bot, no constraint needed
+    if compare_5_hands(mid, bot) <= 0 {
+        return mid.to_vec();
+    }
+
+    let non_jokers: Vec<Card> = mid.iter().filter(|c| !c.is_joker()).cloned().collect();
+    let n_jokers = mid.len() - non_jokers.len();
+
+    // Generate a small set of smart candidate substitutions
+    let candidates = generate_smart_candidates_5(&non_jokers, n_jokers);
+
+    let mut best: Option<Vec<Card>> = None;
+
+    for candidate in &candidates {
+        if compare_5_hands(candidate, bot) <= 0 {
+            if best.is_none() || compare_5_hands(candidate, best.as_ref().unwrap()) > 0 {
+                best = Some(candidate.clone());
+            }
+        }
+    }
+
+    best.unwrap_or_else(|| mid.to_vec())
+}
+
+/// Analytically constrain top (3-card with jokers) to be ≤ mid (5-card).
+fn constrain_top_analytical(top: &[Card], mid: &[Card]) -> Vec<Card> {
+    if is_top_le_mid(top, mid) {
+        return top.to_vec();
+    }
+
+    let non_jokers: Vec<Card> = top.iter().filter(|c| !c.is_joker()).cloned().collect();
+    let n_jokers = top.len() - non_jokers.len();
+
+    let candidates = generate_smart_candidates_3(&non_jokers, n_jokers);
+
+    let mut best: Option<Vec<Card>> = None;
+
+    for candidate in &candidates {
+        if is_top_le_mid(candidate, mid) {
+            if best.is_none() || compare_3(candidate, best.as_ref().unwrap()) > 0 {
+                best = Some(candidate.clone());
+            }
+        }
+    }
+
+    best.unwrap_or_else(|| top.to_vec())
+}
+
+/// Check if 3-card top ≤ 5-card mid
 fn is_top_le_mid(top: &[Card], mid: &[Card]) -> bool {
     let (top_rank, _) = evaluate_3_card(top);
     let (mid_rank, _) = evaluate_5_card(mid);
@@ -658,7 +774,7 @@ fn is_top_le_mid(top: &[Card], mid: &[Card]) -> bool {
     }
 }
 
-/// Compare two 3-card hands (for finding best substitution)
+/// Compare two 3-card hands
 fn compare_3(a: &[Card], b: &[Card]) -> i32 {
     let (ra, sa) = evaluate_3_card(a);
     let (rb, sb) = evaluate_3_card(b);
@@ -668,104 +784,166 @@ fn compare_3(a: &[Card], b: &[Card]) -> i32 {
     if sa > sb { 1 } else if sa < sb { -1 } else { 0 }
 }
 
-/// Generate all candidate substitution cards (not already in the hand)
-fn available_subs(cards: &[Card]) -> Vec<Card> {
+/// Generate smart candidate hands for 5-card joker substitution.
+/// Instead of trying all 47+ cards, we try a focused set (~30-50 candidates)
+/// that covers all meaningfully different hand categories:
+///   - Pair with each existing rank (13 candidates max)
+///   - Same suit as majority (for flush potential)
+///   - Straight-completing cards
+///   - Neutral low cards as fallback
+fn generate_smart_candidates_5(non_jokers: &[Card], n_jokers: usize) -> Vec<Vec<Card>> {
+    let mut candidates = Vec::new();
+    
     let mut used = std::collections::HashSet::new();
-    for c in cards {
-        if !c.is_joker() {
-            used.insert((c.rank, c.suit));
+    for c in non_jokers {
+        used.insert((c.rank, c.suit));
+    }
+
+    // Collect unique ranks and suits present
+    let rank_counts = {
+        let mut rc = [0u8; 15];
+        for c in non_jokers { rc[c.rank as usize] += 1; }
+        rc
+    };
+    let suit_counts = {
+        let mut sc = [0u8; 4];
+        for c in non_jokers { if c.suit < 4 { sc[c.suit as usize] += 1; } }
+        sc
+    };
+
+    // Find candidate substitution cards (not already in hand)
+    let mut sub_candidates: Vec<Card> = Vec::new();
+
+    // Strategy 1: For each rank present, add a card of that rank (different suit)
+    // This helps form pairs/trips/quads
+    for rank in 2..=14u8 {
+        if rank_counts[rank as usize] > 0 {
+            for suit in 0..4u8 {
+                if !used.contains(&(rank, suit)) {
+                    sub_candidates.push(Card { rank, suit });
+                    break; // one per rank is enough
+                }
+            }
         }
     }
-    let mut subs = Vec::new();
-    for rank in 2..=14u8 {
+
+    // Strategy 2: For dominant suit, add high cards (for flushes)
+    let dom_suit = suit_counts.iter().enumerate()
+        .max_by_key(|(_, &c)| c)
+        .map(|(s, _)| s as u8)
+        .unwrap_or(0);
+    for rank in (2..=14u8).rev() {
+        if !used.contains(&(rank, dom_suit)) {
+            sub_candidates.push(Card { rank, suit: dom_suit });
+        }
+    }
+
+    // Strategy 3: Straight-completing cards (check each possible straight)
+    let straights: [[u8; 5]; 10] = [
+        [14, 2, 3, 4, 5], [2, 3, 4, 5, 6], [3, 4, 5, 6, 7],
+        [4, 5, 6, 7, 8], [5, 6, 7, 8, 9], [6, 7, 8, 9, 10],
+        [7, 8, 9, 10, 11], [8, 9, 10, 11, 12], [9, 10, 11, 12, 13],
+        [10, 11, 12, 13, 14],
+    ];
+    for straight in &straights {
+        for &r in straight {
+            if rank_counts[r as usize] == 0 {
+                // This rank is missing - a joker could fill it
+                for suit in 0..4u8 {
+                    if !used.contains(&(r, suit)) {
+                        sub_candidates.push(Card { rank: r, suit });
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    // Strategy 4: Neutral low cards as fallback (2s of each suit)
+    for suit in 0..4u8 {
+        if !used.contains(&(2, suit)) {
+            sub_candidates.push(Card { rank: 2, suit });
+            break;
+        }
+    }
+
+    // Deduplicate
+    sub_candidates.sort_by(|a, b| (a.rank, a.suit).cmp(&(b.rank, b.suit)));
+    sub_candidates.dedup_by(|a, b| a.rank == b.rank && a.suit == b.suit);
+
+    // Build candidate hands
+    if n_jokers == 1 {
+        for sub in &sub_candidates {
+            let mut hand = non_jokers.to_vec();
+            hand.push(*sub);
+            candidates.push(hand);
+        }
+    } else if n_jokers == 2 {
+        for i in 0..sub_candidates.len() {
+            for j in (i + 1)..sub_candidates.len() {
+                let mut hand = non_jokers.to_vec();
+                hand.push(sub_candidates[i]);
+                hand.push(sub_candidates[j]);
+                candidates.push(hand);
+            }
+        }
+    }
+
+    candidates
+}
+
+/// Generate smart candidate hands for 3-card joker substitution.
+fn generate_smart_candidates_3(non_jokers: &[Card], n_jokers: usize) -> Vec<Vec<Card>> {
+    let mut candidates = Vec::new();
+    
+    let mut used = std::collections::HashSet::new();
+    for c in non_jokers {
+        used.insert((c.rank, c.suit));
+    }
+
+    let mut sub_candidates: Vec<Card> = Vec::new();
+
+    // For 3-card hands, the only ranks are HighCard, Pair, Trips
+    // Try pairing with each existing rank
+    for c in non_jokers {
+        for suit in 0..4u8 {
+            if !used.contains(&(c.rank, suit)) {
+                sub_candidates.push(Card { rank: c.rank, suit });
+                break;
+            }
+        }
+    }
+
+    // Try all ranks as neutral cards (from high to low)
+    for rank in (2..=14u8).rev() {
         for suit in 0..4u8 {
             if !used.contains(&(rank, suit)) {
-                subs.push(Card { rank, suit });
+                sub_candidates.push(Card { rank, suit });
+                break;
             }
         }
     }
-    subs
-}
 
-/// Find best 5-card joker substitution constrained to ≤ ref_cards (5-card)
-fn constrain_5_vs_5(cards: &[Card], ref_cards: &[Card]) -> Vec<Card> {
-    // If max eval already ≤ ref, keep original
-    if compare_5_hands(cards, ref_cards) <= 0 {
-        return cards.to_vec();
-    }
-
-    let non_jokers: Vec<Card> = cards.iter().filter(|c| !c.is_joker()).cloned().collect();
-    let n_jokers = cards.len() - non_jokers.len();
-    let subs = available_subs(cards);
-
-    let mut best: Option<Vec<Card>> = None;
+    // Deduplicate
+    sub_candidates.sort_by(|a, b| (a.rank, a.suit).cmp(&(b.rank, b.suit)));
+    sub_candidates.dedup_by(|a, b| a.rank == b.rank && a.suit == b.suit);
 
     if n_jokers == 1 {
-        for sub in &subs {
-            let mut test = non_jokers.clone();
-            test.push(*sub);
-            if compare_5_hands(&test, ref_cards) <= 0 {
-                if best.is_none() || compare_5_hands(&test, best.as_ref().unwrap()) > 0 {
-                    best = Some(test);
-                }
-            }
+        for sub in &sub_candidates {
+            let mut hand = non_jokers.to_vec();
+            hand.push(*sub);
+            candidates.push(hand);
         }
     } else if n_jokers == 2 {
-        for i in 0..subs.len() {
-            for j in (i + 1)..subs.len() {
-                let mut test = non_jokers.clone();
-                test.push(subs[i]);
-                test.push(subs[j]);
-                if compare_5_hands(&test, ref_cards) <= 0 {
-                    if best.is_none() || compare_5_hands(&test, best.as_ref().unwrap()) > 0 {
-                        best = Some(test);
-                    }
-                }
+        for i in 0..sub_candidates.len() {
+            for j in (i + 1)..sub_candidates.len() {
+                let mut hand = non_jokers.to_vec();
+                hand.push(sub_candidates[i]);
+                hand.push(sub_candidates[j]);
+                candidates.push(hand);
             }
         }
     }
 
-    // If no valid sub found → genuinely busted, return original
-    best.unwrap_or_else(|| cards.to_vec())
-}
-
-/// Find best 3-card joker substitution constrained to ≤ mid (5-card)
-fn constrain_3_vs_5(cards: &[Card], mid: &[Card]) -> Vec<Card> {
-    // If max eval already ≤ mid, keep original
-    if is_top_le_mid(cards, mid) {
-        return cards.to_vec();
-    }
-
-    let non_jokers: Vec<Card> = cards.iter().filter(|c| !c.is_joker()).cloned().collect();
-    let n_jokers = cards.len() - non_jokers.len();
-    let subs = available_subs(cards);
-
-    let mut best: Option<Vec<Card>> = None;
-
-    if n_jokers == 1 {
-        for sub in &subs {
-            let mut test = non_jokers.clone();
-            test.push(*sub);
-            if is_top_le_mid(&test, mid) {
-                if best.is_none() || compare_3(&test, best.as_ref().unwrap()) > 0 {
-                    best = Some(test);
-                }
-            }
-        }
-    } else if n_jokers == 2 {
-        for i in 0..subs.len() {
-            for j in (i + 1)..subs.len() {
-                let mut test = non_jokers.clone();
-                test.push(subs[i]);
-                test.push(subs[j]);
-                if is_top_le_mid(&test, mid) {
-                    if best.is_none() || compare_3(&test, best.as_ref().unwrap()) > 0 {
-                        best = Some(test);
-                    }
-                }
-            }
-        }
-    }
-
-    best.unwrap_or_else(|| cards.to_vec())
-}
+    candidates
+}

@@ -27,28 +27,51 @@ class T3PolicyDataset(Dataset):
     def __getitem__(self, idx):
         return self.states[idx], self.action_evs[idx], self.action_masks[idx]
 
-class T3PolicyMLP(nn.Module):
-    def __init__(self, input_dim=490, hidden_dim=512, output_dim=250):
+class ResBlock(nn.Module):
+    def __init__(self, dim):
         super().__init__()
-        self.net = nn.Sequential(
+        self.fc1 = nn.Linear(dim, dim)
+        self.bn1 = nn.BatchNorm1d(dim)
+        self.act = nn.GELU()
+        self.fc2 = nn.Linear(dim, dim)
+        self.bn2 = nn.BatchNorm1d(dim)
+        self.dropout = nn.Dropout(0.2)
+        
+    def forward(self, x):
+        residual = x
+        out = self.fc1(x)
+        out = self.bn1(out)
+        out = self.act(out)
+        out = self.fc2(out)
+        out = self.bn2(out)
+        out = self.dropout(out)
+        return self.act(out + residual)
+
+class T3PolicyMLP(nn.Module):
+    def __init__(self, input_dim=490, hidden_dim=1024, output_dim=250, num_blocks=3):
+        super().__init__()
+        
+        self.input_layer = nn.Sequential(
             nn.Linear(input_dim, hidden_dim),
-            nn.ReLU(),
             nn.BatchNorm1d(hidden_dim),
-            nn.Dropout(0.2),
-            
-            nn.Linear(hidden_dim, hidden_dim),
-            nn.ReLU(),
-            nn.BatchNorm1d(hidden_dim),
-            nn.Dropout(0.2),
-            
+            nn.GELU()
+        )
+        
+        self.res_blocks = nn.ModuleList([
+            ResBlock(hidden_dim) for _ in range(num_blocks)
+        ])
+        
+        self.output_layer = nn.Sequential(
             nn.Linear(hidden_dim, hidden_dim // 2),
-            nn.ReLU(),
-            
+            nn.GELU(),
             nn.Linear(hidden_dim // 2, output_dim)
         )
         
     def forward(self, x):
-        return self.net(x)
+        x = self.input_layer(x)
+        for block in self.res_blocks:
+            x = block(x)
+        return self.output_layer(x)
 
 def train():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')

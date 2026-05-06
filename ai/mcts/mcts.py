@@ -10,7 +10,7 @@ import random
 import copy
 from pathlib import Path
 from typing import Optional, Dict, List, Tuple
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 import torch
 import numpy as np
@@ -31,37 +31,32 @@ class MCTSNode:
     """A single node in the MCTS tree."""
 
     __slots__ = [
-        "state", "parent", "action_idx", "prior",
-        "children", "visit_count", "value_sum",
-        "valid_actions", "is_expanded",
+        "node_type", "player", "visits", "value_sum",
+        "children", "valid_actions", "priors", "is_expanded"
     ]
 
-    def __init__(
-        self,
-        state: Optional[Observation] = None,
-        parent: Optional["MCTSNode"] = None,
-        action_idx: int = -1,
-        prior: float = 0.0,
-    ):
-        self.state = state
-        self.parent = parent
-        self.action_idx = action_idx
-        self.prior = prior
-        self.children: Dict[int, "MCTSNode"] = {}
-        self.visit_count = 0
-        self.value_sum = 0.0
-        self.valid_actions: List[Action] = []
+    def __init__(self, node_type: str, player: int = -1):
+        self.node_type = node_type  # "DECISION" or "CHANCE"
+        self.player = player        # 0 or 1 (only for DECISION)
+        self.visits = 0
+        self.value_sum = 0.0        # Always from perspective of Player 0
+        self.children = {}          # Action -> MCTSNode (for DECISION) or tuple(cards) -> MCTSNode (for CHANCE)
+        self.valid_actions = []     # List[Action]
+        self.priors = {}            # Action -> float
         self.is_expanded = False
 
     @property
     def q_value(self) -> float:
-        if self.visit_count == 0:
+        if self.visits == 0:
             return 0.0
-        return self.value_sum / self.visit_count
+        return self.value_sum / self.visits
 
-    def ucb_score(self, parent_visits: int, c_puct: float = 1.5) -> float:
-        exploration = c_puct * self.prior * math.sqrt(parent_visits) / (1 + self.visit_count)
-        return self.q_value + exploration
+    def ucb_score(self, parent_visits: int, prior: float, c_puct: float = 1.5, invert: bool = False) -> float:
+        exploration = c_puct * prior * math.sqrt(parent_visits) / (1 + self.visits)
+        q = self.q_value
+        if invert:
+            q = -q
+        return q + exploration
 
 
 # ---------------------------------------------------------------------------
@@ -69,12 +64,12 @@ class MCTSNode:
 # ---------------------------------------------------------------------------
 @dataclass
 class MCTSConfig:
-    num_simulations: int = 200
+    num_simulations: int = 800
     c_puct: float = 1.5
     temperature: float = 1.0       # Action selection temperature
-    progressive_widening_c: float = 2.0
+    progressive_widening_c: float = 2.5
     progressive_widening_alpha: float = 0.5
-    max_children: int = 50         # Cap for progressive widening
+    max_children: int = 100        # Cap for progressive widening
     dirichlet_alpha: float = 0.3   # Root exploration noise
     dirichlet_frac: float = 0.25   # Fraction of noise to mix in
 
@@ -85,13 +80,6 @@ class MCTSConfig:
 class MCTS:
     """
     IS-MCTS with Progressive Widening for OFC Pineapple.
-
-    Each simulation:
-    1. Determinize: sample unseen cards to create a "possible world"
-    2. Select: follow UCB1 down the tree
-    3. Expand: add child nodes using PolicyNet priors
-    4. Evaluate: use ValueNet on leaf
-    5. Backpropagate: update visit counts and values
     """
 
     def __init__(
@@ -115,17 +103,7 @@ class MCTS:
     ) -> Tuple[int, Dict[int, float], List[Action]]:
         """
         Run MCTS from the given observation.
-
-        Args:
-            obs: current player's observation
-            board_state: dict with board/deck info for simulation
-
-        Returns:
-            best_action_idx: index into valid_actions
-            action_probs: {action_idx: probability} from visit counts
-            valid_actions: list of valid Action objects
         """
-        # Get valid actions
         if obs.turn == 0:
             valid_actions = get_initial_actions(obs.dealt_cards, obs.board_self)
         else:
@@ -137,47 +115,121 @@ class MCTS:
         if len(valid_actions) == 1:
             return 0, {0: 1.0}, valid_actions
 
-        # Create root
-        root = MCTSNode(state=obs)
-        root.valid_actions = valid_actions
-
-        # Expand root with policy priors
-        priors = self._get_priors(obs, valid_actions)
-
-        # Add Dirichlet noise at root for exploration
-        noise = np.random.dirichlet(
-            [self.config.dirichlet_alpha] * len(valid_actions)
-        )
+        # Root is a DecisionNode for Player 0 (Hero)
+        root = MCTSNode(node_type="DECISION", player=0)
+        
+        # Expand root immediately
+        self._expand_node_from_obs(root, obs, valid_actions)
+        
+        # Add Dirichlet noise at root
+        noise = np.random.dirichlet([self.config.dirichlet_alpha] * len(valid_actions))
         frac = self.config.dirichlet_frac
-        for i in range(len(valid_actions)):
-            priors[i] = (1 - frac) * priors[i] + frac * noise[i]
+        for i, a in enumerate(valid_actions):
+            root.priors[a] = (1 - frac) * root.priors[a] + frac * noise[i]
 
-        self._expand_root(root, priors)
-
-        # Run simulations
         for _ in range(self.config.num_simulations):
-            node = self._select(root)
-            value = self._evaluate(node, obs)
-            self._backpropagate(node, value)
+            sim_state = self._build_determinized_state(obs)
+            self._traverse(root, sim_state)
 
         # Extract action probabilities from visit counts
         action_probs = self._get_action_probs(root)
         best_action_idx = self._select_action(action_probs)
 
-        return best_action_idx, action_probs, valid_actions
+        return best_action_idx, action_probs, root.valid_actions
 
-    def _get_priors(self, obs: Observation, valid_actions: List[Action]) -> np.ndarray:
-        """Get policy network priors for valid actions."""
+    def _build_determinized_state(self, obs: Observation) -> Hand:
+        """Create a consistent full game state (Hand) from the Observation."""
+        sim_state = Hand.__new__(Hand)
+        sim_state.btn = 0 if obs.is_btn else 1
+        sim_state.boards = [obs.board_self.copy(), obs.board_opponent.copy()]
+        sim_state.dealt_cards = [list(obs.dealt_cards), []]
+        sim_state.discards = [list(obs.known_discards_self), []]
+        sim_state.turn = obs.turn
+        sim_state.placed = [False, False]
+
+        # If Hero (0) is not btn, Villain (1) acted first in the current turn
+        if sim_state.btn == 1:
+            sim_state.placed[1] = True
+
+        hero_cards = set(obs.board_self.top + obs.board_self.middle + obs.board_self.bottom + obs.dealt_cards + obs.known_discards_self)
+        villain_cards = set(obs.board_opponent.top + obs.board_opponent.middle + obs.board_opponent.bottom)
+        avail = list(set(ALL_CARDS) - hero_cards - villain_cards)
+        random.shuffle(avail)
+
+        num_villain_discards = obs.turn if sim_state.btn == 1 else max(0, obs.turn - 1)
+        sim_state.discards[1] = avail[:num_villain_discards]
+        avail = avail[num_villain_discards:]
+
+        # If Villain hasn't placed this turn, they need dealt cards
+        if not sim_state.placed[1]:
+            num_deal = 5 if obs.turn == 0 else 3
+            sim_state.dealt_cards[1] = avail[:num_deal]
+            avail = avail[num_deal:]
+
+        sim_state.deck = avail
+        return sim_state
+
+    def _traverse(self, node: MCTSNode, sim_state: Hand) -> float:
+        """Traverse the tree, expanding and evaluating as needed."""
+        if sim_state.is_hand_complete():
+            result = GameEngine.compute_result(sim_state)
+            # Normalised score
+            val = result.raw_score[0] / 20.0
+            return max(-1.0, min(1.0, val))
+
+        if sim_state.is_turn_complete():
+            sim_state.deal_next_turn()
+            if node.node_type != "CHANCE":
+                raise ValueError("Expected CHANCE node")
+            
+            c0 = tuple(sorted(sim_state.dealt_cards[0]))
+            if c0 not in node.children:
+                node.children[c0] = MCTSNode(node_type="DECISION", player=sim_state.btn)
+            
+            next_node = node.children[c0]
+            v = self._traverse(next_node, sim_state)
+            node.visits += 1
+            node.value_sum += v
+            return v
+
+        player = sim_state.btn if not sim_state.placed[sim_state.btn] else 1 - sim_state.btn
+        assert node.node_type == "DECISION" and node.player == player
+
+        if not node.is_expanded:
+            valid_actions = get_turn_actions(sim_state.dealt_cards[player], sim_state.boards[player]) if sim_state.turn > 0 else get_initial_actions(sim_state.dealt_cards[player], sim_state.boards[player])
+            obs = sim_state.get_observation(player)
+            self._expand_node_from_obs(node, obs, valid_actions)
+            v = self._evaluate_network(sim_state)
+            node.visits += 1
+            node.value_sum += v
+            return v
+
+        best_action = self._select_action_ucb(node)
+        sim_state.apply_action(player, best_action)
+
+        if best_action not in node.children:
+            if sim_state.is_turn_complete():
+                node.children[best_action] = MCTSNode(node_type="CHANCE")
+            else:
+                next_p = sim_state.btn if not sim_state.placed[sim_state.btn] else 1 - sim_state.btn
+                node.children[best_action] = MCTSNode(node_type="DECISION", player=next_p)
+
+        next_node = node.children[best_action]
+        v = self._traverse(next_node, sim_state)
+
+        node.visits += 1
+        node.value_sum += v
+        return v
+
+    def _expand_node_from_obs(self, node: MCTSNode, obs: Observation, valid_actions: List[Action]):
         state_vec = encode_state(obs)
         state_tensor = torch.FloatTensor(state_vec).unsqueeze(0).to(self.device)
-
         mask = create_action_mask(valid_actions)
         mask_tensor = torch.BoolTensor(mask).unsqueeze(0).to(self.device)
 
         with torch.no_grad():
             probs = self.policy_net(state_tensor, mask_tensor).squeeze(0).cpu().numpy()
 
-        # Extract priors for valid actions only
         priors = probs[:len(valid_actions)]
         total = priors.sum()
         if total > 0:
@@ -185,153 +237,81 @@ class MCTS:
         else:
             priors = np.ones(len(valid_actions)) / len(valid_actions)
 
-        return priors
+        node.valid_actions = valid_actions
+        node.priors = {a: p for a, p in zip(valid_actions, priors)}
+        node.is_expanded = True
 
-    def _expand_root(self, root: MCTSNode, priors: np.ndarray):
-        """Expand root node with all valid actions."""
-        for i, action in enumerate(root.valid_actions):
-            child = MCTSNode(
-                parent=root,
-                action_idx=i,
-                prior=priors[i],
-            )
-            child.valid_actions = []
-            root.children[i] = child
-        root.is_expanded = True
+    def _evaluate_network(self, sim_state: Hand) -> float:
+        obs0 = sim_state.get_observation(0)
+        vec0 = encode_state(obs0)
+        obs1 = sim_state.get_observation(1)
+        vec1 = encode_state(obs1)
 
-    def _select(self, root: MCTSNode) -> MCTSNode:
-        """Select leaf node using UCB1."""
-        node = root
-        while node.is_expanded and node.children:
-            # Progressive widening: limit children
-            k = min(
-                len(node.children),
-                max(1, int(math.ceil(
-                    self.config.progressive_widening_c *
-                    (node.visit_count ** self.config.progressive_widening_alpha)
-                )))
-            )
-            k = min(k, self.config.max_children)
-
-            # Select among top-k children by prior (sorted by visits then UCB)
-            candidates = list(node.children.values())[:k] if k < len(node.children) else list(node.children.values())
-
-            node = max(
-                candidates,
-                key=lambda c: c.ucb_score(node.visit_count, self.config.c_puct)
-            )
-        return node
-
-    def _evaluate(self, node: MCTSNode, root_obs: Observation) -> float:
-        """
-        Evaluate a leaf node using the value network.
-
-        Uses a composite value from BC-trained heads (royalty_ev, bust_prob,
-        fl_prob) rather than the untrained 'value' head. The value head
-        only becomes meaningful after self-play training updates it.
-        """
-        # Build observation for this node by simulating the action path
-        obs = self._build_node_observation(node, root_obs)
-        if obs is None:
-            return 0.0
-
-        state_vec = encode_state(obs)
-        state_tensor = torch.FloatTensor(state_vec).unsqueeze(0).to(self.device)
-
+        tensor = torch.FloatTensor(np.array([vec0, vec1])).to(self.device)
         with torch.no_grad():
-            pred = self.value_net(state_tensor)
+            pred = self.value_net(tensor)
 
-        # Composite value from BC-learned heads:
-        #   royalty_ev: expected total royalties (directly additive to score)
-        #   bust_prob: probability of busting (penalty ≈ -6 scoop - ~5 opp royalty)
-        #   fl_prob: probability of FL entry (bonus ≈ +8 expected advantage)
-        royalty = pred["royalty_ev"].item()
-        bust = pred["bust_prob"].item()
-        fl = pred["fl_prob"].item()
-        value = royalty - bust * 11.0 + fl * 8.0
+        royalty = pred["royalty_ev"].cpu().numpy()
+        bust = pred["bust_prob"].cpu().numpy()
+        fl = pred["fl_prob"].cpu().numpy()
 
-        # Normalize to [-1, 1] range (typical game values ~[-20, 30])
+        val0 = royalty[0] - bust[0] * 11.0 + fl[0] * 8.0
+        val1 = royalty[1] - bust[1] * 11.0 + fl[1] * 8.0
+        
+        value = val0 - val1
         return max(-1.0, min(1.0, value / 20.0))
 
-    def _build_node_observation(
-        self, node: MCTSNode, root_obs: Observation
-    ) -> Optional[Observation]:
-        """
-        Build the observation at a node by applying actions from root.
-        Walks the tree path and applies each node's action using its
-        parent's valid_actions list.
-        """
-        # Walk up to root to collect path of nodes
-        node_path = []
-        current = node
-        while current.parent is not None:
-            node_path.append(current)
-            current = current.parent
-        node_path.reverse()
-
-        # Start from root observation, apply actions along path
-        board = Board(
-            top=list(root_obs.board_self.top),
-            middle=list(root_obs.board_self.middle),
-            bottom=list(root_obs.board_self.bottom),
+    def _select_action_ucb(self, node: MCTSNode) -> Action:
+        k = min(
+            len(node.valid_actions),
+            max(1, int(math.ceil(
+                self.config.progressive_widening_c *
+                (node.visits ** self.config.progressive_widening_alpha)
+            )))
         )
-        dealt = list(root_obs.dealt_cards)
+        k = min(k, self.config.max_children)
 
-        # Walk down: each child_node's action_idx indexes into its parent's valid_actions
-        parent = current  # root node
-        for child_node in node_path:
-            valid = parent.valid_actions if parent.valid_actions else []
-            idx = child_node.action_idx
-            if idx < len(valid):
-                action = valid[idx]
-                for card, pos in action.placements:
-                    if pos == "top" and len(board.top) < 3:
-                        board.top.append(card)
-                    elif pos == "middle" and len(board.middle) < 5:
-                        board.middle.append(card)
-                    elif pos == "bottom" and len(board.bottom) < 5:
-                        board.bottom.append(card)
-            parent = child_node
-
-        return Observation(
-            board_self=board,
-            board_opponent=root_obs.board_opponent,
-            dealt_cards=dealt,
-            known_discards_self=list(root_obs.known_discards_self),
-            turn=root_obs.turn,
-            is_btn=root_obs.is_btn,
-            chips_self=root_obs.chips_self,
-            chips_opponent=root_obs.chips_opponent,
-        )
-
-    def _backpropagate(self, node: MCTSNode, value: float):
-        """Propagate value back up the tree."""
-        while node is not None:
-            node.visit_count += 1
-            node.value_sum += value
-            node = node.parent
+        # Sort valid actions by prior to select top-k for progressive widening
+        candidates = sorted(node.valid_actions, key=lambda a: node.priors[a], reverse=True)[:k]
+        
+        invert = (node.player == 1) # P1 minimizes P0's value
+        
+        best_score = -float('inf')
+        best_action = candidates[0]
+        for a in candidates:
+            child = node.children.get(a)
+            if child is None:
+                # Unexplored action has infinite UCB
+                return a
+            
+            score = child.ucb_score(node.visits, node.priors[a], self.config.c_puct, invert)
+            if score > best_score:
+                best_score = score
+                best_action = a
+                
+        return best_action
 
     def _get_action_probs(self, root: MCTSNode) -> Dict[int, float]:
-        """Convert visit counts to action probabilities."""
-        visits = {idx: child.visit_count for idx, child in root.children.items()}
+        visits = {i: 0 for i in range(len(root.valid_actions))}
+        for i, a in enumerate(root.valid_actions):
+            if a in root.children:
+                visits[i] = root.children[a].visits
+
         total = sum(visits.values())
         if total == 0:
             n = len(visits)
             return {idx: 1.0 / n for idx in visits}
 
         if self.config.temperature == 0:
-            # Greedy
             best = max(visits, key=visits.get)
             return {idx: (1.0 if idx == best else 0.0) for idx in visits}
 
-        # Temperature-scaled
         temp = self.config.temperature
         scaled = {idx: (count ** (1.0 / temp)) for idx, count in visits.items()}
         total_scaled = sum(scaled.values())
         return {idx: v / total_scaled for idx, v in scaled.items()}
 
     def _select_action(self, action_probs: Dict[int, float]) -> int:
-        """Sample action from probability distribution."""
         indices = list(action_probs.keys())
         probs = [action_probs[i] for i in indices]
         return random.choices(indices, weights=probs, k=1)[0]

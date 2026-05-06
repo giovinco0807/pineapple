@@ -7,12 +7,13 @@ import time
 from pathlib import Path
 
 def run_worker(args):
-    worker_id, num_games, out_file = args
+    worker_id, num_games, out_file, num_sims = args
     cmd = [
         sys.executable,
         "ai/generate_mcts_supervised.py",
         "--num_games", str(num_games),
-        "--output", out_file
+        "--output", out_file,
+        "--num_sims", str(num_sims)
     ]
     print(f"Worker {worker_id} starting: {' '.join(cmd)}")
     subprocess.run(cmd, check=True)
@@ -23,6 +24,7 @@ def main():
     parser.add_argument("--total_games", type=int, default=10000)
     parser.add_argument("--workers", type=int, default=32)
     parser.add_argument("--output", type=str, default="ai/data/mcts_supervised_data_10k.jsonl")
+    parser.add_argument("--num_sims", type=int, default=800, help="Number of MCTS simulations per move")
     args = parser.parse_args()
 
     games_per_worker = args.total_games // args.workers
@@ -35,7 +37,7 @@ def main():
     for i in range(args.workers):
         n = games_per_worker + (1 if i < remainder else 0)
         out_file = str(tmp_dir / f"worker_{i}.jsonl")
-        worker_args.append((i, n, out_file))
+        worker_args.append((i, n, out_file, args.num_sims))
 
     start_time = time.time()
     print(f"Starting {args.workers} workers for a total of {args.total_games} games...")

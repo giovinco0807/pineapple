@@ -52,7 +52,7 @@ def record_data(hand, seat, turn_num, probs, valid_actions, out_f):
     out_f.write(json.dumps(record) + "\n")
     out_f.flush()
 
-def generate_data(num_games=100, output_file="ai/data/mcts_supervised_data.jsonl"):
+def generate_data(num_games=100, output_file="ai/data/mcts_supervised_data.jsonl", num_sims=800):
     device = "cuda" if torch.cuda.is_available() else "cpu"
     
     # Initialize random initialized models if pre-trained are not available
@@ -62,7 +62,7 @@ def generate_data(num_games=100, output_file="ai/data/mcts_supervised_data.jsonl
     policy_net = PolicyNetwork().to(device)
     value_net = ValueNetwork().to(device)
     
-    mcts_config = MCTSConfig(num_simulations=100, c_puct=1.5)
+    mcts_config = MCTSConfig(num_simulations=num_sims, c_puct=1.5)
     mcts = MCTS(policy_net, value_net, mcts_config, device)
     
     os.makedirs(os.path.dirname(output_file), exist_ok=True)
@@ -118,6 +118,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--num_games", type=int, default=100, help="Number of games to simulate")
     parser.add_argument("--output", type=str, default="ai/data/mcts_supervised_data.jsonl", help="Output file path")
+    parser.add_argument("--num_sims", type=int, default=800, help="Number of MCTS simulations per move")
     args = parser.parse_args()
     
-    generate_data(num_games=args.num_games, output_file=args.output)
+    generate_data(num_games=args.num_games, output_file=args.output, num_sims=args.num_sims)

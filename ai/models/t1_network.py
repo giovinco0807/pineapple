@@ -3,10 +3,10 @@ import torch.nn as nn
 import numpy as np
 
 CARD_DIM_BASE = 18  # 13 ranks + 4 suits + 1 joker flag
-BOARD_ROW_DIM = 4   # 0: Hand, 1: Top, 2: Mid, 3: Bot
-CARD_DIM = CARD_DIM_BASE + BOARD_ROW_DIM  # 22
+BOARD_ROW_DIM = 8   # 0: Hand, 1: Top, 2: Mid, 3: Bot, 4: OppTop, 5: OppMid, 6: OppBot, 7: Dead
+CARD_DIM = CARD_DIM_BASE + BOARD_ROW_DIM  # 26
 NUM_CLASSES = 4     # Top=0, Mid=1, Bot=2, Discard=3
-MAX_CARDS = 8       # 5 on board + 3 in hand
+MAX_CARDS = 54      # Max possible cards in a single state
 SUITS = ['s', 'h', 'd', 'c']
 
 def encode_card_str(card_str: str, board_row: int) -> np.ndarray:
@@ -56,12 +56,12 @@ class T1PlacementNet(nn.Module):
             nn.Linear(d_model // 2, 1),
         )
 
-    def forward(self, cards):
-        # cards: (B, 8, CARD_DIM)
+    def forward(self, cards, n_hand=3):
+        # cards: (B, MAX_CARDS, CARD_DIM)
         x = self.card_embed(cards) + self.pos_embed[:, :cards.size(1)]
         x = self.encoder(x)
-        # only predict for the hand cards (last 3 cards)
-        hand_tokens = x[:, -3:, :]
+        # only predict for the hand cards (last n_hand cards)
+        hand_tokens = x[:, -n_hand:, :]
         row_logits = self.row_head(hand_tokens)
         ev_pred = self.ev_head(x.mean(dim=1))
         return row_logits, ev_pred

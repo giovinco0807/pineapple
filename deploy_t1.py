@@ -26,7 +26,7 @@ ZONES = [
 CONFIG = {
     "prefix": "t1-rust",
     "count": 10,
-    "hands": 20,       # 10 VMs * 20 hands = 200 hands total
+    "hands": 1000,     # 10 VMs * 1000 hands = 10,000 hands total
     "n1": 50,          # 50 deals per hand
     "samples": 10,
     "nesting": "5-2",

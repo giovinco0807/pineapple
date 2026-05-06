@@ -45,7 +45,7 @@ def export_to_onnx(policy_net, value_net, out_path, device="cpu"):
         (dummy_state,),
         out_path,
         export_params=True,
-        opset_version=14,
+        opset_version=13,
         do_constant_folding=True,
         input_names=['state'],
         output_names=['logits', 'value'],
@@ -152,20 +152,28 @@ def run_self_play_training(
         hidden2=config.hidden2,
     ).to(device)
 
-    bc_policy = bc_path / "bc_policy_best.pt"
-    bc_value = bc_path / "bc_value_best.pt"
+    # Try loading in priority order: sp_final > bc_best
+    policy_loaded = False
+    value_loaded = False
+    for policy_name, value_name, label in [
+        ("sp_policy_final.pt", "sp_value_final.pt", "Self-Play"),
+        ("bc_policy_best.pt", "bc_value_best.pt", "BC"),
+    ]:
+        p_file = bc_path / policy_name
+        v_file = bc_path / value_name
+        if not policy_loaded and p_file.exists():
+            policy_net.load_state_dict(torch.load(p_file, map_location=device))
+            print(f"  Loaded {label} policy: {p_file}")
+            policy_loaded = True
+        if not value_loaded and v_file.exists():
+            value_net.load_state_dict(torch.load(v_file, map_location=device))
+            print(f"  Loaded {label} value: {v_file}")
+            value_loaded = True
 
-    if bc_policy.exists():
-        policy_net.load_state_dict(torch.load(bc_policy, map_location=device))
-        print(f"  Loaded BC policy: {bc_policy}")
-    else:
-        print(f"  WARNING: No BC policy found at {bc_policy}")
-
-    if bc_value.exists():
-        value_net.load_state_dict(torch.load(bc_value, map_location=device))
-        print(f"  Loaded BC value: {bc_value}")
-    else:
-        print(f"  WARNING: No BC value found at {bc_value}")
+    if not policy_loaded:
+        print(f"  WARNING: No policy checkpoint found in {bc_path}")
+    if not value_loaded:
+        print(f"  WARNING: No value checkpoint found in {bc_path}")
 
     policy_opt = torch.optim.Adam(policy_net.parameters(), lr=config.sp_lr)
     value_opt = torch.optim.Adam(value_net.parameters(), lr=config.sp_lr)
@@ -197,12 +205,16 @@ def run_self_play_training(
         print("  Generating self-play data with Rust MCTS...")
         try:
             mcts_dir = Path(__file__).resolve().parent.parent / "rust_solver" / "mcts_gen"
-            subprocess.run(rust_cmd, cwd=str(mcts_dir), check=True)
+            # Setting a 15-minute timeout to prevent the pipeline from hanging indefinitely
+            subprocess.run(rust_cmd, cwd=str(mcts_dir), check=True, timeout=900)
+        except subprocess.TimeoutExpired as e:
+            print(f"  [!] Rust MCTS generator timed out after {e.timeout} seconds. Skipping iteration.")
+            continue
         except subprocess.CalledProcessError as e:
-            print(f"  Rust MCTS generator failed: {e}")
-            break
+            print(f"  [!] Rust MCTS generator failed with error: {e}. Skipping iteration.")
+            continue
         except FileNotFoundError:
-            print("  cargo not found. Make sure Rust is installed.")
+            print("  [!] cargo not found. Make sure Rust is installed.")
             break
 
         jsonl_files = glob.glob(str(replay_path / "*.jsonl"))
@@ -282,12 +294,15 @@ if __name__ == "__main__":
     parser.add_argument("--replays", default="ai/data/selfplay_replays",
                         help="Directory containing JSONL replays")
     parser.add_argument("--iterations", type=int, default=50)
+    parser.add_argument("--games", type=int, default=1000,
+                        help="Games per iteration")
     parser.add_argument("--threads", type=int, default=os.cpu_count() or 4)
     parser.add_argument("--device", default="auto")
     args = parser.parse_args()
 
     config = TrainingConfig(
         sp_iterations=args.iterations,
+        sp_games_per_iter=args.games,
     )
     config.sp_threads = args.threads
 

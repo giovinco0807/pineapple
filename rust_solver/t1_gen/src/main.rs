@@ -12,6 +12,7 @@
 //! Usage:
 //!   t1_gen --n-hands 50000 --n1 5 --n2 3 --n3 3 --n4 30 --seed 42 -o t1_data.jsonl
 
+use rand::seq::SliceRandom;
 use std::collections::HashSet;
 use std::io::{Write, BufWriter};
 use std::fs::File;
@@ -179,6 +180,104 @@ fn evaluate_terminal(board: &Board) -> f64 {
     total + fl_bonus
 }
 
+/// Evaluate board against an opponent's completed board.
+/// Points: +1 for each row won, +1 scoop bonus, + royalties.
+fn evaluate_vs_opponent(our: &Board, opp: &Board) -> f64 {
+    let our_top = our.top_cards();
+    let our_mid = our.mid_cards();
+    let our_bot = our.bot_cards();
+    
+    let our_valid = is_valid_placement(&our_top, &our_mid, &our_bot);
+    
+    let opp_top = opp.top_cards();
+    let opp_mid = opp.mid_cards();
+    let opp_bot = opp.bot_cards();
+    let opp_valid = is_valid_placement(&opp_top, &opp_mid, &opp_bot);
+
+    let our_royalty = if our_valid {
+        get_top_royalty(&our_top) + get_middle_royalty(&our_mid) + get_bottom_royalty(&our_bot)
+    } else { 0 };
+
+    let opp_royalty = if opp_valid {
+        get_top_royalty(&opp_top) + get_middle_royalty(&opp_mid) + get_bottom_royalty(&opp_bot)
+    } else { 0 };
+
+    // FL bonus approximation
+    let our_fl = if our_valid {
+        let (q, c) = check_fl_entry(&our_top);
+        if q { match c { 14=>11.0, 15=>12.0, 16=>13.0, 17=>14.0, _=>0.0 } } else { 0.0 }
+    } else { 0.0 };
+
+    let opp_fl = if opp_valid {
+        let (q, c) = check_fl_entry(&opp_top);
+        if q { match c { 14=>11.0, 15=>12.0, 16=>13.0, 17=>14.0, _=>0.0 } } else { 0.0 }
+    } else { 0.0 };
+
+    if !our_valid && !opp_valid {
+        return 0.0; // Both bust
+    } else if !our_valid {
+        return BUST_PENALTY - (opp_royalty as f64) - opp_fl; // We bust
+    } else if !opp_valid {
+        return -BUST_PENALTY + (our_royalty as f64) + our_fl; // Opp bust
+    }
+
+    // Both valid, compare rows
+    let mut wins = 0;
+    if compare_5_hands(&our_bot, &opp_bot) > 0 { wins += 1; } else if compare_5_hands(&our_bot, &opp_bot) < 0 { wins -= 1; }
+    if compare_5_hands(&our_mid, &opp_mid) > 0 { wins += 1; } else if compare_5_hands(&our_mid, &opp_mid) < 0 { wins -= 1; }
+    
+    // For top, use compare_3 (which we need to extract or implement inline)
+    let our_top_eval = evaluate_3_card(&our_top);
+    let opp_top_eval = evaluate_3_card(&opp_top);
+    if (our_top_eval.0 as u8) > (opp_top_eval.0 as u8) { wins += 1; }
+    else if (our_top_eval.0 as u8) < (opp_top_eval.0 as u8) { wins -= 1; }
+    else if our_top_eval.1 > opp_top_eval.1 { wins += 1; }
+    else if our_top_eval.1 < opp_top_eval.1 { wins -= 1; }
+
+    let mut points = wins as f64;
+    if wins == 3 { points += 3.0; } // Scoop bonus
+    if wins == -3 { points -= 3.0; } // Scoop penalty
+
+    points + (our_royalty as f64) + our_fl - (opp_royalty as f64) - opp_fl
+}
+
+fn evaluate_terminal_avg(board: &Board, opp_boards: &[Board]) -> f64 {
+    if opp_boards.is_empty() {
+        return evaluate_terminal(board);
+    }
+    let mut total = 0.0;
+    for opp in opp_boards {
+        total += evaluate_vs_opponent(board, opp);
+    }
+    total / opp_boards.len() as f64
+}
+
+// ============================================================
+//  Greedy Rollout for Opponent
+// ============================================================
+
+/// Complete the board by greedily picking valid actions
+fn greedy_rollout(mut board: Board, remaining: &[CardIdx], rng: &mut StdRng) -> Board {
+    let mut rest = remaining.to_vec();
+    rest.shuffle(rng);
+
+    while !board.is_complete() {
+        if rest.len() < 3 { break; }
+        let deal = [rest.pop().unwrap(), rest.pop().unwrap(), rest.pop().unwrap()];
+        let actions = gen_turn_actions(&deal, &board);
+        if actions.is_empty() { break; }
+        // Pick a random action to avoid structural bias
+        if let Some(a) = actions.choose(&mut rand::thread_rng()) {
+            let mut b2 = board.clone();
+            for &(card, row) in &a.placements { b2 = b2.place(card, row); }
+            board = b2;
+        } else {
+            break;
+        }
+    }
+    board
+}
+
 // ============================================================
 //  Deck utilities
 // ============================================================
@@ -214,10 +313,10 @@ struct NestParams {
 }
 
 /// T4 chance node: if n4==0 exhaustive, else sample n4 deals
-fn expectimax_t4(board: &Board, remaining: &[CardIdx], params: &NestParams, rng: &mut StdRng) -> f64 {
-    if board.is_complete() { return evaluate_terminal(board); }
+fn expectimax_t4(board: &Board, remaining: &[CardIdx], params: &NestParams, rng: &mut StdRng, opp_boards: &[Board]) -> f64 {
+    if board.is_complete() { return evaluate_terminal_avg(board, opp_boards); }
     let n = remaining.len();
-    if n < 3 { return evaluate_terminal(board); }
+    if n < 3 { return evaluate_terminal_avg(board, opp_boards); }
 
     if params.n4 == 0 {
         // Exhaustive: enumerate all C(n,3) deals
@@ -227,7 +326,7 @@ fn expectimax_t4(board: &Board, remaining: &[CardIdx], params: &NestParams, rng:
             for j in (i+1)..n {
                 for k in (j+1)..n {
                     let deal = [remaining[i], remaining[j], remaining[k]];
-                    let v = choice_node_terminal(&deal, board);
+                    let v = choice_node_terminal(&deal, board, opp_boards);
                     total += v;
                     count += 1;
                 }
@@ -239,7 +338,7 @@ fn expectimax_t4(board: &Board, remaining: &[CardIdx], params: &NestParams, rng:
         let mut total = 0.0;
         for _ in 0..params.n4 {
             let deal = sample_3(remaining, rng);
-            let v = choice_node_terminal(&deal, board);
+            let v = choice_node_terminal(&deal, board, opp_boards);
             total += v;
         }
         total / params.n4 as f64
@@ -247,33 +346,33 @@ fn expectimax_t4(board: &Board, remaining: &[CardIdx], params: &NestParams, rng:
 }
 
 /// Choice node at T4: just pick best action → terminal eval
-fn choice_node_terminal(deal: &[CardIdx; 3], board: &Board) -> f64 {
+fn choice_node_terminal(deal: &[CardIdx; 3], board: &Board, opp_boards: &[Board]) -> f64 {
     let actions = gen_turn_actions(deal, board);
-    if actions.is_empty() { return evaluate_terminal(board); }
+    if actions.is_empty() { return evaluate_terminal_avg(board, opp_boards); }
     let mut best = f64::NEG_INFINITY;
     for a in &actions {
         let mut b2 = board.clone();
         for &(card, row) in &a.placements { b2 = b2.place(card, row); }
-        let v = if b2.is_complete() { evaluate_terminal(&b2) } else { BUST_PENALTY };
+        let v = if b2.is_complete() { evaluate_terminal_avg(&b2, opp_boards) } else { BUST_PENALTY };
         if v > best { best = v; }
     }
     best
 }
 
 /// T3 chance node: sample n3 deals, all actions → max, then T4
-fn expectimax_t3(board: &Board, remaining: &[CardIdx], params: &NestParams, rng: &mut StdRng) -> f64 {
-    if board.is_complete() { return evaluate_terminal(board); }
+fn expectimax_t3(board: &Board, remaining: &[CardIdx], params: &NestParams, rng: &mut StdRng, opp_boards: &[Board]) -> f64 {
+    if board.is_complete() { return evaluate_terminal_avg(board, opp_boards); }
     let mut total = 0.0;
     for _ in 0..params.n3 {
         let deal = sample_3(remaining, rng);
         let rest = remove_dealt(remaining, &deal);
         let actions = gen_turn_actions(&deal, board);
-        if actions.is_empty() { total += evaluate_terminal(board); continue; }
+        if actions.is_empty() { total += evaluate_terminal_avg(board, opp_boards); continue; }
         let mut best = f64::NEG_INFINITY;
         for a in &actions {
             let mut b2 = board.clone();
             for &(card, row) in &a.placements { b2 = b2.place(card, row); }
-            let v = expectimax_t4(&b2, &rest, params, rng);
+            let v = expectimax_t4(&b2, &rest, params, rng, opp_boards);
             if v > best { best = v; }
         }
         total += best;
@@ -282,19 +381,19 @@ fn expectimax_t3(board: &Board, remaining: &[CardIdx], params: &NestParams, rng:
 }
 
 /// T2 chance node: sample n2 deals, all actions → max, then T3
-fn expectimax_t2(board: &Board, remaining: &[CardIdx], params: &NestParams, rng: &mut StdRng) -> f64 {
-    if board.is_complete() { return evaluate_terminal(board); }
+fn expectimax_t2(board: &Board, remaining: &[CardIdx], params: &NestParams, rng: &mut StdRng, opp_boards: &[Board]) -> f64 {
+    if board.is_complete() { return evaluate_terminal_avg(board, opp_boards); }
     let mut total = 0.0;
     for _ in 0..params.n2 {
         let deal = sample_3(remaining, rng);
         let rest = remove_dealt(remaining, &deal);
         let actions = gen_turn_actions(&deal, board);
-        if actions.is_empty() { total += evaluate_terminal(board); continue; }
+        if actions.is_empty() { total += evaluate_terminal_avg(board, opp_boards); continue; }
         let mut best = f64::NEG_INFINITY;
         for a in &actions {
             let mut b2 = board.clone();
             for &(card, row) in &a.placements { b2 = b2.place(card, row); }
-            let v = expectimax_t3(&b2, &rest, params, rng);
+            let v = expectimax_t3(&b2, &rest, params, rng, opp_boards);
             if v > best { best = v; }
         }
         total += best;
@@ -310,8 +409,13 @@ fn expectimax_t2(board: &Board, remaining: &[CardIdx], params: &NestParams, rng:
 struct T1Record {
     hand_idx: usize,
     turn: u8,
+    position: String,
     t0_hand: Vec<String>,
     t0_action: String,
+    opp_top: String,
+    opp_mid: String,
+    opp_bot: String,
+    dead_cards: String,
     board: String,
     hand: String,
     n_placements: usize,
@@ -349,6 +453,7 @@ fn generate_one_hand(
     n1: usize,
     params: &NestParams,
     seed: u64,
+    position: &str, // "independent", "btn", or "bb"
 ) -> Vec<T1Record> {
     let mut rng = StdRng::seed_from_u64(seed);
     let mut deck: Vec<CardIdx> = (0..DECK_SIZE as CardIdx).collect();
@@ -356,7 +461,56 @@ fn generate_one_hand(
 
     // T0: deal 5
     let t0_hand: [CardIdx; 5] = [deck[0], deck[1], deck[2], deck[3], deck[4]];
-    let remaining_after_t0: Vec<CardIdx> = deck[5..].to_vec();
+    let mut remaining_after_t0: Vec<CardIdx> = deck[5..].to_vec();
+
+    // Generate opponent board based on position
+    let mut opp_board = Board::new();
+    let mut opp_boards = Vec::new();
+    let mut opp_top_str = String::new();
+    let mut opp_mid_str = String::new();
+    let mut opp_bot_str = String::new();
+    let mut dead_cards_str = String::new();
+
+    if position != "independent" {
+        // Opponent T0 (5 cards)
+        let opp_t0: [CardIdx; 5] = [
+            remaining_after_t0[0], remaining_after_t0[1], remaining_after_t0[2],
+            remaining_after_t0[3], remaining_after_t0[4]
+        ];
+        remaining_after_t0 = remaining_after_t0[5..].to_vec();
+        
+        let opp_t0_actions = gen_t0_actions(&opp_t0);
+        if !opp_t0_actions.is_empty() {
+            let action = &opp_t0_actions[rng.gen_range(0..opp_t0_actions.len())];
+            for &(c, r) in action { opp_board = opp_board.place(c, r); }
+        }
+
+        let mut dead_cards = Vec::new();
+
+        if position == "bb" {
+            // Opponent T1 (3 cards -> place 2, discard 1)
+            let opp_t1 = [remaining_after_t0[0], remaining_after_t0[1], remaining_after_t0[2]];
+            remaining_after_t0 = remaining_after_t0[3..].to_vec();
+            let opp_t1_actions = gen_turn_actions(&opp_t1, &opp_board);
+            if !opp_t1_actions.is_empty() {
+                let action = &opp_t1_actions[rng.gen_range(0..opp_t1_actions.len())];
+                for &(c, r) in &action.placements { opp_board = opp_board.place(c, r); }
+                dead_cards.push(action.discard);
+            }
+        }
+
+        opp_top_str = Board::fmt_row(&opp_board.top, opp_board.top_n);
+        opp_mid_str = Board::fmt_row(&opp_board.mid, opp_board.mid_n);
+        opp_bot_str = Board::fmt_row(&opp_board.bot, opp_board.bot_n);
+        dead_cards_str = dead_cards.iter().map(|&c| cardidx_to_string(c)).collect::<Vec<_>>().join(" ");
+
+        // Generate 10 completed opponent boards via greedy rollout
+        for i in 0..10 {
+            let mut rollout_rng = StdRng::seed_from_u64(seed.wrapping_add(i as u64 * 73));
+            let completed = greedy_rollout(opp_board.clone(), &remaining_after_t0, &mut rollout_rng);
+            opp_boards.push(completed);
+        }
+    }
 
     // Generate all T0 actions and pick a random one
     let t0_actions = gen_t0_actions(&t0_hand);
@@ -384,14 +538,13 @@ fn generate_one_hand(
         let actions = gen_turn_actions(&deal, &board);
         if actions.is_empty() { continue; }
 
-        // Evaluate ALL T1 actions (sequentially per hand; parallelism is across hands)
+        // Evaluate ALL T1 actions
         let mut results: Vec<PlacementResult> = Vec::new();
         for (ai, a) in actions.iter().enumerate() {
             let mut b2 = board.clone();
             for &(card, row) in &a.placements { b2 = b2.place(card, row); }
-            // Each action evaluation uses an independent RNG so results are deterministic
             let mut eval_rng = StdRng::seed_from_u64(seed.wrapping_add((s * 9999 + ai * 777 + 13) as u64));
-            let ev = expectimax_t2(&b2, &rest, params, &mut eval_rng);
+            let ev = expectimax_t2(&b2, &rest, params, &mut eval_rng, &opp_boards);
             let (d, p) = format_turn_action_str(a);
             results.push(PlacementResult { d, p, ev: (ev * 1000.0).round() / 1000.0 });
         }
@@ -406,8 +559,13 @@ fn generate_one_hand(
         records.push(T1Record {
             hand_idx: hand_idx * n1 + s,
             turn: 1,
+            position: position.to_string(),
             t0_hand: t0_hand_strs.clone(),
             t0_action: t0_action_str.clone(),
+            opp_top: opp_top_str.clone(),
+            opp_mid: opp_mid_str.clone(),
+            opp_bot: opp_bot_str.clone(),
+            dead_cards: dead_cards_str.clone(),
             board: board_str,
             hand: hand_str,
             n_placements: results.len(),
@@ -446,6 +604,9 @@ struct Cli {
     /// Random seed
     #[arg(long, default_value_t = 42)]
     seed: u64,
+    /// Position model type ("independent", "btn", "bb")
+    #[arg(long, default_value = "independent")]
+    position: String,
 }
 
 fn main() {
@@ -456,6 +617,7 @@ fn main() {
     let t4_desc = if cli.n4 == 0 { "all".to_string() } else { cli.n4.to_string() };
 
     eprintln!("=== T1 Expectimax Generator (Rust) ===");
+    eprintln!("  Position:    {}", cli.position);
     eprintln!("  Hands:       {:>8}", cli.n_hands);
     eprintln!("  T1 samples:  {:>8} (per hand)", cli.n1);
     eprintln!("  Nesting:     T2={}, T3={}, T4={}", cli.n2, cli.n3, t4_desc);
@@ -473,6 +635,7 @@ fn main() {
             let recs = generate_one_hand(
                 i, cli.n1, &params,
                 cli.seed.wrapping_add(i as u64 * 100003),
+                &cli.position,
             );
             let done = counter.fetch_add(1, Ordering::Relaxed) + 1;
             if done % 100 == 0 || done == cli.n_hands {

@@ -15,6 +15,9 @@ import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
 from pathlib import Path
 from itertools import permutations
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from ai.models.t1_network import (
     T1PlacementNet, CARD_DIM, NUM_CLASSES, encode_card_str, SUITS, MAX_CARDS

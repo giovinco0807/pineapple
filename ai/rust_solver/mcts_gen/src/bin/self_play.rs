@@ -120,107 +120,120 @@ fn main() {
     println!("Starting self-play generation...");
     println!("Games: {}, Threads: {}, Model: {}", args.games, args.threads, args.model_path);
 
-    (0..args.games).into_par_iter().for_each(|_game_idx| {
-        // Create a local ONNX evaluator per thread
-        let mut evaluator = match PolicyValueSession::new(&args.model_path) {
+    // Initialize one ONNX session per thread SEQUENTIALLY to avoid ONNX Runtime deadlock
+    println!("Initializing {} ONNX sessions sequentially...", args.threads);
+    let mut sessions: Vec<PolicyValueSession> = Vec::with_capacity(args.threads);
+    for i in 0..args.threads {
+        let evaluator = match PolicyValueSession::new(&args.model_path) {
             Ok(e) => e,
             Err(e) => {
-                eprintln!("Failed to load ONNX model: {:?}", e);
-                return;
+                eprintln!("Failed to load ONNX model for thread {}: {:?}", i, e);
+                std::process::exit(1);
             }
         };
+        sessions.push(evaluator);
+    }
+    println!("All sessions initialized.");
 
-        let mut rng = rand::thread_rng();
-        let mut state = GameState::initial();
-        state.deal_cards_with_rng(&mut rng); // Initial deal
+    let chunk_size = (args.games + args.threads - 1) / args.threads;
 
-        let mut history: Vec<DumpState> = Vec::new();
+    sessions.into_par_iter().enumerate().for_each(|(thread_idx, mut evaluator)| {
+        let start = thread_idx * chunk_size;
+        let end = std::cmp::min(start + chunk_size, args.games);
+        if start >= end { return; }
 
-        while !state.is_terminal() {
-            if state.current_hand.is_empty() {
-                state.deal_cards_with_rng(&mut rng);
-                continue;
-            }
+        for _game_idx in start..end {
+            let mut rng = rand::thread_rng();
+            let mut state = GameState::initial();
+            state.deal_cards_with_rng(&mut rng);
 
-            let mut mcts = IsMcts::new();
-            mcts.c_puct = args.c_puct;
-            mcts.progressive_widening_c = args.pw_c;
-            mcts.progressive_widening_alpha = args.pw_alpha;
+            let mut history: Vec<DumpState> = Vec::new();
 
-            // Run search
-            mcts.search(&state, args.simulations, &mut evaluator);
+            while !state.is_terminal() {
+                if state.current_hand.is_empty() {
+                    state.deal_cards_with_rng(&mut rng);
+                    continue;
+                }
 
-            // Extract policy
-            let mut policy = Vec::new();
-            let mut dump_actions = Vec::new();
-            for action in &mcts.root.valid_actions {
-                let visits = if let Some(child) = mcts.root.children.get(&Edge::Action(*action)) {
-                    child.visits
-                } else {
-                    0
+                let mut mcts = IsMcts::new();
+                mcts.c_puct = args.c_puct;
+                mcts.progressive_widening_c = args.pw_c;
+                mcts.progressive_widening_alpha = args.pw_alpha;
+
+                // Run search
+                mcts.search(&state, args.simulations, &mut evaluator);
+
+                // Extract policy
+                let mut policy = Vec::new();
+                let mut dump_actions = Vec::new();
+                for action in &mcts.root.valid_actions {
+                    let visits = if let Some(child) = mcts.root.children.get(&Edge::Action(*action)) {
+                        child.visits
+                    } else {
+                        0
+                    };
+                    policy.push((*action, visits));
+                    dump_actions.push(DumpAction {
+                        to_top: action.to_top.0,
+                        to_middle: action.to_middle.0,
+                        to_bottom: action.to_bottom.0,
+                        discards: action.discards.0,
+                        visits,
+                    });
+                }
+
+                // Save state and policy
+                let dump_state = DumpState {
+                    turn: state.turn,
+                    is_p1_turn: state.is_p1_turn,
+                    p1_top: state.p1_board.top.0,
+                    p1_middle: state.p1_board.middle.0,
+                    p1_bottom: state.p1_board.bottom.0,
+                    p1_discards: state.p1_board.discards.0,
+                    p2_top: state.p2_board.top.0,
+                    p2_middle: state.p2_board.middle.0,
+                    p2_bottom: state.p2_board.bottom.0,
+                    p2_discards: state.p2_board.discards.0,
+                    current_hand: state.current_hand.0,
+                    actions: dump_actions,
+                    z: 0.0, // to be updated at the end
                 };
-                policy.push((*action, visits));
-                dump_actions.push(DumpAction {
-                    to_top: action.to_top.0,
-                    to_middle: action.to_middle.0,
-                    to_bottom: action.to_bottom.0,
-                    discards: action.discards.0,
-                    visits,
-                });
+                history.push(dump_state);
+
+                // Select action
+                let selected_action = select_action_with_temperature(&policy, state.turn, &mut rng);
+                state.apply_action(selected_action);
             }
 
-            // Save state and policy
-            let dump_state = DumpState {
-                turn: state.turn,
-                is_p1_turn: state.is_p1_turn,
-                p1_top: state.p1_board.top.0,
-                p1_middle: state.p1_board.middle.0,
-                p1_bottom: state.p1_board.bottom.0,
-                p1_discards: state.p1_board.discards.0,
-                p2_top: state.p2_board.top.0,
-                p2_middle: state.p2_board.middle.0,
-                p2_bottom: state.p2_board.bottom.0,
-                p2_discards: state.p2_board.discards.0,
-                current_hand: state.current_hand.0,
-                actions: dump_actions,
-                z: 0.0, // to be updated at the end
-            };
-            history.push(dump_state);
+            // Terminal, compute score
+            let score = compute_score(
+                state.p1_board.top, state.p1_board.middle, state.p1_board.bottom,
+                state.p2_board.top, state.p2_board.middle, state.p2_board.bottom
+            );
+            let z_p1 = score as f64;
 
-            // Select action
-            let selected_action = select_action_with_temperature(&policy, state.turn, &mut rng);
-            state.apply_action(selected_action);
-        }
-
-        // Terminal, compute score
-        let score = compute_score(
-            state.p1_board.top, state.p1_board.middle, state.p1_board.bottom,
-            state.p2_board.top, state.p2_board.middle, state.p2_board.bottom
-        );
-        let z_p1 = score as f64;
-
-        // Update z values and write to file
-        let mut local_jsonl = String::new();
-        for mut dump in history {
-            // z from the perspective of the player whose turn it is
-            dump.z = if dump.is_p1_turn { z_p1 } else { -z_p1 };
-            
-            if let Ok(json) = serde_json::to_string(&dump) {
-                local_jsonl.push_str(&json);
-                local_jsonl.push('\n');
+            // Update z values and write to file
+            let mut local_jsonl = String::new();
+            for mut dump in history {
+                dump.z = if dump.is_p1_turn { z_p1 } else { -z_p1 };
+                
+                if let Ok(json) = serde_json::to_string(&dump) {
+                    local_jsonl.push_str(&json);
+                    local_jsonl.push('\n');
+                }
             }
-        }
 
-        {
-            let mut w = writer.lock().unwrap();
-            w.write_all(local_jsonl.as_bytes()).unwrap();
-        }
+            {
+                let mut w = writer.lock().unwrap();
+                w.write_all(local_jsonl.as_bytes()).unwrap();
+            }
 
-        let completed = completed_games.fetch_add(1, Ordering::Relaxed) + 1;
-        if completed % 10 == 0 {
-            let elapsed = start_time.elapsed().as_secs_f64();
-            let games_per_sec = completed as f64 / elapsed;
-            println!("Completed: {}/{} games | {:.2} games/sec", completed, args.games, games_per_sec);
+            let completed = completed_games.fetch_add(1, Ordering::Relaxed) + 1;
+            if completed % 10 == 0 {
+                let elapsed = start_time.elapsed().as_secs_f64();
+                let games_per_sec = completed as f64 / elapsed;
+                println!("Completed: {}/{} games | {:.2} games/sec", completed, args.games, games_per_sec);
+            }
         }
     });
 

@@ -1,4 +1,4 @@
-use ofc_core::{Card, is_valid_placement, get_top_royalty, get_middle_royalty, get_bottom_royalty, compare_5_hands, evaluate_3_card, HandRank3, get_pair_rank, get_trips_rank};
+use ofc_core::{Card, is_valid_placement, get_top_royalty, get_middle_royalty, get_bottom_royalty, compare_5_hands, evaluate_3_card, HandRank3, get_pair_rank, get_trips_rank, check_fl_entry};
 use crate::bitboard::BitBoard;
 
 pub fn bitboard_to_array(bb: BitBoard, out: &mut [Card]) -> usize {
@@ -117,5 +117,23 @@ pub fn compute_score(
 
     let scoop_bonus = if line_total == 3 { 3 } else if line_total == -3 { -3 } else { 0 };
 
-    (line_total + scoop_bonus + p1_royalties - p2_royalties) as f64
+    // FL entry bonus based on exact pre-calculated EV
+    let get_fl_ev = |fc: u8| -> f64 {
+        match fc {
+            14 => 15.8, // QQ
+            15 => 22.7, // KK
+            16 => 28.6, // AA
+            17 => 35.1, // Trips
+            _ => 0.0,
+        }
+    };
+
+    let (_, p1_fc) = check_fl_entry(p1_top_cards);
+    let (_, p2_fc) = check_fl_entry(p2_top_cards);
+    
+    let p1_fl_ev = get_fl_ev(p1_fc);
+    let p2_fl_ev = get_fl_ev(p2_fc);
+    let fl_diff = p1_fl_ev - p2_fl_ev;
+
+    (line_total + scoop_bonus + p1_royalties - p2_royalties) as f64 + fl_diff
 }

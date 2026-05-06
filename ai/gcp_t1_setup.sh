@@ -22,20 +22,20 @@ cargo build --release --bin t1_gen
 
 echo "=== Starting T1 Data Generation ==="
 # With 32 vCPUs (e2-highcpu-32), rayon will spawn 32 threads automatically
-# 50,000 hands, n1=5, n2=3, n3=3, n4=30
+# 1000 hands, n1=5, n2=40, n3=20, n4=15
 ./target/release/t1_gen \
-    --n-hands 50000 \
+    --n-hands 1000 \
     --n1 5 \
-    --n2 3 \
-    --n3 3 \
-    --n4 30 \
+    --n2 40 \
+    --n3 20 \
+    --n4 15 \
     --seed 42 \
-    -o t1_data_50k.jsonl
+    -o t1_data_1k.jsonl
 
 echo "=== Generation complete ==="
-wc -l t1_data_50k.jsonl
+wc -l t1_data_1k.jsonl
 
 # Copy to GCS bucket for easy download
-gsutil cp t1_data_50k.jsonl gs://ofc-solver-data/t1_data_50k.jsonl 2>/dev/null || echo "GCS upload skipped (bucket may not exist)"
+gsutil cp t1_data_1k.jsonl gs://ofc-solver-data/t1_data_1k.jsonl 2>/dev/null || echo "GCS upload skipped (bucket may not exist)"
 
 echo "All done"

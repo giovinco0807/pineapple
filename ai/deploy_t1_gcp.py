@@ -125,8 +125,8 @@ def setup_and_run():
 
 def download_results():
     print(f"\n=== Downloading results ===")
-    local_out = os.path.join(LOCAL_AI_DIR, "data", "t1_data_50k.jsonl")
-    run(f'gcloud compute scp {VM_NAME}:{REMOTE_DIR}/rust_solver/t1_data_50k.jsonl "{local_out}" --zone={ZONE} --quiet')
+    local_out = os.path.join(LOCAL_AI_DIR, "data", "t1_data_1k.jsonl")
+    run(f'gcloud compute scp {VM_NAME}:{REMOTE_DIR}/rust_solver/t1_data_1k.jsonl "{local_out}" --zone={ZONE} --quiet')
     print(f"  Downloaded to: {local_out}")
 
 

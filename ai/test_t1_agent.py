@@ -25,7 +25,7 @@ def get_row_enum(r_str: str) -> Row:
 
 def main():
     print("Loading T1 Agent...")
-    t1_agent = T1Agent("ai/models/t1_placement_net_v1.pt")
+    t1_agent = T1Agent("ai/models/t1_placement_net.pt")
     random_ai = RandomAI()
 
     games_to_play = 5

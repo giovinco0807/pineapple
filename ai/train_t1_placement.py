@@ -43,7 +43,8 @@ def augment_samples(samples):
         seen = set()
         for perm in all_perms:
             suit_map = {SUITS[i]: perm[i] for i in range(4)}
-            new_hand = [permute_card_str(c, suit_map) for c in sample['hand'].split()]
+            hand_str = sample.get('hand', sample.get('hand_cards', ''))
+            new_hand = [permute_card_str(c, suit_map) for c in hand_str.split()]
             hand_k = tuple(sorted(new_hand))
             if hand_k in seen:
                 continue
@@ -54,6 +55,17 @@ def augment_samples(samples):
             new_mid = " ".join([permute_card_str(c, suit_map) for c in mid])
             new_bot = " ".join([permute_card_str(c, suit_map) for c in bot])
             new_board = f"Top[{new_top}] Mid[{new_mid}] Bot[{new_bot}]"
+            
+            # Opponent and dead cards
+            opp_top = sample.get('opp_top', "").split()
+            opp_mid = sample.get('opp_mid', "").split()
+            opp_bot = sample.get('opp_bot', "").split()
+            dead = sample.get('dead_cards', "").split()
+            
+            new_opp_top = " ".join([permute_card_str(c, suit_map) for c in opp_top])
+            new_opp_mid = " ".join([permute_card_str(c, suit_map) for c in opp_mid])
+            new_opp_bot = " ".join([permute_card_str(c, suit_map) for c in opp_bot])
+            new_dead = " ".join([permute_card_str(c, suit_map) for c in dead])
             
             new_placements = []
             for p in sample.get('placements', []):
@@ -73,9 +85,15 @@ def augment_samples(samples):
             augmented.append({
                 'board': new_board,
                 'hand': " ".join(new_hand),
+                'opp_top': new_opp_top,
+                'opp_mid': new_opp_mid,
+                'opp_bot': new_opp_bot,
+                'dead_cards': new_dead,
                 'placements': new_placements,
                 'original_ev': sample.get('original_ev', 0)
             })
+        if len(augmented) % 100000 == 0:
+            print(f"  Augmented {len(augmented)} samples...")
     return augmented
 
 
@@ -92,21 +110,35 @@ class T1PlacementDataset(Dataset):
 
     def _process(self, data, top_k):
         top, mid, bot = parse_board(data['board'])
-        hand = data['hand'].split()
+        hand_str = data.get('hand', data.get('hand_cards', ''))
+        hand = hand_str.split()
         
-        board_cards = []
-        for c in top: board_cards.append((c, 1))
-        for c in mid: board_cards.append((c, 2))
-        for c in bot: board_cards.append((c, 3))
+        opp_top = data.get('opp_top', "").split()
+        opp_mid = data.get('opp_mid', "").split()
+        opp_bot = data.get('opp_bot', "").split()
+        dead = data.get('dead_cards', "").split()
         
-        hand_cards = [(c, 0) for c in hand]
-        all_cards = board_cards + hand_cards
-        if len(all_cards) != 8:
-            # Usually exactly 5 on board and 3 in hand. If not, pad or skip?
-            # T1 should always be 5 + 3 = 8
-            pass
-            
-        features = np.stack([encode_card_str(c, r) for c, r in all_cards])
+        all_cards = []
+        for c in top: all_cards.append((c, 1))
+        for c in mid: all_cards.append((c, 2))
+        for c in bot: all_cards.append((c, 3))
+        
+        for c in opp_top: all_cards.append((c, 4))
+        for c in opp_mid: all_cards.append((c, 5))
+        for c in opp_bot: all_cards.append((c, 6))
+        
+        for c in dead: all_cards.append((c, 7))
+        
+        raw_features = [encode_card_str(c, r) for c, r in all_cards]
+        from ai.models.t1_network import MAX_CARDS, CARD_DIM
+        
+        # Pad features with zeros
+        features = np.zeros((MAX_CARDS, CARD_DIM), dtype=np.float32)
+        features[:len(raw_features)] = np.stack(raw_features) if raw_features else np.zeros((0, CARD_DIM), dtype=np.float32)
+        
+        # Put hand cards exactly at the end of the sequence
+        # hand length should be 3 for T1, but we use len(hand)
+        features[-len(hand):] = np.stack([encode_card_str(c, 0) for c in hand])
         
         placements = data.get('placements', [])
         if not placements:
@@ -255,18 +287,70 @@ def main():
     parser.add_argument('--output', type=str, default='ai/models/t1_placement_net.pt')
     parser.add_argument('--device', type=str, default='cuda' if torch.cuda.is_available() else 'cpu')
     parser.add_argument('--top-k', type=int, default=10)
+    parser.add_argument('--position', type=str, default='all', choices=['all', 'independent', 'btn', 'bb'], help='Filter training data by position')
     args = parser.parse_args()
 
     print(f"Device: {args.device}")
     print(f"T1 Config: d_model={args.d_model}, layers={args.num_layers}, "
           f"dropout={args.dropout}, wd={args.weight_decay}")
+    print(f"Position filter: {args.position}")
 
     all_samples = []
     with open(args.data, 'r', encoding='utf-8') as f:
         for line in f:
-            if line.strip():
-                all_samples.append(json.loads(line.strip()))
-    print(f"Total unique hands: {len(all_samples)}")
+            if not line.strip(): continue
+            d = json.loads(line.strip())
+            
+            # Group placements by t0_idx
+            t0_groups = {}
+            if 't0_idx' in d and 't0_p' in d:
+                t0_idx = d['t0_idx']
+                t0_groups[t0_idx] = {'t0_p': d['t0_p'], 'placements': []}
+                for p in d.get('placements', []):
+                    p_str = p['p'].replace('->', '→')
+                    t0_groups[t0_idx]['placements'].append({
+                        'd': p['d'],
+                        'p': p_str,
+                        'ev': p['ev']
+                    })
+            else:
+                for p in d.get('placements', []):
+                    t0_idx = p['t0_idx']
+                    if t0_idx not in t0_groups:
+                        t0_groups[t0_idx] = {'t0_p': p['t0_p'], 'placements': []}
+                    
+                    p_str = p['p'].replace('->', '→')
+                    t0_groups[t0_idx]['placements'].append({
+                        'd': p['d'],
+                        'p': p_str,
+                        'ev': p['ev']
+                    })
+                
+            for t0_idx, group in t0_groups.items():
+                top, mid, bot = [], [], []
+                for part in group['t0_p'].split(', '):
+                    if not part: continue
+                    c, dest = part.split('->')
+                    if dest == 'Top': top.append(c)
+                    elif dest == 'Middle': mid.append(c)
+                    elif dest == 'Bottom': bot.append(c)
+                board_str = f"Top[{' '.join(top)}] Mid[{' '.join(mid)}] Bot[{' '.join(bot)}]"
+                
+                sample = {
+                    'board': board_str,
+                    'hand': d['t1_hand'],
+                    'opp_top': '',
+                    'opp_mid': '',
+                    'opp_bot': '',
+                    'dead_cards': '',
+                    'placements': group['placements'],
+                    'position': 'independent'
+                }
+                
+                if args.position != 'all' and sample.get('position', 'independent') != args.position:
+                    continue
+                all_samples.append(sample)
+    print(f"Total unique boards: {len(all_samples)}")
 
     random.seed(42)
     random.shuffle(all_samples)
@@ -323,7 +407,8 @@ def main():
                     'dropout': args.dropout,
                     'input_dim': CARD_DIM,
                     'n_params': n_params,
-                    'version': 't1_v1',
+                    'version': 't1_v2',
+                    'position': args.position,
                 },
             }, args.output)
             print(f"  >>> Saved best (hand_acc={val_hand:.4f})")
