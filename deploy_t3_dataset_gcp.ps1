@@ -39,20 +39,21 @@ pip install numpy pandas matplotlib
 # Create directories
 mkdir -p data/t3_dataset
 
+# Run T3 dataset generation in tmux
+cat << 'EOF' > run_generation.sh
+#!/bin/bash
+cd /ofc-pineapple
+source venv/bin/activate
+source /root/.cargo/env
+export PATH="/root/.cargo/bin:`$PATH"
+
 # Pre-build rust binary for T3
 cd ai/rust_solver
 cargo build --release --bin t3_exact
 cd ../../
 
-# Run T3 dataset generation in tmux
-cat << 'EOF' > run_generation.sh
-#!/bin/bash
-source venv/bin/activate
-source "`$HOME/.cargo/env"
-export PATH="`$HOME/.cargo/bin:`$PATH"
-
-# Generate 300,000 states (Takes ~3.5 hours on 55 cores)
-python ai/rust_solver/generate_t3_dataset.py --states 300000 > t3_generation.log 2>&1
+# Generate 50,000 states (Takes ~30 mins on 55 cores)
+python3 ai/rust_solver/generate_t3_dataset.py --states 50000 > t3_generation.log 2>&1
 
 echo "Uploading dataset to GCS..."
 gsutil -m rsync -r data/t3_dataset gs://ofc-solver-485418/ofc_rl_output/t3_dataset/
