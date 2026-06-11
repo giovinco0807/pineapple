@@ -39,6 +39,10 @@ from ofc_regular.build_hu_turn2_pilot_feature_cache import (
     pilot_gate_label,
     resolve_input_files,
     split_states,
+    state_metadata,
+)
+from ofc_regular.train_hu_turn2_pilot_model import (
+    write_markdown as write_training_markdown,
 )
 
 
@@ -55,6 +59,55 @@ def test_pilot_gate_label_uses_stricter_positive_rule():
     assert pilot_gate_label({"delta_best_vs_baseline": 0.40, "SE_delta_best_vs_baseline": 0.10}) == "positive"
     assert pilot_gate_label({"delta_best_vs_baseline": 0.40, "SE_delta_best_vs_baseline": 0.30}) == "gray"
     assert pilot_gate_label({"delta_best_vs_baseline": 0.05, "SE_delta_best_vs_baseline": 0.01}) == "negative"
+
+
+def test_state_metadata_adds_predicted_bucket_alias():
+    meta = state_metadata(
+        {"sample_id": 1, "seat": "first", "delta_best_vs_baseline": 0.0, "best_margin": 0.5},
+        run_bucket="predicted_high_regret_from_pool",
+        state_index=3,
+    )
+
+    assert meta["run_bucket"] == "predicted_high_regret_from_pool"
+    assert meta["bucket_group"] == "predicted_high_regret"
+    assert meta["predicted_bucket"] == "predicted_high_regret"
+
+
+def test_training_summary_title_uses_broad_state_count(tmp_path):
+    path = tmp_path / "training_summary.md"
+    summary = {
+        "model_output": "models/hu_turn2_stage8.pt",
+        "cache_dir": "cache",
+        "device": "cpu",
+        "epochs_ran": 1,
+        "best_epoch": 1,
+        "recommended_next_step": "validation only",
+        "split_counts": {"train": 14000, "val": 3000, "test": 3000},
+        "eval": {
+            "val": {
+                "ev_mae": 1.0,
+                "avg_regret": 0.1,
+                "top3_recall": 0.5,
+                "delta_vs_baseline_mae": 1.0,
+                "pairwise_ranking_accuracy": 0.5,
+                "gate_accuracy_pos_neg": 0.5,
+            },
+            "test": {
+                "ev_mae": 1.0,
+                "avg_regret": 0.1,
+                "top3_recall": 0.5,
+                "delta_vs_baseline_mae": 1.0,
+                "pairwise_ranking_accuracy": 0.5,
+                "gate_accuracy_pos_neg": 0.5,
+            },
+        },
+    }
+    write_training_markdown(path, summary, [])
+    text = path.read_text(encoding="utf-8")
+
+    assert "HU T2 Stage8 Broad 20k MC512 Training" in text
+    assert "Pilot 2,000" not in text
+    assert "not comparable to the T3 Stage7" in text
 
 
 def test_split_states_is_state_level_and_stratified():

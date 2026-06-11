@@ -1,5 +1,6 @@
 from ofc_regular.audit_hu_turn2_stage8_high_mc import (
     parse_configs,
+    runtime_fired_rows,
     select_audit_states,
     stratified_for_replay,
     threshold_sweep_rows,
@@ -28,6 +29,26 @@ def _row(**overrides):
     }
     base.update({key: str(value) for key, value in overrides.items()})
     return base
+
+
+def test_runtime_fired_rows_marks_missing_dead_cards_replay_ineligible(tmp_path):
+    path = tmp_path / "runtime.jsonl"
+    path.write_text(
+        '{"override_fired":true,"config_id":"m2.5_r0_g0.9","hand_id":1}\n'
+        '{"override_fired":true,"config_id":"m2.5_r0_g0.9","hand_id":2,"dead_cards":["2c"]}\n',
+        encoding="utf-8",
+    )
+
+    rows = runtime_fired_rows(path)
+
+    assert rows[0]["replay_ready"] is False
+    assert rows[0]["replay_ineligible"] is True
+    assert rows[0]["exclude_from_exact_replay"] is True
+    assert rows[0]["legacy_runtime_log"] is True
+    assert rows[0]["missing_dead_cards"] is True
+    assert rows[0]["replay_blocker"] == "missing_dead_cards_in_legacy_runtime_log"
+    assert rows[1]["replay_ready"] is True
+    assert rows[1]["replay_ineligible"] is False
 
 
 def test_select_audit_states_covers_fired_near_missed_and_suspected_fp():
