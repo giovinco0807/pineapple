@@ -35,6 +35,7 @@ class HuTurn2Stage8RuntimeConfig:
     enabled: bool = True
     min_model_score: float | None = None
     allowed_seats: tuple[str, ...] = ()
+    candidate_ev_rank_max: int | None = None
 
     @property
     def config_id(self) -> str:
@@ -43,6 +44,8 @@ class HuTurn2Stage8RuntimeConfig:
             suffix += "_seat" + "-".join(self.allowed_seats)
         if self.min_model_score is not None:
             suffix += f"_s{self.min_model_score:g}"
+        if self.candidate_ev_rank_max is not None:
+            suffix += f"_k{self.candidate_ev_rank_max:g}"
         return f"m{self.min_margin:g}_r{self.reference_min_margin:g}_g{self.gate_threshold:g}{suffix}"
 
 
@@ -293,6 +296,7 @@ class HuTurn2Stage8SelectiveOverridePolicy(RegularAiPolicy):
         predicted_delta: float | None = None
         gate_probability: float | None = None
         predicted_ev: float | None = None
+        candidate_ev_rank: int | None = None
         no_override_reason = ""
 
         if not self.hu_turn2_stage8_config.enabled:
@@ -324,6 +328,8 @@ class HuTurn2Stage8SelectiveOverridePolicy(RegularAiPolicy):
                     candidate_index = int(np.argmax(predictions[:, 1]))
                     predicted_delta = float(predictions[candidate_index, 1])
                     predicted_ev = float(predictions[candidate_index, 0])
+                    ev_order = np.argsort(-predictions[:, 0], kind="mergesort")
+                    candidate_ev_rank = int(np.where(ev_order == candidate_index)[0][0]) + 1
                     gate_probability = sigmoid(float(np.mean(predictions[:, 4])))
                     legality_check_result = self._candidate_legality_result(board, actions, candidate_index)
                     if legality_check_result != "legal":
@@ -335,6 +341,11 @@ class HuTurn2Stage8SelectiveOverridePolicy(RegularAiPolicy):
                         and predicted_ev < self.hu_turn2_stage8_config.min_model_score
                     ):
                         no_override_reason = "below_model_score"
+                    elif (
+                        self.hu_turn2_stage8_config.candidate_ev_rank_max is not None
+                        and candidate_ev_rank > self.hu_turn2_stage8_config.candidate_ev_rank_max
+                    ):
+                        no_override_reason = "below_candidate_ev_rank"
                     elif predicted_delta < self.hu_turn2_stage8_config.min_margin:
                         no_override_reason = "below_stage8_margin"
                     elif gate_probability < self.hu_turn2_stage8_config.gate_threshold:
@@ -372,10 +383,12 @@ class HuTurn2Stage8SelectiveOverridePolicy(RegularAiPolicy):
                 "hu_turn2_gate_threshold": self.hu_turn2_stage8_config.gate_threshold,
                 "hu_turn2_min_model_score": self.hu_turn2_stage8_config.min_model_score,
                 "hu_turn2_allowed_seats": list(self.hu_turn2_stage8_config.allowed_seats),
+                "hu_turn2_candidate_ev_rank_max": self.hu_turn2_stage8_config.candidate_ev_rank_max,
                 "predicted_delta": predicted_delta,
                 "gate_probability": gate_probability,
                 "reference_margin_raw": reference_margin,
                 "model_score": predicted_ev,
+                "candidate_ev_rank": candidate_ev_rank,
                 "legality_check_result": "legal" if candidate_index is not None else "not_evaluated",
                 "runtime_latency_ms": (time.perf_counter() - started_at) * 1000.0,
             }

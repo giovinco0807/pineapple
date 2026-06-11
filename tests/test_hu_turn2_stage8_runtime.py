@@ -8,6 +8,7 @@ from ofc_regular.hu_turn2_stage8_runtime import (
     HuTurn2Stage8SelectiveOverridePolicy,
     sigmoid,
 )
+from ofc_regular.evaluate_hu_turn2_stage8_seat_swap import parse_configs
 from ofc_regular.state import Board
 
 
@@ -19,18 +20,30 @@ class BaselineTurn2Model:
 
 
 class Stage8Model:
-    def __init__(self, *, candidate_index=0, predicted_delta=3.0, predicted_ev=1.0, gate_logit=10.0, nan=False):
+    def __init__(
+        self,
+        *,
+        candidate_index=0,
+        predicted_delta=3.0,
+        predicted_ev=1.0,
+        gate_logit=10.0,
+        nan=False,
+        ev_overrides=None,
+    ):
         self.candidate_index = candidate_index
         self.predicted_delta = predicted_delta
         self.predicted_ev = predicted_ev
         self.gate_logit = gate_logit
         self.nan = nan
+        self.ev_overrides = dict(ev_overrides or {})
 
     def predict_sample(self, sample):
         values = np.zeros((len(sample["actions"]), 5), dtype=np.float64)
         values[:, 4] = self.gate_logit
         values[self.candidate_index, 0] = self.predicted_ev
         values[self.candidate_index, 1] = self.predicted_delta
+        for index, ev in self.ev_overrides.items():
+            values[index, 0] = ev
         if self.nan:
             values[self.candidate_index, 1] = math.nan
         return values
@@ -65,6 +78,18 @@ def make_policy(stage8_model, config, log, *, seat="first"):
 def test_sigmoid_handles_positive_and_negative_values():
     assert sigmoid(10.0) > 0.99
     assert sigmoid(-10.0) < 0.01
+
+
+def test_stage8_config_parser_accepts_seat_score_and_rank_guard():
+    configs = parse_configs("2.75/0/0.95/seat=second/score=3/k=1")
+
+    assert len(configs) == 1
+    assert configs[0].min_margin == 2.75
+    assert configs[0].gate_threshold == 0.95
+    assert configs[0].allowed_seats == ("second",)
+    assert configs[0].min_model_score == 3.0
+    assert configs[0].candidate_ev_rank_max == 1
+    assert configs[0].config_id == "m2.75_r0_g0.95_seatsecond_s3_k1"
 
 
 def test_turn2_stage8_selective_override_fires_when_thresholds_pass():
@@ -140,6 +165,25 @@ def test_turn2_stage8_falls_back_when_seat_not_allowed():
     assert log[-1]["override_fired"] is False
     assert log[-1]["no_override_reason"] == "seat_not_allowed"
     assert log[-1]["hu_turn2_allowed_seats"] == ["second"]
+
+
+def test_turn2_stage8_falls_back_below_candidate_ev_rank():
+    board, opponent, dealt = board_and_dealt()
+    actions = generate_turn_actions(board, dealt)
+    log = []
+    policy = make_policy(
+        Stage8Model(candidate_index=0, predicted_delta=9.0, predicted_ev=1.0, gate_logit=10.0, ev_overrides={2: 2.0}),
+        HuTurn2Stage8RuntimeConfig(2.5, 0.0, 0.90, candidate_ev_rank_max=1),
+        log,
+    )
+
+    action = policy.choose_action(board, dealt, opponent_board=opponent)
+
+    assert action == actions[1]
+    assert log[-1]["override_fired"] is False
+    assert log[-1]["no_override_reason"] == "below_candidate_ev_rank"
+    assert log[-1]["candidate_ev_rank"] == 2
+    assert log[-1]["hu_turn2_candidate_ev_rank_max"] == 1
 
 
 def test_turn2_stage8_disabled_matches_baseline():

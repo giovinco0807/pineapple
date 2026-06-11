@@ -75,7 +75,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--configs",
         default="shortlist",
-        help="'full', 'shortlist', or comma-separated m/r/g triples.",
+        help="'full', 'shortlist', or comma-separated m/r/g triples with optional /seat=... /score=... /k=...",
     )
     parser.add_argument("--opening-model", type=Path, default=DEFAULT_OPENING_MODEL)
     parser.add_argument("--turn1-model", type=Path, default=DEFAULT_TURN1_MODEL)
@@ -117,15 +117,20 @@ def parse_configs(value: str) -> list[HuTurn2Stage8RuntimeConfig]:
     for item in parts:
         fields = item.replace("_", "/").split("/")
         if len(fields) < 3:
-            raise ValueError(f"config must be m/r/g with optional /seat=first|second and /score=N: {item}")
+            raise ValueError(f"config must be m/r/g with optional /seat=first|second, /score=N, and /k=N: {item}")
         min_model_score: float | None = None
         allowed_seats: tuple[str, ...] = ()
+        candidate_ev_rank_max: int | None = None
         for option in fields[3:]:
             key, separator, raw_value = option.partition("=")
             key = key.strip().lower()
             raw_value = raw_value.strip().lower() if separator else ""
             if key in {"score", "minscore", "min_model_score", "s"} and separator:
                 min_model_score = float(raw_value)
+            elif key in {"rank", "evrank", "candidate_ev_rank", "candidate_ev_rank_max", "k"} and separator:
+                candidate_ev_rank_max = int(float(raw_value))
+                if candidate_ev_rank_max <= 0:
+                    raise ValueError(f"candidate EV rank max must be positive in config {item}: {raw_value}")
             elif key in {"seat", "seats", "allowed_seats"} and separator:
                 if raw_value in {"all", "any", "*"}:
                     allowed_seats = ()
@@ -144,6 +149,7 @@ def parse_configs(value: str) -> list[HuTurn2Stage8RuntimeConfig]:
                 gate_threshold=float(fields[2]),
                 min_model_score=min_model_score,
                 allowed_seats=allowed_seats,
+                candidate_ev_rank_max=candidate_ev_rank_max,
             )
         )
     if not configs:
@@ -328,6 +334,9 @@ def evaluate_config_seed(
         "hu_turn2_gate_threshold": config.gate_threshold,
         "hu_turn2_min_model_score": "" if config.min_model_score is None else config.min_model_score,
         "hu_turn2_allowed_seats": "+".join(config.allowed_seats),
+        "hu_turn2_candidate_ev_rank_max": ""
+        if config.candidate_ev_rank_max is None
+        else config.candidate_ev_rank_max,
         "seed": seed,
         "paired_seeds": games,
         "hands": games * 2,
@@ -376,6 +385,11 @@ def teacher_fired_rows(rows: list[dict[str, str]], config: HuTurn2Stage8RuntimeC
         and (
             config.min_model_score is None
             or safe_float(row.get("predicted_candidate_EV", row.get("model_score", "")), -math.inf) >= config.min_model_score
+        )
+        and (
+            config.candidate_ev_rank_max is None
+            or safe_float(row.get("stage8b_model_candidate_ev_rank", row.get("candidate_ev_rank", "")), math.inf)
+            <= config.candidate_ev_rank_max
         )
     ]
 
@@ -507,6 +521,7 @@ def aggregate_seed_rows(seed_rows: list[dict[str, Any]]) -> list[dict[str, Any]]
                 "hu_turn2_gate_threshold": rows[0]["hu_turn2_gate_threshold"],
                 "hu_turn2_min_model_score": rows[0].get("hu_turn2_min_model_score", ""),
                 "hu_turn2_allowed_seats": rows[0].get("hu_turn2_allowed_seats", ""),
+                "hu_turn2_candidate_ev_rank_max": rows[0].get("hu_turn2_candidate_ev_rank_max", ""),
                 "paired_seeds": total_games,
                 "hands": sum(int(row["hands"]) for row in rows),
                 "aggregate_ev_per_hand": mean,

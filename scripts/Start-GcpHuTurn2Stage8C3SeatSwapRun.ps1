@@ -5,6 +5,7 @@ param(
     [int]$GamesPerSeed = 1000,
     [string]$Seeds = "2026061901,2026061902,2026061903,2026061904,2026061905",
     [string]$Configs = "2.5/0/0.9,2.75/0/0.9,2.5/0/0.925,2.5/0/0.7",
+    [string]$HuTurn2Stage8Model = "models/hu_turn2_stage8_broad_20k_mc512_reference_override_cached_rank_wide.pt",
     [int]$VmCount = 20,
     [string]$MachineType = "e2-highcpu-4",
     [string[]]$Zones = @(
@@ -107,6 +108,10 @@ function New-ZipWithForwardSlashes {
 }
 
 $repoRoot = (Get-Location).Path
+$huTurn2Stage8ModelRepoPath = ($HuTurn2Stage8Model -replace '\\', '/').TrimStart('/')
+if ([System.IO.Path]::IsPathRooted($HuTurn2Stage8Model)) {
+    throw "HuTurn2Stage8Model must be a repo-relative path: $HuTurn2Stage8Model"
+}
 $requiredModels = @(
     "models/opening_stage7_torch_wide.pt",
     "models/turn1_stage6_torch_wide.pt",
@@ -114,8 +119,8 @@ $requiredModels = @(
     "models/turn3_stage6.pkl",
     "models/hu_turn3_stage7_reference_override_cached_rank_wide.pt",
     "models/hu_turn3_stage3_mc32_500k_plus_m8_12_f128_100k_w2_cached_rank_wide.pt",
-    "models/hu_turn2_stage8_broad_20k_mc512_reference_override_cached_rank_wide.pt"
-)
+    $huTurn2Stage8ModelRepoPath
+) | Select-Object -Unique
 foreach ($model in $requiredModels) {
     if (-not (Test-Path (Join-Path $repoRoot $model))) {
         throw "Required model not found: $model"
@@ -224,6 +229,7 @@ SELF_DELETE="$(meta SELF_DELETE)"
 PREDICTION_THREADS="$(meta PREDICTION_THREADS)"
 SEED_STRIDE="$(meta SEED_STRIDE)"
 OPENING_LOOKAHEAD_SAMPLES="$(meta OPENING_LOOKAHEAD_SAMPLES)"
+HU_TURN2_STAGE8_MODEL="$(meta HU_TURN2_STAGE8_MODEL)"
 INSTANCE_NAME="$(instance_meta name)"
 ZONE_PATH="$(instance_meta zone)"
 ZONE="${ZONE_PATH##*/}"
@@ -313,7 +319,7 @@ for (( shard=START_SHARD; shard<TOTAL_SHARDS; shard+=VM_COUNT )); do
     --seeds "$seed" \
     --seed-stride "$SEED_STRIDE" \
     --configs "$config" \
-    --hu-turn2-stage8-model models/hu_turn2_stage8_broad_20k_mc512_reference_override_cached_rank_wide.pt \
+    --hu-turn2-stage8-model "$HU_TURN2_STAGE8_MODEL" \
     --calibration-values outputs/hu_turn2_stage8_20k_mc512_calibration/state_calibration_values.csv \
     --output-dir "$local_out" \
     --device cpu \
@@ -373,6 +379,7 @@ $manifest = [ordered]@{
     seed_stride = $SeedStride
     prediction_threads = $PredictionThreads
     opening_lookahead_samples = $OpeningLookaheadSamples
+    hu_turn2_stage8_model = $huTurn2Stage8ModelRepoPath
     source_uri = $sourceUri
     startup_uri = $startupUri
     self_delete = -not $NoSelfDelete
@@ -404,6 +411,7 @@ foreach ($i in $workerIndices) {
         "PREDICTION_THREADS=$PredictionThreads",
         "SEED_STRIDE=$SeedStride",
         "OPENING_LOOKAHEAD_SAMPLES=$OpeningLookaheadSamples",
+        "HU_TURN2_STAGE8_MODEL=$huTurn2Stage8ModelRepoPath",
         ("SELF_DELETE=" + ($(if ($NoSelfDelete) { "0" } else { "1" })))
     ) -join ","
 
