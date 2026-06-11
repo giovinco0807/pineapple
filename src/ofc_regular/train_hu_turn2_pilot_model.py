@@ -464,15 +464,17 @@ def write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
 def write_markdown(path: Path, summary: dict[str, Any], threshold_rows: list[dict[str, Any]]) -> None:
     test = summary["eval"]["test"]
     val = summary["eval"]["val"]
+    total_states = sum(int(value) for value in summary.get("split_counts", {}).values())
+    state_label = f"{total_states // 1000}k" if total_states and total_states % 1000 == 0 else str(total_states)
     positive_thresholds = [
         row
         for row in threshold_rows
         if row["override_count"] > 0 and row["teacher_avg_gain_on_override"] > 0.0
     ]
     lines = [
-        "# HU T2 Stage8 Pilot 2,000 MC512 Training",
+        f"# HU T2 Stage8 Broad {state_label} MC512 Training",
         "",
-        "This is a pilot pipeline validation, not a production candidate.",
+        "This is a broad teacher-cache training artifact, not a production candidate.",
         "",
         f"- model: `{summary['model_output']}`",
         f"- cache: `{summary['cache_dir']}`",
@@ -493,6 +495,7 @@ def write_markdown(path: Path, summary: dict[str, Any], threshold_rows: list[dic
         "",
         f"- configs with positive teacher gain and at least one override: `{len(positive_thresholds)}`",
         "- This sweep is teacher-holdout only; do not use it as production evidence.",
+        "- `reference_margin_raw` is a T2 baseline/reference score margin and is not comparable to the T3 Stage7 `r10` reference gate.",
         "",
         "## Next Step",
         "",
