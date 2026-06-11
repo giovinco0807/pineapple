@@ -26,6 +26,18 @@ Gate C1e is calibration-only. It does not authorize 50k teacher, T1, C2-small, o
 | unbiased | policy_on_distribution | first | 2000 |
 | unbiased | policy_on_distribution | second | 2000 |
 
+## Bucket Schema
+
+- `predicted_bucket` is the normalized alias for `bucket_group`; it is derived from `run_bucket` for predicted-pool shards.
+- `run_bucket` preserves the physical input bucket name.
+- `source_bucket_requested` / `source_bucket_actual` preserve sampler intent and actual accepted source when available.
+- actual bucket labels are `actual_high_regret`, `actual_low_margin`, and `actual_teacher_disagreement`.
+- `gate_label` is the explicit alias for `pilot_gate_label`.
+
+## T2 Margin Scale
+
+`reference_margin_raw` is a T2 baseline/reference score margin on the T2 model scale. It is not comparable to the T3 Stage7 `hu_turn3_reference_min_margin=10.0` gate and should not be treated as a strong hard gate unless validated separately.
+
 ## Candidate Fire Estimate
 
 | candidate | split | current fires | projected C1e fires | current FP rate |

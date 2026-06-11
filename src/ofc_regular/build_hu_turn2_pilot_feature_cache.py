@@ -171,6 +171,7 @@ def state_metadata(sample: dict[str, Any], *, run_bucket: str, state_index: int)
     bucket_group = run_bucket
     if run_bucket.startswith("predicted_") and run_bucket.endswith("_from_pool"):
         bucket_group = run_bucket.removesuffix("_from_pool")
+    predicted_bucket = bucket_group
     return {
         "state_index": state_index,
         "state_hash": stable_state_hash(sample),
@@ -181,6 +182,7 @@ def state_metadata(sample: dict[str, Any], *, run_bucket: str, state_index: int)
         "hand_seed": sample.get("hand_seed"),
         "run_bucket": run_bucket,
         "bucket_group": bucket_group,
+        "predicted_bucket": predicted_bucket,
         "source_bucket": sample.get("source_bucket"),
         "source_bucket_requested": sample.get("source_bucket_requested"),
         "source_bucket_actual": sample.get("source_bucket_actual"),
