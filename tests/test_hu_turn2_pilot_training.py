@@ -29,6 +29,9 @@ from ofc_regular.analyze_hu_turn2_stage8_c2_small import (
     c2_status as c2_small_status,
     proxy_passes as c2_proxy_passes,
 )
+from ofc_regular.analyze_hu_turn2_stage8_c3_larger_seat_swap import (
+    c3_row_status,
+)
 from ofc_regular.analyze_hu_turn2_gate_c1_followup import (
     classify_false_positive,
     margin_bucket_label,
@@ -534,3 +537,22 @@ def test_c2_requires_seat_swap_when_requested():
 
     assert status == "No-Go"
     assert "seat_swap_not_completed" in blockers
+
+
+def test_c3_row_status_requires_positive_larger_seat_swap():
+    row = {
+        "paired_seeds": 3000,
+        "aggregate_ev_per_hand": 0.01,
+        "ci95_low_seed_means": -0.01,
+        "avg_gain_on_override": 1.0,
+        "false_positive_override_rate": 0.03,
+        "p95_loss": 0.0,
+        "override_count": 10,
+    }
+
+    assert c3_row_status(row) == ("conditional_go", "")
+
+    row["aggregate_ev_per_hand"] = -0.01
+    status, blockers = c3_row_status(row)
+    assert status == "no_go"
+    assert "seat_swap_ev_not_positive" in blockers
