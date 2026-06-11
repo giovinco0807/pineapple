@@ -1,0 +1,4 @@
+split,proxy,fires,avg_gain,false_positive_count,false_positive_rate
+test,old_stage8_m2p5_g0p9,121,4.3355647660484,5,0.04132231404958678
+holdout,old_stage8_m2p5_g0p9,223,4.854906418932927,8,0.03587443946188341
+all,old_stage8_m2p5_g0p9,961,5.23018781637674,11,0.011446409989594173

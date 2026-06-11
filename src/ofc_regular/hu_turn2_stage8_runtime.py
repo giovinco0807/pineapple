@@ -33,10 +33,17 @@ class HuTurn2Stage8RuntimeConfig:
     reference_min_margin: float
     gate_threshold: float
     enabled: bool = True
+    min_model_score: float | None = None
+    allowed_seats: tuple[str, ...] = ()
 
     @property
     def config_id(self) -> str:
-        return f"m{self.min_margin:g}_r{self.reference_min_margin:g}_g{self.gate_threshold:g}"
+        suffix = ""
+        if self.allowed_seats:
+            suffix += "_seat" + "-".join(self.allowed_seats)
+        if self.min_model_score is not None:
+            suffix += f"_s{self.min_model_score:g}"
+        return f"m{self.min_margin:g}_r{self.reference_min_margin:g}_g{self.gate_threshold:g}{suffix}"
 
 
 @dataclass
@@ -290,6 +297,8 @@ class HuTurn2Stage8SelectiveOverridePolicy(RegularAiPolicy):
 
         if not self.hu_turn2_stage8_config.enabled:
             no_override_reason = "stage8_disabled"
+        elif self.hu_turn2_stage8_config.allowed_seats and self.seat not in self.hu_turn2_stage8_config.allowed_seats:
+            no_override_reason = "seat_not_allowed"
         elif self.hu_turn2_stage8_model is None:
             no_override_reason = "model_load_failed"
         elif reference_margin < self.hu_turn2_stage8_config.reference_min_margin:
@@ -321,6 +330,11 @@ class HuTurn2Stage8SelectiveOverridePolicy(RegularAiPolicy):
                         no_override_reason = "illegal_candidate"
                     elif candidate_index == baseline_index:
                         no_override_reason = "same_as_baseline"
+                    elif (
+                        self.hu_turn2_stage8_config.min_model_score is not None
+                        and predicted_ev < self.hu_turn2_stage8_config.min_model_score
+                    ):
+                        no_override_reason = "below_model_score"
                     elif predicted_delta < self.hu_turn2_stage8_config.min_margin:
                         no_override_reason = "below_stage8_margin"
                     elif gate_probability < self.hu_turn2_stage8_config.gate_threshold:
@@ -356,6 +370,8 @@ class HuTurn2Stage8SelectiveOverridePolicy(RegularAiPolicy):
                 "hu_turn2_min_margin": self.hu_turn2_stage8_config.min_margin,
                 "hu_turn2_reference_min_margin": self.hu_turn2_stage8_config.reference_min_margin,
                 "hu_turn2_gate_threshold": self.hu_turn2_stage8_config.gate_threshold,
+                "hu_turn2_min_model_score": self.hu_turn2_stage8_config.min_model_score,
+                "hu_turn2_allowed_seats": list(self.hu_turn2_stage8_config.allowed_seats),
                 "predicted_delta": predicted_delta,
                 "gate_probability": gate_probability,
                 "reference_margin_raw": reference_margin,

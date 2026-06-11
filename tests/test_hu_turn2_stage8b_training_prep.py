@@ -7,6 +7,11 @@ from ofc_regular.prepare_hu_turn2_stage8b_training import (
     attach_stage8b_labels,
     selected_high_mc_states,
 )
+from ofc_regular.analyze_hu_turn2_stage8b_training import (
+    binary_counts,
+    metric_from_counts,
+    runtime_fires,
+)
 from ofc_regular.train_hu_turn2_pilot_model import apply_stage8b_gate_labels, gate_loss
 
 
@@ -137,3 +142,34 @@ def test_gate_loss_accepts_state_weights():
     unweighted = gate_loss(torch, logits, groups, labels, negative_weight=1.0)
 
     assert weighted.item() == unweighted.item()
+
+
+def test_stage8b_training_audit_binary_metrics_exclude_gray():
+    rows = [
+        {"stage8b_safe_lcb196_gate_label_id": 2, "safe_override_probability": 0.95},
+        {"stage8b_safe_lcb196_gate_label_id": 2, "safe_override_probability": 0.20},
+        {"stage8b_safe_lcb196_gate_label_id": 0, "safe_override_probability": 0.91},
+        {"stage8b_safe_lcb196_gate_label_id": 0, "safe_override_probability": 0.10},
+        {"stage8b_safe_lcb196_gate_label_id": 1, "safe_override_probability": 0.99},
+    ]
+
+    counts = binary_counts(rows, 0.90)
+    metrics = metric_from_counts(counts)
+
+    assert counts == {"tp": 1, "fp": 1, "tn": 1, "fn": 1, "pos": 2, "neg": 2, "gray": 1}
+    assert metrics["precision"] == 0.5
+    assert metrics["recall"] == 0.5
+
+
+def test_stage8b_runtime_fires_uses_safe_probability_and_rank_guard():
+    row = {
+        "candidate_is_baseline": 0,
+        "predicted_delta_vs_baseline": 2.6,
+        "safe_override_probability": 0.91,
+        "stage8b_model_candidate_ev_rank": 2,
+    }
+
+    assert runtime_fires(row, min_delta=2.5, safe_threshold=0.90, rank_max=2)
+    assert not runtime_fires(row, min_delta=2.75, safe_threshold=0.90, rank_max=2)
+    assert not runtime_fires(row, min_delta=2.5, safe_threshold=0.95, rank_max=2)
+    assert not runtime_fires(row, min_delta=2.5, safe_threshold=0.90, rank_max=1)

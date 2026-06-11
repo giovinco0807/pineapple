@@ -1,0 +1,1 @@
+GO to a larger 20k-50k MC512 broad pass only after the same pipeline is repeated with a larger holdout and then seat-swap validation. This pilot is enough to validate the cache/training pipeline, not production adoption.

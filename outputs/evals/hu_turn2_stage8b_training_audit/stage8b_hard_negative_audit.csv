@@ -1,0 +1,16 @@
+state_index,split,position,source_bucket,bucket_group,hard_negative_source,high_mc_label_source,high_mc_diagnosis,safe_override_probability,caught_at_p80,caught_at_p90,caught_at_p95,predicted_delta_vs_baseline,actual_delta_candidate_vs_baseline,candidate_loss
+7443,test,first,from_pool,predicted_high_regret,high_mc_runtime_negative,mc4096,model_ranking_error,0.9997241949469257,0,0,0,5.649366855621338,-2.244187355041504,2.244187355041504
+7958,test,first,from_pool,predicted_high_regret,high_mc_runtime_negative,mc4096,model_ranking_error,0.999489860741177,0,0,0,3.1364049911499023,-5.772463798522949,5.772463798522949
+7442,val,first,from_pool,predicted_high_regret,current_proxy_teacher_negative,,,0.9987935372793033,0,0,0,4.381200313568115,0.0,0.0
+6881,test,first,from_pool,predicted_high_regret,high_mc_runtime_negative,mc4096,false_positive_gate,0.9976599565955494,0,0,0,6.101369380950928,-0.4897761344909668,0.4897761344909668
+6889,test,first,from_pool,predicted_high_regret,high_mc_runtime_negative,mc4096,low_margin_noise,0.9872814059131119,0,0,0,2.2648167610168457,0.0,0.0
+5641,val,second,from_pool,predicted_high_regret,current_proxy_teacher_negative,,,0.9709175583066837,0,0,0,1.956202507019043,-0.28577256202697754,0.28577256202697754
+6669,val,second,from_pool,predicted_high_regret,current_proxy_teacher_negative,,,0.9671779648365529,0,0,0,1.2857069969177246,0.0,0.0
+7043,test,second,from_pool,predicted_high_regret,current_proxy_teacher_negative,,,0.9628541604237262,0,0,0,2.331679344177246,1.1663241386413574,0.0
+5814,test,second,from_pool,predicted_high_regret,high_mc_runtime_negative,mc4096,model_ranking_error,0.9235636585899439,0,0,1,3.8476815223693848,-0.9510221481323242,0.9510221481323242
+3995,test,second,natural,natural,high_mc_runtime_negative,mc4096,model_ranking_error,0.03801582731786614,1,1,1,1.130810260772705,-0.3273587226867676,0.3273587226867676
+7409,train,first,from_pool,predicted_high_regret,current_proxy_teacher_negative,,,0.0004497761126976451,1,1,1,2.445675849914551,0.0,0.0
+4592,train,first,from_pool,predicted_high_regret,current_proxy_teacher_negative,,,0.0004116681078575103,1,1,1,1.3255314826965332,-1.4399570226669312,1.4399570226669312
+9944,train,first,from_pool,predicted_low_margin,current_proxy_teacher_negative,,,0.0004116681078575103,1,1,1,1.3255314826965332,-0.03117513656616211,0.03117513656616211
+14382,val,first,from_pool,predicted_teacher_disagreement,current_proxy_teacher_negative,,,0.0004116681078575103,1,1,1,1.3255314826965332,-1.6371854543685913,1.6371854543685913
+5801,train,second,from_pool,predicted_high_regret,current_proxy_teacher_negative,,,0.0004111478707870609,1,1,1,2.2980613708496094,-4.8738298416137695,4.8738298416137695

@@ -1,0 +1,10 @@
+{
+  "rows": 20000,
+  "label_counts": {
+    "1": 15218,
+    "0": 1865,
+    "2": 2917
+  },
+  "hard_negative_count": 15,
+  "recommended_candidate_count": 10
+}

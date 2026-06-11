@@ -116,13 +116,34 @@ def parse_configs(value: str) -> list[HuTurn2Stage8RuntimeConfig]:
     configs = []
     for item in parts:
         fields = item.replace("_", "/").split("/")
-        if len(fields) != 3:
-            raise ValueError(f"config must be m/r/g: {item}")
+        if len(fields) < 3:
+            raise ValueError(f"config must be m/r/g with optional /seat=first|second and /score=N: {item}")
+        min_model_score: float | None = None
+        allowed_seats: tuple[str, ...] = ()
+        for option in fields[3:]:
+            key, separator, raw_value = option.partition("=")
+            key = key.strip().lower()
+            raw_value = raw_value.strip().lower() if separator else ""
+            if key in {"score", "minscore", "min_model_score", "s"} and separator:
+                min_model_score = float(raw_value)
+            elif key in {"seat", "seats", "allowed_seats"} and separator:
+                if raw_value in {"all", "any", "*"}:
+                    allowed_seats = ()
+                else:
+                    seats = tuple(seat.strip() for seat in raw_value.replace("|", "+").split("+") if seat.strip())
+                    invalid = [seat for seat in seats if seat not in {"first", "second"}]
+                    if invalid:
+                        raise ValueError(f"invalid seat filter in config {item}: {invalid}")
+                    allowed_seats = seats
+            else:
+                raise ValueError(f"unknown config option in {item}: {option}")
         configs.append(
             HuTurn2Stage8RuntimeConfig(
                 min_margin=float(fields[0]),
                 reference_min_margin=float(fields[1]),
                 gate_threshold=float(fields[2]),
+                min_model_score=min_model_score,
+                allowed_seats=allowed_seats,
             )
         )
     if not configs:
@@ -305,6 +326,8 @@ def evaluate_config_seed(
         "hu_turn2_min_margin": config.min_margin,
         "hu_turn2_reference_min_margin": config.reference_min_margin,
         "hu_turn2_gate_threshold": config.gate_threshold,
+        "hu_turn2_min_model_score": "" if config.min_model_score is None else config.min_model_score,
+        "hu_turn2_allowed_seats": "+".join(config.allowed_seats),
         "seed": seed,
         "paired_seeds": games,
         "hands": games * 2,
@@ -346,9 +369,14 @@ def teacher_fired_rows(rows: list[dict[str, str]], config: HuTurn2Stage8RuntimeC
         for row in rows
         if row.get("split") == split
         and int(safe_float(row.get("candidate_is_baseline"), 0.0)) == 0
+        and (not config.allowed_seats or row.get("seat") in config.allowed_seats)
         and safe_float(row.get("predicted_delta_vs_baseline")) >= config.min_margin
         and safe_float(row.get("reference_margin_raw")) >= config.reference_min_margin
         and safe_float(row.get("gate_probability")) >= config.gate_threshold
+        and (
+            config.min_model_score is None
+            or safe_float(row.get("predicted_candidate_EV", row.get("model_score", "")), -math.inf) >= config.min_model_score
+        )
     ]
 
 
@@ -360,8 +388,12 @@ def teacher_summary(rows: list[dict[str, str]], config: HuTurn2Stage8RuntimeConf
     false_positive = [row for row, gain in zip(fired, gains) if gain < 0.0]
     first = [row for row in fired if row.get("seat") == "first"]
     second = [row for row in fired if row.get("seat") == "second"]
+    score_guard_column_available = config.min_model_score is None or any(
+        row.get("predicted_candidate_EV", row.get("model_score", "")) not in (None, "") for row in test_rows
+    )
     return {
         "teacher_evaluated_states": len(test_rows),
+        "teacher_score_guard_column_available": int(score_guard_column_available),
         "teacher_override_count": len(fired),
         "teacher_override_rate": len(fired) / max(len(test_rows), 1),
         "avg_gain_on_override": float(np.mean(gains)) if gains else 0.0,
@@ -473,6 +505,8 @@ def aggregate_seed_rows(seed_rows: list[dict[str, Any]]) -> list[dict[str, Any]]
                 "hu_turn2_min_margin": rows[0]["hu_turn2_min_margin"],
                 "hu_turn2_reference_min_margin": rows[0]["hu_turn2_reference_min_margin"],
                 "hu_turn2_gate_threshold": rows[0]["hu_turn2_gate_threshold"],
+                "hu_turn2_min_model_score": rows[0].get("hu_turn2_min_model_score", ""),
+                "hu_turn2_allowed_seats": rows[0].get("hu_turn2_allowed_seats", ""),
                 "paired_seeds": total_games,
                 "hands": sum(int(row["hands"]) for row in rows),
                 "aggregate_ev_per_hand": mean,

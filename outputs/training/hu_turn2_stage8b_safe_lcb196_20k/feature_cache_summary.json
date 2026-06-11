@@ -1,0 +1,144 @@
+{
+  "schema": "hu_turn2_pilot_feature_cache_v1",
+  "input": "outputs\\hu_turn2_stage8_20k_mc512\\hu_turn2_stage8_20k_mc512.jsonl",
+  "input_files": [
+    {
+      "path": "outputs\\hu_turn2_stage8_20k_mc512\\natural.jsonl",
+      "run_bucket": "natural"
+    },
+    {
+      "path": "outputs\\hu_turn2_stage8_20k_mc512\\predicted_high_regret_from_pool.jsonl",
+      "run_bucket": "predicted_high_regret_from_pool"
+    },
+    {
+      "path": "outputs\\hu_turn2_stage8_20k_mc512\\predicted_low_margin_from_pool.jsonl",
+      "run_bucket": "predicted_low_margin_from_pool"
+    },
+    {
+      "path": "outputs\\hu_turn2_stage8_20k_mc512\\predicted_teacher_disagreement_from_pool.jsonl",
+      "run_bucket": "predicted_teacher_disagreement_from_pool"
+    },
+    {
+      "path": "outputs\\hu_turn2_stage8_20k_mc512\\random_off_policy.jsonl",
+      "run_bucket": "random_off_policy"
+    }
+  ],
+  "cache_dir": "D:\\ofc-pineapple-storage\\regular-ofc-pineapple\\feature_cache\\hu_t2_stage8_20k_mc512",
+  "feature_dim": 1076,
+  "feature_dtype": "float32",
+  "state_count": 20000,
+  "action_count": 457725,
+  "run_bucket_counts": {
+    "natural": 4000,
+    "predicted_high_regret_from_pool": 4000,
+    "predicted_low_margin_from_pool": 4000,
+    "predicted_teacher_disagreement_from_pool": 4000,
+    "random_off_policy": 4000
+  },
+  "source_bucket_counts": {
+    "natural": 4000,
+    "from_pool": 12000,
+    "random_off_policy": 4000
+  },
+  "pilot_gate_label_counts": {
+    "negative": 8396,
+    "gray": 8980,
+    "positive": 2624
+  },
+  "rollout_count_distribution": {
+    "512": 20000
+  },
+  "split_summary": {
+    "splits": {
+      "train": {
+        "states": 13994,
+        "bucket_counts": {
+          "natural": 2798,
+          "predicted_high_regret": 2798,
+          "predicted_low_margin": 2800,
+          "predicted_teacher_disagreement": 2800,
+          "random_off_policy": 2798
+        },
+        "run_bucket_counts": {
+          "natural": 2798,
+          "predicted_high_regret_from_pool": 2798,
+          "predicted_low_margin_from_pool": 2800,
+          "predicted_teacher_disagreement_from_pool": 2800,
+          "random_off_policy": 2798
+        },
+        "seat_counts": {
+          "first": 6952,
+          "second": 7042
+        },
+        "gate_label_counts": {
+          "negative": 5874,
+          "gray": 6286,
+          "positive": 1834
+        }
+      },
+      "val": {
+        "states": 3003,
+        "bucket_counts": {
+          "natural": 601,
+          "predicted_high_regret": 601,
+          "predicted_low_margin": 600,
+          "predicted_teacher_disagreement": 600,
+          "random_off_policy": 601
+        },
+        "run_bucket_counts": {
+          "natural": 601,
+          "predicted_high_regret_from_pool": 601,
+          "predicted_low_margin_from_pool": 600,
+          "predicted_teacher_disagreement_from_pool": 600,
+          "random_off_policy": 601
+        },
+        "seat_counts": {
+          "first": 1492,
+          "second": 1511
+        },
+        "gate_label_counts": {
+          "negative": 1261,
+          "gray": 1347,
+          "positive": 395
+        }
+      },
+      "test": {
+        "states": 3003,
+        "bucket_counts": {
+          "natural": 601,
+          "predicted_high_regret": 601,
+          "predicted_low_margin": 600,
+          "predicted_teacher_disagreement": 600,
+          "random_off_policy": 601
+        },
+        "run_bucket_counts": {
+          "natural": 601,
+          "predicted_high_regret_from_pool": 601,
+          "predicted_low_margin_from_pool": 600,
+          "predicted_teacher_disagreement_from_pool": 600,
+          "random_off_policy": 601
+        },
+        "seat_counts": {
+          "second": 1511,
+          "first": 1492
+        },
+        "gate_label_counts": {
+          "negative": 1261,
+          "positive": 395,
+          "gray": 1347
+        }
+      }
+    }
+  },
+  "train_fraction": 0.7,
+  "val_fraction": 0.15,
+  "test_fraction": 0.15000000000000005,
+  "seed": 2026061701,
+  "elapsed_seconds": 231.1011929512024,
+  "validation": {
+    "feature_nan_or_inf": false,
+    "target_nan_or_inf": false,
+    "state_split_unit": "state",
+    "all_legal_actions_present": true
+  }
+}

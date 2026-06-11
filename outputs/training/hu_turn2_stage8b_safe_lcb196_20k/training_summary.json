@@ -1,0 +1,305 @@
+{
+  "schema": "hu_turn2_stage8_pilot_training_v1",
+  "cache_dir": "D:\\ofc-pineapple-storage\\regular-ofc-pineapple\\feature_cache\\hu_t2_stage8_20k_mc512",
+  "output_dir": "C:\\Users\\Owner\\.gemini\\antigravity\\scratch\\ofc-pineapple\\regular-ofc-pineapple\\outputs\\training\\hu_turn2_stage8b_safe_lcb196_20k",
+  "model_output": "models\\hu_turn2_stage8b_safe_lcb196_20k_reference_override_cached_rank_wide.pt",
+  "device": "cuda",
+  "cuda_name": "NVIDIA GeForce RTX 2060 SUPER",
+  "hidden_layer_sizes": [
+    1024,
+    512,
+    256
+  ],
+  "dropout": 0.05,
+  "epochs_ran": 30,
+  "best_epoch": 29,
+  "history": [
+    {
+      "epoch": 1,
+      "train_loss": 0.532601073384285,
+      "val_avg_regret": 1.5604808576945606,
+      "val_ev_mae": 3.426014313250629,
+      "val_top3_recall": 0.5947385947385947
+    },
+    {
+      "epoch": 2,
+      "train_loss": 0.4338522911071777,
+      "val_avg_regret": 1.1295555561397221,
+      "val_ev_mae": 2.769414510766277,
+      "val_top3_recall": 0.6453546453546454
+    },
+    {
+      "epoch": 3,
+      "train_loss": 0.37385813891887665,
+      "val_avg_regret": 1.0138793910846664,
+      "val_ev_mae": 2.3934385325756136,
+      "val_top3_recall": 0.6983016983016983
+    },
+    {
+      "epoch": 4,
+      "train_loss": 0.33221820294857024,
+      "val_avg_regret": 0.882292155512544,
+      "val_ev_mae": 2.1214168171667014,
+      "val_top3_recall": 0.7219447219447219
+    },
+    {
+      "epoch": 5,
+      "train_loss": 0.29744371175765993,
+      "val_avg_regret": 0.7476516888547695,
+      "val_ev_mae": 2.086236800064062,
+      "val_top3_recall": 0.7489177489177489
+    },
+    {
+      "epoch": 6,
+      "train_loss": 0.26869883239269254,
+      "val_avg_regret": 0.6705412295104004,
+      "val_ev_mae": 1.8737307763778706,
+      "val_top3_recall": 0.7612387612387612
+    },
+    {
+      "epoch": 7,
+      "train_loss": 0.24375176727771758,
+      "val_avg_regret": 0.6495236296350071,
+      "val_ev_mae": 1.8195451721566878,
+      "val_top3_recall": 0.7778887778887779
+    },
+    {
+      "epoch": 8,
+      "train_loss": 0.2262915626168251,
+      "val_avg_regret": 0.5983414105895228,
+      "val_ev_mae": 1.715174573352119,
+      "val_top3_recall": 0.7935397935397935
+    },
+    {
+      "epoch": 9,
+      "train_loss": 0.21438114196062089,
+      "val_avg_regret": 0.5855337612652597,
+      "val_ev_mae": 1.644939709996414,
+      "val_top3_recall": 0.7948717948717948
+    },
+    {
+      "epoch": 10,
+      "train_loss": 0.20563783049583434,
+      "val_avg_regret": 0.5513700672750269,
+      "val_ev_mae": 1.5693433291117036,
+      "val_top3_recall": 0.8041958041958042
+    },
+    {
+      "epoch": 11,
+      "train_loss": 0.19892180413007737,
+      "val_avg_regret": 0.5162883121526871,
+      "val_ev_mae": 1.5355234518698158,
+      "val_top3_recall": 0.8131868131868132
+    },
+    {
+      "epoch": 12,
+      "train_loss": 0.19388725161552428,
+      "val_avg_regret": 0.5017424751385346,
+      "val_ev_mae": 1.4785731382755884,
+      "val_top3_recall": 0.8221778221778222
+    },
+    {
+      "epoch": 13,
+      "train_loss": 0.18971653878688813,
+      "val_avg_regret": 0.4775407194137673,
+      "val_ev_mae": 1.4651085295528499,
+      "val_top3_recall": 0.8195138195138195
+    },
+    {
+      "epoch": 14,
+      "train_loss": 0.1862117126584053,
+      "val_avg_regret": 0.4616316935066348,
+      "val_ev_mae": 1.4108637884716133,
+      "val_top3_recall": 0.8215118215118216
+    },
+    {
+      "epoch": 15,
+      "train_loss": 0.18338966518640518,
+      "val_avg_regret": 0.4576843793506964,
+      "val_ev_mae": 1.3950738863965035,
+      "val_top3_recall": 0.8291708291708292
+    },
+    {
+      "epoch": 16,
+      "train_loss": 0.18104409873485566,
+      "val_avg_regret": 0.43788009624630664,
+      "val_ev_mae": 1.3675328600583139,
+      "val_top3_recall": 0.8255078255078255
+    },
+    {
+      "epoch": 17,
+      "train_loss": 0.17949982732534409,
+      "val_avg_regret": 0.42901236232945583,
+      "val_ev_mae": 1.3412758764972332,
+      "val_top3_recall": 0.8315018315018315
+    },
+    {
+      "epoch": 18,
+      "train_loss": 0.17795445024967194,
+      "val_avg_regret": 0.42301697834275315,
+      "val_ev_mae": 1.3397341634931927,
+      "val_top3_recall": 0.8364968364968365
+    },
+    {
+      "epoch": 19,
+      "train_loss": 0.1759091168642044,
+      "val_avg_regret": 0.4087053322664884,
+      "val_ev_mae": 1.3233273476751817,
+      "val_top3_recall": 0.8368298368298368
+    },
+    {
+      "epoch": 20,
+      "train_loss": 0.17477305084466935,
+      "val_avg_regret": 0.40260426331683774,
+      "val_ev_mae": 1.3008773585140296,
+      "val_top3_recall": 0.8404928404928405
+    },
+    {
+      "epoch": 21,
+      "train_loss": 0.1734688550233841,
+      "val_avg_regret": 0.39056283340246184,
+      "val_ev_mae": 1.2913068916099526,
+      "val_top3_recall": 0.8414918414918415
+    },
+    {
+      "epoch": 22,
+      "train_loss": 0.1724246099591255,
+      "val_avg_regret": 0.39941797289620373,
+      "val_ev_mae": 1.2736246711240533,
+      "val_top3_recall": 0.8404928404928405
+    },
+    {
+      "epoch": 23,
+      "train_loss": 0.17148682177066804,
+      "val_avg_regret": 0.3770647367863437,
+      "val_ev_mae": 1.2618554774569326,
+      "val_top3_recall": 0.8381618381618382
+    },
+    {
+      "epoch": 24,
+      "train_loss": 0.17067608386278152,
+      "val_avg_regret": 0.384007130705834,
+      "val_ev_mae": 1.2894237394306558,
+      "val_top3_recall": 0.8488178488178488
+    },
+    {
+      "epoch": 25,
+      "train_loss": 0.17001525610685347,
+      "val_avg_regret": 0.372417129049643,
+      "val_ev_mae": 1.2704042439980083,
+      "val_top3_recall": 0.8474858474858474
+    },
+    {
+      "epoch": 26,
+      "train_loss": 0.16927554458379745,
+      "val_avg_regret": 0.36895607088336924,
+      "val_ev_mae": 1.242848826778827,
+      "val_top3_recall": 0.8444888444888445
+    },
+    {
+      "epoch": 27,
+      "train_loss": 0.16864991337060928,
+      "val_avg_regret": 0.36506840378622724,
+      "val_ev_mae": 1.2258228036667955,
+      "val_top3_recall": 0.8464868464868465
+    },
+    {
+      "epoch": 28,
+      "train_loss": 0.1681925430893898,
+      "val_avg_regret": 0.3616402553462433,
+      "val_ev_mae": 1.2207589568617163,
+      "val_top3_recall": 0.8481518481518482
+    },
+    {
+      "epoch": 29,
+      "train_loss": 0.16795394867658614,
+      "val_avg_regret": 0.3548377467381163,
+      "val_ev_mae": 1.214619625598934,
+      "val_top3_recall": 0.8538128538128538
+    },
+    {
+      "epoch": 30,
+      "train_loss": 0.16738164126873017,
+      "val_avg_regret": 0.36088276228180066,
+      "val_ev_mae": 1.2149804373982134,
+      "val_top3_recall": 0.8528138528138528
+    }
+  ],
+  "split_counts": {
+    "train": 13994,
+    "val": 3003,
+    "test": 3003
+  },
+  "eval": {
+    "train": {
+      "split": "train",
+      "states": 13994,
+      "actions": 320253,
+      "ev_mae": 0.7057293198725745,
+      "ev_rmse": 0.939262278155409,
+      "delta_vs_baseline_mae": 0.6751710553567357,
+      "delta_vs_reference_mae": 0.6787133929553086,
+      "avg_regret": 0.11586690830514842,
+      "p90_regret": 0.3651080608367923,
+      "p95_regret": 0.6651125937700271,
+      "p99_regret": 1.6214310866594304,
+      "top1_accuracy": 0.7384593397170216,
+      "top3_recall": 0.9537658996712877,
+      "pairwise_ranking_accuracy": 0.8640679553660378,
+      "calibration_corr_predicted_delta_teacher_delta": 0.8770336337053922,
+      "gate_accuracy_pos_neg": 0.9993610223642172,
+      "gate_eval_states": 3130
+    },
+    "val": {
+      "split": "val",
+      "states": 3003,
+      "actions": 68895,
+      "ev_mae": 1.214619625598934,
+      "ev_rmse": 1.8029529706912992,
+      "delta_vs_baseline_mae": 1.502559076596255,
+      "delta_vs_reference_mae": 1.5064997084096796,
+      "avg_regret": 0.3548377467381163,
+      "p90_regret": 1.0517216205596926,
+      "p95_regret": 1.8299664497375496,
+      "p99_regret": 4.711808036565781,
+      "top1_accuracy": 0.5820845820845821,
+      "top3_recall": 0.8538128538128538,
+      "pairwise_ranking_accuracy": 0.8428537565139571,
+      "calibration_corr_predicted_delta_teacher_delta": 0.7065422768098347,
+      "gate_accuracy_pos_neg": 0.7930607187112764,
+      "gate_eval_states": 807
+    },
+    "test": {
+      "split": "test",
+      "states": 3003,
+      "actions": 68577,
+      "ev_mae": 1.2433782404897253,
+      "ev_rmse": 1.8719912777679,
+      "delta_vs_baseline_mae": 1.507040803865726,
+      "delta_vs_reference_mae": 1.5059470430418629,
+      "avg_regret": 0.3747842263228501,
+      "p90_regret": 1.1981269836425796,
+      "p95_regret": 2.0105863034725195,
+      "p99_regret": 4.14594530105591,
+      "top1_accuracy": 0.5614385614385614,
+      "top3_recall": 0.8398268398268398,
+      "pairwise_ranking_accuracy": 0.8386113670647632,
+      "calibration_corr_predicted_delta_teacher_delta": 0.6335799547373263,
+      "gate_accuracy_pos_neg": 0.770414201183432,
+      "gate_eval_states": 845
+    }
+  },
+  "threshold_positive_config_count": 0,
+  "elapsed_seconds": 860.8084807395935,
+  "recommended_next_step": "GO to a larger 20k-50k MC512 broad pass only after the same pipeline is repeated with a larger holdout and then seat-swap validation. This pilot is enough to validate the cache/training pipeline, not production adoption.",
+  "gate_label_source": "stage8b_labels_csv",
+  "gate_label_override": {
+    "label_column": "safe_lcb196_gate_label_id",
+    "weight_column": "stage8b_gate_weight",
+    "counts": {
+      "1": 15218,
+      "0": 1865,
+      "2": 2917
+    }
+  }
+}
