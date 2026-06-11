@@ -1,0 +1,152 @@
+{
+  "name": "hu_turn3_stage4ft_stage3init_mc2048_w4_lr1e4",
+  "status": "rejected",
+  "rule_set": "regular",
+  "schema": "hu_stage1",
+  "phase": "hu_turn3_9card",
+  "model": {
+    "path": "models/hu_turn3_stage4ft_stage3init_mc2048_w4_lr1e4_cached_rank_wide.pt",
+    "type": "torch_mlp_cached",
+    "init_model": "models/hu_turn3_stage3_mc32_500k_plus_m8_12_f128_100k_w2_cached_rank_wide.pt",
+    "training_data": [
+      "outputs/gcp_runs/regular-hu-t3-cycle20-mc32-2h-20260605-045251/hu_turn3_selfplay_mc32_977k_merged.jsonl",
+      "outputs/gcp_runs/regular-hu-t3-stage2-m8-12-f128-100k-20260605-1600/hu_turn3_selfplay_merged.jsonl",
+      "outputs/gcp_runs/regular-hu-t3-stage4-mc2048-m8-12-2h-20260606-0215/hu_turn3_selfplay_merged.jsonl"
+    ],
+    "feature_cache": [
+      "D:/ofc-pineapple-storage/regular-ofc-pineapple/feature_cache/hu_t3_stage2_mc32_500k",
+      "D:/ofc-pineapple-storage/regular-ofc-pineapple/feature_cache/hu_t3_stage2_m8_12_f128_100k",
+      "D:/ofc-pineapple-storage/regular-ofc-pineapple/feature_cache/hu_t3_stage4_mc2048_m8_12_16k"
+    ],
+    "cache_weights": [1.0, 2.0, 4.0],
+    "future_samples": "mixed: 500k MC32 self-play + 100k MC128 boundary + 16.9k MC2048 boundary",
+    "hidden_layer_sizes": [1024, 512, 256],
+    "learning_rate": 0.0001,
+    "best_epoch": 23,
+    "best_holdout_mse": 14.024015157254517,
+    "metrics_output": "outputs/hu_turn3_stage4ft_stage3init_mc2048_w4_lr1e4_cached_rank_wide_metrics.json",
+    "holdout_avg_regret": 0.1703393040407682,
+    "holdout_top3_accuracy": 0.9757
+  },
+  "runtime_tested": [
+    {
+      "hu_turn3_min_margin": 10.0,
+      "seat_swap_vs_stage3_margin10": {
+        "games": 1000,
+        "seed": 2026062507,
+        "avg_ev_per_hand": -0.027696164,
+        "ci95_low": -0.06641777633582001,
+        "ci95_high": 0.011025448335820004,
+        "output": "outputs/hu_turn3_stage4ft_w4_margin10_vs_stage3_margin10_1000_seed2026062507.json"
+      },
+      "seat_swap_vs_baseline": {
+        "games": 1000,
+        "seed": 2026062507,
+        "avg_ev_per_hand": 0.12249041,
+        "ci95_low": 0.04253895008789936,
+        "ci95_high": 0.2024418699121006,
+        "output": "outputs/hu_turn3_stage4ft_w4_margin10_vs_baseline_1000_seed2026062507.json"
+      }
+    },
+    {
+      "hu_turn3_min_margin": 12.0,
+      "seat_swap_vs_stage3_margin10": {
+        "games": 1000,
+        "seed": 2026062507,
+        "avg_ev_per_hand": -0.042696164,
+        "ci95_low": -0.08335748894487166,
+        "ci95_high": -0.002034839055128329,
+        "output": "outputs/hu_turn3_stage4ft_w4_margin12_vs_stage3_margin10_1000_seed2026062507.json"
+      }
+    },
+    {
+      "hu_turn3_min_margin": 15.0,
+      "seat_swap_vs_stage3_margin10": {
+        "games": 1000,
+        "seed": 2026062507,
+        "avg_ev_per_hand": -0.051696164,
+        "ci95_low": -0.0927410848837259,
+        "ci95_high": -0.010651243116274092,
+        "output": "outputs/hu_turn3_stage4ft_w4_margin15_vs_stage3_margin10_1000_seed2026062507.json"
+      }
+    }
+  ],
+  "support_filter_tests": [
+    {
+      "primary_model": "models/hu_turn3_stage3_mc32_500k_plus_m8_12_f128_100k_w2_cached_rank_wide.pt",
+      "support_model": "models/hu_turn3_stage4ft_stage3init_mc2048_w4_lr1e4_cached_rank_wide.pt",
+      "hu_turn3_min_margin": 10.0,
+      "hu_turn3_min_support_margin": 8.0,
+      "seat_swap_vs_stage3_margin10": {
+        "games": 1000,
+        "seed": 2026062507,
+        "avg_ev_per_hand": 0.0,
+        "ci95_low": 0.0,
+        "ci95_high": 0.0,
+        "output": "outputs/hu_turn3_stage3_margin10_support_stage4ft_w4_s8_vs_stage3_margin10_1000_seed2026062507.json"
+      }
+    },
+    {
+      "primary_model": "models/hu_turn3_stage3_mc32_500k_plus_m8_12_f128_100k_w2_cached_rank_wide.pt",
+      "support_model": "models/hu_turn3_stage4ft_stage3init_mc2048_w4_lr1e4_cached_rank_wide.pt",
+      "hu_turn3_min_margin": 10.0,
+      "hu_turn3_min_support_margin": 12.0,
+      "seat_swap_vs_stage3_margin10": {
+        "games": 1000,
+        "seed": 2026062507,
+        "avg_ev_per_hand": -0.046696164,
+        "ci95_low": -0.08657650008011666,
+        "ci95_high": -0.00681582791988334,
+        "output": "outputs/hu_turn3_stage3_margin10_support_stage4ft_w4_s12_vs_stage3_margin10_1000_seed2026062507.json"
+      }
+    }
+  ],
+  "self_regret_filter_tests": [
+    {
+      "hu_turn3_min_margin": 10.0,
+      "hu_turn3_max_self_regret": 0.25,
+      "seat_swap_vs_stage3_margin10": {
+        "games": 1000,
+        "seed": 2026062507,
+        "avg_ev_per_hand": -0.131588492,
+        "ci95_low": -0.2055079910201431,
+        "ci95_high": -0.05766899297985689,
+        "output": "outputs/hu_turn3_stage4ft_w4_margin10_selfregret025_vs_stage3_margin10_1000_seed2026062507.json"
+      }
+    },
+    {
+      "hu_turn3_min_margin": 10.0,
+      "hu_turn3_max_self_regret": 1.0,
+      "seat_swap_vs_stage3_margin10": {
+        "games": 1000,
+        "seed": 2026062507,
+        "avg_ev_per_hand": -0.09689232799999999,
+        "ci95_low": -0.1600677364029286,
+        "ci95_high": -0.03371691959707136,
+        "output": "outputs/hu_turn3_stage4ft_w4_margin10_selfregret1_vs_stage3_margin10_1000_seed2026062507.json"
+      }
+    }
+  ],
+  "teacher_validation": {
+    "validation": "outputs/gcp_runs/regular-hu-t3-stage4-mc2048-m8-12-2h-20260606-0215/hu_turn3_selfplay_merged.jsonl",
+    "holdout_fraction": 0.2,
+    "seed": 2026060605,
+    "stage3_holdout_avg_regret": 1.1526300822796969,
+    "stage4ft_holdout_avg_regret": 0.013690868768257878,
+    "stage3_holdout_top3_accuracy": 0.7499261010937038,
+    "stage4ft_holdout_top3_accuracy": 0.9973396393733373,
+    "output": "outputs/hu_turn3_stage4ft_w4_vs_stage3_on_mc2048_16k_eval.json"
+  },
+  "baseline_models": {
+    "opening": "models/opening_stage7_torch_wide.pt",
+    "turn1": "models/turn1_stage6_torch_wide.pt",
+    "turn2": "models/turn2_stage8.pkl",
+    "turn3": "models/turn3_stage6.pkl"
+  },
+  "notes": [
+    "This model fits the MC2048 boundary shard very well, but it regresses against the stage3 runtime policy in 1000 paired seed seat-swap evaluation.",
+    "Increasing the runtime margin and adding self-regret filters did not recover the lost EV.",
+    "Using the model as a support filter for stage3 did not improve stage3; support margin 8 was identical, and support margin 12 was negative.",
+    "Do not replace the current stage3 candidate with this model."
+  ]
+}

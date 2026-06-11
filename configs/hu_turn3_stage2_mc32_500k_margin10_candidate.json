@@ -1,0 +1,97 @@
+{
+  "name": "hu_turn3_stage2_mc32_500k_margin10_candidate",
+  "status": "candidate",
+  "rule_set": "regular",
+  "schema": "hu_stage1",
+  "phase": "hu_turn3_9card",
+  "model": {
+    "path": "models/hu_turn3_stage2_mc32_500k_cached_rank_wide.pt",
+    "type": "torch_mlp_cached",
+    "training_data": "outputs/gcp_runs/regular-hu-t3-cycle20-mc32-2h-20260605-045251/hu_turn3_selfplay_mc32_977k_merged.jsonl",
+    "feature_cache": "D:/ofc-pineapple-storage/regular-ofc-pineapple/feature_cache/hu_t3_stage2_mc32_500k",
+    "samples": 500000,
+    "actions": 8764455,
+    "future_samples": 32,
+    "self_regret_penalty_weight": 0.25,
+    "self_regret_free": 0.0,
+    "hidden_layer_sizes": [1024, 512, 256],
+    "best_epoch": 5,
+    "metrics_output": "outputs/hu_turn3_stage2_mc32_500k_cached_rank_wide_metrics.json",
+    "holdout_avg_regret": 0.18961046443391824,
+    "holdout_top3_accuracy": 0.9723
+  },
+  "runtime": {
+    "hu_turn3_min_margin": 10.0,
+    "hu_turn3_max_self_regret": null
+  },
+  "baseline_models": {
+    "opening": "models/opening_stage7_torch_wide.pt",
+    "turn1": "models/turn1_stage6_torch_wide.pt",
+    "turn2": "models/turn2_stage8.pkl",
+    "turn3": "models/turn3_stage6.pkl"
+  },
+  "validation": {
+    "seat_swap": [
+      {
+        "games": 1000,
+        "seed": 2026062507,
+        "avg_ev_per_hand": 0.13749041,
+        "ci95_low": 0.040198901889064234,
+        "ci95_high": 0.2347819181109358,
+        "paired_seed_wins": 21,
+        "paired_seed_losses": 4,
+        "paired_seed_ties": 975,
+        "output": "outputs/hu_turn3_stage2_mc32_500k_margin10_vs_baseline_1000_seed2026062507.json"
+      },
+      {
+        "games": 1000,
+        "seed": 2026063501,
+        "avg_ev_per_hand": 0.06699999999999999,
+        "ci95_low": 0.001213665116360771,
+        "ci95_high": 0.13278633488363922,
+        "paired_seed_wins": 18,
+        "paired_seed_losses": 3,
+        "paired_seed_ties": 979,
+        "output": "outputs/hu_turn3_stage2_mc32_500k_margin10_vs_baseline_1000_seed2026063501.json"
+      },
+      {
+        "games": 1000,
+        "seed": 2026068201,
+        "avg_ev_per_hand": 0.25956931199999994,
+        "ci95_low": 0.13705663665991763,
+        "ci95_high": 0.38208198734008225,
+        "paired_seed_wins": 26,
+        "paired_seed_losses": 2,
+        "paired_seed_ties": 972,
+        "output": "outputs/hu_turn3_stage2_mc32_500k_margin10_vs_baseline_1000_seed2026068201.json"
+      }
+    ],
+    "combined_three_seed_avg_ev_per_hand": 0.154686574,
+    "margin_checks": {
+      "margin8": [
+        {
+          "games": 1000,
+          "seed": 2026062507,
+          "avg_ev_per_hand": 0.16549041,
+          "ci95_low": 0.047480248463509345,
+          "ci95_high": 0.28350057153649066,
+          "output": "outputs/hu_turn3_stage2_mc32_500k_margin8_vs_baseline_1000_seed2026062507.json"
+        },
+        {
+          "games": 1000,
+          "seed": 2026063501,
+          "avg_ev_per_hand": 0.05080383599999999,
+          "ci95_low": -0.030671510748922284,
+          "ci95_high": 0.13227918274892225,
+          "output": "outputs/hu_turn3_stage2_mc32_500k_margin8_vs_baseline_1000_seed2026063501.json"
+        }
+      ]
+    }
+  },
+  "notes": [
+    "Trained from the 500k prefix of the 977k MC32 self-play teacher cache.",
+    "Margin 10 is the default because it kept all three 1,000-paired validation runs positive while being less aggressive than margin 8.",
+    "Margin 8 had slightly higher two-seed average but a wider negative-side interval on seed 2026063501.",
+    "This candidate supersedes the Cycle10 margin-8 candidate for hu_t3_candidate profile use, while the Cycle10 config remains as a fixed comparison baseline."
+  ]
+}

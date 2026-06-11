@@ -1,0 +1,84 @@
+{
+  "name": "hu_turn3_stage3_mc32_500k_plus_m8_12_f128_100k_w2_margin10_candidate",
+  "status": "candidate",
+  "rule_set": "regular",
+  "schema": "hu_stage1",
+  "phase": "hu_turn3_9card",
+  "model": {
+    "path": "models/hu_turn3_stage3_mc32_500k_plus_m8_12_f128_100k_w2_cached_rank_wide.pt",
+    "type": "torch_mlp_cached",
+    "training_data": [
+      "outputs/gcp_runs/regular-hu-t3-cycle20-mc32-2h-20260605-045251/hu_turn3_selfplay_mc32_977k_merged.jsonl",
+      "outputs/gcp_runs/regular-hu-t3-stage2-m8-12-f128-100k-20260605-1600/hu_turn3_selfplay_merged.jsonl"
+    ],
+    "feature_cache": [
+      "D:/ofc-pineapple-storage/regular-ofc-pineapple/feature_cache/hu_t3_stage2_mc32_500k",
+      "D:/ofc-pineapple-storage/regular-ofc-pineapple/feature_cache/hu_t3_stage2_m8_12_f128_100k"
+    ],
+    "cache_weights": [1.0, 2.0],
+    "samples": 600000,
+    "actions": 10624923,
+    "future_samples": "mixed: 500k MC32 self-play + 100k MC128 boundary",
+    "self_regret_penalty_weight": 0.25,
+    "self_regret_free": 0.0,
+    "hidden_layer_sizes": [1024, 512, 256],
+    "best_epoch": 12,
+    "metrics_output": "outputs/hu_turn3_stage3_mc32_500k_plus_m8_12_f128_100k_w2_cached_rank_wide_metrics.json",
+    "holdout_avg_regret": 0.18146745129692135,
+    "holdout_top3_accuracy": 0.97235
+  },
+  "runtime": {
+    "hu_turn3_min_margin": 10.0,
+    "hu_turn3_max_self_regret": null
+  },
+  "baseline_models": {
+    "opening": "models/opening_stage7_torch_wide.pt",
+    "turn1": "models/turn1_stage6_torch_wide.pt",
+    "turn2": "models/turn2_stage8.pkl",
+    "turn3": "models/turn3_stage6.pkl"
+  },
+  "validation": {
+    "seat_swap": [
+      {
+        "games": 1000,
+        "seed": 2026062507,
+        "avg_ev_per_hand": 0.15018657400000002,
+        "ci95_low": 0.07112248925744138,
+        "ci95_high": 0.22925065874255865,
+        "paired_seed_wins": 20,
+        "paired_seed_losses": 1,
+        "paired_seed_ties": 979,
+        "output": "outputs/hu_turn3_stage3_mc32_500k_plus_m8_12_f128_100k_w2_margin10_vs_baseline_1000_seed2026062507.json"
+      },
+      {
+        "games": 1000,
+        "seed": 2026063501,
+        "avg_ev_per_hand": 0.07149999999999998,
+        "ci95_low": 0.015365104108171351,
+        "ci95_high": 0.1276348958918286,
+        "paired_seed_wins": 17,
+        "paired_seed_losses": 2,
+        "paired_seed_ties": 981,
+        "output": "outputs/hu_turn3_stage3_mc32_500k_plus_m8_12_f128_100k_w2_margin10_vs_baseline_1000_seed2026063501.json"
+      },
+      {
+        "games": 1000,
+        "seed": 2026068201,
+        "avg_ev_per_hand": 0.294167394,
+        "ci95_low": 0.16758172880947483,
+        "ci95_high": 0.4207530591905252,
+        "paired_seed_wins": 28,
+        "paired_seed_losses": 1,
+        "paired_seed_ties": 971,
+        "output": "outputs/hu_turn3_stage3_mc32_500k_plus_m8_12_f128_100k_w2_margin10_vs_baseline_1000_seed2026068201.json"
+      }
+    ],
+    "combined_three_seed_avg_ev_per_hand": 0.17191799066666668,
+    "previous_stage2_margin10_three_seed_avg_ev_per_hand": 0.154686574
+  },
+  "notes": [
+    "Trained from the existing 500k MC32 self-play cache plus 100k MC128 boundary samples where the previous 500k HU model disagreed with baseline at predicted margin 8-12.",
+    "The boundary cache was given source weight 2.0 to emphasize the decision region where the previous candidate is most likely to matter.",
+    "Margin 10 is kept for first validation so it can be compared directly against the previous stage2 500k margin10 candidate."
+  ]
+}

@@ -1,0 +1,74 @@
+{
+  "name": "hu_turn3_stage7_canary_presets",
+  "status": "production_canary_matrix",
+  "rule_set": "regular",
+  "schema": "hu_stage1",
+  "phase": "hu_turn3_9card",
+  "model": {
+    "path": "models/hu_turn3_stage7_reference_override_cached_rank_wide.pt"
+  },
+  "reference_model": {
+    "path": "models/hu_turn3_stage3_mc32_500k_plus_m8_12_f128_100k_w2_cached_rank_wide.pt"
+  },
+  "presets": [
+    {
+      "name": "stage7_off",
+      "production_default": false,
+      "experiment_only": false,
+      "runtime": {
+        "hu_turn3_stage7_enabled": false,
+        "hu_turn3_min_margin": 5.0,
+        "hu_turn3_reference_min_margin": 10.0
+      }
+    },
+    {
+      "name": "stage7_m5_r10",
+      "production_default": true,
+      "experiment_only": false,
+      "runtime": {
+        "hu_turn3_stage7_enabled": true,
+        "hu_turn3_min_margin": 5.0,
+        "hu_turn3_reference_min_margin": 10.0
+      }
+    },
+    {
+      "name": "stage7_m4_r10",
+      "production_default": false,
+      "experiment_only": false,
+      "runtime": {
+        "hu_turn3_stage7_enabled": true,
+        "hu_turn3_min_margin": 4.0,
+        "hu_turn3_reference_min_margin": 10.0
+      }
+    },
+    {
+      "name": "stage7_m3_r10",
+      "production_default": false,
+      "experiment_only": true,
+      "runtime": {
+        "hu_turn3_stage7_enabled": true,
+        "hu_turn3_min_margin": 3.0,
+        "hu_turn3_reference_min_margin": 10.0
+      }
+    },
+    {
+      "name": "stage7_m3_r12",
+      "production_default": false,
+      "experiment_only": true,
+      "runtime": {
+        "hu_turn3_stage7_enabled": true,
+        "hu_turn3_min_margin": 3.0,
+        "hu_turn3_reference_min_margin": 12.0
+      }
+    }
+  ],
+  "excluded_from_production": [
+    {
+      "name": "margin0.25",
+      "reason": "negative in prior validation",
+      "runtime": {
+        "hu_turn3_min_margin": 0.25
+      }
+    }
+  ]
+}

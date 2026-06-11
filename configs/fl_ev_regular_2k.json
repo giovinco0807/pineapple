@@ -1,0 +1,15 @@
+{
+  "rule_set": "regular",
+  "include_jokers": false,
+  "deck_cards": 52,
+  "fl_entry_cards": {"qq": 14, "kk": 14, "aa": 14, "trips": 14},
+  "fl_stay_cards": 14,
+  "opponent_avg_royalty": 5.0,
+  "line_scoop_advantage": 4.0,
+  "reward_mode": "chain",
+  "fl_stats": {
+    "14": {"R": 12.129, "stay_rate": 0.0875, "count": 2000}
+  },
+  "fl_ev": {"14": 12.196164},
+  "source": "regular_fl_solver --trials 2000 --iterations 8 --seed 20260602; adjusted with line_scoop_advantage=4.0"
+}

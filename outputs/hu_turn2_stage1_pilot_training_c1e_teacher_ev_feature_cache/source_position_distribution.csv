@@ -1,0 +1,9 @@
+c1e_split,source_group,position,rows,share_total
+enriched,difficult_spots,first,3934,0.1967
+enriched,difficult_spots,second,4066,0.2033
+enriched,near_threshold_spots,first,2002,0.1001
+enriched,near_threshold_spots,second,1998,0.0999
+enriched,random_off_policy,first,2000,0.1
+enriched,random_off_policy,second,2000,0.1
+unbiased,policy_on_distribution,first,2000,0.1
+unbiased,policy_on_distribution,second,2000,0.1

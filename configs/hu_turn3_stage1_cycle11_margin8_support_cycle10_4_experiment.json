@@ -1,0 +1,66 @@
+{
+  "name": "hu_turn3_stage1_cycle11_margin8_support_cycle10_4",
+  "status": "experiment",
+  "rule_set": "regular",
+  "schema": "hu_stage1",
+  "phase": "hu_turn3_9card",
+  "primary_model": {
+    "path": "models/hu_turn3_stage1_cycle11_direct_penalty_w025_1000_f32_extra_trees.pkl",
+    "type": "extra_trees",
+    "training_data": "outputs/hu_turn3_stage1_cycle11_direct_penalty_w025_1000_f32.jsonl",
+    "samples": 1000
+  },
+  "support_model": {
+    "path": "models/hu_turn3_stage1_cycle10_direct_penalty_w025_500_f32_extra_trees.pkl",
+    "type": "extra_trees",
+    "training_data": "outputs/hu_turn3_stage1_cycle10_direct_penalty_w025_500_f32.jsonl",
+    "samples": 500
+  },
+  "runtime": {
+    "hu_turn3_min_margin": 8.0,
+    "hu_turn3_min_support_margin": 4.0,
+    "hu_turn3_max_self_regret": null
+  },
+  "validation": {
+    "trace_support_sweep": {
+      "source_trace": "outputs/hu_turn3_stage1_cycle11_direct_penalty_w025_1000_f32_extra_trees_margin8_override_trace_1000.jsonl",
+      "output": "outputs/hu_turn3_stage1_cycle11_margin8_support_cycle10_threshold_sweep.json",
+      "support_margin_threshold": 4.0,
+      "kept_overrides": 6,
+      "delta_sum": 64.196164,
+      "approx_ev_per_hand": 0.032098082,
+      "wins": 4,
+      "losses": 0,
+      "ties": 2
+    },
+    "seat_swap": [
+      {
+        "games": 1000,
+        "seed": 2026062507,
+        "avg_ev_per_hand": 0.032098082,
+        "ci95_low": -0.0074684823756557064,
+        "ci95_high": 0.0716646463756557,
+        "paired_seed_wins": 4,
+        "paired_seed_losses": 0,
+        "paired_seed_ties": 996,
+        "output": "outputs/hu_turn3_stage1_cycle11_margin8_support_cycle10_4_vs_baseline_1000.json"
+      },
+      {
+        "games": 200,
+        "seed": 2026063501,
+        "avg_ev_per_hand": 0.045,
+        "ci95_low": -0.017596609152468745,
+        "ci95_high": 0.10759660915246874,
+        "paired_seed_wins": 2,
+        "paired_seed_losses": 0,
+        "paired_seed_ties": 198,
+        "output": "outputs/hu_turn3_stage1_cycle11_margin8_support_cycle10_4_vs_baseline_200_seed2026063501.json"
+      }
+    ]
+  },
+  "notes": [
+    "Agreement gate removes Cycle11's observed bad margin-8 overrides.",
+    "It is safer than Cycle11 alone but weaker than the current Cycle10 margin-8 candidate.",
+    "Do not promote unless a future evaluation shows it beats Cycle10 candidate."
+  ]
+}

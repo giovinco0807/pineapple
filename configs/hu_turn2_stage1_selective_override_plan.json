@@ -1,0 +1,96 @@
+{
+  "name": "hu_turn2_stage1_selective_override",
+  "status": "planned_teacher_generation",
+  "rule_set": "regular",
+  "schema": "hu_turn2_stage1",
+  "phase": "hu_turn2_7card",
+  "objective": "HU T2 selective override over current Turn2 baseline",
+  "baseline_policy": {
+    "turn2_model": "models/turn2_stage8.pkl",
+    "description": "Current T2 baseline is the self-board Turn2 action-value model."
+  },
+  "continuation_policy_T3": {
+    "name": "Stage7_candidate_A_m5_r10",
+    "model": "models/hu_turn3_stage7_reference_override_cached_rank_wide.pt",
+    "hu_turn3_min_margin": 5.0,
+    "hu_turn3_reference_min_margin": 10.0,
+    "fallback_default": "Stage3 HU margin10 policy",
+    "stage3_reference_model": "models/hu_turn3_stage3_mc32_500k_plus_m8_12_f128_100k_w2_cached_rank_wide.pt",
+    "stage7_full_replacement_enabled": false,
+    "margin0_25_enabled": false
+  },
+  "teacher_generation": {
+    "target_states": 50000,
+    "future_samples": 4096,
+    "common_random_futures": true,
+    "all_legal_actions": true,
+    "missing_target": 0,
+    "output": "outputs/hu_turn2_stage1/hu_turn2_teacher_merged.jsonl",
+    "feature_cache": "D:/ofc-pineapple-storage/regular-ofc-pineapple/feature_cache/hu_t2_stage1_mc4096_50k",
+    "bucket_mix": {
+      "natural": 0.4,
+      "teacher_disagreement": 0.3,
+      "high_regret": 0.1,
+      "low_margin": 0.1,
+      "high_margin": 0.05,
+      "random_off_policy": 0.05
+    },
+    "boundary_reeval": {
+      "enabled": true,
+      "future_samples": [8192, 16384],
+      "buckets": ["low_margin", "high_regret", "false_positive_candidates"]
+    }
+  },
+  "model": {
+    "target_checkpoint": "models/hu_turn2_stage1_torch_wide.pt",
+    "training_summary": "outputs/hu_turn2_stage1/hu_turn2_stage1_training_summary.json",
+    "architecture": {
+      "state_encoder": "HU board/dead/seat/to_act features from hu_turn3_model encoder",
+      "action_encoder": "placement/discard/next-board action features",
+      "baseline_reference_action_encoding": "stored in teacher JSONL; gate model consumes baseline/reference fields",
+      "heads": [
+        "EV",
+        "delta_vs_baseline",
+        "delta_vs_reference",
+        "rank_listwise",
+        "override_gate",
+        "uncertainty_optional"
+      ]
+    },
+    "initial_trainer": "ofc_regular.train_torch_hu_turn2_streaming",
+    "note": "Initial checkpoint trains the EV action-value head using the generic HU encoder. Delta/gate heads are trained from the same teacher labels after the first teacher validation."
+  },
+  "loss_plan": {
+    "ev": "Huber or weighted MSE initial; Huber target for multi-head trainer",
+    "delta_vs_baseline": "Huber",
+    "delta_vs_reference": "Huber",
+    "ranking": "pairwise ranking loss and margin-weighted listwise loss",
+    "gate": "asymmetric gate loss",
+    "calibration": "predicted_delta vs teacher_delta calibration loss"
+  },
+  "gate_label": {
+    "positive": "delta_best_vs_baseline >= 0.25 and delta_best_vs_baseline >= 2 * SE_delta",
+    "negative": "delta_best_vs_baseline <= 0.05",
+    "gray": "0.05 < delta < 0.25; low weight or excluded from gate loss"
+  },
+  "threshold_grid": {
+    "hu_turn2_min_margin": [3, 5, 8, 10],
+    "hu_turn2_reference_min_margin": [8, 10, 15, 20],
+    "conservative_focus": ["5/15", "8/10", "8/15", "10/15"]
+  },
+  "evaluation_outputs": {
+    "threshold_grid_csv": "outputs/evals/hu_turn2_stage1/hu_turn2_stage1_threshold_grid_results.csv",
+    "production_eval_summary": "outputs/evals/hu_turn2_stage1/hu_turn2_stage1_production_eval_summary.md",
+    "override_failures_top30": "outputs/evals/hu_turn2_stage1/hu_turn2_stage1_override_failures_top30.jsonl",
+    "recommended_runtime": "outputs/evals/hu_turn2_stage1/hu_turn2_stage1_recommended_runtime.json"
+  },
+  "adoption_criteria": [
+    "aggregate EV/hand is positive versus current T2 baseline",
+    "95% CI lower bound is not materially negative",
+    "avg_gain_on_override is positive",
+    "false_positive_override_rate is low",
+    "p95/p99 loss is acceptable",
+    "multiple seeds point in the same direction",
+    "selective override is stable; full replacement is not enabled"
+  ]
+}

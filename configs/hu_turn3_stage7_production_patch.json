@@ -1,0 +1,42 @@
+{
+  "name": "hu_turn3_stage7_production_patch",
+  "status": "applied",
+  "purpose": "Enable Stage7_candidate_A only as a HU T3 selective override.",
+  "model": "models/hu_turn3_stage7_reference_override_cached_rank_wide.pt",
+  "reference_config": "configs/hu_turn3_stage7_reference_override_plan.json",
+  "production_runtime": {
+    "preset": "m5_r10",
+    "hu_turn3_stage7_enabled": true,
+    "hu_turn3_min_margin": 5.0,
+    "hu_turn3_reference_min_margin": 10.0,
+    "stage7_full_replacement_enabled": false,
+    "margin0_25_production_excluded": true
+  },
+  "canary_presets": [
+    "stage7_off",
+    "stage7_m5_r10",
+    "stage7_m4_r10"
+  ],
+  "experiment_only_presets": [
+    "stage7_m3_r10",
+    "stage7_m3_r12"
+  ],
+  "fallbacks": [
+    "model_load_failed",
+    "feature_failed",
+    "illegal_candidate",
+    "nan_prediction",
+    "fallback_to_stage3"
+  ],
+  "evaluation_artifacts": [
+    "outputs/evals/stage7_candidate_A_shortlist1000/stage7_candidate_A_production_eval_summary.md",
+    "outputs/evals/stage7_candidate_A_shortlist1000/stage7_candidate_A_recommended_runtime.json",
+    "outputs/evals/stage7_candidate_A_shortlist1000/stage7_candidate_A_threshold_grid_results.csv",
+    "outputs/evals/stage7_candidate_A_shortlist1000/stage7_candidate_A_override_failures_top30.jsonl"
+  ],
+  "rollback": {
+    "profile": "stage7_off",
+    "config": "configs/hu_turn3_stage7_off.json",
+    "cli": "pass --disable-hu-turn3-stage7 or remove --hu-turn3-model"
+  }
+}

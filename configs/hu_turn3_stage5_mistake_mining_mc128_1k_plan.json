@@ -1,0 +1,96 @@
+{
+  "name": "hu_turn3_stage5_mistake_mining_mc128_1k_plan",
+  "status": "data_pipeline_smoke",
+  "rule_set": "regular",
+  "schema": "hu_stage1",
+  "phase": "hu_turn3_9card",
+  "purpose": "Mine real-play HU Turn3 decision states where the stage3 policy is likely to make high-EV-regret choices, then relabel them with a stronger rollout teacher before stage5 training.",
+  "baseline_candidate": {
+    "model": "models/hu_turn3_stage3_mc32_500k_plus_m8_12_f128_100k_w2_cached_rank_wide.pt",
+    "runtime": {
+      "hu_turn3_min_margin": 10.0
+    },
+    "config": "configs/hu_turn3_stage3_mc32_500k_plus_m8_12_f128_100k_w2_margin10_candidate.json"
+  },
+  "local_smoke_data": {
+    "state_mining": {
+      "selection_hu_turn3_model": "models/hu_turn3_stage3_mc32_500k_plus_m8_12_f128_100k_w2_cached_rank_wide.pt",
+      "selection_min_margin": 8.0,
+      "selection_max_margin": 12.0,
+      "selection_require_disagreement": true,
+      "states": 1000,
+      "chunk_size": 25,
+      "max_parallel": 4,
+      "seed": 2026060710,
+      "opening_lookahead_samples": 0,
+      "output": "outputs/stage5_mistake_mining/stage3_m8_12_disagree_states_1k_seed2026060710.jsonl",
+      "chunk_dir": "outputs/stage5_mistake_mining/stage3_m8_12_disagree_states_1k_chunks"
+    },
+    "teacher_labeling": {
+      "future_samples": 128,
+      "self_regret_penalty_weight": 0.25,
+      "self_regret_free": 0.0,
+      "states_read": 1000,
+      "samples": 1000,
+      "output": "outputs/stage5_mistake_mining/stage3_m8_12_disagree_mc128_teacher_1k_seed2026060720.jsonl",
+      "chunk_dir": "outputs/stage5_mistake_mining/stage3_m8_12_disagree_mc128_teacher_1k_chunks",
+      "feature_cache": "D:/ofc-pineapple-storage/regular-ofc-pineapple/feature_cache/hu_t3_stage5_m8_12_disagree_mc128_1k"
+    },
+    "stage3_mistakes": {
+      "definition": "model top1 teacher regret >= 1.0 on the MC128 relabeled teacher set",
+      "samples_read": 1000,
+      "samples_written": 229,
+      "top3_miss_count": 244,
+      "top3_miss_rate": 0.244,
+      "avg_top1_regret": 1.0825777651594193,
+      "kept_avg_top1_regret": 4.4710027840378,
+      "output": "outputs/stage5_mistake_mining/stage3_m8_12_disagree_mc128_stage3_regret1_mistakes_1k.jsonl",
+      "summary": "outputs/stage5_mistake_mining/stage3_m8_12_disagree_mc128_stage3_regret1_mistakes_1k_summary.json",
+      "feature_cache": "D:/ofc-pineapple-storage/regular-ofc-pineapple/feature_cache/hu_t3_stage5_m8_12_disagree_mc128_stage3_regret1_229"
+    },
+    "stage4ft_mistakes": {
+      "definition": "model top1 teacher regret >= 1.0 on the MC128 relabeled teacher set",
+      "samples_read": 1000,
+      "samples_written": 229,
+      "top3_miss_count": 210,
+      "top3_miss_rate": 0.21,
+      "avg_top1_regret": 1.0826087671100297,
+      "kept_avg_top1_regret": 4.446176231253415,
+      "output": "outputs/stage5_mistake_mining/stage3_m8_12_disagree_mc128_stage4ft_regret1_mistakes_1k.jsonl",
+      "summary": "outputs/stage5_mistake_mining/stage3_m8_12_disagree_mc128_stage4ft_regret1_mistakes_1k_summary.json"
+    }
+  },
+  "local_teacher_evaluation": {
+    "validation": "outputs/stage5_mistake_mining/stage3_m8_12_disagree_mc128_teacher_1k_seed2026060720.jsonl",
+    "holdout_fraction": 0.2,
+    "seed": 2026060730,
+    "stage3": {
+      "holdout_top1_accuracy": 0.515,
+      "holdout_top3_accuracy": 0.79,
+      "holdout_avg_regret": 0.8613842456618958,
+      "holdout_mse": 46.281168908507844
+    },
+    "stage4ft": {
+      "holdout_top1_accuracy": 0.49,
+      "holdout_top3_accuracy": 0.8,
+      "holdout_avg_regret": 0.8662892463889663,
+      "holdout_mse": 34.27348534990408
+    },
+    "output": "outputs/stage5_mistake_mining/stage3_m8_12_disagree_mc128_eval_stage3_stage4ft_1k_seed2026060730.json"
+  },
+  "next_mc2048_run": {
+    "recommended_target": "Relabel 20k-50k mined states with future_samples=2048, then extract regret>=1.0 hard states and train with low source weight.",
+    "reason": "The local MC128 smoke confirms the selected real-play decision band contains many high-regret choices, but MC128 labels are too noisy for final adoption.",
+    "estimated_local_speed": {
+      "mining": "1000 states in about 9.8 minutes at max_parallel=4",
+      "mc128_labeling": "1000 states in about 24.1 minutes at max_parallel=4",
+      "mc2048_labeling_estimate": "about 16x MC128 labeling time if run locally"
+    },
+    "training_principle": "Do not train only on mistakes. Mix these samples into the existing broad 600k cache with modest weight so the model fixes high-regret holes without destroying the real-play seat-swap EV."
+  },
+  "notes": [
+    "This is not an adoptable model config.",
+    "The previous stage4ft model fit the MC2048 boundary shard but lost seat-swap EV against stage3, so stage5 must be validated by seat-swap rather than teacher Top1 alone.",
+    "The extraction CLI added in this stage writes original teacher samples with extra mistake_mining metadata, preserving HU teacher schema compatibility for training."
+  ]
+}

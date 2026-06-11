@@ -1,0 +1,152 @@
+{
+  "name": "hu_turn3_stage5_stage3init_boundary_mc2048_mistake_lr5e5",
+  "status": "rejected",
+  "rule_set": "regular",
+  "schema": "hu_stage1",
+  "phase": "hu_turn3_9card",
+  "model": {
+    "path": "models/hu_turn3_stage5_stage3init_boundary_mc2048_mistake_lr5e5_cached_rank_wide.pt",
+    "type": "torch_mlp_cached",
+    "init_model": "models/hu_turn3_stage3_mc32_500k_plus_m8_12_f128_100k_w2_cached_rank_wide.pt",
+    "feature_cache": [
+      "D:/ofc-pineapple-storage/regular-ofc-pineapple/feature_cache/hu_t3_stage2_m8_12_f128_100k",
+      "D:/ofc-pineapple-storage/regular-ofc-pineapple/feature_cache/hu_t3_stage4_mc2048_m8_12_16k",
+      "D:/ofc-pineapple-storage/regular-ofc-pineapple/feature_cache/hu_t3_stage5_mc2048_m8_12_18k",
+      "D:/ofc-pineapple-storage/regular-ofc-pineapple/feature_cache/hu_t3_stage5_mc2048_stage3_regret1_mistakes_18k",
+      "D:/ofc-pineapple-storage/regular-ofc-pineapple/feature_cache/hu_t3_stage5_mc2048_stage4ft_regret1_mistakes_18k"
+    ],
+    "cache_weights": [1.0, 1.0, 1.0, 8.0, 12.0],
+    "hidden_layer_sizes": [1024, 512, 256],
+    "learning_rate": 0.00005,
+    "best_epoch": 20,
+    "best_holdout_mse": 2.171585422327848,
+    "metrics_output": "outputs/hu_turn3_stage5_stage3init_boundary_mc2048_mistake_lr5e5_cached_rank_wide_metrics.json",
+    "holdout_avg_regret": 0.05146554681187686,
+    "holdout_top3_accuracy": 0.9943771626297578
+  },
+  "teacher_validation": {
+    "validation": "outputs/gcp_runs/regular-hu-t3-stage5-mc2048-m8-12-20k-2h-20260607-1854/hu_turn3_selfplay_merged.jsonl",
+    "holdout_fraction": 0.2,
+    "seed": 2026060753,
+    "stage3_holdout_avg_regret": 0.9379889576395614,
+    "stage4ft_holdout_avg_regret": 0.04894383333050768,
+    "stage5_holdout_avg_regret": 0.00936334606743614,
+    "stage3_holdout_top3_accuracy": 0.7711402073104201,
+    "stage4ft_holdout_top3_accuracy": 0.9762684124386252,
+    "stage5_holdout_top3_accuracy": 0.9978177850518276,
+    "output": "outputs/hu_turn3_stage5_boundary_mc2048_eval_stage3_stage4ft_stage5_seed2026060753.json"
+  },
+  "runtime_tested": [
+    {
+      "hu_turn3_min_margin": 10.0,
+      "seat_swap_vs_stage3_margin10": {
+        "games": 200,
+        "seed": 2026062507,
+        "avg_ev_per_hand": -0.05799041,
+        "ci95_low": -0.1716516136,
+        "ci95_high": 0.0556707936,
+        "paired_seed_wins": 0,
+        "paired_seed_losses": 1,
+        "paired_seed_ties": 199,
+        "output": "outputs/hu_turn3_stage5_boundary_mc2048_margin10_vs_stage3_margin10_200_seed2026062507.json"
+      }
+    },
+    {
+      "hu_turn3_min_margin": 12.0,
+      "seat_swap_vs_stage3_margin10": {
+        "games": 200,
+        "seed": 2026062507,
+        "avg_ev_per_hand": -0.05799041,
+        "ci95_low": -0.1716516136,
+        "ci95_high": 0.0556707936,
+        "paired_seed_wins": 0,
+        "paired_seed_losses": 1,
+        "paired_seed_ties": 199,
+        "output": "outputs/hu_turn3_stage5_boundary_mc2048_margin12_vs_stage3_margin10_200_seed2026062507.json"
+      }
+    },
+    {
+      "hu_turn3_min_margin": 15.0,
+      "seat_swap_vs_stage3_margin10": {
+        "games": 200,
+        "seed": 2026062507,
+        "avg_ev_per_hand": -0.08799040999999999,
+        "ci95_low": -0.2156976555772557,
+        "ci95_high": 0.03971683557725572,
+        "paired_seed_wins": 0,
+        "paired_seed_losses": 2,
+        "paired_seed_ties": 198,
+        "output": "outputs/hu_turn3_stage5_boundary_mc2048_margin15_vs_stage3_margin10_200_seed2026062507.json"
+      }
+    }
+  ],
+  "support_filter_tests": [
+    {
+      "primary_model": "models/hu_turn3_stage3_mc32_500k_plus_m8_12_f128_100k_w2_cached_rank_wide.pt",
+      "support_model": "models/hu_turn3_stage5_stage3init_boundary_mc2048_mistake_lr5e5_cached_rank_wide.pt",
+      "hu_turn3_min_margin": 10.0,
+      "hu_turn3_min_support_margin": 8.0,
+      "seat_swap_vs_stage3_margin10": {
+        "games": 200,
+        "seed": 2026062507,
+        "avg_ev_per_hand": -0.05799041,
+        "ci95_low": -0.1716516136,
+        "ci95_high": 0.0556707936,
+        "paired_seed_wins": 0,
+        "paired_seed_losses": 1,
+        "paired_seed_ties": 199,
+        "output": "outputs/hu_turn3_stage3_margin10_support_stage5_s8_vs_stage3_margin10_200_seed2026062507.json"
+      }
+    },
+    {
+      "primary_model": "models/hu_turn3_stage3_mc32_500k_plus_m8_12_f128_100k_w2_cached_rank_wide.pt",
+      "support_model": "models/hu_turn3_stage5_stage3init_boundary_mc2048_mistake_lr5e5_cached_rank_wide.pt",
+      "hu_turn3_min_margin": 10.0,
+      "hu_turn3_min_support_margin": 12.0,
+      "seat_swap_vs_stage3_margin10": {
+        "games": 200,
+        "seed": 2026062507,
+        "avg_ev_per_hand": -0.05799041,
+        "ci95_low": -0.1716516136,
+        "ci95_high": 0.0556707936,
+        "paired_seed_wins": 0,
+        "paired_seed_losses": 1,
+        "paired_seed_ties": 199,
+        "output": "outputs/hu_turn3_stage3_margin10_support_stage5_s12_vs_stage3_margin10_200_seed2026062507.json"
+      }
+    }
+  ],
+  "override_trace": {
+    "stage5_vs_self_board": {
+      "games": 200,
+      "seed": 2026062507,
+      "override_count": 4,
+      "paired_score_avg": 0.065,
+      "override_delta_avg": 6.5,
+      "summary": "outputs/hu_turn3_stage5_boundary_mc2048_margin10_override_trace_200_seed2026062507_summary.json",
+      "decisions": "outputs/hu_turn3_stage5_boundary_mc2048_margin10_override_trace_200_seed2026062507.jsonl"
+    },
+    "stage3_vs_self_board": {
+      "games": 200,
+      "seed": 2026062507,
+      "override_count": 8,
+      "paired_score_avg": 0.12299041,
+      "override_delta_avg": 6.1495204999999995,
+      "summary": "outputs/hu_turn3_stage3_margin10_override_trace_200_seed2026062507_summary.json",
+      "decisions": "outputs/hu_turn3_stage3_margin10_override_trace_200_seed2026062507.jsonl"
+    }
+  },
+  "baseline_models": {
+    "opening": "models/opening_stage7_torch_wide.pt",
+    "turn1": "models/turn1_stage6_torch_wide.pt",
+    "turn2": "models/turn2_stage8.pkl",
+    "turn3": "models/turn3_stage6.pkl",
+    "hu_turn3": "models/hu_turn3_stage3_mc32_500k_plus_m8_12_f128_100k_w2_cached_rank_wide.pt"
+  },
+  "notes": [
+    "This model strongly improves MC2048 teacher holdout regret, but it loses to the current stage3 runtime policy on the first 200 paired seat-swap slice.",
+    "The loss is not because stage5 is worse than the self-board fallback; the stage5 override trace is positive versus fallback.",
+    "The immediate issue is that stage5 fires fewer useful HU overrides than stage3 on the same paired seed range, so stage3 remains the active HU Turn3 model.",
+    "Next training should preserve or explicitly distill stage3's profitable override region while adding MC2048 labels for its real misses."
+  ]
+}

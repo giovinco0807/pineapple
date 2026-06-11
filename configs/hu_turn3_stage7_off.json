@@ -1,0 +1,20 @@
+{
+  "name": "hu_turn3_stage7_off",
+  "status": "rollback_preset",
+  "rule_set": "regular",
+  "schema": "hu_stage1",
+  "phase": "hu_turn3_9card",
+  "model": {
+    "path": "models/hu_turn3_stage7_reference_override_cached_rank_wide.pt"
+  },
+  "reference_model": {
+    "path": "models/hu_turn3_stage3_mc32_500k_plus_m8_12_f128_100k_w2_cached_rank_wide.pt"
+  },
+  "runtime": {
+    "hu_turn3_stage7_enabled": false,
+    "hu_turn3_min_margin": 5.0,
+    "hu_turn3_reference_min_margin": 10.0,
+    "stage7_full_replacement_enabled": false,
+    "margin0_25_production_excluded": true
+  }
+}

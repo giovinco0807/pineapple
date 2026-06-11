@@ -1,0 +1,72 @@
+{
+  "name": "hu_turn3_stage1_cycle10_margin8_candidate",
+  "status": "candidate",
+  "rule_set": "regular",
+  "schema": "hu_stage1",
+  "phase": "hu_turn3_9card",
+  "model": {
+    "path": "models/hu_turn3_stage1_cycle10_direct_penalty_w025_500_f32_extra_trees.pkl",
+    "type": "extra_trees",
+    "training_data": "outputs/hu_turn3_stage1_cycle10_direct_penalty_w025_500_f32.jsonl",
+    "samples": 500,
+    "future_samples": 32,
+    "self_regret_penalty_weight": 0.25,
+    "self_regret_free": 0.0
+  },
+  "runtime": {
+    "hu_turn3_min_margin": 8.0,
+    "hu_turn3_max_self_regret": null
+  },
+  "baseline_models": {
+    "opening": "models/opening_stage7_torch_wide.pt",
+    "turn1": "models/turn1_stage6_torch_wide.pt",
+    "turn2": "models/turn2_stage8.pkl",
+    "turn3": "models/turn3_stage6.pkl"
+  },
+  "validation": {
+    "seat_swap": [
+      {
+        "games": 1000,
+        "seed": 2026062507,
+        "avg_ev_per_hand": 0.049598081999999995,
+        "ci95_low": 0.001707612280974144,
+        "ci95_high": 0.09748855171902585,
+        "paired_seed_wins": 7,
+        "paired_seed_losses": 1,
+        "paired_seed_ties": 992,
+        "output": "outputs/hu_turn3_stage1_cycle10_direct_penalty_w025_500_f32_extra_trees_margin8_vs_baseline_1000.json"
+      },
+      {
+        "games": 1000,
+        "seed": 2026063501,
+        "avg_ev_per_hand": 0.06959808199999999,
+        "ci95_low": 0.02538850717613314,
+        "ci95_high": 0.11380765682386684,
+        "paired_seed_wins": 12,
+        "paired_seed_losses": 0,
+        "paired_seed_ties": 988,
+        "output": "outputs/hu_turn3_stage1_cycle10_direct_penalty_w025_500_f32_extra_trees_margin8_vs_baseline_1000_seed2026063501.json"
+      }
+    ],
+    "override_trace": {
+      "games": 1000,
+      "seed": 2026062507,
+      "candidate_t3_decision_count": 2000,
+      "override_count": 12,
+      "override_rate": 0.006,
+      "override_delta_avg": 8.266347,
+      "override_delta_wins": 7,
+      "override_delta_losses": 1,
+      "summary_output": "outputs/hu_turn3_stage1_cycle10_direct_penalty_w025_500_f32_extra_trees_margin8_override_trace_1000_summary.json",
+      "trace_output": "outputs/hu_turn3_stage1_cycle10_direct_penalty_w025_500_f32_extra_trees_margin8_override_trace_1000.jsonl"
+    },
+    "threshold_sweep_output": "outputs/hu_turn3_stage1_cycle10_margin8_override_threshold_sweep.json"
+  },
+  "notes": [
+    "First HU T3 candidate with two positive 1,000-paired seat-swap checks.",
+    "Very conservative: only rare high-confidence overrides.",
+    "Cycle11 1,000-sample retrains did not improve this candidate.",
+    "Cycle11 losing-override hard negatives repeated 10x made margin-8 seat-swap worse, so do not use that hard-negative model.",
+    "Cycle11 primary plus Cycle10 support margin 4 is safer than Cycle11 alone but weaker than this Cycle10 candidate."
+  ]
+}

@@ -1,0 +1,18 @@
+[package]
+name = "regular_fl_solver"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "regular_fl_solver"
+path = "rust/regular_fl_solver/src/main.rs"
+
+[lib]
+name = "ofc_stage3_feature_encoder"
+crate-type = ["cdylib", "rlib"]
+path = "rust/ofc_stage3_feature_encoder/src/lib.rs"
+
+[profile.release]
+lto = true
+codegen-units = 1
+opt-level = 3

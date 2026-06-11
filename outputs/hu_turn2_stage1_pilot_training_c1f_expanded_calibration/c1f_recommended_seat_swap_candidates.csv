@@ -1,0 +1,5 @@
+candidate_id,seat_swap_status,blockers,fires,unbiased_fires,enriched_fires,first_fires,second_fires,avg_gain,false_positive_rate,p95_loss,p99_loss,max_loss
+confidence_lcb196_m2p5_r0_g0p7,go,,913,217,696,387,526,5.57286630428895,0.0,0.0,0.0,0.0
+confidence_lcb164_m2p5_r0_g0p7,go,,932,227,705,395,537,5.497751027601471,0.0,0.0,0.0,0.0
+source_filtered_lcb196,go,,765,217,548,387,378,5.914626521690219,0.0,0.0,0.0,0.0
+confidence_lcb164_m2p0_r0_g0p75,go,,1300,341,959,596,704,4.745177525006808,0.0,0.0,0.0,0.0

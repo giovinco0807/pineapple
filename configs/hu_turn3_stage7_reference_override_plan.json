@@ -1,0 +1,194 @@
+{
+  "name": "hu_turn3_stage7_reference_override",
+  "status": "production_selective_override",
+  "rule_set": "regular",
+  "schema": "hu_stage1",
+  "phase": "hu_turn3_9card",
+  "objective": "selective_policy_improvement_over_stage3",
+  "model": {
+    "path": "models/hu_turn3_stage7_reference_override_cached_rank_wide.pt",
+    "type": "torch_mlp_cached",
+    "init_model": "models/hu_turn3_stage3_mc32_500k_plus_m8_12_f128_100k_w2_cached_rank_wide.pt",
+    "feature_cache": [
+      "D:/ofc-pineapple-storage/regular-ofc-pineapple/feature_cache/hu_t3_stage2_m8_12_f128_100k",
+      "D:/ofc-pineapple-storage/regular-ofc-pineapple/feature_cache/hu_t3_stage4_mc2048_m8_12_16k",
+      "D:/ofc-pineapple-storage/regular-ofc-pineapple/feature_cache/hu_t3_stage5_mc2048_m8_12_18k",
+      "D:/ofc-pineapple-storage/regular-ofc-pineapple/feature_cache/hu_t3_stage6_s3vss5_disagree_mc2048_m4_25_22k",
+      "D:/ofc-pineapple-storage/regular-ofc-pineapple/feature_cache/hu_t3_stage7_stage3_override_mc2048_m4_25_50k",
+      "D:/ofc-pineapple-storage/regular-ofc-pineapple/feature_cache/hu_t3_stage5_mc2048_stage3_regret1_mistakes_18k",
+      "D:/ofc-pineapple-storage/regular-ofc-pineapple/feature_cache/hu_t3_stage5_mc2048_stage4ft_regret1_mistakes_18k"
+    ],
+    "cache_weights": [1.0, 1.0, 1.0, 2.0, 6.0, 8.0, 12.0],
+    "hidden_layer_sizes": [1024, 512, 256],
+    "learning_rate": 0.00005,
+    "best_epoch": 30,
+    "best_holdout_mse": 3.2790956298280687,
+    "holdout_avg_regret": 0.044163047107774765,
+    "holdout_top1_accuracy": 0.8866,
+    "holdout_top3_accuracy": 0.9932,
+    "metrics_output": "outputs/hu_turn3_stage7_reference_override_cached_rank_wide_metrics.json",
+    "notes": [
+      "Trained from broad Stage3 margin4-25 reference samples with MC2048 labels.",
+      "Production default is conservative m5_r10: hu_turn3_min_margin=5.0 and hu_turn3_reference_min_margin=10.0.",
+      "Runtime margin4 with Stage3 margin10 reference fallback remains canary-only.",
+      "Stage7 full replacement is not enabled.",
+      "margin0.25 is explicitly excluded from production.",
+      "Add delta_vs_selection_hu and override gate training if lower-margin firing is needed."
+    ]
+  },
+  "reference_model": {
+    "path": "models/hu_turn3_stage3_mc32_500k_plus_m8_12_f128_100k_w2_cached_rank_wide.pt",
+    "runtime_margin": 10.0
+  },
+  "teacher_data_plan": {
+    "selection_hu_model": "models/hu_turn3_stage3_mc32_500k_plus_m8_12_f128_100k_w2_cached_rank_wide.pt",
+    "selection_compare_hu_model": null,
+    "selection_min_margin": 4.0,
+    "selection_max_margin": 25.0,
+    "selection_require_disagreement": true,
+    "selection_require_compare_disagreement": false,
+    "future_samples": 2048,
+    "target_initial_samples": 50000,
+    "target_next_samples": 100000,
+    "required_sample_fields": [
+      "selection",
+      "reference_actions",
+      "reference_actions.delta_best_vs_selection_hu",
+      "reference_actions.delta_selection_hu_vs_baseline"
+    ]
+  },
+  "runtime": {
+    "hu_turn3_stage7_enabled": true,
+    "hu_turn3_min_margin": 5.0,
+    "hu_turn3_reference_min_margin": 10.0,
+    "hu_turn3_min_gate_probability": 0.0,
+    "hu_turn3_max_self_regret": null,
+    "production_preset": "m5_r10",
+    "margin0_25_production_excluded": true
+  },
+  "production_evaluation": {
+    "summary": "outputs/evals/stage7_candidate_A_shortlist1000/stage7_candidate_A_production_eval_summary.md",
+    "recommended_runtime": "outputs/evals/stage7_candidate_A_shortlist1000/stage7_candidate_A_recommended_runtime.json",
+    "threshold_grid": "outputs/evals/stage7_candidate_A_shortlist1000/stage7_candidate_A_threshold_grid_results.csv",
+    "override_failures_top30": "outputs/evals/stage7_candidate_A_shortlist1000/stage7_candidate_A_override_failures_top30.jsonl",
+    "conservative_best": {
+      "preset": "m5_r10",
+      "hu_turn3_min_margin": 5.0,
+      "hu_turn3_reference_min_margin": 10.0,
+      "ev_per_hand": 0.09632694,
+      "ci95_low": 0.06833101662918833,
+      "false_positive_override_rate": 0.0002278682921271505,
+      "p95_loss": 0.8847744898266229
+    }
+  },
+  "new_teacher_data": {
+    "run_name": "regular-hu-t3-stage7-stage3-override-mc2048-m4-25-50k-2h-20260608-001",
+    "output": "outputs/gcp_runs/regular-hu-t3-stage7-stage3-override-mc2048-m4-25-50k-2h-20260608-001/hu_turn3_selfplay_merged.jsonl",
+    "feature_cache": "D:/ofc-pineapple-storage/regular-ofc-pineapple/feature_cache/hu_t3_stage7_stage3_override_mc2048_m4_25_50k",
+    "samples": 50000,
+    "actions": 898833,
+    "future_samples": 2048,
+    "selection_hu_model": "models/hu_turn3_stage3_mc32_500k_plus_m8_12_f128_100k_w2_cached_rank_wide.pt",
+    "selection_min_margin": 4.0,
+    "selection_max_margin": 25.0,
+    "selection_require_disagreement": true,
+    "analysis_output": "outputs/hu_turn3_stage7_reference_analysis.json",
+    "delta_best_vs_selection_hu_mean": 1.2292002035299965,
+    "delta_best_vs_selection_hu_median": 0.06713742533174014,
+    "delta_selection_hu_vs_baseline_mean": 1.5630557954879276
+  },
+  "teacher_validation": [
+    {
+      "validation": "outputs/gcp_runs/regular-hu-t3-stage7-stage3-override-mc2048-m4-25-50k-2h-20260608-001/hu_turn3_selfplay_merged.jsonl",
+      "holdout_fraction": 0.2,
+      "seed": 2026060901,
+      "stage3_holdout_avg_regret": 1.186169801754271,
+      "stage7_holdout_avg_regret": 0.022189810853791306,
+      "stage3_holdout_top3_accuracy": 0.6629,
+      "stage7_holdout_top3_accuracy": 0.9893,
+      "output_stage3": "outputs/hu_turn3_stage7_teacher_eval_stage3_seed2026060901.json",
+      "output_stage7": "outputs/hu_turn3_stage7_teacher_eval_stage7_seed2026060901.json"
+    },
+    {
+      "validation": "outputs/gcp_runs/regular-hu-t3-stage5-mc2048-m8-12-20k-2h-20260607-1854/hu_turn3_selfplay_merged.jsonl",
+      "holdout_fraction": 0.2,
+      "seed": 2026060902,
+      "stage3_holdout_avg_regret": 0.9162574229317372,
+      "stage7_holdout_avg_regret": 0.008070418572547429,
+      "stage3_holdout_top3_accuracy": 0.7741407528641571,
+      "stage7_holdout_top3_accuracy": 0.9978177850518276,
+      "output_stage3": "outputs/hu_turn3_stage7_old_m8_12_eval_stage3_seed2026060902.json",
+      "output_stage7": "outputs/hu_turn3_stage7_old_m8_12_eval_stage7_seed2026060902.json"
+    },
+    {
+      "validation": "outputs/gcp_runs/regular-hu-t3-stage6-s3vss5-disagree-mc2048-m4-25-40k-2h-20260608-0001/hu_turn3_selfplay_merged.jsonl",
+      "holdout_fraction": 0.2,
+      "seed": 2026060903,
+      "stage3_holdout_avg_regret": 1.7014256524198579,
+      "stage7_holdout_avg_regret": 0.012499800924014207,
+      "stage3_holdout_top3_accuracy": 0.5333939118582463,
+      "stage7_holdout_top3_accuracy": 0.9936392548841436,
+      "output_stage3": "outputs/hu_turn3_stage7_s3vss5_eval_stage3_seed2026060903.json",
+      "output_stage7": "outputs/hu_turn3_stage7_s3vss5_eval_stage7_seed2026060903.json"
+    }
+  ],
+  "runtime_tested": [
+    {
+      "hu_turn3_min_margin": 4.0,
+      "hu_turn3_reference_min_margin": 10.0,
+      "seat_swap_vs_stage3_margin10": {
+        "games": 1000,
+        "seed": 2026060904,
+        "avg_ev_per_hand": 0.15299041,
+        "ci95_low": 0.02033450660638081,
+        "ci95_high": 0.2856463133936192,
+        "paired_seed_wins": 36,
+        "paired_seed_losses": 16,
+        "paired_seed_ties": 948,
+        "output": "outputs/hu_turn3_stage7_ref_m4_vs_stage3_margin10_1000_seed2026060904.json"
+      }
+    },
+    {
+      "hu_turn3_min_margin": 4.0,
+      "hu_turn3_reference_min_margin": 10.0,
+      "seat_swap_vs_stage3_margin10": {
+        "games": 1000,
+        "seed": 2026063501,
+        "avg_ev_per_hand": 0.033,
+        "ci95_low": -0.09567186352185741,
+        "ci95_high": 0.16167186352185742,
+        "paired_seed_wins": 23,
+        "paired_seed_losses": 18,
+        "paired_seed_ties": 959,
+        "output": "outputs/hu_turn3_stage7_ref_m4_vs_stage3_margin10_1000_seed2026063501.json"
+      }
+    },
+    {
+      "hu_turn3_min_margin": 4.0,
+      "hu_turn3_reference_min_margin": 10.0,
+      "seat_swap_vs_stage3_margin10": {
+        "games": 1000,
+        "seed": 2026068201,
+        "avg_ev_per_hand": 0.10329424599999999,
+        "ci95_low": -0.010191967198991125,
+        "ci95_high": 0.2167804591989911,
+        "paired_seed_wins": 30,
+        "paired_seed_losses": 10,
+        "paired_seed_ties": 960,
+        "output": "outputs/hu_turn3_stage7_ref_m4_vs_stage3_margin10_1000_seed2026068201.json"
+      }
+    }
+  ],
+  "baseline_models": {
+    "opening": "models/opening_stage7_torch_wide.pt",
+    "turn1": "models/turn1_stage6_torch_wide.pt",
+    "turn2": "models/turn2_stage8.pkl",
+    "turn3": "models/turn3_stage6.pkl",
+    "hu_turn3": "models/hu_turn3_stage3_mc32_500k_plus_m8_12_f128_100k_w2_cached_rank_wide.pt"
+  },
+  "adoption_criteria": [
+    "Stage3 vs Stage7 seat-swap EV/hand is positive on at least three independent 1000 paired-seed runs.",
+    "p95/p99 regret does not worsen against Stage3 on reference teacher holdout.",
+    "override threshold sweep shows positive net EV after filtering false positives."
+  ]
+}

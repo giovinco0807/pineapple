@@ -1,0 +1,51 @@
+{
+  "name": "hu_turn3_stage7_m5_r10_production",
+  "status": "production_default",
+  "rule_set": "regular",
+  "schema": "hu_stage1",
+  "phase": "hu_turn3_9card",
+  "objective": "hu_t3_selective_override_over_stage3",
+  "model": {
+    "path": "models/hu_turn3_stage7_reference_override_cached_rank_wide.pt",
+    "type": "torch_mlp_cached"
+  },
+  "reference_model": {
+    "path": "models/hu_turn3_stage3_mc32_500k_plus_m8_12_f128_100k_w2_cached_rank_wide.pt",
+    "runtime_margin": 10.0
+  },
+  "baseline_models": {
+    "opening": "models/opening_stage7_torch_wide.pt",
+    "turn1": "models/turn1_stage6_torch_wide.pt",
+    "turn2": "models/turn2_stage8.pkl",
+    "turn3": "models/turn3_stage6.pkl",
+    "hu_turn3": "models/hu_turn3_stage3_mc32_500k_plus_m8_12_f128_100k_w2_cached_rank_wide.pt"
+  },
+  "runtime": {
+    "hu_turn3_stage7_enabled": true,
+    "hu_turn3_min_margin": 5.0,
+    "hu_turn3_reference_min_margin": 10.0,
+    "hu_turn3_min_gate_probability": 0.0,
+    "hu_turn3_max_self_regret": null,
+    "production_preset": "m5_r10",
+    "stage7_full_replacement_enabled": false,
+    "margin0_25_production_excluded": true
+  },
+  "safety": {
+    "model_load_failure": "fallback_to_stage3",
+    "feature_generation_failure": "fallback_to_stage3",
+    "illegal_candidate": "fallback_to_stage3",
+    "nan_or_inf_prediction": "fallback_to_stage3"
+  },
+  "evaluation_artifacts": {
+    "summary": "outputs/evals/stage7_candidate_A_shortlist1000/stage7_candidate_A_production_eval_summary.md",
+    "recommended_runtime": "outputs/evals/stage7_candidate_A_shortlist1000/stage7_candidate_A_recommended_runtime.json",
+    "threshold_grid": "outputs/evals/stage7_candidate_A_shortlist1000/stage7_candidate_A_threshold_grid_results.csv",
+    "override_failures_top30": "outputs/evals/stage7_candidate_A_shortlist1000/stage7_candidate_A_override_failures_top30.jsonl"
+  },
+  "recommended_metrics": {
+    "ev_per_hand": 0.09632694,
+    "ci95_low": 0.06833101662918833,
+    "false_positive_override_rate": 0.0002278682921271505,
+    "p95_loss": 0.8847744898266229
+  }
+}
