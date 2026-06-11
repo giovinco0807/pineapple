@@ -1,0 +1,21 @@
+{
+  "schema": "hu_turn2_stage8b_prelarge_training_v1",
+  "rows": 20000,
+  "replay_ready_rows": 20000,
+  "safe_lcb196_counts": {
+    "gray": 15218,
+    "negative": 1865,
+    "positive": 2917
+  },
+  "hard_negative_rows": 15,
+  "high_mc_label_overrides": 50,
+  "current_proxy_m2p5_g0p9_fired": 961,
+  "selected_high_mc_states": 200,
+  "c3_runtime_top_loss_replay_states": 81,
+  "large_training_ready": true,
+  "large_training_command": "python -m ofc_regular.train_hu_turn2_pilot_model --cache-dir D:\\ofc-pineapple-storage\\regular-ofc-pineapple\\feature_cache\\hu_t2_stage8_20k_mc512 --stage8b-labels-csv outputs/hu_turn2_stage8b_prelarge_training/stage8b_safe_override_labels.csv --gate-label-column safe_lcb196_gate_label_id --gate-weight-column stage8b_gate_weight --model-output models/hu_turn2_stage8b_safe_lcb196_20k_reference_override_cached_rank_wide.pt --output-dir outputs/training/hu_turn2_stage8b_safe_lcb196_20k",
+  "fifty_k_teacher": "No-Go",
+  "t1": "No-Go",
+  "production": "No-Go",
+  "elapsed_seconds": 6.577799899998354
+}

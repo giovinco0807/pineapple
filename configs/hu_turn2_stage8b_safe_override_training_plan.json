@@ -1,0 +1,56 @@
+{
+  "schema": "hu_turn2_stage8b_safe_override_training_plan_v1",
+  "scope": "pre_large_training",
+  "stage": "Stage8b",
+  "policy": {
+    "mode": "HU T2 selective override",
+    "full_replacement": false,
+    "production": "No-Go",
+    "p2_fixed": "No-Go",
+    "fifty_k_teacher": "No-Go",
+    "t1_training": "No-Go"
+  },
+  "fixed_t3_continuation": {
+    "model": "models/hu_turn3_stage7_reference_override_cached_rank_wide.pt",
+    "hu_turn3_min_margin": 5.0,
+    "hu_turn3_reference_min_margin": 10.0,
+    "fallback": "Stage3 HU margin10"
+  },
+  "inputs": {
+    "stage8_model": "models/hu_turn2_stage8_broad_20k_mc512_reference_override_cached_rank_wide.pt",
+    "feature_cache_dir": "D:/ofc-pineapple-storage/regular-ofc-pineapple/feature_cache/hu_t2_stage8_20k_mc512",
+    "c1e_cache_dir": "outputs/hu_turn2_stage1_pilot_training_c1e_teacher_ev_feature_cache",
+    "c3_postmortem_dir": "outputs/evals/hu_turn2_stage8_c3_postmortem",
+    "selected_high_mc_results": "outputs/evals/hu_turn2_stage8_c4_selected_high_mc_gcp_20260612b/high_mc_audit_results.jsonl"
+  },
+  "labels": {
+    "primary_gate_label": "safe_lcb196_gate_label_id",
+    "alternate_gate_label": "safe_lcb164_gate_label_id",
+    "gate_weight_column": "stage8b_gate_weight",
+    "hard_negative_definition": "current runtime proxy fires and teacher delta candidate vs baseline <= 0",
+    "gray_weight": 0.15
+  },
+  "next_large_training_command": [
+    "python",
+    "-m",
+    "ofc_regular.train_hu_turn2_pilot_model",
+    "--cache-dir",
+    "D:/ofc-pineapple-storage/regular-ofc-pineapple/feature_cache/hu_t2_stage8_20k_mc512",
+    "--stage8b-labels-csv",
+    "outputs/hu_turn2_stage8b_prelarge_training/stage8b_safe_override_labels.csv",
+    "--gate-label-column",
+    "safe_lcb196_gate_label_id",
+    "--gate-weight-column",
+    "stage8b_gate_weight",
+    "--model-output",
+    "models/hu_turn2_stage8b_safe_lcb196_20k_reference_override_cached_rank_wide.pt",
+    "--output-dir",
+    "outputs/training/hu_turn2_stage8b_safe_lcb196_20k"
+  ],
+  "validation_before_promotion": [
+    "teacher holdout threshold sweep",
+    "proxy vs oracle overlap",
+    "selected MC4096/8192 diagnostic labels",
+    "C3-style larger seat-swap with non-overlapping seed stride"
+  ]
+}

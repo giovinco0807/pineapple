@@ -1,0 +1,3 @@
+seat,records,avg_high_mc_delta,positive_count,negative_count,sign_stable_rate,candidate_best_rate
+first,20,7.60331271381836,16,4,0.95,0.5
+second,30,5.2893500947265615,28,2,0.9666666666666667,0.7

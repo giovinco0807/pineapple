@@ -47,6 +47,22 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--listwise-loss-weight", type=float, default=0.05)
     parser.add_argument("--gate-loss-weight", type=float, default=0.2)
     parser.add_argument("--gate-negative-weight", type=float, default=2.0)
+    parser.add_argument(
+        "--stage8b-labels-csv",
+        type=Path,
+        default=None,
+        help="Optional Stage8b state-level safe override label CSV.",
+    )
+    parser.add_argument(
+        "--gate-label-column",
+        default="safe_lcb196_gate_label_id",
+        help="Column in --stage8b-labels-csv to use as gate_label_id override.",
+    )
+    parser.add_argument(
+        "--gate-weight-column",
+        default="stage8b_gate_weight",
+        help="Optional per-state gate loss weight column in --stage8b-labels-csv.",
+    )
     parser.add_argument("--threshold-split", choices=("val", "test", "holdout"), default="test")
     return parser.parse_args()
 
@@ -90,6 +106,60 @@ def load_cache(cache_dir: Path) -> dict[str, Any]:
         "second_best_action_index": np.load(cache_dir / "second_best_action_index.npy"),
         "gate_label_id": np.load(cache_dir / "gate_label_id.npy"),
     }
+
+
+def load_stage8b_gate_labels(
+    labels_csv: Path,
+    *,
+    state_count: int,
+    label_column: str,
+    weight_column: str,
+) -> tuple[np.ndarray, np.ndarray, dict[str, Any]]:
+    labels = np.full(state_count, 1, dtype=np.int8)
+    weights = np.ones(state_count, dtype=np.float32)
+    seen = np.zeros(state_count, dtype=np.bool_)
+    counts: Counter[str] = Counter()
+    with labels_csv.open("r", encoding="utf-8-sig", newline="") as handle:
+        reader = csv.DictReader(handle)
+        if "state_index" not in (reader.fieldnames or ()):
+            raise ValueError(f"{labels_csv} is missing state_index")
+        if label_column not in (reader.fieldnames or ()):
+            raise ValueError(f"{labels_csv} is missing {label_column}")
+        for row in reader:
+            state_index = int(row["state_index"])
+            if state_index < 0 or state_index >= state_count:
+                raise ValueError(f"state_index out of range in {labels_csv}: {state_index}")
+            label_id = int(float(row[label_column]))
+            if label_id not in (0, 1, 2):
+                raise ValueError(f"invalid gate label id in {labels_csv}: {label_id}")
+            labels[state_index] = label_id
+            if weight_column and weight_column in row and row[weight_column] not in (None, ""):
+                weights[state_index] = max(0.0, float(row[weight_column]))
+            seen[state_index] = True
+            counts[str(label_id)] += 1
+    missing = int(np.size(seen) - int(np.sum(seen)))
+    if missing:
+        raise ValueError(f"{labels_csv} is missing labels for {missing} states")
+    return labels, weights, {"label_column": label_column, "weight_column": weight_column, "counts": dict(counts)}
+
+
+def apply_stage8b_gate_labels(
+    cache: dict[str, Any],
+    labels_csv: Path,
+    *,
+    label_column: str,
+    weight_column: str,
+) -> dict[str, Any]:
+    labels, weights, metadata = load_stage8b_gate_labels(
+        labels_csv,
+        state_count=len(cache["state_metadata"]),
+        label_column=label_column,
+        weight_column=weight_column,
+    )
+    cache["gate_label_id"] = labels
+    cache["gate_label_weight"] = weights
+    cache["gate_label_metadata"] = metadata | {"source": str(labels_csv)}
+    return metadata
 
 
 def state_indices_for_split(split: np.ndarray, name: str) -> np.ndarray:
@@ -210,6 +280,7 @@ def gate_loss(
     gate_labels: np.ndarray,
     *,
     negative_weight: float,
+    gate_weights: np.ndarray | None = None,
 ):
     logits = []
     labels = []
@@ -220,7 +291,10 @@ def gate_loss(
             continue
         logits.append(gate_logits[start:end].mean())
         labels.append(1.0 if label_id == 2 else 0.0)
-        weights.append(1.0 if label_id == 2 else float(negative_weight))
+        base_weight = 1.0 if label_id == 2 else float(negative_weight)
+        if gate_weights is not None:
+            base_weight *= float(gate_weights[state_index])
+        weights.append(base_weight)
     if not logits:
         return gate_logits.sum() * 0.0
     logit_tensor = torch.stack(logits)
@@ -466,19 +540,21 @@ def write_markdown(path: Path, summary: dict[str, Any], threshold_rows: list[dic
     val = summary["eval"]["val"]
     total_states = sum(int(value) for value in summary.get("split_counts", {}).values())
     state_label = f"{total_states // 1000}k" if total_states and total_states % 1000 == 0 else str(total_states)
+    title_stage = "Stage8b Safe Override" if summary.get("gate_label_source") == "stage8b_labels_csv" else "Stage8 Broad"
     positive_thresholds = [
         row
         for row in threshold_rows
         if row["override_count"] > 0 and row["teacher_avg_gain_on_override"] > 0.0
     ]
     lines = [
-        f"# HU T2 Stage8 Broad {state_label} MC512 Training",
+        f"# HU T2 {title_stage} {state_label} MC512 Training",
         "",
         "This is a broad teacher-cache training artifact, not a production candidate.",
         "",
         f"- model: `{summary['model_output']}`",
         f"- cache: `{summary['cache_dir']}`",
         f"- device: `{summary['device']}`",
+        f"- gate label source: `{summary.get('gate_label_source', 'cache_gate_label_id')}`",
         f"- epochs ran: `{summary['epochs_ran']}`",
         f"- best epoch: `{summary['best_epoch']}`",
         f"- train/val/test states: `{summary['split_counts']['train']}` / `{summary['split_counts']['val']}` / `{summary['split_counts']['test']}`",
@@ -524,6 +600,14 @@ def main() -> None:
     hidden_layers = parse_hidden_layers(args.hidden_layer_sizes)
 
     cache = load_cache(args.cache_dir.resolve())
+    gate_label_override = None
+    if args.stage8b_labels_csv is not None:
+        gate_label_override = apply_stage8b_gate_labels(
+            cache,
+            args.stage8b_labels_csv.resolve(),
+            label_column=args.gate_label_column,
+            weight_column=args.gate_weight_column,
+        )
     targets = target_matrix(cache)
     train_states = state_indices_for_split(cache["split"], "train")
     val_states = state_indices_for_split(cache["split"], "val")
@@ -580,6 +664,7 @@ def main() -> None:
                     groups,
                     cache["gate_label_id"],
                     negative_weight=args.gate_negative_weight,
+                    gate_weights=cache.get("gate_label_weight"),
                 )
             loss.backward()
             optimizer.step()
@@ -729,6 +814,8 @@ def main() -> None:
         "threshold_positive_config_count": len(positive_thresholds),
         "elapsed_seconds": time.time() - started_at,
         "recommended_next_step": recommended,
+        "gate_label_source": "stage8b_labels_csv" if args.stage8b_labels_csv is not None else "cache_gate_label_id",
+        "gate_label_override": gate_label_override,
     }
 
     torch.save(
@@ -743,6 +830,10 @@ def main() -> None:
             "target_mean": stats["target_mean"],
             "target_scale": stats["target_scale"],
             "heads": ["ev", "delta_vs_baseline", "delta_vs_reference", "rank_score", "override_gate_logit"],
+            "override_gate_semantics": "safe_override_probability" if args.stage8b_labels_csv is not None else "pilot_positive_probability",
+            "stage8b_labels_csv": str(args.stage8b_labels_csv.resolve()) if args.stage8b_labels_csv is not None else None,
+            "gate_label_column": args.gate_label_column if args.stage8b_labels_csv is not None else None,
+            "gate_weight_column": args.gate_weight_column if args.stage8b_labels_csv is not None else None,
             "t3_continuation_policy": "Stage7_candidate_A_m5_r10",
             "hu_turn3_min_margin": 5.0,
             "hu_turn3_reference_min_margin": 10.0,

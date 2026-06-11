@@ -1,0 +1,6 @@
+bucket_group,records,avg_high_mc_delta,positive_count,negative_count,sign_stable_rate,candidate_best_rate
+natural,14,8.588551764787946,14,0,0.9285714285714286,0.7142857142857143
+predicted_high_regret,21,4.760897580775669,16,5,0.9523809523809523,0.47619047619047616
+predicted_low_margin,6,5.664602695638021,6,0,1.0,0.5
+predicted_teacher_disagreement,6,7.605240595214844,5,1,1.0,0.8333333333333334
+random_off_policy,3,3.6363744899088544,3,0,1.0,1.0

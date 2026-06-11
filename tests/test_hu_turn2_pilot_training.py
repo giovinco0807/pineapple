@@ -32,10 +32,17 @@ from ofc_regular.analyze_hu_turn2_stage8_c2_small import (
 from ofc_regular.analyze_hu_turn2_stage8_c3_larger_seat_swap import (
     c3_row_status,
 )
+from ofc_regular.audit_hu_turn2_stage8_high_mc import (
+    load_selected_states_jsonl,
+    load_teacher_samples_jsonl,
+)
 from ofc_regular.analyze_hu_turn2_gate_c1_followup import (
     classify_false_positive,
     margin_bucket_label,
     threshold_passes_strategy,
+)
+from ofc_regular.prepare_hu_turn2_stage8_high_mc_replay_pack import (
+    selected_slice,
 )
 from ofc_regular.build_hu_turn2_pilot_feature_cache import (
     action_position,
@@ -556,3 +563,35 @@ def test_c3_row_status_requires_positive_larger_seat_swap():
     status, blockers = c3_row_status(row)
     assert status == "no_go"
     assert "seat_swap_ev_not_positive" in blockers
+
+
+def test_c4_replay_pack_slice_and_loaders(tmp_path):
+    selected_path = tmp_path / "selected.jsonl"
+    selected_path.write_text(
+        "\n".join(
+            [
+                json.dumps({"state_index": 10, "selection_order": 0}),
+                json.dumps({"state_index": 20, "selection_order": 1}),
+                json.dumps({"state_index": 30, "selection_order": 2}),
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    sample_path = tmp_path / "samples.jsonl"
+    sample_path.write_text(
+        "\n".join(
+            [
+                json.dumps({"state_index": 20, "sample": {"board": "b20"}}),
+                json.dumps({"state_index": 30, "sample": {"board": "b30"}}),
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    selected = load_selected_states_jsonl(selected_path)
+    assert selected_slice(selected, offset=1, count=2) == selected[1:3]
+
+    samples = load_teacher_samples_jsonl(sample_path, {20, 30})
+    assert samples == {20: {"board": "b20"}, 30: {"board": "b30"}}

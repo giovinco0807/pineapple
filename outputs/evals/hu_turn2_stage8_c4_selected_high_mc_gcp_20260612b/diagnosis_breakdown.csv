@@ -1,0 +1,7 @@
+diagnosis,records,avg_high_mc_delta,positive_count,negative_count,sign_stable_rate,candidate_best_rate
+false_positive_gate,1,-1.160822049804688,0,1,1.0,0.0
+low_margin_noise,1,-0.04287296679687458,0,1,0.0,0.0
+model_ranking_error,9,0.2144113766276041,5,4,0.8888888888888888,0.0
+needs_more_samples,8,8.866647305541992,8,0,1.0,1.0
+reference_margin_bad_gate,21,6.130701698102679,21,0,1.0,0.8095238095238095
+underfire,10,11.0342835640625,10,0,1.0,0.6

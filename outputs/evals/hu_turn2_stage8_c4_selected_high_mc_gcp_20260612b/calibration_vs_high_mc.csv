@@ -1,0 +1,6 @@
+relation,n,pearson,spearman,sign_agreement
+predicted_delta__high_mc_delta_candidate_vs_baseline,50,0.3848720891569232,0.3238895558223289,0.84
+gate_probability__high_mc_delta_candidate_vs_baseline,50,-0.3765284912611076,0.16216086434573826,0.88
+reference_margin_raw__high_mc_delta_candidate_vs_baseline,50,-0.10799753858906386,0.01503001200480192,0.88
+mc512_delta_candidate_vs_baseline__high_mc_delta_candidate_vs_baseline,50,0.9942103674683698,0.991452581032413,0.96
+teacher_best_margin__high_mc_margin,50,0.9914801706769245,0.8616086434573829,1.0

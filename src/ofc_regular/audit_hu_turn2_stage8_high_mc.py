@@ -88,6 +88,24 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--split", choices=("train", "val", "test", "holdout", "all"), default="test")
     parser.add_argument("--mc-samples", type=int, default=4096)
     parser.add_argument("--max-replay-states", type=int, default=0, help="0 writes selection artifacts only.")
+    parser.add_argument(
+        "--replay-offset",
+        type=int,
+        default=0,
+        help="Skip this many selected replay states before applying --max-replay-states.",
+    )
+    parser.add_argument(
+        "--selected-states-jsonl",
+        type=Path,
+        default=None,
+        help="Use a preselected selected_teacher_states_deduped.jsonl file instead of rebuilding selection.",
+    )
+    parser.add_argument(
+        "--teacher-samples-jsonl",
+        type=Path,
+        default=None,
+        help="Slim replay input containing {state_index,sample} rows for selected states.",
+    )
     parser.add_argument("--selection-strategy", choices=("priority", "stratified"), default="priority")
     parser.add_argument("--include-fired", type=int, default=15)
     parser.add_argument("--include-suspected-false-positive", type=int, default=15)
@@ -488,6 +506,29 @@ def load_teacher_rows_for_state_indices(
                 if state_index in state_indices and line.strip():
                     rows[state_index] = json.loads(line)
                 state_index += 1
+        if state_indices.issubset(rows.keys()):
+            break
+    return rows
+
+
+def load_selected_states_jsonl(path: Path) -> list[dict[str, Any]]:
+    rows = list(iter_jsonl(path) or ())
+    for row in rows:
+        if "state_index" not in row:
+            raise ValueError(f"selected state row missing state_index: {path}")
+    return rows
+
+
+def load_teacher_samples_jsonl(path: Path, state_indices: set[int]) -> dict[int, dict[str, Any]]:
+    rows: dict[int, dict[str, Any]] = {}
+    for payload in iter_jsonl(path) or ():
+        state_index = safe_int(payload.get("state_index"), -1)
+        if state_index not in state_indices:
+            continue
+        sample = payload.get("sample")
+        if not isinstance(sample, dict):
+            sample = {key: value for key, value in payload.items() if key != "state_index"}
+        rows[state_index] = sample
         if state_indices.issubset(rows.keys()):
             break
     return rows
@@ -1187,38 +1228,45 @@ def write_recommended_next_step(path: Path, results: list[dict[str, Any]], failu
 
 def main() -> None:
     args = parse_args()
+    if args.replay_offset < 0:
+        raise ValueError("--replay-offset must be non-negative")
     started_at = time.perf_counter()
     output_dir = args.output_dir
     output_dir.mkdir(parents=True, exist_ok=True)
     configs = parse_configs(args.configs)
-    calibration_rows = read_csv_rows(args.calibration_values)
-    selected = select_audit_states(
-        calibration_rows,
-        configs,
-        split=args.split,
-        max_fired=args.max_fired,
-        max_near_fired=args.max_near_fired,
-        max_missed_positive=args.max_missed_positive,
-        max_suspected_false_positive=args.max_suspected_false_positive,
-        near_margin_window=args.near_margin_window,
-        near_gate_low=args.near_gate_low,
-        near_gate_high=args.near_gate_high,
-        near_reference_low=args.near_reference_low,
-        near_reference_high=args.near_reference_high,
-        missed_positive_delta=args.missed_positive_delta,
-        missed_positive_se_multiple=args.missed_positive_se_multiple,
-    )
-    if args.selection_strategy == "stratified":
-        deduped = stratified_for_replay(
-            selected,
-            include_fired=args.include_fired,
-            include_suspected_false_positive=args.include_suspected_false_positive,
-            include_missed_positive=args.include_missed_positive,
-            include_near_fired=args.include_near_fired,
-        )
+    if args.selected_states_jsonl is not None:
+        selected = []
+        deduped = load_selected_states_jsonl(args.selected_states_jsonl)
+        runtime_rows = []
     else:
-        deduped = dedupe_for_replay(selected)
-    runtime_rows = runtime_fired_rows(args.runtime_decision_log)
+        calibration_rows = read_csv_rows(args.calibration_values)
+        selected = select_audit_states(
+            calibration_rows,
+            configs,
+            split=args.split,
+            max_fired=args.max_fired,
+            max_near_fired=args.max_near_fired,
+            max_missed_positive=args.max_missed_positive,
+            max_suspected_false_positive=args.max_suspected_false_positive,
+            near_margin_window=args.near_margin_window,
+            near_gate_low=args.near_gate_low,
+            near_gate_high=args.near_gate_high,
+            near_reference_low=args.near_reference_low,
+            near_reference_high=args.near_reference_high,
+            missed_positive_delta=args.missed_positive_delta,
+            missed_positive_se_multiple=args.missed_positive_se_multiple,
+        )
+        if args.selection_strategy == "stratified":
+            deduped = stratified_for_replay(
+                selected,
+                include_fired=args.include_fired,
+                include_suspected_false_positive=args.include_suspected_false_positive,
+                include_missed_positive=args.include_missed_positive,
+                include_near_fired=args.include_near_fired,
+            )
+        else:
+            deduped = dedupe_for_replay(selected)
+        runtime_rows = runtime_fired_rows(args.runtime_decision_log)
     write_jsonl(output_dir / "runtime_fired_states.jsonl", runtime_rows)
     write_jsonl(output_dir / "fired_states.jsonl", [selection_payload(item) for item in selected if item.audit_group == "fired_teacher"] + runtime_rows)
     write_jsonl(output_dir / "near_fired_states.jsonl", [selection_payload(item) for item in selected if item.audit_group == "near_fired"])
@@ -1237,15 +1285,19 @@ def main() -> None:
     action_rows: list[dict[str, Any]] = []
     failures: list[dict[str, Any]] = []
     if args.max_replay_states > 0 and deduped:
+        replay_states = deduped[args.replay_offset : args.replay_offset + args.max_replay_states]
         partial_results_path = output_dir / "high_mc_audit_results.partial.jsonl"
         partial_actions_path = output_dir / "high_mc_action_ev_table.partial.jsonl"
         partial_failures_path = output_dir / "high_mc_audit_failures.partial.jsonl"
         for partial_path in (partial_results_path, partial_actions_path, partial_failures_path):
             if partial_path.exists():
                 partial_path.unlink()
-        metadata = load_cache_metadata(args.cache_dir)
-        targets = {int(row["state_index"]) for row in deduped[: args.max_replay_states]}
-        teacher_rows = load_teacher_rows_for_state_indices(metadata=metadata, repo_root=Path.cwd(), state_indices=targets)
+        targets = {int(row["state_index"]) for row in replay_states}
+        if args.teacher_samples_jsonl is not None:
+            teacher_rows = load_teacher_samples_jsonl(args.teacher_samples_jsonl, targets)
+        else:
+            metadata = load_cache_metadata(args.cache_dir)
+            teacher_rows = load_teacher_rows_for_state_indices(metadata=metadata, repo_root=Path.cwd(), state_indices=targets)
         stage8_model = load_hu_turn2_stage8_model(args.hu_turn2_stage8_model, device=args.device)
         bundle = load_model_bundle_for_replay(args)
         batched_config = build_batched_config(args)
@@ -1255,7 +1307,7 @@ def main() -> None:
         batched_action_cache = HuTurn3ActionCache(max_size=args.continuation_cache_size)
         final_turn_cache = FinalTurnDecisionCache(max_size=args.final_turn_cache_size)
         with _prediction_thread_context(args.prediction_threads):
-            for selection in deduped[: args.max_replay_states]:
+            for selection in replay_states:
                 state_index = int(selection["state_index"])
                 sample = teacher_rows.get(state_index)
                 if sample is None:
@@ -1311,6 +1363,10 @@ def main() -> None:
         "high_mc_failures": len(failures),
         "mc_samples": args.mc_samples,
         "max_replay_states": args.max_replay_states,
+        "replay_offset": args.replay_offset,
+        "replay_attempted_states": len(deduped[args.replay_offset : args.replay_offset + args.max_replay_states])
+        if args.max_replay_states > 0
+        else 0,
         "elapsed_seconds": time.perf_counter() - started_at,
         "output_dir": str(output_dir),
         "production": "No-Go",
