@@ -9,7 +9,7 @@ Teacher-oracle filters use MC512 teacher-EV LCB and are not runtime-deployable g
 - C2-small: `Go`
 - blockers: `none`
 - seat_swap_run: `True`
-- elapsed seconds: `523.67`
+- elapsed seconds: `496.30`
 
 ## Teacher Oracle Heldout
 
