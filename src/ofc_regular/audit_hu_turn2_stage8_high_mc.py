@@ -795,11 +795,16 @@ def runtime_fired_rows(path: Path) -> list[dict[str, Any]]:
     rows = []
     for row in iter_jsonl(path) or ():
         if row.get("override_fired"):
+            has_dead_cards = bool(row.get("dead_cards"))
             rows.append(
                 {
                     "source_kind": "runtime_decision_log",
-                    "replay_ready": bool(row.get("dead_cards")),
-                    "replay_blocker": "" if row.get("dead_cards") else "missing_dead_cards_in_legacy_runtime_log",
+                    "replay_ready": has_dead_cards,
+                    "replay_ineligible": not has_dead_cards,
+                    "exclude_from_exact_replay": not has_dead_cards,
+                    "legacy_runtime_log": not has_dead_cards,
+                    "missing_dead_cards": not has_dead_cards,
+                    "replay_blocker": "" if has_dead_cards else "missing_dead_cards_in_legacy_runtime_log",
                     "config_id": row.get("config_id"),
                     "seed": row.get("seed"),
                     "hand_id": row.get("hand_id"),
