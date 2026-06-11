@@ -2,6 +2,10 @@
 
 C2-small is validation-only. It does not authorize 50k teacher, T1, production training, or production runtime changes.
 
+Teacher-oracle filters use MC512 teacher-EV LCB and are not runtime-deployable gates. Runtime proxy filters use only model/runtime fields.
+
+`reference_margin_raw` is a T2 baseline/reference score margin on the T2 model scale. It is not comparable to the T3 Stage7 `hu_turn3_reference_min_margin=10.0` gate.
+
 - C2-small: `Go`
 - blockers: `none`
 - seat_swap_run: `True`

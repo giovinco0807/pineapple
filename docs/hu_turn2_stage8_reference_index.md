@@ -36,6 +36,21 @@ needed for C1f/C2 gate inspection.
 - T1 training: no-go for now.
 - Production T2 runtime: no-go for now.
 
+## T2 Gate Audit Notes
+
+- C1f `confidence_lcb*` filters use MC512 teacher-EV LCB. They are oracle /
+  calibration filters, not production runtime gates.
+- C2 runtime proxy filters must use runtime-available fields such as
+  `predicted_delta`, `gate_probability`, model margins, rank guards, and
+  position/source metadata.
+- `predicted_bucket` is the normalized alias for `bucket_group`. `run_bucket`
+  preserves the physical input bucket name.
+- T2 `reference_margin_raw` is a baseline/reference score margin on the T2
+  model scale. It is not comparable to the T3 Stage7
+  `hu_turn3_reference_min_margin=10.0` gate.
+- Legacy runtime logs without `dead_cards` are replay-ineligible for exact
+  high-MC audit. New runtime decision logs include `dead_cards`.
+
 ## Fixed T3 Continuation
 
 T2 evaluation uses the fixed Stage7 Candidate A continuation policy:

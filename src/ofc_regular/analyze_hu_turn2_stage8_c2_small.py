@@ -123,6 +123,8 @@ def build_rows(cache_dir: Path, model_path: Path, c1e_dir: Path, *, device_name:
     attach_c1e_fields(rows, load_c1e_index(c1e_dir))
     offsets = cache["offsets"]
     for row in rows:
+        row["predicted_bucket"] = row.get("predicted_bucket") or row.get("bucket_group") or row.get("run_bucket", "")
+        row["gate_label"] = row.get("gate_label") or row.get("pilot_gate_label", "")
         state_index = safe_int(row["state_index"])
         start = int(offsets[state_index])
         end = int(offsets[state_index + 1])
@@ -201,6 +203,9 @@ def actual_bucket_breakdown(rows: list[dict[str, Any]], specs: dict[str, dict[st
     groupers = {
         "c1e_split": lambda row: row.get("c1e_split", "unknown"),
         "run_bucket": lambda row: row.get("run_bucket", "unknown"),
+        "predicted_bucket": lambda row: row.get("predicted_bucket", row.get("bucket_group", "unknown")),
+        "source_bucket_requested": lambda row: row.get("source_bucket_requested", "unknown"),
+        "source_bucket_actual": lambda row: row.get("source_bucket_actual", "unknown"),
         "actual_high_regret": lambda row: str(bool(row.get("actual_high_regret"))),
         "actual_low_margin": lambda row: str(bool(row.get("actual_low_margin"))),
         "actual_teacher_disagreement": lambda row: str(bool(row.get("actual_teacher_disagreement"))),
@@ -467,6 +472,10 @@ def write_summary(
         "# HU Turn2 Stage8 C2-Small Validation",
         "",
         "C2-small is validation-only. It does not authorize 50k teacher, T1, production training, or production runtime changes.",
+        "",
+        "Teacher-oracle filters use MC512 teacher-EV LCB and are not runtime-deployable gates. Runtime proxy filters use only model/runtime fields.",
+        "",
+        "`reference_margin_raw` is a T2 baseline/reference score margin on the T2 model scale. It is not comparable to the T3 Stage7 `hu_turn3_reference_min_margin=10.0` gate.",
         "",
         f"- C2-small: `{c2_status}`",
         f"- blockers: `{';'.join(blockers) if blockers else 'none'}`",
