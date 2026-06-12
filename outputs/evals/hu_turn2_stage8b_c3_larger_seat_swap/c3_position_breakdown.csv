@@ -1,0 +1,7 @@
+config_id,seat,hands,ev_per_hand,override_count,decision_count,override_rate
+m2.5_r0_g0.95_seatfirst_k3,first,3000,-0.23086283066666674,70,3000,0.023333333333333334
+m2.5_r0_g0.95_seatfirst_k3,second,3000,0.2277974426666667,0,3000,0.0
+m2.75_r0_g0.95_seatfirst_k3,first,7500,-0.1841964549333333,138,7500,0.0184
+m2.75_r0_g0.95_seatfirst_k3,second,7500,0.18555594346666665,0,7500,0.0
+m2.75_r0_g0.9_seatfirst_k3,first,3000,-0.21746410933333338,69,3000,0.023
+m2.75_r0_g0.9_seatfirst_k3,second,3000,0.2277974426666667,0,3000,0.0
