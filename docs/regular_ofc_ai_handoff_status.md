@@ -381,7 +381,9 @@ Current default:
 - `DEFAULT_FL_EV = {14: 12.196164}`
 - config: `configs/fl_ev_regular_2k.json`
 
-The config combines simulated FL royalty/stay stats with manually chosen
+The Rust FL solver at `rust/regular_fl_solver` does perform fixed-point
+iteration over the stay bonus. The remaining calibration issue is not missing
+iteration. The issue is that the shortcut EV formula still uses manually chosen
 adjustments:
 
 - `opponent_avg_royalty = 5.0`
@@ -391,10 +393,21 @@ This constant strongly affects every teacher score and every model trained from
 those labels. If the true 14-card FL value is materially lower, the models will
 overvalue FL entry and top QQ+ lines.
 
-Before treating T2/T1 decisions as final, recalibrate FL EV from actual HU
-self-play or from direct FL-vs-normal hand simulations using `terminal_score`.
-At minimum, run sensitivity checks with several FL EV values such as 8, 10, and
-12.
+The preferred recalibration path is direct FL-vs-normal HU simulation:
+
+- hero receives 14 cards and is placed by `solve_fantasyland(stay_bonus=V)`
+- opponent plays a normal 13-card hand with the current baseline policy stack
+- hero current-FL next bonus is awarded only by FL-stay, not by ordinary QQ+
+  entry
+- opponent normal-hand FL entry subtracts the same fixed-point value
+- update `V_next = E[score]` until stable
+
+Implementation scaffold:
+
+- `src/ofc_regular/estimate_hu_fl_ev_direct.py`
+
+Before treating T2/T1 decisions as final, run this direct estimator and also
+run sensitivity checks with several FL EV values such as 8, 10, and 12.
 
 ### 7.3 TopK + MC Rerank Gain Is Selection-Biased
 
@@ -558,6 +571,31 @@ Full test command:
 
 ```powershell
 python -m pytest -p no:cacheprovider
+```
+
+Direct HU FL EV smoke:
+
+```powershell
+python -m ofc_regular.estimate_hu_fl_ev_direct `
+  --trials 5 `
+  --iterations 1 `
+  --seed 2026062201 `
+  --opening-lookahead-samples 1 `
+  --prediction-threads 1 `
+  --output-dir outputs\fl_ev_direct_hu_smoke
+```
+
+Direct HU FL EV production-style run should use much larger trials, preferably
+on Spot VM:
+
+```powershell
+python -m ofc_regular.estimate_hu_fl_ev_direct `
+  --trials 10000 `
+  --iterations 5 `
+  --seed 2026062201 `
+  --opening-lookahead-samples 32 `
+  --prediction-threads 1 `
+  --output-dir outputs\fl_ev_direct_hu_10k
 ```
 
 ## 11. Current Bottom Line
