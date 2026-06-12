@@ -12,6 +12,10 @@ from ofc_regular.analyze_hu_turn2_stage8b_training import (
     metric_from_counts,
     runtime_fires,
 )
+from ofc_regular.evaluate_hu_turn2_stage8b_topk_mc_rerank import (
+    aggregate_topk_seed_rows,
+    parse_topk_configs,
+)
 from ofc_regular.train_hu_turn2_pilot_model import apply_stage8b_gate_labels, gate_loss
 
 
@@ -173,3 +177,72 @@ def test_stage8b_runtime_fires_uses_safe_probability_and_rank_guard():
     assert not runtime_fires(row, min_delta=2.75, safe_threshold=0.90, rank_max=2)
     assert not runtime_fires(row, min_delta=2.5, safe_threshold=0.95, rank_max=2)
     assert not runtime_fires(row, min_delta=2.5, safe_threshold=0.90, rank_max=1)
+
+
+def test_topk_mc_rerank_config_parser_supports_runtime_variants():
+    config = parse_topk_configs("k5/mc128/d0.5/se1.5/seat=first/rank3/g0.9/bygate_delta")[0]
+
+    assert config.top_k == 5
+    assert config.mc_samples == 128
+    assert config.min_delta == 0.5
+    assert config.se_multiplier == 1.5
+    assert config.allowed_seats == ("first",)
+    assert config.candidate_ev_rank_max == 3
+    assert config.min_gate_probability == 0.9
+    assert config.topk_score == "gate_delta"
+
+
+def test_topk_mc_rerank_aggregate_seed_rows_uses_topk_schema():
+    rows = aggregate_topk_seed_rows(
+        [
+            {
+                "config_id": "k3_mc64_d0.25_se0",
+                "top_k": 3,
+                "mc_samples": 64,
+                "min_rerank_delta": 0.25,
+                "se_multiplier": 0.0,
+                "allowed_seats": "",
+                "candidate_ev_rank_max": "",
+                "min_gate_probability": "",
+                "topk_score": "delta",
+                "paired_seeds": 10,
+                "hands": 20,
+                "ev_per_hand": 0.2,
+                "paired_seed_wins": 6,
+                "paired_seed_losses": 3,
+                "paired_seed_ties": 1,
+                "decision_count": 20,
+                "override_count": 2,
+                "avg_rerank_delta_on_override": 1.0,
+            },
+            {
+                "config_id": "k3_mc64_d0.25_se0",
+                "top_k": 3,
+                "mc_samples": 64,
+                "min_rerank_delta": 0.25,
+                "se_multiplier": 0.0,
+                "allowed_seats": "",
+                "candidate_ev_rank_max": "",
+                "min_gate_probability": "",
+                "topk_score": "delta",
+                "paired_seeds": 10,
+                "hands": 20,
+                "ev_per_hand": -0.1,
+                "paired_seed_wins": 3,
+                "paired_seed_losses": 6,
+                "paired_seed_ties": 1,
+                "decision_count": 20,
+                "override_count": 1,
+                "avg_rerank_delta_on_override": 0.5,
+            },
+        ]
+    )
+
+    assert len(rows) == 1
+    row = rows[0]
+    assert row["paired_seeds"] == 20
+    assert row["hands"] == 40
+    assert row["aggregate_ev_per_hand"] == 0.05
+    assert row["override_count"] == 3
+    assert row["runtime_override_rate"] == 3 / 40
+    assert row["avg_gain_on_override"] == (1.0 + 1.0 + 0.5) / 3

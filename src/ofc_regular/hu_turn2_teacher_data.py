@@ -121,6 +121,7 @@ def evaluate_hu_turn2_actions(
     baseline_turn2_model: object,
     future_samples: int,
     future_rollout_seed: int,
+    action_indices: Iterable[int] | None = None,
     use_batched_continuation: bool = False,
     batched_continuation_config: HuTurn3Stage7BatchConfig | None = None,
     batched_continuation_cache: HuTurn3DecisionCache | None = None,
@@ -271,6 +272,13 @@ def evaluate_hu_turn2_actions(
     if not actions:
         return None
     profile["legal_actions"] = float(len(actions))
+    if action_indices is None:
+        action_index_set = set(range(len(actions)))
+    else:
+        action_index_set = {int(index) for index in action_indices if 0 <= int(index) < len(actions)}
+        if not action_index_set:
+            return None
+    profile["evaluated_action_count"] = float(len(action_index_set))
     remaining = remaining_for_hu_turn2_teacher(board, dealt, opponent_board, dead)
     future_started_at = time.perf_counter()
     future_rollouts = _common_future_rollouts(
@@ -295,6 +303,7 @@ def evaluate_hu_turn2_actions(
         rollout_by_action = _rollouts_after_hero_t2_actions_batched(
             board=board,
             actions=actions,
+            action_indices=action_index_set,
             opponent_board=opponent_board,
             dead_cards=dead,
             hero_seat=hero_seat,
@@ -314,6 +323,8 @@ def evaluate_hu_turn2_actions(
     else:
         rollout_by_action: dict[int, _ActionRolloutAggregate] = {}
         for action_index, action in enumerate(actions):
+            if action_index not in action_index_set:
+                continue
             scores: list[float] = []
             hero_after_action = board.place(action.placements)
             action_rollout_started_at = time.perf_counter()
@@ -2025,6 +2036,7 @@ def _rollouts_after_hero_t2_actions_batched(
     *,
     board: Board,
     actions: list[Action],
+    action_indices: Iterable[int] | None = None,
     opponent_board: Board,
     dead_cards: Iterable[str],
     hero_seat: str,
@@ -2042,9 +2054,14 @@ def _rollouts_after_hero_t2_actions_batched(
     use_final_turn_cache: bool,
 ) -> dict[int, _ActionRolloutAggregate]:
     rollout_started_at = time.perf_counter()
-    aggregates = {index: _ActionRolloutAggregate() for index in range(len(actions))}
+    if action_indices is None:
+        selected_indices = list(range(len(actions)))
+    else:
+        selected_indices = sorted({int(index) for index in action_indices if 0 <= int(index) < len(actions)})
+    aggregates = {index: _ActionRolloutAggregate() for index in selected_indices}
     items: list[_BatchedRollout] = []
-    for action_index, action in enumerate(actions):
+    for action_index in selected_indices:
+        action = actions[action_index]
         hero_after_action = board.place(action.placements)
         initial_dead = [*tuple(dead_cards), *action.discards]
         for future_cards in future_rollouts:
