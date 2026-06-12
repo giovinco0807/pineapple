@@ -345,7 +345,90 @@ Current decisions:
 Use the phrase "execution pass / decision No-Go" when a run completed correctly
 but did not provide enough evidence to adopt the policy.
 
-## 7. Things Not To Mix Up
+## 7. Critical Caveats After Code Audit
+
+These are high-priority caveats. Do not spend large Spot VM budget or start T1
+training until they are either fixed or explicitly accepted as part of the game
+variant.
+
+### 7.1 Discard Visibility / Information Model
+
+Current implementation uses a shared `dead_cards` list during HU play and passes
+it into each policy together with the opponent's public board:
+
+- `src/ofc_regular/play_ai.py`
+- `src/ofc_regular/hu_turn2_teacher_data.py`
+
+This means a player can currently condition on both players' accumulated
+discards in many runtime/evaluation/teacher paths. In standard Pineapple OFC,
+the opponent's discards are hidden. If the target game is standard hidden-discard
+Pineapple OFC, this is an information leak and a rule-model mismatch.
+
+The leak also matters because dead-card masks are part of model features, for
+example in the HU T3 Stage3 feature manifest.
+
+Current interpretation:
+
+- If this project intentionally models an open-discard variant, the rule
+  document must say so explicitly.
+- If this project targets normal hidden-discard OFC, this is a blocker before
+  further large teacher generation, T2 validation, or T1 training.
+
+### 7.2 FL EV Calibration Is Not Final
+
+Current default:
+
+- `DEFAULT_FL_EV = {14: 12.196164}`
+- config: `configs/fl_ev_regular_2k.json`
+
+The config combines simulated FL royalty/stay stats with manually chosen
+adjustments:
+
+- `opponent_avg_royalty = 5.0`
+- `line_scoop_advantage = 4.0`
+
+This constant strongly affects every teacher score and every model trained from
+those labels. If the true 14-card FL value is materially lower, the models will
+overvalue FL entry and top QQ+ lines.
+
+Before treating T2/T1 decisions as final, recalibrate FL EV from actual HU
+self-play or from direct FL-vs-normal hand simulations using `terminal_score`.
+At minimum, run sensitivity checks with several FL EV values such as 8, 10, and
+12.
+
+### 7.3 TopK + MC Rerank Gain Is Selection-Biased
+
+The current TopK + MC rerank experiment uses MC estimates both to choose the
+candidate action and to report the selected candidate's gain. This can inflate
+`avg MC gain` because the selected action is the winner of noisy estimates.
+
+For the next validation, prefer one of these designs:
+
+- two-stage MC: select candidate with one random stream, then confirm selected
+  candidate vs baseline with an independent random stream
+- SE-gated override: require `delta >= k * SE`, not only a small fixed delta
+- sequential halving: cheap MC for TopK pruning, higher MC only for finalists,
+  then independent confirmation against baseline
+
+The current small TopK + MC results are useful as an execution smoke and
+candidate-generation signal. They are not production evidence.
+
+### 7.4 Validation Power
+
+For small expected effects such as +0.01 to +0.03 EV/hand, ordinary whole-hand
+seat-swap estimates may need many games. When testing selective overrides, also
+report:
+
+- override rate
+- per-override paired EV
+- conditional paired CI on fired hands
+- whole-hand EV as `override_rate * per_override_EV`
+
+This avoids hiding the signal in thousands of non-fired hands. It also helps
+identify whether a policy is genuinely positive but underfiring, or simply not
+better than baseline.
+
+## 8. Things Not To Mix Up
 
 Do not confuse these:
 
@@ -378,7 +461,7 @@ Also:
   Do not trust a local action index if actions were filtered/reordered.
 - Seat-swap evaluations must use non-overlapping seeds and `--seed-stride`.
 
-## 8. Recommended Next Work
+## 9. Recommended Next Work
 
 ### Next Best Step
 
@@ -429,7 +512,7 @@ Move to a larger C-style validation only if:
 Still do not start T1 or 50k teacher until T2 has a stable policy or a clear
 decision is made to use a baseline T2 continuation.
 
-## 9. Useful Commands
+## 10. Useful Commands
 
 Small TopK + MC smoke:
 
@@ -477,7 +560,7 @@ Full test command:
 python -m pytest -p no:cacheprovider
 ```
 
-## 10. Current Bottom Line
+## 11. Current Bottom Line
 
 T3 is stable enough to keep fixed as Stage7_candidate_A m5_r10.
 
