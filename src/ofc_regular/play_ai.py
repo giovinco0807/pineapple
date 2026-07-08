@@ -17,6 +17,7 @@ from .policy import RegularAiPolicy, board_to_json
 from .state import Board
 from .teacher import DEFAULT_FL_EV, terminal_score
 from .turn3_model import load_action_value_model
+from .visibility import HuDiscardTracker
 
 try:
     from threadpoolctl import threadpool_limits
@@ -43,7 +44,7 @@ def play_hand(
     cursor = 0
     boards = [Board.from_rows(), Board.from_rows()]
     policies = [policy_p0, policy_p1]
-    dead_cards: list[str] = []
+    discards = HuDiscardTracker()
 
     for player in (0, 1):
         dealt = deck[cursor : cursor + 5]
@@ -51,7 +52,7 @@ def play_hand(
         action = policies[player].choose_action(
             boards[player],
             dealt,
-            dead_cards=(*boards[1 - player].all_cards(), *dead_cards),
+            dead_cards=(*boards[1 - player].all_cards(), *discards.own_discards(player)),
             opponent_board=boards[1 - player],
             hand_id=seed,
             game_id=seed,
@@ -59,7 +60,7 @@ def play_hand(
             street="T0",
         )
         boards[player] = boards[player].place(action.placements)
-        dead_cards.extend(action.discards)
+        discards.record(player, action.discards)
 
     for round_index in range(1, 5):
         for player in (0, 1):
@@ -68,7 +69,7 @@ def play_hand(
             action = policies[player].choose_action(
                 boards[player],
                 dealt,
-                dead_cards=(*boards[1 - player].all_cards(), *dead_cards),
+                dead_cards=(*boards[1 - player].all_cards(), *discards.own_discards(player)),
                 opponent_board=boards[1 - player],
                 hand_id=seed,
                 game_id=seed,
@@ -76,7 +77,7 @@ def play_hand(
                 street=f"T{round_index}",
             )
             boards[player] = boards[player].place(action.placements)
-            dead_cards.extend(action.discards)
+            discards.record(player, action.discards)
 
     score, _board_score = terminal_score(
         boards[0],

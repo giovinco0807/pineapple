@@ -38,6 +38,7 @@ from .rules import check_fl_entry
 from .state import Board
 from .teacher import DEFAULT_FL_EV, evaluate_turn_actions, terminal_score
 from .turn3_model import load_action_value_model
+from .visibility import HuDiscardTracker
 
 
 DEFAULT_STAGE7_MODEL = Path("models/hu_turn3_stage7_reference_override_cached_rank_wide.pt")
@@ -304,7 +305,7 @@ def trace_hand_with_records(
     boards = [Board.from_rows(), Board.from_rows()]
     policies = [policy_p0, policy_p1]
     profiles = [profile_p0, profile_p1]
-    dead_cards: list[str] = []
+    discards = HuDiscardTracker()
 
     for player in (0, 1):
         dealt = deck[cursor : cursor + 5]
@@ -312,11 +313,11 @@ def trace_hand_with_records(
         action = policies[player].choose_action(
             boards[player],
             dealt,
-            dead_cards=(*boards[1 - player].all_cards(), *dead_cards),
+            dead_cards=(*boards[1 - player].all_cards(), *discards.own_discards(player)),
             opponent_board=boards[1 - player],
         )
         boards[player] = boards[player].place(action.placements)
-        dead_cards.extend(action.discards)
+        discards.record(player, action.discards)
 
     for _round_index in range(1, 5):
         for player in (0, 1):
@@ -325,11 +326,11 @@ def trace_hand_with_records(
             action = policies[player].choose_action(
                 boards[player],
                 dealt,
-                dead_cards=(*boards[1 - player].all_cards(), *dead_cards),
+                dead_cards=(*boards[1 - player].all_cards(), *discards.own_discards(player)),
                 opponent_board=boards[1 - player],
             )
             boards[player] = boards[player].place(action.placements)
-            dead_cards.extend(action.discards)
+            discards.record(player, action.discards)
 
     score_p0, board_score_p0 = terminal_score(boards[0], boards[1], fl_ev=DEFAULT_FL_EV)
     _reverse_score, board_score_p1 = terminal_score(boards[1], boards[0], fl_ev=DEFAULT_FL_EV)

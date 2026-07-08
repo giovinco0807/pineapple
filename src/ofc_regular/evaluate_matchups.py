@@ -33,6 +33,7 @@ from .play_ai import _prediction_thread_context
 from .rules import check_fl_entry
 from .state import Board
 from .teacher import DEFAULT_FL_EV, terminal_score
+from .visibility import HuDiscardTracker
 
 PROFILE_CHOICES = (
     "current",
@@ -96,7 +97,7 @@ def trace_hand(
     policies = [policy_p0, policy_p1]
     profiles = [profile_p0, profile_p1]
     turns: list[dict[str, Any]] = []
-    dead_cards: list[str] = []
+    discards = HuDiscardTracker()
 
     for player in (0, 1):
         dealt = deck[cursor : cursor + 5]
@@ -104,7 +105,7 @@ def trace_hand(
         action = policies[player].choose_action(
             boards[player],
             dealt,
-            dead_cards=(*boards[1 - player].all_cards(), *dead_cards),
+            dead_cards=(*boards[1 - player].all_cards(), *discards.own_discards(player)),
             opponent_board=boards[1 - player],
             hand_id=seed,
             game_id=seed,
@@ -112,7 +113,7 @@ def trace_hand(
             street="T0",
         )
         boards[player] = boards[player].place(action.placements)
-        dead_cards.extend(action.discards)
+        discards.record(player, action.discards)
         turns.append(_turn_record("T0", player, profiles[player], dealt, action, boards[player]))
 
     for round_index in range(1, 5):
@@ -122,7 +123,7 @@ def trace_hand(
             action = policies[player].choose_action(
                 boards[player],
                 dealt,
-                dead_cards=(*boards[1 - player].all_cards(), *dead_cards),
+                dead_cards=(*boards[1 - player].all_cards(), *discards.own_discards(player)),
                 opponent_board=boards[1 - player],
                 hand_id=seed,
                 game_id=seed,
@@ -130,7 +131,7 @@ def trace_hand(
                 street=f"T{round_index}",
             )
             boards[player] = boards[player].place(action.placements)
-            dead_cards.extend(action.discards)
+            discards.record(player, action.discards)
             turns.append(
                 _turn_record(
                     f"T{round_index}",

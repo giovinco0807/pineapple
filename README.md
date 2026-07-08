@@ -7,6 +7,9 @@ Separate implementation for regular OFC Pineapple rules:
 - Every Fantasyland entry deals 14 cards.
 - Fantasyland stay also deals 14 cards.
 - Royalty tables match the existing pineapple implementation.
+- Discards are hidden: a player sees both public boards, their own hand,
+  and their own discards only (`ofc_regular.visibility`). The opponent's
+  discards are treated as live cards when sampling futures.
 
 The original repository is only a reference. This repository is intended to evolve independently.
 

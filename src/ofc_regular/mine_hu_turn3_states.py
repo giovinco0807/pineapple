@@ -29,6 +29,7 @@ from .hu_turn3_model import load_hu_action_value_model
 from .play_ai import _prediction_thread_context
 from .policy import board_to_json
 from .state import Board
+from .visibility import HuDiscardTracker
 
 
 def build_hu_turn3_state_record(
@@ -102,7 +103,7 @@ def mine_hu_turn3_states(
             deck = create_deck(shuffle=True, rng=random.Random(hand_seed))
             cursor = 0
             boards = [Board.from_rows(), Board.from_rows()]
-            discarded_cards: list[str] = []
+            discards = HuDiscardTracker()
             policies = [
                 build_policy(
                     "current",
@@ -126,11 +127,11 @@ def mine_hu_turn3_states(
                 action = policies[player].choose_action(
                     boards[player],
                     dealt,
-                    dead_cards=(*boards[1 - player].all_cards(), *discarded_cards),
+                    dead_cards=(*boards[1 - player].all_cards(), *discards.own_discards(player)),
                     opponent_board=boards[1 - player],
                 )
                 boards[player] = boards[player].place(action.placements)
-                discarded_cards.extend(action.discards)
+                discards.record(player, action.discards)
 
             for _round in range(1, 5):
                 for player in (0, 1):
@@ -143,7 +144,7 @@ def mine_hu_turn3_states(
                             board=boards[player],
                             dealt_cards=dealt,
                             opponent_board=boards[1 - player],
-                            dead_cards=discarded_cards,
+                            dead_cards=discards.own_discards(player),
                             hero_seat=hero_seat,
                             baseline_turn3_model=policy_bundle.turn3,
                             selection_hu_model=selection_hu_model,
@@ -165,7 +166,7 @@ def mine_hu_turn3_states(
                                 board=boards[player],
                                 opponent_board=boards[1 - player],
                                 dealt_cards=dealt,
-                                discarded_cards=discarded_cards,
+                                discarded_cards=discards.own_discards(player),
                                 hero_seat=hero_seat,
                                 selection=selection,
                             )
@@ -178,11 +179,11 @@ def mine_hu_turn3_states(
                     action = policies[player].choose_action(
                         boards[player],
                         dealt,
-                        dead_cards=(*boards[1 - player].all_cards(), *discarded_cards),
+                        dead_cards=(*boards[1 - player].all_cards(), *discards.own_discards(player)),
                         opponent_board=boards[1 - player],
                     )
                     boards[player] = boards[player].place(action.placements)
-                    discarded_cards.extend(action.discards)
+                    discards.record(player, action.discards)
 
             if progress_every > 0 and hands % progress_every == 0:
                 print(

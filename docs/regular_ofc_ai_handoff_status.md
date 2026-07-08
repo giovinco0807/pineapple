@@ -351,28 +351,41 @@ These are high-priority caveats. Do not spend large Spot VM budget or start T1
 training until they are either fixed or explicitly accepted as part of the game
 variant.
 
-### 7.1 Discard Visibility / Information Model
+### 7.1 Discard Visibility / Information Model — FIXED (2026-06-14)
 
-Current implementation uses a shared `dead_cards` list during HU play and passes
-it into each policy together with the opponent's public board:
+The project targets standard hidden-discard Pineapple OFC. The shared
+`dead_cards` list has been replaced by per-player tracking
+(`ofc_regular.visibility.HuDiscardTracker`). Every HU play loop now passes
+each policy only the opponent's public board plus that player's own
+discards:
 
 - `src/ofc_regular/play_ai.py`
+- `src/ofc_regular/evaluate_matchups.py` (also used by the Stage8b TopK+MC
+  rerank evaluator)
+- `src/ofc_regular/evaluate_stage7_production_candidate.py`
+- `src/ofc_regular/trace_hu_turn3_overrides.py`
+- `src/ofc_regular/self_play_teacher_data.py`
+- `src/ofc_regular/hu_self_play_teacher_data.py`
 - `src/ofc_regular/hu_turn2_teacher_data.py`
+- `src/ofc_regular/mine_hu_turn3_states.py`
 
-This means a player can currently condition on both players' accumulated
-discards in many runtime/evaluation/teacher paths. In standard Pineapple OFC,
-the opponent's discards are hidden. If the target game is standard hidden-discard
-Pineapple OFC, this is an information leak and a rule-model mismatch.
+Teacher decision points receive the hero-visible discards, so MC rollouts
+now sample the opponent's hidden discards as live cards (belief-space
+sampling). Rollout internals still share simulated discards within one
+imagined future; that is a modeling approximation, not an information leak.
 
-The leak also matters because dead-card masks are part of model features, for
-example in the HU T3 Stage3 feature manifest.
+Regression coverage: `tests/test_hidden_discards.py` plays full hands with
+probe policies and asserts no policy ever sees an opponent discard.
 
-Current interpretation:
+Remaining consequences:
 
-- If this project intentionally models an open-discard variant, the rule
-  document must say so explicitly.
-- If this project targets normal hidden-discard OFC, this is a blocker before
-  further large teacher generation, T2 validation, or T1 training.
+- Teacher data and runtime logs generated BEFORE this fix contain leaked
+  `dead_cards` and mismatched labels. Treat them as legacy; do not mix them
+  with new data. New records store hero-visible `dead_cards` only.
+- Existing models were trained on leaked dead-card features. They still run
+  (they now receive hero-visible masks), but train/serve consistency is only
+  restored for models retrained on post-fix data. Re-validate any Go/No-Go
+  numbers before relying on them.
 
 ### 7.2 FL EV Calibration Is Not Final
 

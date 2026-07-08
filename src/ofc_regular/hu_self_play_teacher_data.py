@@ -23,6 +23,7 @@ from .hu_turn3_model import hu_policy_sample, load_hu_action_value_model
 from .policy import RegularAiPolicy, action_to_json, policy_sample
 from .state import Board
 from .teacher import DEFAULT_FL_EV, terminal_score
+from .visibility import HuDiscardTracker
 
 
 def remaining_for_hu_teacher(
@@ -415,7 +416,7 @@ def collect_hu_self_play_turn3_dataset(
             deck = create_deck(shuffle=True, rng=random.Random(hand_seed))
             cursor = 0
             boards = [Board.from_rows(), Board.from_rows()]
-            dead_cards: list[str] = []
+            discards = HuDiscardTracker()
             policies = [
                 build_policy(
                     "current",
@@ -439,11 +440,11 @@ def collect_hu_self_play_turn3_dataset(
                 action = policies[player].choose_action(
                     boards[player],
                     dealt,
-                    dead_cards=(*boards[1 - player].all_cards(), *dead_cards),
+                    dead_cards=(*boards[1 - player].all_cards(), *discards.own_discards(player)),
                     opponent_board=boards[1 - player],
                 )
                 boards[player] = boards[player].place(action.placements)
-                dead_cards.extend(action.discards)
+                discards.record(player, action.discards)
 
             for _round in range(1, 5):
                 for player in (0, 1):
@@ -457,7 +458,7 @@ def collect_hu_self_play_turn3_dataset(
                                 board=boards[player],
                                 dealt_cards=dealt,
                                 opponent_board=boards[1 - player],
-                                dead_cards=dead_cards,
+                                dead_cards=discards.own_discards(player),
                                 hero_seat="first" if player == 0 else "second",
                                 baseline_turn3_model=policy_bundle.turn3,
                                 selection_hu_model=selection_hu_model,
@@ -474,18 +475,18 @@ def collect_hu_self_play_turn3_dataset(
                                 action = policies[player].choose_action(
                                     boards[player],
                                     dealt,
-                                    dead_cards=(*boards[1 - player].all_cards(), *dead_cards),
+                                    dead_cards=(*boards[1 - player].all_cards(), *discards.own_discards(player)),
                                     opponent_board=boards[1 - player],
                                 )
                                 boards[player] = boards[player].place(action.placements)
-                                dead_cards.extend(action.discards)
+                                discards.record(player, action.discards)
                                 continue
                         sample = build_hu_self_play_turn3_sample(
                             sample_id=collected,
                             board=boards[player],
                             dealt_cards=dealt,
                             opponent_board=boards[1 - player],
-                            dead_cards=dead_cards,
+                            dead_cards=discards.own_discards(player),
                             hero_seat="first" if player == 0 else "second",
                             hero_policy=policies[player],
                             opponent_policy=policies[1 - player],
@@ -507,11 +508,11 @@ def collect_hu_self_play_turn3_dataset(
                     action = policies[player].choose_action(
                         boards[player],
                         dealt,
-                        dead_cards=(*boards[1 - player].all_cards(), *dead_cards),
+                        dead_cards=(*boards[1 - player].all_cards(), *discards.own_discards(player)),
                         opponent_board=boards[1 - player],
                     )
                     boards[player] = boards[player].place(action.placements)
-                    dead_cards.extend(action.discards)
+                    discards.record(player, action.discards)
     if collected < samples:
         raise RuntimeError(f"collected {collected}/{samples} samples after {hands} hands")
     return {

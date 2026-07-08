@@ -24,6 +24,7 @@ from .policy import board_to_json, phase_for_card_count
 from .state import Board
 from .teacher import ExpectedAction, evaluate_two_turn_actions
 from .turn3_model import load_action_value_model
+from .visibility import HuDiscardTracker
 
 Phase = Literal["opening", "turn1", "turn3"]
 
@@ -169,7 +170,7 @@ def collect_self_play_teacher_data(
             deck = create_deck(shuffle=True, rng=random.Random(hand_seed))
             cursor = 0
             boards = [Board.from_rows(), Board.from_rows()]
-            dead_cards: list[str] = []
+            discards = HuDiscardTracker()
             policies = [
                 build_policy(
                     "current",
@@ -196,7 +197,7 @@ def collect_self_play_teacher_data(
                         board=boards[player],
                         dealt_cards=dealt,
                         opponent_board=boards[1 - player],
-                        dead_cards=dead_cards,
+                        dead_cards=discards.own_discards(player),
                         downstream_model=downstream_model,
                         future_samples=future_samples,
                         action_batch_size=action_batch_size,
@@ -211,11 +212,11 @@ def collect_self_play_teacher_data(
                 action = policies[player].choose_action(
                     boards[player],
                     dealt,
-                    dead_cards=(*boards[1 - player].all_cards(), *dead_cards),
+                    dead_cards=(*boards[1 - player].all_cards(), *discards.own_discards(player)),
                     opponent_board=boards[1 - player],
                 )
                 boards[player] = boards[player].place(action.placements)
-                dead_cards.extend(action.discards)
+                discards.record(player, action.discards)
 
             for _round in range(1, 5):
                 for player in (0, 1):
@@ -233,7 +234,7 @@ def collect_self_play_teacher_data(
                             board=boards[player],
                             dealt_cards=dealt,
                             opponent_board=boards[1 - player],
-                            dead_cards=dead_cards,
+                            dead_cards=discards.own_discards(player),
                             downstream_model=downstream_model,
                             future_samples=future_samples,
                             action_batch_size=action_batch_size,
@@ -248,11 +249,11 @@ def collect_self_play_teacher_data(
                     action = policies[player].choose_action(
                         boards[player],
                         dealt,
-                        dead_cards=(*boards[1 - player].all_cards(), *dead_cards),
+                        dead_cards=(*boards[1 - player].all_cards(), *discards.own_discards(player)),
                         opponent_board=boards[1 - player],
                     )
                     boards[player] = boards[player].place(action.placements)
-                    dead_cards.extend(action.discards)
+                    discards.record(player, action.discards)
 
     if collected < samples:
         raise RuntimeError(f"collected {collected}/{samples} samples after {hands} hands")

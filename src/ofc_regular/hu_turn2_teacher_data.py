@@ -52,6 +52,7 @@ from .hu_turn3_model import hu_policy_sample
 from .play_ai import _prediction_thread_context
 from .policy import RegularAiPolicy, action_to_json, board_to_json, policy_sample
 from .state import Board
+from .visibility import HuDiscardTracker
 from .teacher import DEFAULT_FL_EV, terminal_score
 from .turn3_model import load_action_value_model, sample_to_matrix as self_sample_to_matrix
 
@@ -735,7 +736,7 @@ def collect_hu_turn2_dataset(
                 deck = create_deck(shuffle=True, rng=random.Random(hand_seed))
                 cursor = 0
                 boards = [Board.from_rows(), Board.from_rows()]
-                dead_cards: list[str] = []
+                discards = HuDiscardTracker()
                 state_policies = [
                     _build_policy_for_profile(
                         state_profile,
@@ -773,11 +774,11 @@ def collect_hu_turn2_dataset(
                     action = state_policies[player].choose_action(
                         boards[player],
                         dealt,
-                        dead_cards=(*boards[1 - player].all_cards(), *dead_cards),
+                        dead_cards=(*boards[1 - player].all_cards(), *discards.own_discards(player)),
                         opponent_board=boards[1 - player],
                     )
                     boards[player] = boards[player].place(action.placements)
-                    dead_cards.extend(action.discards)
+                    discards.record(player, action.discards)
 
                 for _round in range(1, 5):
                     for player in (0, 1):
@@ -798,7 +799,7 @@ def collect_hu_turn2_dataset(
                                     board=boards[player],
                                     dealt_cards=dealt,
                                     opponent_board=boards[1 - player],
-                                    dead_cards=dead_cards,
+                                    dead_cards=discards.own_discards(player),
                                     hero_seat="first" if player == 0 else "second",
                                     baseline_turn2_model=policy_bundle.turn2,
                                 )
@@ -840,7 +841,7 @@ def collect_hu_turn2_dataset(
                                         board=boards[player],
                                         dealt_cards=dealt,
                                         opponent_board=boards[1 - player],
-                                        dead_cards=dead_cards,
+                                        dead_cards=discards.own_discards(player),
                                         hero_seat=hero_seat,
                                         source_bucket=_actual_bucket_for_predicted(target_bucket),
                                         cheap_sample=proxy,
@@ -902,7 +903,7 @@ def collect_hu_turn2_dataset(
                                     board=boards[player],
                                     dealt_cards=dealt,
                                     opponent_board=boards[1 - player],
-                                    dead_cards=dead_cards,
+                                    dead_cards=discards.own_discards(player),
                                     hero_seat="first" if player == 0 else "second",
                                     continuation_policy=continuation_policies[player],
                                     opponent_policy=continuation_policies[1 - player],
@@ -978,7 +979,7 @@ def collect_hu_turn2_dataset(
                                     board=boards[player],
                                     dealt_cards=dealt,
                                     opponent_board=boards[1 - player],
-                                    dead_cards=dead_cards,
+                                    dead_cards=discards.own_discards(player),
                                     hero_seat=hero_seat,
                                     source_bucket=source_bucket,
                                     cheap_sample=cheap_sample,
@@ -1014,7 +1015,7 @@ def collect_hu_turn2_dataset(
                                 board=boards[player],
                                 dealt_cards=dealt,
                                 opponent_board=boards[1 - player],
-                                dead_cards=dead_cards,
+                                dead_cards=discards.own_discards(player),
                                 hero_seat="first" if player == 0 else "second",
                                 continuation_policy=continuation_policies[player],
                                 opponent_policy=continuation_policies[1 - player],
@@ -1082,11 +1083,11 @@ def collect_hu_turn2_dataset(
                         action = state_policies[player].choose_action(
                             boards[player],
                             dealt,
-                            dead_cards=(*boards[1 - player].all_cards(), *dead_cards),
+                            dead_cards=(*boards[1 - player].all_cards(), *discards.own_discards(player)),
                             opponent_board=boards[1 - player],
                         )
                         boards[player] = boards[player].place(action.placements)
-                        dead_cards.extend(action.discards)
+                        discards.record(player, action.discards)
 
                 if progress_every > 0 and hands % progress_every == 0:
                     print(
