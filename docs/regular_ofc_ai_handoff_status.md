@@ -498,22 +498,39 @@ Also:
 
 ### Next Best Step
 
-Run a larger TopK + MC rerank validation, preferably on Spot VM if local runtime
-is too slow.
+Run a larger TopK + MC rerank validation on GCP Spot VMs. All pre-2026-06-14
+numbers predate the hidden-discard fix (7.1) and the two-stage confirmation
+fix (7.3), so this run also serves as the first clean baseline.
 
-Recommended first larger configs:
+A dedicated GCP pipeline now exists (one shard per config x seed):
 
-- `k3/mc64/d0.5/se0/seat=first`
-- `k5/mc64/d0.25/se0/seat=first`
+```powershell
+# from the repo root, on the machine that has the model files + gcloud
+./scripts/Start-GcpHuTurn2Stage8bTopKMcRerankRun.ps1 -CreateInstances
+# progress (the C3 status script is generic over RunName):
+./scripts/Get-GcpHuTurn2Stage8C3SeatSwapRunStatus.ps1 -RunName <run-name>
+# download + aggregate once every shard has a DONE marker:
+./scripts/Receive-GcpHuTurn2Stage8bTopKMcRerankRun.ps1 -RunName <run-name>
+```
 
-Recommended validation size:
+Defaults: configs `k3/mc64/d0.5/se0/seat=first` and
+`k5/mc64/d0.25/se0/seat=first` (two-stage confirmation ON; add `cmc0` to a
+config to reproduce the legacy single-stage gate), 300 paired games per
+seed, 5 non-overlapping seeds with `--seed-stride`, T3 continuation fixed
+to Stage7_candidate_A m5_r10. The startup script builds the Rust Stage3
+feature encoder on each VM; it falls back to `scalar_fast` if the build
+fails.
 
-- 300 to 500 paired games per seed
-- 3 to 5 non-overlapping seeds
-- keep `--seed-stride`
-- keep T3 continuation fixed to Stage7_candidate_A m5_r10
+If MC64 looks stable, test MC128 (and `cmc128`) on the best one or two
+configs.
 
-If MC64 looks stable, test MC128 on the best one or two configs.
+### Also Queued: FL EV Direct Recalibration
+
+`Start-GcpHuFlEvDirectRun.ps1` (already in scripts/) runs the direct
+FL-vs-normal fixed-point estimator. Run it with the baseline model stack,
+then sensitivity-check downstream decisions at FL EV 8 / 10 / 12 via
+`--initial-ev`. A `--baseline-profile random` smoke mode exists for
+pipeline checks without models (numbers not valid for calibration).
 
 ### What To Measure
 
@@ -524,7 +541,7 @@ For each config:
 - seed breakdown
 - first/second position breakdown
 - override rate
-- average MC gain on override
+- average confirm-stage MC gain on override (unbiased; not the selection delta)
 - p95/p99 loss
 - top override losses
 - latency per reranked decision

@@ -843,9 +843,13 @@ def aggregate_topk_seed_rows(seed_rows: list[dict[str, Any]]) -> list[dict[str, 
         decisions = sum(int(item["decision_count"]) for item in group)
         overrides = sum(int(item["override_count"]) for item in group)
         fired_deltas = []
+        confirm_deltas = []
         for item in group:
             if float(item.get("avg_rerank_delta_on_override", 0.0)) and int(item.get("override_count", 0)):
                 fired_deltas.extend([float(item["avg_rerank_delta_on_override"])] * int(item["override_count"]))
+            confirmed = int(item.get("confirmed_override_count", 0) or 0)
+            if confirmed and item.get("avg_confirm_delta_on_override") not in (None, ""):
+                confirm_deltas.extend([float(item["avg_confirm_delta_on_override"])] * confirmed)
         rows.append(
             {
                 "config_id": config_id,
@@ -871,6 +875,8 @@ def aggregate_topk_seed_rows(seed_rows: list[dict[str, Any]]) -> list[dict[str, 
                 "paired_seed_losses": sum(int(row["paired_seed_losses"]) for row in group),
                 "paired_seed_ties": sum(int(row["paired_seed_ties"]) for row in group),
                 "avg_gain_on_override": float(np.mean(fired_deltas)) if fired_deltas else 0.0,
+                "avg_confirm_gain_on_override": float(np.mean(confirm_deltas)) if confirm_deltas else 0.0,
+                "confirmed_override_count": len(confirm_deltas),
             }
         )
     rows.sort(key=lambda item: float(item.get("aggregate_ev_per_hand", 0.0)), reverse=True)
