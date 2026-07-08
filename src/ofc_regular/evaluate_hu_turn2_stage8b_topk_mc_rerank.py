@@ -67,6 +67,18 @@ class TopKMcRerankConfig:
     candidate_ev_rank_max: int | None = None
     min_gate_probability: float | None = None
     topk_score: str = "delta"
+    # Confirmation MC samples for the two-stage rerank. The selection MC
+    # picks the candidate; an independent-stream confirmation MC re-checks
+    # candidate vs baseline so the winner's selection noise cannot inflate
+    # the gate delta. -1 = same as mc_samples, 0 = disabled (legacy
+    # single-stage gate, selection-biased).
+    confirm_mc_samples: int = -1
+
+    @property
+    def resolved_confirm_mc_samples(self) -> int:
+        if self.confirm_mc_samples < 0:
+            return self.mc_samples
+        return self.confirm_mc_samples
 
     @property
     def config_id(self) -> str:
@@ -76,6 +88,10 @@ class TopKMcRerankConfig:
             f"d{self.min_delta:g}",
             f"se{self.se_multiplier:g}",
         ]
+        if self.confirm_mc_samples == 0:
+            parts.append("cmc0")
+        elif self.confirm_mc_samples > 0:
+            parts.append(f"cmc{self.confirm_mc_samples}")
         if self.min_gate_probability is not None:
             parts.append(f"g{self.min_gate_probability:g}")
         if self.allowed_seats:
@@ -126,6 +142,7 @@ def parse_topk_configs(value: str) -> list[TopKMcRerankConfig]:
         mc_samples: int | None = None
         min_delta: float | None = None
         se_multiplier = 0.0
+        confirm_mc_samples = -1
         allowed_seats: tuple[str, ...] = ()
         candidate_ev_rank_max: int | None = None
         min_gate_probability: float | None = None
@@ -138,6 +155,10 @@ def parse_topk_configs(value: str) -> list[TopKMcRerankConfig]:
                 top_k = int(float(key[1:]))
             elif key == "k" and sep:
                 top_k = int(float(raw_value))
+            elif key.startswith("cmc") and not sep:
+                confirm_mc_samples = int(float(key[3:]))
+            elif key in {"cmc", "confirm_mc", "confirm_mc_samples"} and sep:
+                confirm_mc_samples = int(float(raw_value))
             elif key.startswith("mc") and not sep:
                 mc_samples = int(float(key[2:]))
             elif key == "mc" and sep:
@@ -192,6 +213,7 @@ def parse_topk_configs(value: str) -> list[TopKMcRerankConfig]:
                 candidate_ev_rank_max=candidate_ev_rank_max,
                 min_gate_probability=min_gate_probability,
                 topk_score=topk_score,
+                confirm_mc_samples=confirm_mc_samples,
             )
         )
     if not configs:
@@ -308,7 +330,12 @@ class HuTurn2Stage8bTopKMcRerankPolicy(RegularAiPolicy):
         rerank_delta_se: float | None = None
         rerank_best_ev: float | None = None
         rerank_baseline_ev: float | None = None
+        confirm_delta: float | None = None
+        confirm_delta_se: float | None = None
+        confirm_best_ev: float | None = None
+        confirm_baseline_ev: float | None = None
         rerank_latency_ms = 0.0
+        confirm_latency_ms = 0.0
         evaluated_action_count = 0
         common_random_future_digest = ""
 
@@ -398,8 +425,61 @@ class HuTurn2Stage8bTopKMcRerankPolicy(RegularAiPolicy):
                                 no_override_reason = "below_rerank_delta"
                             elif config.se_multiplier > 0.0 and rerank_delta < config.se_multiplier * rerank_delta_se:
                                 no_override_reason = "below_rerank_se"
-                            else:
+                            elif config.resolved_confirm_mc_samples <= 0:
                                 final_index = rerank_best_index
+                            else:
+                                # Two-stage rerank: confirm the selected
+                                # candidate against the baseline on an
+                                # independent random stream so selection
+                                # noise cannot inflate the gate delta.
+                                confirm_started = time.perf_counter()
+                                confirm_sample = self._rerank_sample(
+                                    board=board,
+                                    dealt=dealt,
+                                    opponent_board=opponent_board,
+                                    dead_cards=dead_cards,
+                                    action_indices=sorted({baseline_index, rerank_best_index}),
+                                    seed=self._future_rollout_seed(
+                                        board=board,
+                                        opponent_board=opponent_board,
+                                        dealt=dealt,
+                                        decision_seed=decision_seed,
+                                        hand_id=hand_id,
+                                        game_id=game_id,
+                                        stage="confirm",
+                                    ),
+                                    mc_samples=config.resolved_confirm_mc_samples,
+                                )
+                                confirm_latency_ms = (time.perf_counter() - confirm_started) * 1000.0
+                                confirm_actions = {
+                                    int(item.get("original_index", -1)): item
+                                    for item in list((confirm_sample or {}).get("actions") or ())
+                                }
+                                confirm_candidate = confirm_actions.get(rerank_best_index)
+                                confirm_baseline = confirm_actions.get(baseline_index)
+                                if confirm_sample is None:
+                                    no_override_reason = "confirm_failed"
+                                elif confirm_candidate is None or confirm_baseline is None:
+                                    no_override_reason = "confirm_missing_action"
+                                else:
+                                    confirm_best_ev = float(confirm_candidate.get("score", confirm_candidate.get("ev", 0.0)))
+                                    confirm_baseline_ev = float(confirm_baseline.get("score", confirm_baseline.get("ev", 0.0)))
+                                    confirm_delta = confirm_best_ev - confirm_baseline_ev
+                                    confirm_best_se = float(
+                                        confirm_candidate.get("ev_standard_error", confirm_candidate.get("standard_error", 0.0))
+                                    )
+                                    confirm_baseline_se = float(
+                                        confirm_baseline.get("ev_standard_error", confirm_baseline.get("standard_error", 0.0))
+                                    )
+                                    confirm_delta_se = math.sqrt(
+                                        confirm_best_se * confirm_best_se + confirm_baseline_se * confirm_baseline_se
+                                    )
+                                    if confirm_delta < config.min_delta:
+                                        no_override_reason = "below_confirm_delta"
+                                    elif config.se_multiplier > 0.0 and confirm_delta < config.se_multiplier * confirm_delta_se:
+                                        no_override_reason = "below_confirm_se"
+                                    else:
+                                        final_index = rerank_best_index
                 candidate_for_logging = rerank_best_index if rerank_best_index is not None else stage8b_top1_index
                 if candidate_for_logging is not None and 0 <= candidate_for_logging < len(actions):
                     predicted_delta = float(predictions[candidate_for_logging, 1])
@@ -451,10 +531,16 @@ class HuTurn2Stage8bTopKMcRerankPolicy(RegularAiPolicy):
                 "rerank_delta_se": rerank_delta_se,
                 "rerank_best_ev": rerank_best_ev,
                 "rerank_baseline_ev": rerank_baseline_ev,
+                "confirm_mc_samples": config.resolved_confirm_mc_samples,
+                "confirm_delta": confirm_delta,
+                "confirm_delta_se": confirm_delta_se,
+                "confirm_best_ev": confirm_best_ev,
+                "confirm_baseline_ev": confirm_baseline_ev,
                 "evaluated_action_count": evaluated_action_count,
                 "common_random_future_digest": common_random_future_digest,
                 "runtime_latency_ms": (time.perf_counter() - started_at) * 1000.0,
                 "mc_rerank_latency_ms": rerank_latency_ms,
+                "mc_confirm_latency_ms": confirm_latency_ms,
             }
         )
         return actions[final_index]
@@ -480,6 +566,7 @@ class HuTurn2Stage8bTopKMcRerankPolicy(RegularAiPolicy):
         dead_cards: tuple[str, ...],
         action_indices: list[int],
         seed: int,
+        mc_samples: int | None = None,
     ) -> dict[str, Any] | None:
         dead_set = set(dead_cards)
         excluded = set(board.all_cards()) | set(opponent_board.all_cards()) | set(dealt)
@@ -496,7 +583,7 @@ class HuTurn2Stage8bTopKMcRerankPolicy(RegularAiPolicy):
             continuation_policy=hero_policy,
             opponent_policy=opponent_policy,
             baseline_turn2_model=self.turn2_model,
-            future_samples=self.topk_rerank_config.mc_samples,
+            future_samples=mc_samples if mc_samples is not None else self.topk_rerank_config.mc_samples,
             future_rollout_seed=seed,
             action_indices=action_indices,
             use_batched_continuation=True,
@@ -535,6 +622,7 @@ class HuTurn2Stage8bTopKMcRerankPolicy(RegularAiPolicy):
         decision_seed: int | None,
         hand_id: str | int | None,
         game_id: str | int | None,
+        stage: str = "select",
     ) -> int:
         payload = {
             "decision_seed": decision_seed if decision_seed is not None else self.seed,
@@ -545,6 +633,7 @@ class HuTurn2Stage8bTopKMcRerankPolicy(RegularAiPolicy):
             "opponent": board_to_json(opponent_board),
             "dealt": list(dealt),
             "config_id": self.topk_rerank_config.config_id,
+            "stage": stage,
         }
         digest = hashlib.sha256(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
         return int(digest[:16], 16) % 2_147_483_647
@@ -697,10 +786,14 @@ def evaluate_config_seed(
     fired = [row for row in decisions if row.get("override_fired")]
     rerank_deltas = [float(row.get("rerank_delta", 0.0) or 0.0) for row in fired]
     rerank_losses = [max(0.0, -delta) for delta in rerank_deltas]
+    confirm_deltas = [
+        float(row["confirm_delta"]) for row in fired if row.get("confirm_delta") is not None
+    ]
     summary = {
         "config_id": config.config_id,
         "top_k": config.top_k,
         "mc_samples": config.mc_samples,
+        "confirm_mc_samples": config.resolved_confirm_mc_samples,
         "min_rerank_delta": config.min_delta,
         "se_multiplier": config.se_multiplier,
         "allowed_seats": "+".join(config.allowed_seats),
@@ -720,6 +813,9 @@ def evaluate_config_seed(
         "override_rate": override_count / max(len(decisions), 1),
         "avg_rerank_delta_on_override": float(np.mean(rerank_deltas)) if rerank_deltas else 0.0,
         "median_rerank_delta_on_override": float(np.median(rerank_deltas)) if rerank_deltas else 0.0,
+        "avg_confirm_delta_on_override": float(np.mean(confirm_deltas)) if confirm_deltas else 0.0,
+        "median_confirm_delta_on_override": float(np.median(confirm_deltas)) if confirm_deltas else 0.0,
+        "confirmed_override_count": len(confirm_deltas),
         "p95_rerank_loss": percentile(rerank_losses, 95),
         "max_rerank_loss": max(rerank_losses) if rerank_losses else 0.0,
         "no_override_reason_counts": json.dumps(dict(no_override), sort_keys=True),
@@ -877,6 +973,8 @@ def failure_rows(decisions: list[dict[str, Any]], limit: int = 30) -> list[dict[
                 "candidate_ev_rank": row.get("candidate_ev_rank"),
                 "rerank_delta": row.get("rerank_delta"),
                 "rerank_delta_se": row.get("rerank_delta_se"),
+                "confirm_delta": row.get("confirm_delta"),
+                "confirm_delta_se": row.get("confirm_delta_se"),
                 "failure_label": classify_failure(row),
             }
         )

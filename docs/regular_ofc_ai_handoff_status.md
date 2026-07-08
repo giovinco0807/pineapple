@@ -422,22 +422,29 @@ Implementation scaffold:
 Before treating T2/T1 decisions as final, run this direct estimator and also
 run sensitivity checks with several FL EV values such as 8, 10, and 12.
 
-### 7.3 TopK + MC Rerank Gain Is Selection-Biased
+### 7.3 TopK + MC Rerank Gain Is Selection-Biased — FIXED (2026-06-14)
 
-The current TopK + MC rerank experiment uses MC estimates both to choose the
-candidate action and to report the selected candidate's gain. This can inflate
-`avg MC gain` because the selected action is the winner of noisy estimates.
+The rerank now runs two stages by default:
 
-For the next validation, prefer one of these designs:
+1. Selection MC (`mc` samples) ranks baseline + TopK candidates and applies
+   the `d`/`se` gates as a cheap, biased-high pre-gate.
+2. Confirmation MC re-evaluates ONLY the selected candidate vs the baseline
+   on an independent random stream (seed payload carries a `stage` salt),
+   and the `d`/`se` gates are applied again on the unbiased confirm delta.
 
-- two-stage MC: select candidate with one random stream, then confirm selected
-  candidate vs baseline with an independent random stream
-- SE-gated override: require `delta >= k * SE`, not only a small fixed delta
-- sequential halving: cheap MC for TopK pruning, higher MC only for finalists,
-  then independent confirmation against baseline
+Config token: `cmc<N>` sets confirmation MC samples (`cmc128`), default is
+the same as `mc`, and `cmc0` restores the legacy single-stage biased gate
+for comparison runs. New decision-log fields: `confirm_delta`,
+`confirm_delta_se`, `confirm_best_ev`, `confirm_baseline_ev`,
+`confirm_mc_samples`, `mc_confirm_latency_ms`; new no-override reasons:
+`confirm_failed`, `confirm_missing_action`, `below_confirm_delta`,
+`below_confirm_se`. Summaries report `avg_confirm_delta_on_override` — use
+that, not `avg_rerank_delta_on_override`, as the unbiased gain estimate.
 
-The current small TopK + MC results are useful as an execution smoke and
-candidate-generation signal. They are not production evidence.
+Tests: `tests/test_topk_mc_rerank_two_stage.py`.
+
+The pre-fix small TopK + MC results (which also predate the discard-leak
+fix) remain execution smokes only. They are not production evidence.
 
 ### 7.4 Validation Power
 
