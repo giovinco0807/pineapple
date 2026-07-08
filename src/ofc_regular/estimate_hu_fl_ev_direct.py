@@ -71,6 +71,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--opening-lookahead-samples", type=int, default=64)
     parser.add_argument("--prediction-threads", type=int, default=1)
     parser.add_argument(
+        "--baseline-profile",
+        choices=("models", "random"),
+        default="models",
+        help=(
+            "Opponent policy stack. 'models' loads the baseline model files. "
+            "'random' runs without models (pipeline smoke only; numbers are "
+            "not valid for FL EV calibration)."
+        ),
+    )
+    parser.add_argument(
         "--hidden-fl-opponent-board",
         choices=("none", "empty"),
         default="none",
@@ -85,6 +95,13 @@ def parse_args() -> argparse.Namespace:
 
 
 def make_baseline_policy(args: argparse.Namespace, *, seed: int) -> RegularAiPolicy:
+    if args.baseline_profile == "random":
+        return RegularAiPolicy(
+            seat="second",
+            seed=seed,
+            opening_lookahead_samples=args.opening_lookahead_samples,
+            fl_ev={14: 0.0},
+        )
     return RegularAiPolicy(
         opening_model=load_action_value_model(args.opening_model),
         turn1_model=load_action_value_model(args.turn1_model),
@@ -350,6 +367,7 @@ def main() -> None:
         "final_ci95_low": final["ci95_low"],
         "final_ci95_high": final["ci95_high"],
         "hidden_fl_opponent_board": args.hidden_fl_opponent_board,
+        "baseline_profile": args.baseline_profile,
         "model_paths": {
             "opening": str(args.opening_model),
             "turn1": str(args.turn1_model),
