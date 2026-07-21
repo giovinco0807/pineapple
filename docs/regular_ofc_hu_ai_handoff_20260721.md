@@ -237,17 +237,21 @@ Step12cは安全性・cleanupの証拠であり、性能・品質・学習・AI�
 
 ### Step12c〜Step12g identity消費済み
 
-**Step12g attempt0も2026-07-21 No-Go**: Phase2 read-only GETが数分規模の
-transport outageでv2予算(6回/115s)を2本のreadで使い切った(retry
-event 10件)。事後再現でも局所障害を確認。独立GET検証でcloud完全
-クリーン、費用ゼロ。監査:
-`docs/hu_joint_policy_m31_t3_step12g_transport_outage_failure_20260721.md`
-**次のcanaryはStep12h(実装・テスト済み)**: 固定回数でなく
-**deadline方式**のread retry(合計480秒=token barrierの伝播上限と
-同値まで再試行、mutation非retry)。token
-`EXECUTE_STEP12H_DIRECT_V2_EXACT_PAIR_ATTEMPT0`。
-根本原因はローカルのUSB Wi-Fiの間欠ストール([[machine-usb-wifi-stalls]])
-であり、有線化が本質的解決。
+**Step12d/12f/12g No-Goの真因判明(2026-07-21) — ネットワークではなく
+allowlistバグ**: `StdlibCloudHttpsClient._ALLOWED_HOSTS`に
+`cloudresourcemanager.googleapis.com`が欠落し、project-level IAM読み取りが
+毎回allowlist ValueErrorで即拒否され`iam_https_transport_failed`と
+誤ラベルされていた(決定論的。当初の「USB Wi-Fi間欠障害」は誤診)。
+**修正済み**: 当該hostをallowlistへ追加(1行)+allowlist parity回帰
+テスト。実admin clientで`get_policy("project")`が0/8→5/5に回復。
+真因文書:
+`docs/hu_joint_policy_m31_t3_phase2_read_allowlist_rootcause_20260721.md`
+**次のcanaryはStep12h(実装・テスト済み。token
+`EXECUTE_STEP12H_DIRECT_V2_EXACT_PAIR_ATTEMPT0`)**。deadline方式の
+read retryは今回の真因ではないがdefense-in-depthとして保持。真の
+ブロッカー除去により、Step12hは初めてPhase2 install→VM insertへ
+到達できる見込み。なおStep12eの失敗はSA create readback(IAM eventual
+consistency)であり別issue・別修正(create poll)で対処済み。
 
 **Step12f attempt0も2026-07-21に実行されNo-Go**: SA create pollと
 token barrierは通過(過去2つの故障モードは再発せず)したが、

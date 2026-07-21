@@ -1,3 +1,17 @@
+> ⚠️ **2026-07-21 訂正**: 本文書は当初この失敗を「ローカル
+> ネットワーク(USB Wi-Fi)の障害」と診断したが、**それは誤診**
+> だった。真の根本原因は、`StdlibCloudHttpsClient._ALLOWED_HOSTS`
+> (`..._step12b_live_cloud_adapters_v2.py`)に
+> `cloudresourcemanager.googleapis.com`が欠落していたこと。
+> project-level IAM読み取りが毎回allowlistのValueErrorで即拒否され、
+> `_request`がそれを`iam_https_transport_failed`と誤ラベルしていた。
+> Step12d/12f/12gの全Phase2 read失敗は同一の決定論的バグであり、
+> ネットワークは無関係。「26秒/失敗」はretryのsleep時間、
+> probe「47/47成功」は生urllibがallowlistを迂回したため。
+> 修正: 当該hostをallowlistへ追加(1行)+allowlist parity回帰テスト。
+> 詳細は
+> `docs/hu_joint_policy_m31_t3_phase2_read_allowlist_rootcause_20260721.md`
+
 # Step12g attempt0: transport outage failure audit (2026-07-21)
 
 Step12g 2-VM lifecycle canary attempt0はNo-Goで安全に閉じた。
