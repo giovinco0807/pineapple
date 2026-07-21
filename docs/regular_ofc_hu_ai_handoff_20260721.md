@@ -235,12 +235,18 @@ Step12cは安全性・cleanupの証拠であり、性能・品質・学習・AI�
 
 ## 7. 現在のブロッカー
 
-### Step12c identity消費済み
+### Step12c・Step12d identity消費済み
 
-signer、nonce、deployment/run/direct identity、contract、source
-prefix、output root、controller SA、VM/disk名、confirmation tokenは
-すべてterminalで再利用禁止。Step12cのretry/resumeは禁止。次は
-Step12d相当の新しいversioned entrypointが必要。決定文書:
+Step12cに加え、**Step12d attempt0も2026-07-21に実行されNo-Go**
+(Phase2冒頭のread-only GETが`iam_https_transport_failed`、
+最初のIAM mutation前にfail-closed、VM insert 0回)。token barrierは
+成功し**Step12c schema修正はliveで実証済み**。独立GET検証でcloudの
+完全クリーンを確定。両stepのsigner、nonce、contract、prefix、
+output root、SA、VM/disk名、confirmation tokenはすべてterminalで
+再利用禁止。**次はStep12e相当の新entrypoint**(read-only GETの
+有界retry許可を設計提言中)。監査:
+`docs/hu_joint_policy_m31_t3_step12d_transport_failure_20260721.md`
+決定文書:
 `docs/hu_joint_policy_m31_t3_step12d_entrypoint_decision_20260721.md`
 
 ### 次のCloud実行には新しい認可が必要
@@ -252,8 +258,10 @@ Step12d相当の新しいversioned entrypointが必要。決定文書:
 
 Tokyo C4 quota 24 vCPUに対し、旧計画は`20 × c4-standard-16 = 320
 vCPU`で起動不能。現quotaでは次waveは最大`3 × c4-standard-8`。
-quota増枠申請(費用ゼロ)はStep12d実装と並行して先行可能だが、
-fanout設計の確定はcanary合格後。
+**2026-07-21にユーザー認可の下で24→128 vCPUの増枠申請を提出済み**
+(quota preference `c4-cpus-asia-northeast1-128`、traceId
+`d0cd568c-fbee-4c16-acd2-9122a4aa9cd1`、審査中)。fanout設計の確定は
+canary合格後。
 
 ### R0bは解消済み(2026-07-21 Go)
 

@@ -266,5 +266,16 @@ latency p99 ≤ 10msの健全性上限、fresh seedsで再検証)を明示選択
   (2) machine-type契約30720 MiB束縛と、旧誤値32768 MiB readbackの
   fail-closed
 
-Cloud実行は未実施。次のアクションはユーザーのfresh explicit
-authorization(セクション6の2)。
+## 8. 2026-07-21 attempt0実行結果: No-Go(transport障害、mutation前fail-closed)
+
+ユーザーのfresh explicit authorizationを得て、quota申請
+(C4 asia-northeast1 24→128 vCPU、審査中)と並行してattempt0を実行。
+dry-run合格後の本実行は、token barrier成功(**Step12c修正の
+live実証**)の後、Phase2冒頭のread-only policy GETが
+`iam_https_transport_failed`で失敗し、最初のIAM mutation前に
+fail closedした。VM insertは0回。
+
+独立GET検証でcloudの完全クリーンを確定済み。詳細・closeout receipt・
+Step12e設計提言は
+`docs/hu_joint_policy_m31_t3_step12d_transport_failure_20260721.md`
+を参照。**Step12d identityは消費済みterminal。次のcanaryはStep12e。**
