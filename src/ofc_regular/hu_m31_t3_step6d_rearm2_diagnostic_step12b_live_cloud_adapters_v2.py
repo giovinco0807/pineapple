@@ -240,7 +240,7 @@ class StdlibCloudHttpsClient:
     ) -> rest_iam.HttpResponse:
         parsed = urllib.parse.urlsplit(url)
         if (
-            method not in {"GET", "POST", "DELETE"}
+            method not in {"GET", "POST", "PUT", "DELETE"}
             or parsed.scheme != "https"
             or parsed.hostname not in _ALLOWED_HOSTS
             or parsed.username is not None

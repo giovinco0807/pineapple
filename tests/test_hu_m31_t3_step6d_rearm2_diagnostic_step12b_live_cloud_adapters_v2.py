@@ -435,3 +435,57 @@ def test_live_client_still_rejects_a_non_allowlisted_host():
             body=b"{}",
             timeout_seconds=1,
         )
+
+
+class _FakeOpenerResponse:
+    status = 200
+    headers: dict = {}
+
+    def read(self, _n: int = -1) -> bytes:
+        return b"{}"
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_a):
+        return False
+
+
+class _RecordingOpener:
+    def __init__(self) -> None:
+        self.methods: list[str] = []
+
+    def open(self, request, timeout):  # noqa: ANN001
+        self.methods.append(request.get_method())
+        return _FakeOpenerResponse()
+
+
+def test_live_client_allows_every_method_step11_and_compute_use():
+    # Regression: the live client's method gate formerly omitted PUT, which
+    # the GCS bucket setIamPolicy uses, so every bucket set was rejected and
+    # mislabeled as iam_https_transport_failed. The gate must allow every
+    # method the real code paths issue: GET, POST, PUT, DELETE.
+    client = subject.StdlibCloudHttpsClient()
+    recorder = _RecordingOpener()
+    client._opener = recorder
+    for method in ("GET", "POST", "PUT", "DELETE"):
+        client.request(
+            method=method,
+            url="https://storage.googleapis.com/storage/v1/b/x/iam",
+            headers={"Authorization": "Bearer x"},
+            body=b"{}" if method in {"POST", "PUT"} else None,
+            timeout_seconds=1,
+        )
+    assert recorder.methods == ["GET", "POST", "PUT", "DELETE"]
+
+
+def test_live_client_still_rejects_an_unknown_method():
+    client = subject.StdlibCloudHttpsClient()
+    with pytest.raises(ValueError, match="escaped HTTPS allowlist"):
+        client.request(
+            method="PATCH",
+            url="https://storage.googleapis.com/storage/v1/b/x/iam",
+            headers={"Authorization": "Bearer x"},
+            body=b"{}",
+            timeout_seconds=1,
+        )
