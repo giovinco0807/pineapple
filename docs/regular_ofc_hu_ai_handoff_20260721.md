@@ -235,7 +235,20 @@ Step12cは安全性・cleanupの証拠であり、性能・品質・学習・AI�
 
 ## 7. 現在のブロッカー
 
-### Step12c・Step12d・Step12e identity消費済み
+### Step12c〜Step12f identity消費済み
+
+**Step12f attempt0も2026-07-21に実行されNo-Go**: SA create pollと
+token barrierは通過(過去2つの故障モードは再発せず)したが、
+Phase2 initial-zeroのread-only GETが数分規模のtransport burstで
+retry予算(10s)を突破された。事後のIPv4/IPv6分離probe(4分)は
+47/47全成功で、原因は**USB Wi-Fiアダプタのepisodicなストール**と
+特定。独立GET検証でcloud完全クリーン確認、費用実質ゼロ。監査:
+`docs/hu_joint_policy_m31_t3_step12f_transport_burst_failure_20260721.md`
+**次のcanaryはStep12g。ローカル実装・テスト済み**(read retry予算を
+6回/backoff 2/8/15/30/60sに拡張。token
+`EXECUTE_STEP12G_DIRECT_V2_EXACT_PAIR_ATTEMPT0`)。
+**実行前の推奨: 有線LAN接続への切替、またはUSB Wi-Fiアダプタの
+挿し直し/省電力無効化**。
 
 **Step12e attempt0も2026-07-21に実行されNo-Go**: SA create POSTは
 200成功したが直後のreadback GETがIAM結果整合性でまだ404を返し、
