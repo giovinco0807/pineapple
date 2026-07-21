@@ -235,7 +235,19 @@ Step12cは安全性・cleanupの証拠であり、性能・品質・学習・AI�
 
 ## 7. 現在のブロッカー
 
-### Step12c・Step12d identity消費済み
+### Step12c・Step12d・Step12e identity消費済み
+
+**Step12e attempt0も2026-07-21に実行されNo-Go**: SA create POSTは
+200成功したが直後のreadback GETがIAM結果整合性でまだ404を返し、
+`controller_service_account_create_readback_changed`でfail-closed
+(token barrier未到達、Phase2 mutation 0、VM 0)。transport retry
+wrapperのイベントは0件=Step12d故障モードは再発せず。今回はrunner
+内蔵cleanupが全項目検証完了。独立GET検証でもcloud完全クリーン確認。
+監査:
+`docs/hu_joint_policy_m31_t3_step12e_sa_readback_failure_20260721.md`
+**次のcanaryはStep12f。ローカル実装・テスト済み**(SA create
+readbackの有界poll: 404のみ・最大8回・計60s・2回目create絶対なし。
+token `EXECUTE_STEP12F_DIRECT_V2_EXACT_PAIR_ATTEMPT0`)。
 
 Step12cに加え、**Step12d attempt0も2026-07-21に実行されNo-Go**
 (Phase2冒頭のread-only GETが`iam_https_transport_failed`、
@@ -243,11 +255,7 @@ Step12cに加え、**Step12d attempt0も2026-07-21に実行されNo-Go**
 成功し**Step12c schema修正はliveで実証済み**。独立GET検証でcloudの
 完全クリーンを確定。両stepのsigner、nonce、contract、prefix、
 output root、SA、VM/disk名、confirmation tokenはすべてterminalで
-再利用禁止。**次のcanaryはStep12e。ローカル実装・テスト済み**
-(read-only policy GET限定の有界retry: transport障害のみ・最大3回・
-backoff 2s/8s・mutation非retry。runner:
-`scripts/run_hu_m31_t3_step6d_rearm2_diagnostic_step12e_pair_v1.py`、
-token `EXECUTE_STEP12E_DIRECT_V2_EXACT_PAIR_ATTEMPT0`)。
+再利用禁止(Step12eも上記のとおり2026-07-21に消費済み)。
 Cloud実行にはfresh explicit authorizationが必要。監査:
 `docs/hu_joint_policy_m31_t3_step12d_transport_failure_20260721.md`
 決定文書:

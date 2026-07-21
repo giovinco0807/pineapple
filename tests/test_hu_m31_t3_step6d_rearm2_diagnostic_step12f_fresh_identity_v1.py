@@ -10,11 +10,11 @@ from typing import Any
 import pytest
 
 from ofc_regular import (
-    hu_m31_t3_step6d_rearm2_diagnostic_step12d_fresh_identity_v1
-    as step12d_identity,
+    hu_m31_t3_step6d_rearm2_diagnostic_step12e_fresh_identity_v1
+    as step12e_identity,
 )
 from ofc_regular import (
-    hu_m31_t3_step6d_rearm2_diagnostic_step12e_fresh_identity_v1
+    hu_m31_t3_step6d_rearm2_diagnostic_step12f_fresh_identity_v1
     as subject,
 )
 
@@ -23,13 +23,13 @@ ROOT = Path(__file__).resolve().parents[1]
 RUNNER_PATH = (
     ROOT
     / "scripts"
-    / "run_hu_m31_t3_step6d_rearm2_diagnostic_step12e_pair_v1.py"
+    / "run_hu_m31_t3_step6d_rearm2_diagnostic_step12f_pair_v1.py"
 )
 
 
 @pytest.fixture(scope="module")
 def runner() -> Any:
-    name = "step12e_pair_v1_runner_identity_test"
+    name = "step12f_pair_v1_runner_identity_test"
     spec = importlib.util.spec_from_file_location(name, RUNNER_PATH)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
@@ -47,12 +47,20 @@ def _terminal_json(root: Path, name: str) -> dict[str, Any]:
     return value
 
 
+_ALL_TERMINALS = (
+    "TERMINAL_STEP12B_OUTPUT_ROOT",
+    "TERMINAL_STEP12C_OUTPUT_ROOT",
+    "TERMINAL_STEP12D_OUTPUT_ROOT",
+    "TERMINAL_STEP12E_OUTPUT_ROOT",
+)
+
+
 def test_real_prepared_identity_is_disjoint_from_all_terminals(
     runner: Any,
 ) -> None:
     prepared = runner.step12b.prepare_run(
         now_unix_seconds=1_900_000_000,
-        run_nonce="f7" * 32,
+        run_nonce="b9" * 32,
     )
     receipt = subject.validate_fresh_identity(
         deployment_contract=prepared.deployment_contract,
@@ -62,12 +70,13 @@ def test_real_prepared_identity_is_disjoint_from_all_terminals(
     )
     assert receipt["status"] == subject.STATUS
     assert receipt["readonly_get_retry_contract"]["mutations_retried"] is False
-    for root in (
-        subject.TERMINAL_STEP12B_OUTPUT_ROOT,
-        subject.TERMINAL_STEP12C_OUTPUT_ROOT,
-        subject.TERMINAL_STEP12D_OUTPUT_ROOT,
-    ):
-        old = _terminal_json(root, "deployment_contract.json")
+    assert receipt["sa_create_readback_poll_contract"][
+        "second_create_performed"
+    ] is False
+    for name in _ALL_TERMINALS:
+        old = _terminal_json(
+            getattr(subject, name), "deployment_contract.json"
+        )
         assert receipt["deployment_contract_sha256"] != old[
             "deployment_contract_sha256"
         ]
@@ -77,14 +86,7 @@ def test_real_prepared_identity_is_disjoint_from_all_terminals(
         )
 
 
-@pytest.mark.parametrize(
-    "terminal_root_name",
-    [
-        "TERMINAL_STEP12B_OUTPUT_ROOT",
-        "TERMINAL_STEP12C_OUTPUT_ROOT",
-        "TERMINAL_STEP12D_OUTPUT_ROOT",
-    ],
-)
+@pytest.mark.parametrize("terminal_root_name", _ALL_TERMINALS)
 def test_terminal_public_key_and_nonce_are_rejected(
     runner: Any, terminal_root_name: str
 ) -> None:
@@ -94,7 +96,7 @@ def test_terminal_public_key_and_nonce_are_rejected(
     old_signer = SimpleNamespace(public_record=old_public)
     prepared_key_reuse = runner.step12b.prepare_run(
         now_unix_seconds=1_900_000_000,
-        run_nonce="a8" * 32,
+        run_nonce="c1" * 32,
         signer=old_signer,
     )
     with pytest.raises(ValueError, match="controller_key_id"):
@@ -126,11 +128,8 @@ def test_only_exact_fresh_output_root_is_accepted(tmp_path: Path) -> None:
     assert subject.exact_output_path(subject.EXPECTED_OUTPUT_ROOT) == (
         subject.EXPECTED_OUTPUT_ROOT.resolve()
     )
-    for terminal in (
-        subject.TERMINAL_STEP12B_OUTPUT_ROOT,
-        subject.TERMINAL_STEP12C_OUTPUT_ROOT,
-        subject.TERMINAL_STEP12D_OUTPUT_ROOT,
-    ):
+    for name in _ALL_TERMINALS:
+        terminal = getattr(subject, name)
         with pytest.raises(PermissionError):
             subject.exact_output_root(terminal)
         with pytest.raises(PermissionError):
@@ -138,54 +137,50 @@ def test_only_exact_fresh_output_root_is_accepted(tmp_path: Path) -> None:
     with pytest.raises(PermissionError):
         subject.exact_output_root(tmp_path / "arbitrary")
     with pytest.raises(PermissionError):
-        subject.exact_output_root(step12d_identity.EXPECTED_OUTPUT_ROOT)
+        subject.exact_output_root(step12e_identity.EXPECTED_OUTPUT_ROOT)
 
 
-def test_step12e_expected_root_is_new_and_now_terminal() -> None:
-    assert subject.EXPECTED_OUTPUT_ROOT.name == "step12e_pair_v1_actual"
-    assert subject.EXPECTED_OUTPUT_ROOT != step12d_identity.EXPECTED_OUTPUT_ROOT
-    # attempt0 (2026-07-21) consumed this root; it now exists as a terminal
-    # audit tree, so a rerun into the same root must fail closed.
-    assert subject.EXPECTED_OUTPUT_ROOT.is_dir()
-    with pytest.raises(FileExistsError):
-        subject.exact_output_root(subject.EXPECTED_OUTPUT_ROOT)
+def test_step12f_expected_root_is_new_and_absent() -> None:
+    assert subject.EXPECTED_OUTPUT_ROOT.name == "step12f_pair_v1_actual"
+    assert subject.EXPECTED_OUTPUT_ROOT != step12e_identity.EXPECTED_OUTPUT_ROOT
+    assert not subject.EXPECTED_OUTPUT_ROOT.exists()
 
 
 def test_terminal_trees_and_closeouts_are_frozen() -> None:
     snapshot = subject.terminal_tree_snapshot()
-    for label in ("step12b", "step12c", "step12d"):
+    for label in ("step12b", "step12c", "step12d", "step12e"):
         assert snapshot[label]["file_count"] > 0
 
-    step12d_closeout = _terminal_json(
-        subject.TERMINAL_STEP12D_OUTPUT_ROOT,
-        "transport_failure_closeout_receipt.json",
+    step12e_closeout = _terminal_json(
+        subject.TERMINAL_STEP12E_OUTPUT_ROOT,
+        "sa_readback_failure_closeout_receipt.json",
     )
     assert (
-        step12d_closeout["receipt_sha256"]
-        == subject.TERMINAL_STEP12D_CLOSEOUT_RECEIPT_SHA256
+        step12e_closeout["receipt_sha256"]
+        == subject.TERMINAL_STEP12E_CLOSEOUT_RECEIPT_SHA256
     )
-    assert step12d_closeout["step12d_identity_terminal"] is True
-    step12d_deployment = _terminal_json(
-        subject.TERMINAL_STEP12D_OUTPUT_ROOT, "deployment_contract.json"
+    assert step12e_closeout["step12e_identity_terminal"] is True
+    step12e_deployment = _terminal_json(
+        subject.TERMINAL_STEP12E_OUTPUT_ROOT, "deployment_contract.json"
     )
     assert (
-        step12d_deployment["deployment_contract_sha256"]
-        == subject.TERMINAL_STEP12D_DEPLOYMENT_CONTRACT_SHA256
+        step12e_deployment["deployment_contract_sha256"]
+        == subject.TERMINAL_STEP12E_DEPLOYMENT_CONTRACT_SHA256
     )
 
 
-def test_tampered_step12d_closeout_is_rejected(
+def test_tampered_step12e_closeout_is_rejected(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     real_read = subject._read_json
 
     def tampered(path: Path) -> dict[str, Any]:
         value = real_read(path)
-        if path.name == "transport_failure_closeout_receipt.json":
+        if path.name == "sa_readback_failure_closeout_receipt.json":
             value = dict(value)
-            value["step12d_identity_terminal"] = False
+            value["step12e_identity_terminal"] = False
         return value
 
     monkeypatch.setattr(subject, "_read_json", tampered)
-    with pytest.raises(ValueError, match="Step12d closeout"):
+    with pytest.raises(ValueError, match="Step12e closeout"):
         subject._validate_terminal_closeouts()
