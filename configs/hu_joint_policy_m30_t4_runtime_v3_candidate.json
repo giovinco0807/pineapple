@@ -1,0 +1,112 @@
+{
+  "schema": "hu_joint_policy_m30_t4_runtime_v3_candidate_preregistration_v1",
+  "status_date": "2026-07-21",
+  "status": "pre_registered_before_any_v3_pilot_run",
+  "authorization": {
+    "authorized_by": "user_explicit_choice_2026_07_21",
+    "chosen_option": "A_native_second_seat_gate_v3_reregistration",
+    "context": "v2 ladder (configs/hu_joint_policy_m30_t4_runtime_v2_candidate.json) failed only the second-seat p99 TOTAL latency gate at pilot1000; post-hoc decomposition showed native p99 1.274 ms within the 2.0 ms gate and the excess to be Python wrapper overhead jitter. The user explicitly authorized re-registering the second-seat gate on native latency with a total-latency sanity bound."
+  },
+  "historical_contract": {
+    "config": "configs/hu_joint_policy_m30_t4_runtime.json",
+    "changed": false
+  },
+  "candidate": {
+    "library": "target/m30_rebuild_20260718/release/ofc_hu_m3_engine.dll",
+    "sha256": "faf1eec9a86a4c2278b6e2d323d6df2dbf9fa1050911d6807894d9b4e6566261",
+    "engine_version": "ofc_hu_m3_engine/0.1.0",
+    "accepted": false
+  },
+  "preregistered_protocol": {
+    "note_recorded_before_running": [
+      "Semantic gates are unchanged from the v1 validator.",
+      "First-seat latency gates are unchanged (total p95 <= 75 ms, total p99 <= 100 ms).",
+      "The second-seat binding gate is native engine latency p99 <= 2.0 ms (threshold value unchanged; measurement target moved from total to native, covering the ctypes evaluate_t4 call). Rationale: the contract pins a DLL binary; Python-side audit-validation overhead depends on the runtime environment, not on the pinned binary.",
+      "A new binding sanity bound is added: second-seat TOTAL latency p99 <= 10.0 ms, so wrapper overhead cannot regress unnoticed.",
+      "Latency measurement uses the scalar solve loop rows exactly as in v1; native_latency_ms wraps the native evaluate_t4 call, total_latency_ms additionally includes Python audit validation.",
+      "Each seed below is single-use. If any binding gate fails, that seed is consumed, rerun with the same or additional seeds is forbidden, and the failure is reported as-is.",
+      "The v1 gate vector is recorded in the artifact as v1_reference_gates for transparency but is not binding for v3."
+    ],
+    "validator": "src/ofc_regular/validate_hu_m30_t4_runtime_v3.py",
+    "binding_gates": {
+      "semantic": "all v1 semantic gates unchanged",
+      "first_total_p95_gate_ms": 75.0,
+      "first_total_p99_gate_ms": 100.0,
+      "second_native_p99_gate_ms": 2.0,
+      "second_total_p99_sanity_gate_ms": 10.0
+    },
+    "steps": [
+      {
+        "step": "v3_validator_unit_tests",
+        "command": "python -m pytest -q tests/test_validate_hu_m30_t4_runtime_v3.py",
+        "note": "gate recomputation is a pure function tested on fabricated pilot payloads before any live run"
+      },
+      {
+        "step": "pilot_100",
+        "states": 100,
+        "seed": 2226072101,
+        "seed_stride": 1000003,
+        "python_parity_roots": 4,
+        "determinism_roots": 20,
+        "output": "outputs/hu_joint_policy/m30_t4_runtime_v3/pilot_100.json",
+        "seed_disjointness": "difference to every consumed seed (2026071601, 2076071751, 2026071801, 2026072101, 2126072101) is nonzero mod 1000003"
+      },
+      {
+        "step": "pilot_1000",
+        "opens_only_if": "pilot_100 all v3 binding gates passed",
+        "states": 1000,
+        "seed": 2326072101,
+        "seed_stride": 1000003,
+        "python_parity_roots": 4,
+        "determinism_roots": 20,
+        "output": "outputs/hu_joint_policy/m30_t4_runtime_v3/pilot_1000.json",
+        "seed_disjointness": "difference to every consumed seed and to v3 pilot_100 seed is nonzero mod 1000003"
+      }
+    ],
+    "environment": "same Windows machine as historical pilots; no concurrent heavy background jobs during latency measurement"
+  },
+  "proposed_runtime_contract_if_all_gates_pass": {
+    "runtime_id": "hu_m30_t4_exact_both_seats_v3",
+    "windows_release_library": "target/m30_rebuild_20260718/release/ofc_hu_m3_engine.dll",
+    "windows_release_library_sha256": "faf1eec9a86a4c2278b6e2d323d6df2dbf9fa1050911d6807894d9b4e6566261",
+    "activation_requires": "explicit user release review; passing pilots alone do not activate anything"
+  },
+  "release_boundary": {
+    "current_profile_changed": false,
+    "named_profile_added": false,
+    "runtime_policy_activated": false,
+    "full_replacement_enabled": false,
+    "historical_contract_hash_replaced": false
+  },
+  "results": {
+    "results_date": "2026-07-21",
+    "v3_validator_unit_tests": "8 passed (tests/test_validate_hu_m30_t4_runtime_v3.py)",
+    "pilot_100": {
+      "artifact": "outputs/hu_joint_policy/m30_t4_runtime_v3/pilot_100.json",
+      "artifact_sha256": "e73ba4bb91ab215ddd836d2a4bde7341c37613eb3ad89788a6d420ab53f26889",
+      "rows_digest": "bcfdee1cf93363bffc142f79dc0d7f84da5965fa3cfca2d76971813250108716",
+      "status": "pass",
+      "all_gates_passed": true,
+      "second_native_p99_ms": 0.7440999615937471,
+      "second_total_p99_ms": 1.7914000200107694,
+      "seed_consumed": true
+    },
+    "pilot_1000": {
+      "artifact": "outputs/hu_joint_policy/m30_t4_runtime_v3/pilot_1000.json",
+      "artifact_sha256": "80d4bc01716b740be1083638fd39868d997abf168eb065c1405d49fdbcddfe47",
+      "rows_digest": "b291d77a9ad68f585e13386186ed8be0e0f30360b88a874358fd21b190df83c7",
+      "status": "pass",
+      "all_gates_passed": true,
+      "second_native_p99_ms": 0.9367000311613083,
+      "second_native_max_ms": 1.1089000618085265,
+      "second_total_p99_ms": 2.322500105947256,
+      "second_total_max_ms": 2.491599996574223,
+      "first_latency_p50_ms": 4.303199937567115,
+      "first_latency_p99_ms": 7.786300033330917,
+      "first_latency_max_ms": 10.881900088861585,
+      "batch_roots_per_second": 500.45729286688714,
+      "seed_consumed": true
+    },
+    "final_status": "pass_all_gates_r0b_go_candidate_pending_user_release_review"
+  }
+}

@@ -1,0 +1,127 @@
+{
+  "schema": "hu_joint_policy_m30_t4_runtime_v3",
+  "status_date": "2026-07-21",
+  "status": "complete_component_go_explicit_opt_in",
+  "decision": "exact_t4_available_without_named_profile_or_current_promotion",
+  "supersedes_for_new_runs_only": "configs/hu_joint_policy_m30_t4_runtime.json",
+  "historical_v1_contract": {
+    "config": "configs/hu_joint_policy_m30_t4_runtime.json",
+    "changed": false,
+    "pinned_library_sha256": "03d27825ccdf37ff52107207d8008df5b51235431c7274c604f922bc23c84d69",
+    "pinned_library_status": "binary_destroyed_by_20260718_rebuild_local_recovery_exhausted_20260721",
+    "note": "The v1 contract and its frozen evidence remain immutable history. No v1 hash is replaced. If the v1 DLL is ever recovered with matching SHA-256, v1 becomes activatable again independently of this contract."
+  },
+  "authorization_lineage": [
+    "2026-07-21 user explicitly selected option A: second-seat 2.0 ms gate on native latency plus 10.0 ms total-latency sanity bound, fresh seeds (recorded in configs/hu_joint_policy_m30_t4_runtime_v3_candidate.json)",
+    "2026-07-21 user explicitly authorized completing the remaining R0b release review"
+  ],
+  "current_profile_changed": false,
+  "m30_named_profile_added": false,
+  "runtime_profile_activated": false,
+  "full_replacement_enabled": false,
+  "exactness_scope": {
+    "first_seat": {
+      "objective": "max_a expectation_uniform_opponent_deal min_b terminal_hu_score",
+      "unknown_cards": 24,
+      "future_deals": 2024,
+      "opponent_response": "all_legal_actions_exact",
+      "belief": "uniform_exchangeable_restart_belief"
+    },
+    "second_seat": {
+      "objective": "max_a terminal_hu_score_against_complete_opponent_board",
+      "hero_actions": "all_legal_actions_exact"
+    },
+    "full_bayesian_action_history_posterior": false,
+    "nash_equilibrium_proof": false,
+    "mathematical_full_game_optimality_proof": false
+  },
+  "runtime_contract": {
+    "runtime_id": "hu_m30_t4_exact_both_seats_v3",
+    "activation": [
+      "--t4-mode-a m30_exact",
+      "--t4-mode-b m30_exact",
+      "--hu-t4-native-library target/m30_rebuild_20260718/release/ofc_hu_m3_engine.dll",
+      "--hu-t4-native-sha256 faf1eec9a86a4c2278b6e2d323d6df2dbf9fa1050911d6807894d9b4e6566261"
+    ],
+    "default_mode": "legacy",
+    "build_if_missing": false,
+    "strict_no_fallback": true,
+    "engine_version": "ofc_hu_m3_engine/0.1.0",
+    "rustc": "1.93.0 (254b59607 2026-01-19)",
+    "windows_release_library": "target/m30_rebuild_20260718/release/ofc_hu_m3_engine.dll",
+    "windows_release_library_sha256": "faf1eec9a86a4c2278b6e2d323d6df2dbf9fa1050911d6807894d9b4e6566261",
+    "candidate_samples": 0,
+    "evaluation_samples": 0,
+    "teacher_value_status": "diagnostic_not_match_EV"
+  },
+  "latency_gate_definition_v3": {
+    "preregistration": "configs/hu_joint_policy_m30_t4_runtime_v3_candidate.json",
+    "validator": "src/ofc_regular/validate_hu_m30_t4_runtime_v3.py",
+    "second_seat_binding_gate": "native evaluate_t4 call latency p99 <= 2.0 ms",
+    "second_seat_sanity_gate": "total latency (native + python audit validation) p99 <= 10.0 ms",
+    "first_seat_gates": "total latency p95 <= 75 ms, p99 <= 100 ms (unchanged from v1)",
+    "rationale": "the contract pins a DLL binary; python-side audit overhead depends on the runtime environment, not the pinned binary. The v1 gate vector is preserved in every v3 artifact as v1_reference_gates."
+  },
+  "validation": {
+    "focused_runtime_tests": "20 passed (tests/test_hu_m3_t4_runtime.py, 2026-07-21)",
+    "v3_validator_unit_tests": "8 passed (tests/test_validate_hu_m30_t4_runtime_v3.py)",
+    "python_reference_parity": true,
+    "scalar_batch_parity": true,
+    "deterministic_rerun": true,
+    "hidden_truth_injection_rejected": true,
+    "native_hash_version_and_corruption_fail_closed": true,
+    "t4_second_legacy_exact_action_parity": true
+  },
+  "performance_pilots": {
+    "pilot_100": {
+      "artifact": "outputs/hu_joint_policy/m30_t4_runtime_v3/pilot_100.json",
+      "artifact_sha256": "e73ba4bb91ab215ddd836d2a4bde7341c37613eb3ad89788a6d420ab53f26889",
+      "rows_digest": "bcfdee1cf93363bffc142f79dc0d7f84da5965fa3cfca2d76971813250108716",
+      "states": 100,
+      "seed": 2226072101,
+      "seed_stride": 1000003,
+      "all_gates_passed": true,
+      "second_native_p99_ms": 0.7440999615937471
+    },
+    "pilot_1000": {
+      "artifact": "outputs/hu_joint_policy/m30_t4_runtime_v3/pilot_1000.json",
+      "artifact_sha256": "80d4bc01716b740be1083638fd39868d997abf168eb065c1405d49fdbcddfe47",
+      "rows_digest": "b291d77a9ad68f585e13386186ed8be0e0f30360b88a874358fd21b190df83c7",
+      "states": 1000,
+      "seed": 2326072101,
+      "seed_stride": 1000003,
+      "seed_region_overlaps_prior_pilots": false,
+      "all_gates_passed": true,
+      "second_native_latency_p99_ms": 0.9367000311613083,
+      "second_native_latency_max_ms": 1.1089000618085265,
+      "second_total_latency_p99_ms": 2.322500105947256,
+      "first_latency_p50_ms": 4.303199937567115,
+      "first_latency_p95_ms": 6.187599967233837,
+      "first_latency_p99_ms": 7.786300033330917,
+      "first_latency_max_ms": 10.881900088861585,
+      "batch_roots_per_second": 500.45729286688714
+    }
+  },
+  "failed_prior_ladders_kept_as_history": {
+    "rebuild_20260718_pilot100": "configs/hu_joint_policy_m30_t4_rebuild_20260718_status.json (fail: p99-of-50 equals sample max, outlier)",
+    "v2_ladder_20260721": "configs/hu_joint_policy_m30_t4_runtime_v2_candidate.json (pilot100 pass; pilot1000 fail on second-seat TOTAL p99 only; native p99 1.274 ms was within gate)"
+  },
+  "baseline_invariants": {
+    "fixed_profiles_preserved": [
+      "stage19_p0",
+      "stage18_p1",
+      "stage9f_p2",
+      "stage7_m5_r10"
+    ],
+    "ai_profiles_sha256": "d2eb02669e27426623c70af21f1af4d7002db2a7eab77efd3319f8fb65b868d3",
+    "current_profile_changed": false,
+    "rollback": "omit_m30_exact_and_use_legacy_t4"
+  },
+  "remaining_no_go": [
+    "named_profile_or_current_activation without a separate explicit user decision",
+    "claim of Bayesian Nash or mathematical full-game optimality",
+    "joint-policy promotion while T3 and T2 artifacts remain quarantined",
+    "large-scale Spot generation before the next milestone passes local gates"
+  ],
+  "next_milestone": "M3.1_step12d_lifecycle_canary"
+}
