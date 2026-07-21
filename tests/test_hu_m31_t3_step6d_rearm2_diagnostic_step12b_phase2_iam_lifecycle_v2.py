@@ -1010,3 +1010,47 @@ def test_targeted_memberships_still_rejects_malformed_bindings():
     policies = {"project": {"bindings": "not-a-list"}}
     with pytest.raises(subject._LifecycleAbort, match="policy_binding_shape_changed"):
         subject._targeted_memberships(policies, _EMPTY_POLICY_PLAN)
+
+
+
+def test_failure_receipt_carries_underlying_step11_error_detail():
+    # Diagnostic instrumentation: a step11 set/readback RestIamAdminError must
+    # be preserved in the sealed failure receipt as non-sensitive detail (code,
+    # HTTP status, operation) - no body, no token - so the cause is visible.
+    err = rest_iam.RestIamAdminError(
+        "iam_policy_set_failed",
+        operation="add_bucket_policy_binding",
+        status_code=400,
+    )
+    exc = subject._failure(
+        stage="install_and_exact_readback",
+        reason=err.code,
+        plan={"source_deployment": {"deployment_contract_sha256": "x"}, "plan_sha256": "y"},
+        mutation_records=[],
+        cleanup_records=[],
+        underlying_error={
+            "error_code": err.code,
+            "status_code": err.status_code,
+            "operation": err.operation,
+        },
+    )
+    receipt = exc.receipt
+    assert receipt["failure_reason"] == "iam_policy_set_failed"
+    assert receipt["underlying_error"] == {
+        "error_code": "iam_policy_set_failed",
+        "status_code": 400,
+        "operation": "add_bucket_policy_binding",
+    }
+    body = {k: v for k, v in receipt.items() if k != "receipt_sha256"}
+    assert subject.canonical_sha256(body) == receipt["receipt_sha256"]
+
+
+def test_failure_receipt_underlying_error_defaults_to_none():
+    exc = subject._failure(
+        stage="initial_exact_zero",
+        reason="stale_targeted_binding_present",
+        plan={"source_deployment": {"deployment_contract_sha256": "x"}, "plan_sha256": "y"},
+        mutation_records=[],
+        cleanup_records=[],
+    )
+    assert exc.receipt["underlying_error"] is None

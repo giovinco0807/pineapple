@@ -872,6 +872,7 @@ def _failure(
     plan: Mapping[str, Any],
     mutation_records: Sequence[Mapping[str, Any]],
     cleanup_records: Sequence[Mapping[str, Any]],
+    underlying_error: Mapping[str, Any] | None = None,
 ) -> Phase2IamLifecycleError:
     return Phase2IamLifecycleError(
         _seal(
@@ -879,6 +880,11 @@ def _failure(
                 "schema": FAILURE_RECEIPT_SCHEMA,
                 "stage": stage,
                 "failure_reason": reason,
+                "underlying_error": (
+                    dict(underlying_error)
+                    if underlying_error is not None
+                    else None
+                ),
                 "deployment_contract_sha256": plan[
                     "source_deployment"
                 ]["deployment_contract_sha256"],
@@ -968,10 +974,23 @@ def install_step12b_phase2_iam(
         _reject_sensitive_readback_fields(exact_readback)
     except Exception as error:
         cleanup = _cleanup_all(iam_admin, plan)
-        reason = (
-            error.code
-            if isinstance(error, _LifecycleAbort)
-            else "phase2_install_or_readback_failed"
+        if isinstance(error, _LifecycleAbort):
+            reason = error.code
+        elif isinstance(error, rest_iam.RestIamAdminError):
+            # Preserve the underlying step11 error's non-sensitive detail
+            # (an error code, an HTTP status, and the operation name) so a
+            # set/readback failure is diagnosable without a raw body or token.
+            reason = error.code
+        else:
+            reason = "phase2_install_or_readback_failed"
+        underlying = (
+            {
+                "error_code": error.code,
+                "status_code": getattr(error, "status_code", None),
+                "operation": getattr(error, "operation", None),
+            }
+            if isinstance(error, rest_iam.RestIamAdminError)
+            else None
         )
         raise _failure(
             stage="install_and_exact_readback",
@@ -979,6 +998,7 @@ def install_step12b_phase2_iam(
             plan=plan,
             mutation_records=mutation_records,
             cleanup_records=cleanup,
+            underlying_error=underlying,
         ) from None
 
     receipt = _seal(
