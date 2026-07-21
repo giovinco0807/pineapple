@@ -243,8 +243,12 @@ Step12cに加え、**Step12d attempt0も2026-07-21に実行されNo-Go**
 成功し**Step12c schema修正はliveで実証済み**。独立GET検証でcloudの
 完全クリーンを確定。両stepのsigner、nonce、contract、prefix、
 output root、SA、VM/disk名、confirmation tokenはすべてterminalで
-再利用禁止。**次はStep12e相当の新entrypoint**(read-only GETの
-有界retry許可を設計提言中)。監査:
+再利用禁止。**次のcanaryはStep12e。ローカル実装・テスト済み**
+(read-only policy GET限定の有界retry: transport障害のみ・最大3回・
+backoff 2s/8s・mutation非retry。runner:
+`scripts/run_hu_m31_t3_step6d_rearm2_diagnostic_step12e_pair_v1.py`、
+token `EXECUTE_STEP12E_DIRECT_V2_EXACT_PAIR_ATTEMPT0`)。
+Cloud実行にはfresh explicit authorizationが必要。監査:
 `docs/hu_joint_policy_m31_t3_step12d_transport_failure_20260721.md`
 決定文書:
 `docs/hu_joint_policy_m31_t3_step12d_entrypoint_decision_20260721.md`

@@ -70,7 +70,7 @@ controller SA、VM/disk名、confirmation tokenはすべて消費済み
 terminalであり、再利用・retry・resumeは禁止。次のcanaryは
 Step12e相当の新しいversioned entrypointを要する。
 
-## Step12eへの設計提言(実装前にユーザー確認)
+## Step12eへの設計提言(2026-07-21 ユーザー承認・実装済み。下記は原提言)
 
 1. **read-only GETの有界idempotent retry**: 今回の失敗はmutationでは
    なくread-only policy GETの一時障害。attempt0原則(pair/VM/mutation
@@ -82,6 +82,31 @@ Step12e相当の新しいversioned entrypointを要する。
 3. その他の要件(producer/validator round-trip、machine-type
    preflight、disjointness、dry-run分離)はStep12dで実装済みの
    パターンを踏襲する
+
+## Step12eローカル実装(2026-07-21、ユーザー認可済み)
+
+上記提言のとおり実装した。Cloud実行は未実施で、別途fresh explicit
+authorizationを要する。
+
+- `src/ofc_regular/hu_m31_t3_step6d_rearm2_diagnostic_step12e_readonly_retry_v1.py`
+  read-only `get_policy`限定の有界retry wrapper。事前登録値:
+  `iam_https_transport_failed`のみretry可、最大3回、backoff 2s/8s。
+  `add_binding`/`remove_binding`はいかなる場合もretryしない。
+  凍結済みstep11 adapterは無変更。wrapper二重装着は拒否。
+  retryイベントはreceiptへ記録される
+- `src/ofc_regular/hu_m31_t3_step6d_rearm2_diagnostic_step12e_fresh_identity_v1.py`
+  terminal 12b/12c/12d全3件のcloseout検証とidentity非一致。
+  Step12d closeout receipt(`dd33b2...`)とdeployment binding
+  (`cb94bb...`)をpin
+- `scripts/run_hu_m31_t3_step6d_rearm2_diagnostic_step12e_pair_v1.py`
+  新confirmation token `EXECUTE_STEP12E_DIRECT_V2_EXACT_PAIR_ATTEMPT0`。
+  backend構築直後に`backend.iam_admin`をwrapperへ差し替え
+  (token barrier・Phase2・cleanupの全policy GETをカバー)。
+  STEP12E_FINAL/STEP12E_FAILUREにretryイベント数を記録
+- テスト21件: wrapper単体8(retry予算・backoff・mutation非retry・
+  非transport即時失敗・委譲・nesting拒否・事前登録値)、
+  fresh identity 8、runner 5(旧token拒否・dry-run非構築・
+  wrapper装着・両=全terminal immutable登録)
 
 ## 今回のcanaryが証明したこと
 
