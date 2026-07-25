@@ -619,6 +619,58 @@ The T3 firing rate is unmeasured. Its upper bound is the raw disagreement rate,
 which needs no trained selector — only the teacher and the baseline — and is
 therefore worth measuring before committing to the 9,000-paired label run.
 
+## 11c. T3 measurement, and what it does not establish
+
+The turn-1 numbers in 11b can be reproduced for T3 locally, free, in minutes,
+with `ofc_regular.trace_hu_turn3_overrides`. Two candidate models over 2,000
+paired hands at `--hu-turn3-min-margin 1`:
+
+| model | fire% | zero-delta% | take-all/hand | oracle/hand | sigma |
+|---|---:|---:|---:|---:|---:|
+| `hu_turn3_stage2_mc32_500k` (7 MB) | 34.2% | 70.7% | +0.355 | +1.489 | 8.78 |
+| `hu_turn3_joint_exact_stage8_mc128` (79 MB) | 15.8% | 53.6% | -0.349 | +0.893 | 12.18 |
+
+A margin sweep (0/1/5/10/20, 1,000 hands each) puts both at their own operating
+point. At margin 0 — every disagreement, the fair comparison — the two oracles
+are +1.672 and +1.707, indistinguishable within sampling error.
+
+**Do not conclude from this that teacher labels are worthless.** The measurement
+is against `trace_hu_turn3_overrides`' default base models, not the production
+chain, and the direction of that bias is not neutral:
+
+> The oracle ceiling is the *baseline's* stock of mistakes. Against a weak
+> baseline almost any candidate finds the easy wins, so candidates look
+> interchangeable. Against a strong baseline only a sharper candidate finds
+> what is left. This measurement sits in exactly the regime where candidate
+> quality is least distinguishable, so it cannot rule out that a better teacher
+> matters against `stage9f_p2`.
+
+What **is** established, because 11b is measured against `stage9f_p2` itself:
+large headroom exists, and selection is the binding constraint — the turn-1
+selector captures about 6.5% of its oracle.
+
+The T3 version of that measurement needs a `stage9f_p2` + T3-override composite
+profile. None exists (turn 1 has `stage9f_p2_hu_t1_topk_confirm`; T3 has no
+counterpart), and creating one edits the pinned `ai_profiles.py`, which section
+2 makes the *last* step of M3.1. So this measurement only becomes available
+after T3 runtime override integration lands.
+
+## 11d. Revised strategy
+
+| Direction | Status |
+|---|---|
+| Prioritise the discriminator over candidate quality | **Supported** — 6.5% capture against the production baseline |
+| Shrink the 9,000-paired teacher label run | **On hold** — the evidence for this was the weak-baseline comparison above and does not carry |
+| Defer statistical proof from per-street gates to one joint promotion | **Supported in form** — cost scales as `(sigma/mu)^2`, so proving one combined effect is far cheaper than five small ones; cross-street additivity is untested |
+| Measure locally before spending in cloud | **Supported and demonstrated** — every number in 11b/11c cost nothing |
+
+The label-run decision should be made **after** T3 runtime integration makes the
+production-baseline measurement possible, not before. Cutting it now would be a
+bet without evidence; committing the full `$330-500` now would be a bet against
+the one production-regime datapoint we have. Sequencing the integration ahead of
+the label run resolves this at no extra cost, because the integration is
+required for M3.1 regardless.
+
 ## 12. Expected remaining time
 
 If every frozen gate passes on its first attempt:
@@ -660,3 +712,73 @@ is authorised: it sets the promotion evaluation size, the other unbounded cost.
 The currently authorized M3.1 cloud hard cap is USD 500. Do not expand later
 milestone spending without a new frozen pilot and budget decision.
 
+
+## 13. Execution environment
+
+**The local scientific stages require a Linux host end to end.** This is not a
+preference; three independent requirements enforce it, and none of them is
+visible until late in the pipeline.
+
+1. **The frozen native libraries are Linux `.so` files.** Fresh-quality root
+   materialisation dereferences them, so on Windows it fails with
+   `[WinError 193]` — but only at that stage. Everything before it, including
+   the entire performance lock, completes happily on Windows, so the mismatch
+   surfaces only after a full collection.
+2. **Create-only publishing needs `renameat2(RENAME_NOREPLACE)`.** DrvFs — any
+   `/mnt/c` or `/mnt/d` path from WSL — returns `EINVAL`, so outer-package
+   publish fails there. Run roots must live on a real Linux filesystem; WSL's
+   ext4 works and had 934 GB free against ~324 MB per run.
+3. **The portable receipt prefers full source replay.**
+   `load_preferred_or_pinned_receipt` dereferences the paths recorded in the
+   receipt and only falls back to `PINNED_RECEIPT_FILE_SHA256` when they are
+   absent. Every local path is sealed at launch, cleanup and receive time, so a
+   chain produced on Windows cannot be replayed from Linux and vice versa. No
+   file matching the pin currently exists in the tree, so the fallback is not
+   an escape hatch.
+
+Together these mean a run started on Windows cannot be finished on Linux: the
+sealed `local_destination` and `controller_journal_dir` are Windows strings that
+no Linux path resolves to. Start on the platform you intend to finish on.
+
+Working WSL setup (no root required):
+
+```bash
+python3 -m venv ~/ofc-fq-venv          # ensurepip is present on Ubuntu 24.04
+~/ofc-fq-venv/bin/pip install numpy    # the only missing import
+export CLOUDSDK_CONFIG=/mnt/c/Users/<user>/AppData/Roaming/gcloud
+export PYTHONPATH=<repo>/src
+```
+
+`CLOUDSDK_CONFIG` matters: WSL's `gcloud` resolves to the Windows SDK through
+`/mnt/c` but reads its own empty config, so it reports no active account until
+pointed at the Windows credential store. The frozen cp311 wheelhouse is *not*
+installed locally — staging only repackages and hash-checks it — so a local
+venv on a different Python cannot perturb pinned evidence.
+
+## 14. Run history, and why wave 0 ran five times
+
+| run | outcome | cause |
+|---|---|---|
+| `-20260723-001` | all 8 workers dead in 77 ms | defect 1, staged startup name |
+| `-20260723-002` | all 8 workers dead in 64 s | defect 2, missing contract |
+| `-20260723-003` | 20/20 accepted, merge blocked | per-wave control roots (process error) |
+| `-20260723-004` | 20/20 accepted, lock **qualified**, quality blocked | Windows platform mismatch |
+| `-20260726-005` | Linux-native, in progress | — |
+
+Only the first two were unavoidable discovery. The other three were preventable,
+and the same failure explains all three: **expensive cloud work was started
+before the cheap local check that would have blocked it.**
+
+- Defects 1 and 2 were both reproduced afterwards in a WSL harness in seconds,
+  using `OFC_FULL100_WAVE_V2_TEST_METADATA` and the real launch bundle. Building
+  that harness *first* would have found both without creating a single VM.
+- The control-root layout was a five-minute read of what the scientific bridge
+  requires. It was generalised from an unrelated epoch-exhaustion incident
+  instead.
+- The platform mismatch was visible in a file extension.
+
+Before the next collection, verify offline: that every module the *post*-
+collection stages import loads; that the native libraries load; that
+`renameat2(RENAME_NOREPLACE)` works on the run root; and that cloud credentials
+resolve. All four are seconds of work and together they gate roughly three hours
+and USD 5 per attempt.
