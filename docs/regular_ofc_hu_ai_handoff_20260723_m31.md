@@ -291,11 +291,20 @@ Eight worker service-account objects named `ofc-f100-worker-00` through
 `ofc-f100-worker-07` still exist. The last audit found no target project or
 bucket bindings. Do not delete or grant them outside the production lifecycle.
 
-The new production run directory does not yet exist:
+The one-shot performance lock has since been collected twice. Live readback on
+2026-07-26 is again VM count 0 and disk count 0.
 
-`D:\ofc-gcp-runs\regular-hu-m31-c02-performance-lock-v4-20260723-001`
+| run | root | state |
+|---|---|---|
+| `...-plock-20260723-004` | `D:\ofc-gcp-runs\...-004` (Windows) | 20/20 accepted; lock **qualified**; cannot authorize quality — see section 13 |
+| `...-plock-20260726-005` | `~/ofc-runs/...-005` (WSL ext4) | 20/20 accepted, zero preemptions; lock stages pending |
 
-Therefore the one-shot performance lock has not started.
+**Run -005 is the operative run.** Run -004 proved the science and produced a
+qualified final receipt, but every local path in it is a Windows string, so the
+portable receipt cannot replay from Linux and fresh quality cannot consume it.
+Run -005 repeats the same collection entirely on Linux so that the same receipt
+is replayable where the frozen `.so` files load. The scientific content of the
+two runs is identical — same frozen plan, same seeds, same binaries.
 
 ## 8. Reusable immutable inputs
 
@@ -782,3 +791,44 @@ collection stages import loads; that the native libraries load; that
 `renameat2(RENAME_NOREPLACE)` works on the run root; and that cloud credentials
 resolve. All four are seconds of work and together they gate roughly three hours
 and USD 5 per attempt.
+
+### Operational notes from the Linux run
+
+Two near-misses worth repeating, because both made working steps look broken:
+
+- **Output filters are platform-dependent.** The orchestrators print compact
+  JSON on Windows and pretty-printed JSON under WSL, so a `grep '"status":"…"'`
+  that worked on Windows silently matched nothing on Linux and made a
+  *successful* cleanup look like a failure. Match the spaced form, or drop the
+  filter and read the tail. Never conclude failure from an empty filter.
+- **Do not `sed`-edit multi-line shell scripts.** Rewriting a runner with `sed`
+  broke its line continuations and produced
+  `--attempt-ledger: command not found`. Keep one small script per step and
+  parameterise it instead.
+
+Run -005 completed 8/8, 8/8 and 4/4 with zero preemptions, which is also the
+first collection where no defect surfaced — every fix from section 10b was
+already in place.
+
+## 15. Revised plan from here
+
+1. **Finish the lock on run -005**: scientific bridge `--mode merge`, then the
+   pure v4 merger, then the production bridge. All three are local, free, and
+   minutes; the calling patterns are in section 10c. Verify the resulting
+   receipt authorizes quality by calling `build_fresh_quality_plan` on it — it
+   raises `performance receipt is not the exact portable pin` if the paths do
+   not dereference, which is the exact failure that ended run -004.
+2. **Fresh quality (item 2)**: 50 paired hands plus the 5-paired confirmation,
+   roughly USD 3. Its local staging is create-only and fails closed with a
+   forensic marker, so a failed attempt is cheap and must be retried in a new
+   directory.
+3. **T3 runtime override integration (item 5-ish)** *before* committing to the
+   9,000-paired label run. This is the reordering section 11d argues for: the
+   integration is required for M3.1 anyway, and only once it exists can the T3
+   override be measured against `stage9f_p2`. That measurement decides whether
+   the label run is worth USD 330-500, and it costs nothing to run afterwards.
+4. **Then** the label set, training, non-fire proof, promotion, opt-in profile.
+
+Do not start step 4's label run on the strength of the section 11c numbers.
+They were measured against the wrong baseline, and section 11c explains why the
+bias runs in the direction that would flatter that decision.
