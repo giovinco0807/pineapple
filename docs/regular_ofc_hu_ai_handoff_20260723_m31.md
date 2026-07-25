@@ -1,0 +1,662 @@
+# Regular OFC HU AI M3.1 handoff
+
+Updated: 2026-07-23 JST
+
+Repository:
+
+`C:\Users\Owner\.gemini\antigravity\scratch\ofc-pineapple\regular-ofc-pineapple`
+
+Branch:
+
+`codex/regular-ofc-pineapple`
+
+## 1. Non-negotiable constraints
+
+- Do not delete, reset, clean, stage, or overwrite the existing dirty worktree.
+- `git status --short` currently has about 1,194 entries. Many M3.1 files are
+  untracked but are active research state, not disposable build output.
+- Do not change `current`.
+- Do not replace or remove the named P0/P1/P2/T3 baselines.
+- Do not activate a full replacement before locked practical promotion.
+- Do not expose opponent private discards or realized deck tail to a model.
+- Do not use teacher EV LCB directly as a runtime gate.
+- Do not call a policy mathematically optimal unless a proof exists.
+- Performance, quality, data, threshold-lock, and diagnostic holdout seeds must
+  remain disjoint.
+- Candidate-selection randomness and evaluation randomness must remain
+  independent.
+- A non-fired override must return the exact baseline `Action` object and must
+  not consume policy RNG or change the trajectory.
+
+Pinned profile file:
+
+`src/ofc_regular/ai_profiles.py`
+
+Pinned SHA-256:
+
+`d2eb02669e27426623c70af21f1af4d7002db2a7eab77efd3319f8fb65b868d3`
+
+The `current` profile still resolves to the legacy stage9d policy. The stronger
+fixed chain is selected explicitly:
+
+`stage19_p0 -> stage18_p1 -> stage9f_p2 -> stage7_m5_r10 -> T4 exact`
+
+## 2. Meaning of the final goal
+
+M3.1 is complete only when T3 has:
+
+1. passed an independent one-shot performance lock;
+2. passed fresh quality and high-precision confirmation;
+3. produced the frozen 9,000-paired label set;
+4. trained and calibrated `StreetPolicyNetV1`;
+5. preserved exact non-fire cancellation;
+6. passed five-opponent and at least three-ABR-family promotion;
+7. been added only as an explicit opt-in profile.
+
+The realistic claim is a strong practical self-play policy with empirical
+low-exploitability evidence. It is not a proof of Nash equilibrium and not a
+mathematically complete solution.
+
+## 3. Completed foundations
+
+### T4
+
+- T4 uses the exact runtime solver.
+- It evaluates every legal final placement using the actor's valid information.
+- Opponent private discards are not required or exposed.
+
+### T3 engine and contract
+
+- Step6d runner, independent validator, deterministic seed namespaces, resume,
+  tamper detection, ActionKey checks, and candidate/reference process isolation
+  exist.
+- Candidate01 matched the reference bit-for-bit and was about 1.44x faster.
+- Candidate02/compact-scoring work is the active performance candidate.
+- Existing baseline `stage7_m5_r10` remains intact.
+
+### Accepted performance-development run
+
+Run root:
+
+`D:\ofc-gcp-runs\regular-hu-m31-c02-f100wv2-20260723-009`
+
+Run name:
+
+`regular-hu-m31-c02-f100wv2-20260723-009`
+
+Execution identity:
+
+`dd88e7361639f3ada186b0cfa4661681d4c715465dc9b9b7562523221bc902ba`
+
+Scientific receipt:
+
+`D:\ofc-gcp-runs\regular-hu-m31-c02-f100wv2-20260723-009\scientific-gate-receipt.json`
+
+Receipt file SHA-256:
+
+`664f86262436d41b62a8324cf1ba8df52e0f6af09f80f2071af825862b39e6b2`
+
+Observed result:
+
+- status: `pass`
+- decision: `full100_wave_v2_go_open_one_shot_performance_lock_only`
+- exactly 100 paired hands / 200 roots
+- exactly 20 jobs / 440 accepted objects
+- portable semantic parity: 1.0
+- first-seat p95: 88.183210156 s
+- first-seat p99: 90.621403529 s
+- first-seat max: 91.630463564 s
+- second-seat p95: 1.059373219 s
+- peak RSS: 123,621,376 bytes
+- candidate/reference first-seat geometric-mean speedup:
+  2.77465048668492x
+- missing/censored records: zero
+
+This run authorizes only the new one-shot performance lock. It is not the
+performance lock itself and does not authorize training or quality acceptance.
+
+## 4. Frozen performance-lock v4 input
+
+Root:
+
+`outputs/hu_joint_policy/m31_t3_step6d/performance_lock_v4`
+
+Frozen files:
+
+| File | SHA-256 |
+|---|---|
+| `performance_lock_v4_plan.json` | `2ad08116835a58f5b5927e4de986f2717915d0dd128e7a5f3fa288e0cac6e5be` |
+| `execution/MATERIALIZATION_CLAIM.json` | `cfceeb9d4bd89807e43ef7b8899b0ed04bf70fdef987648b0c57c9c743984d3f` |
+| `execution/MATERIALIZATION_RECEIPT.json` | `be9554ef78e9234b994a3e1e537c9e3a2c1618c61205f8c8a90578380e86666e` |
+| `execution/ROOT_SEAL.json` | `f38cc30eba09ef5e3a6380a41b79e990ca8394943f4415fbc8f4eba463bff401` |
+| `scientific_source_package/manifest.json` | `d01933aaf861ab714d13a21d8961ba04ed749631af24894d71b428820f099ddd` |
+| `scientific_source_package/PACKAGE_READY.json` | `3322d1e70e27b6f143e4f2be0f9b37649d1e961b0544669c1d24e52d1ded8d10` |
+| source ZIP | `acfd573fd4ea033bf3e154b37b325a7a61fc49188a77b522a6494a0a4c8dacf9` |
+
+The package above cannot execute. Its source ZIP omits
+`configs/hu_joint_policy_m31_t3_step6d_contract.json`, which
+`run_hu_m31_t3_step6d_performance_v2.run_source_shard` reads from the extracted
+science root, so every worker died with `FileNotFoundError` right after the
+wheelhouse install. The packager now carries that contract
+(`hu_m31_t3_step6d_performance_lock_v4_spot_package.CONTRACT_RELATIVE_PATH`).
+
+Use this replacement package instead. Root:
+`D:\ofc-gcp-runs\v4-science-package-contractfix`
+
+| File | SHA-256 |
+|---|---|
+| `manifest.json` | `618f3aa95209ac7d86cb3fa5af941d17b9f6dda246985f383d02de0016a889cc` |
+| `PACKAGE_READY.json` | `d433dc6ea3dba65f8ca01e951f55180efd5021b53be1b22a3c77eae8282c08f4` |
+| source ZIP | `b850f7b6e0832239916790e860b460663dcc7ef544d232e6132a097395e7224e` |
+
+The replacement ZIP holds 643 members against the original 597: the contract
+plus 45 untracked `src/ofc_regular/*.py` modules that appeared in the worktree
+after the original package was built. The packager globs the whole package
+directory, and the dirty worktree must not be cleaned, so they are carried
+along. They do not affect execution — the startup script validates every
+archive member against the manifest it was built from, and the runner imports
+only what it needs — but a payload rebuilt from a clean tree would be smaller.
+
+Other frozen identities:
+
+- run contract digest:
+  `669c1efa1afeebe41fcc531c6458c9d72fffdd5df2cca751c99988a872f3e2b6`
+- seed-set SHA-256:
+  `f63b2f0cb9212e9f16d9a05c79cdd6946fec54daccfd4a212f0db08c498a9847`
+- v4 startup SHA-256:
+  `80c489030a67536f3584d062e16b265486659be2fd1a38b2bfe03b4a4ec0d68b`
+- old development startup SHA-256, which must remain unchanged:
+  `204a12c40b56dda643b7228e1687818a618bf1cb4a1f50359187b113c82a7d87`
+
+The v4 package contains 100 sealed roots and 20 job descriptors. Candidate and
+reference are separate jobs/VMs. The intended wave layout is 8, 8, and 4 VMs,
+not 16 simultaneous VMs.
+
+## 5. Implemented v4 production code
+
+Important modules:
+
+- `src/ofc_regular/hu_m31_t3_step6d_candidate02_performance_lock_v4_plan.py`
+- `src/ofc_regular/hu_m31_t3_step6d_performance_lock_v4_spot_package.py`
+- `src/ofc_regular/hu_m31_t3_step6d_performance_lock_v4_gate.py`
+- `src/ofc_regular/merge_hu_m31_t3_step6d_candidate02_performance_lock_v4.py`
+- `src/ofc_regular/hu_m31_t3_step6d_performance_lock_v4_production_bridge.py`
+- `src/ofc_regular/hu_m31_t3_step6d_full100_wave_science_registry_v2.py`
+- `src/ofc_regular/hu_m31_t3_step6d_full100_wave_plan_v2.py`
+- `src/ofc_regular/hu_m31_t3_step6d_full100_wave_package_v2.py`
+- `src/ofc_regular/hu_m31_t3_step6d_full100_wave_run_prepare_v2.py`
+- `src/ofc_regular/hu_m31_t3_step6d_full100_wave_production_orchestrator_v2.py`
+- `scripts/startup_hu_m31_t3_step6d_performance_lock_v4_wave_v2.sh`
+
+The science registry now selects startup path, startup hash, execution scope,
+and package validator from the validated plan descriptor. Explicit caller
+values must match the descriptor or fail closed. The development descriptor
+and startup remain supported without changing their bytes.
+
+The v4 final production bridge validates:
+
+- full pure-source replay;
+- plan, materialization receipt, and root seal;
+- root seal -> archive -> outer package -> prelaunch chronology;
+- exactly 20 accepted jobs and 440 accepted objects;
+- only attempt `a00`, with zero retry/reseed/failure;
+- ten candidate/reference VM and process namespace pairs;
+- exact merge-view/pure-merge source equality;
+- pinned `current` profile hash;
+- final qualified/no-go flags;
+- write-once and tamper rejection.
+
+The bridge currently exposes Python APIs but has no dedicated production CLI:
+
+- `build_performance_lock_v4_production_receipt`
+- `write_performance_lock_v4_production_receipt`
+- `validate_performance_lock_v4_production_receipt`
+- `validate_performance_lock_v4_production_receipt_value`
+
+Do not use the old development scientific gate as a substitute for this v4
+bridge.
+
+## 6. Test state
+
+Focused suites that passed during the current implementation include:
+
+- pure v4 gate/merger: 39 passed;
+- v4 plan/package/gate/merger combined: 51 passed;
+- v4 source package: 5 passed;
+- runner/recovery boundary: 37 passed;
+- science registry plus plan: 12 passed;
+- outer package including actual v4 source replay: 25 passed;
+- v4 startup including 100-root/20-job replay: 3 passed;
+- v4 production bridge: 8 passed;
+- related bridge regression: 53 passed;
+- existing run-prepare suite: 9 passed.
+
+These groups overlap and must not be summed.
+
+The complete repository suite was 779 passed before the later v4 dispatch
+changes. A final broad startup/transport regression was interrupted after the
+actual v4 Phase-A test process exited and before all controller/receiver suites
+were collected. Treat that final broad regression as unverified and rerun it.
+
+No pytest process is currently running.
+
+Recommended focused rerun:
+
+```powershell
+$env:PYTHONPATH = "src"
+python -m pytest -q `
+  tests/test_hu_m31_t3_step6d_full100_wave_science_registry_v2.py `
+  tests/test_hu_m31_t3_step6d_full100_wave_plan_v2.py `
+  tests/test_hu_m31_t3_step6d_full100_wave_package_v2.py `
+  tests/test_startup_hu_m31_t3_step6d_performance_lock_v4_wave_v2.py `
+  tests/test_hu_m31_t3_step6d_full100_wave_run_prepare_v2.py `
+  tests/test_hu_m31_t3_step6d_full100_wave_launch_bundle_v2.py `
+  tests/test_hu_m31_t3_step6d_full100_wave_controller_v2.py `
+  tests/test_hu_m31_t3_step6d_full100_wave_gce_adapter_v2.py `
+  tests/test_hu_m31_t3_step6d_full100_wave_result_receiver_v2.py `
+  tests/test_hu_m31_t3_step6d_full100_wave_production_receiver_v2.py `
+  tests/test_hu_m31_t3_step6d_full100_wave_production_cleanup_orchestrator_v2.py `
+  tests/test_hu_m31_t3_step6d_full100_wave_production_scientific_bridge_v2.py `
+  tests/test_hu_m31_t3_step6d_performance_lock_v4_gate.py `
+  tests/test_merge_hu_m31_t3_step6d_candidate02_performance_lock_v4.py `
+  tests/test_hu_m31_t3_step6d_performance_lock_v4_production_bridge.py `
+  --disable-warnings --maxfail=1
+```
+
+Afterward, recheck the pinned profile hash.
+
+## 7. Current cloud state
+
+Project:
+
+`ofc-solver-485418`
+
+Region/zone:
+
+`asia-northeast1` / `asia-northeast1-b`
+
+Bucket:
+
+`gs://pokerhu-ofc-solver-485418-training`
+
+Live readback on 2026-07-23:
+
+- VM count: 0
+- disk count: 0
+- C4-family regional quota: 128 vCPU
+- `c4-standard-16` capacity per VM: 16 vCPU
+- maximum accepted simultaneous layout: 8 VMs / 128 vCPU
+
+Eight worker service-account objects named `ofc-f100-worker-00` through
+`ofc-f100-worker-07` still exist. The last audit found no target project or
+bucket bindings. Do not delete or grant them outside the production lifecycle.
+
+The new production run directory does not yet exist:
+
+`D:\ofc-gcp-runs\regular-hu-m31-c02-performance-lock-v4-20260723-001`
+
+Therefore the one-shot performance lock has not started.
+
+## 8. Reusable immutable inputs
+
+Wheelhouse:
+
+`D:\ofc-gcp-runs\regular-hu-m31-c02-f100wv2-20260723-009\phase-a\outer_package\content\wheelhouse\wheelhouse.zip`
+
+Wheelhouse SHA-256:
+
+`8704107c8e63f2947128f7f5a0c3ba3b45c0aace3636115d0720b77a74b40405`
+
+Wheelhouse manifest:
+
+`D:\ofc-gcp-runs\regular-hu-m31-c02-f100wv2-20260723-009\phase-a\outer_package\content\wheelhouse\wheelhouse_manifest.json`
+
+Wheelhouse manifest SHA-256:
+
+`f8c1b3fc02d075ff44e6823c3121cf379360cef296def89ec07365cceeb6fb3d`
+
+Accepted image digest:
+
+`sha256:9dd85299f559ea3b143b1a764a9c69e0e535672036c2b45bf1cff25b88da3c0d`
+
+Heavy output must go to `D:`. `C:` had only about 2.3 GiB free during the last
+check.
+
+## 9. Immediate next execution
+
+Only after the focused regression above is green:
+
+```powershell
+$repo = "C:\Users\Owner\.gemini\antigravity\scratch\ofc-pineapple\regular-ofc-pineapple"
+$runName = "regular-hu-m31-c02-performance-lock-v4-20260723-001"
+$runRoot = "D:\ofc-gcp-runs\$runName"
+$env:PYTHONPATH = "$repo\src"
+
+$saltBytes = New-Object byte[] 32
+$rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+$rng.GetBytes($saltBytes)
+$rng.Dispose()
+$env:OFC_FULL100_IDENTITY_SALT = [Convert]::ToBase64String($saltBytes)
+
+python "$repo\scripts\prepare_hu_m31_t3_step6d_full100_wave_run_v2.py" phase-a `
+  --output-dir "$runRoot\phase-a" `
+  --run-name $runName `
+  --scientific-package-dir "$repo\outputs\hu_joint_policy\m31_t3_step6d\performance_lock_v4\scientific_source_package" `
+  --startup-script "$repo\scripts\startup_hu_m31_t3_step6d_performance_lock_v4_wave_v2.sh" `
+  --expected-startup-sha256 "80c489030a67536f3584d062e16b265486659be2fd1a38b2bfe03b4a4ec0d68b" `
+  --wheelhouse-archive "D:\ofc-gcp-runs\regular-hu-m31-c02-f100wv2-20260723-009\phase-a\outer_package\content\wheelhouse\wheelhouse.zip" `
+  --wheelhouse-manifest "D:\ofc-gcp-runs\regular-hu-m31-c02-f100wv2-20260723-009\phase-a\outer_package\content\wheelhouse\wheelhouse_manifest.json" `
+  --image-digest "sha256:9dd85299f559ea3b143b1a764a9c69e0e535672036c2b45bf1cff25b88da3c0d" `
+  --full100-plan "$repo\outputs\hu_joint_policy\m31_t3_step6d\performance_lock_v4\performance_lock_v4_plan.json"
+
+Remove-Item Env:OFC_FULL100_IDENTITY_SALT
+
+python "$repo\scripts\prepare_hu_m31_t3_step6d_full100_wave_run_v2.py" collect-absence `
+  --phase-a-dir "$runRoot\phase-a" `
+  --output "$runRoot\all_owned_absence_receipt.json" `
+  --project "ofc-solver-485418" `
+  --zone "asia-northeast1-b"
+
+python "$repo\scripts\prepare_hu_m31_t3_step6d_full100_wave_run_v2.py" phase-b `
+  --phase-a-dir "$runRoot\phase-a" `
+  --absence-receipt "$runRoot\all_owned_absence_receipt.json" `
+  --output-dir "$runRoot\phase-b" `
+  --expected-startup-sha256 "80c489030a67536f3584d062e16b265486659be2fd1a38b2bfe03b4a4ec0d68b"
+```
+
+Never print or persist the identity salt. Phase-A is write-once; if the command
+partially fails, inspect its receipt and resume contract rather than deleting
+the directory.
+
+Before any cloud mutation, run the production orchestrator in `--mode plan`
+using:
+
+- `phase-a/wave_plan.json`
+- `phase-b/attempt_ledger_v0.json`
+- `phase-b/resume_plan_wave0.json`
+- `phase-a/outer_package`
+- a new control root on `D:`
+
+Then execute exactly three waves: 8, 8, and 4 jobs. Receive and perform the
+production cleanup lifecycle after each wave. Wave 1 and wave 2 must consume the
+receiver-produced ledger/resume plan from the preceding wave.
+
+Every wave must share one canonical set of roots, because the scientific bridge
+reads the lifecycle from `<run-root>/{receiver,control,cleanup}/<namespace>` and
+requires the `controller_journal_dir` sealed in each `receiver_request.json` to
+equal `<run-root>/control/<namespace>/controller-journal` exactly:
+
+- `--control-root <run-root>\control`
+- `--cleanup-root <run-root>\cleanup`
+- receiver `--output-dir <run-root>\receiver`
+- receiver `--destination <run-root>\accepted` (the same path for every wave;
+  the final receipt seals it, and the bridge's `--accepted-root` must match)
+
+Per-wave root names such as `control-wave0` look harmless — each wave already
+gets its own `execution-NNN-<hash>` namespace inside the root — but they leave
+the bridge unable to consume the run. The journal path is sealed at launch time
+inside `execution_manifest.json`, so re-running cleanup or receive afterwards
+cannot repair it; only a fresh collection can. Run
+`regular-hu-m31-c02-f100wv2-plock-20260723-003` reached 20/20 accepted jobs and
+440 objects and still could not be merged for this reason.
+
+From wave 1 onward, pass `--source-content-handoff`. The immutable content
+prefix is content-addressed and shared across waves, so a second staging attempt
+fails with `immutable content prefix is not empty`. Build the handoff from the
+wave-0 evidence with
+`production_orchestrator_v2.build_source_content_handoff(stage_plan=...,
+content_preflight_receipt=..., source_stage_receipt=...)` using
+`control/<wave-0-namespace>/static/content_stage_plan.json` and the
+`content-prefix-preflight` / `stage-content` step events.
+
+Spot preemption is normal: wave 1 of run `-003` lost 4 of 8 workers. The
+receiver reports them in `failed_job_ids` and emits a resume plan selecting
+`a01` for exactly those jobs. Re-launching that resume plan into the same
+canonical control root is the designed path and gets its own namespace.
+
+Do not hand-construct GCE or IAM commands. Use the existing production
+orchestrator, receiver, and cleanup modules. Use a fresh OAuth access token only
+in process memory. Verify zero owned VM/disk/IAM residue after every wave.
+
+After 20 accepted jobs / 440 accepted objects:
+
+1. build the accepted lifecycle merge view;
+2. run the pure v4 merger;
+3. issue the v4 final production receipt through
+   `hu_m31_t3_step6d_performance_lock_v4_production_bridge.py`;
+4. open quality only if every performance flag passes.
+
+## 10. Work not yet implemented or executed
+
+**This section is stale on two points.** The v4 one-shot Spot performance lock
+is now complete — run `regular-hu-m31-c02-f100wv2-plock-20260723-004` issued
+`performance_lock_v4_production_receipt.json` with
+`status: qualified` and
+`decision: performance_lock_v4_finalized_qualified_open_quality_pilot_only`,
+which sets `quality_pilot_authorized: true`. And the "no implementation found"
+claim below is wrong: `street_policy_net_v1.py` (1,277 lines),
+`hu_m31_t3_abr_v1.py` (1,984), `hu_m31_t3_abr_teacher_v1.py` (1,861),
+`hu_m31_t3_street_policy_training_v1.py` (1,858),
+`hu_m31_t3_step6d_fresh_quality_v1.py` (1,531),
+`hu_m31_t3_step6d_locked_promotion_v1.py` (1,643),
+`hu_m31_t3_street_policy_runtime_v1.py` (1,348) and
+`hu_m31_t3_opt_in_registration_v1.py` (1,645) all exist, with tests. They are
+untracked, which is why a `git`-based search missed them.
+
+So the remaining work is **execution, not implementation**. Nothing after the
+lock has ever run: `outputs/` contains zero artifacts for street_policy,
+fresh_quality, locked_promotion, abr, or opt_in.
+
+That distinction matters, because every stage executed for the first time in
+this milestone contained a blocking defect. See section 10b.
+
+The following are still unfinished:
+
+- fresh 50-paired quality plan/package/run/merge;
+- separate 5-paired `8/128/4/0` confirmation;
+- immutable 9,000-paired split and generator;
+- 25-paired shard smoke for that generator;
+- `StreetPolicyNetV1`;
+- risk/safety calibration and locked thresholds;
+- T3 runtime override integration;
+- exact non-fire trajectory proof for the new model;
+- five-opponent promotion run;
+- three learned ABR families;
+- final opt-in T3 profile and M3.1 closeout.
+
+Search of the current source tree found no M3.1 implementation of
+`StreetPolicyNetV1`, `hu_population_league_v1.py`, or `hu_abr_v1.py`.
+`validate_hu_m31_t3_step6c_quality.py` is an older Step6c component and is not a
+replacement for the new v4 fresh-quality contract.
+
+## 10b. Defects found by executing the lock
+
+Five blocking defects surfaced while completing the lock. All five were in code
+that was implemented and unit-tested but had never been run. Expect the same
+density in every remaining stage.
+
+1. **Staged startup object name.** The packager hardcoded the development
+   startup filename, so the v4 script was staged under the wrong name. The
+   script re-derives its own object name and aborts, killing all eight workers
+   in 77 ms with nothing in the serial console — line 67 redirects the rest of
+   the run into `/var/log/ofc-full100-wave-v2/startup.log`. Fixed by resolving
+   the path through `science_registry.startup_relative_paths_by_sha256()`.
+2. **Missing performance contract in the science payload.** The v4 packager
+   collected only `pyproject.toml` and `src/ofc_regular/**/*.py`, but
+   `run_source_shard` reads `configs/hu_joint_policy_m31_t3_step6d_contract.json`
+   from the extracted root. Workers died with `FileNotFoundError` after the
+   wheelhouse install. Fixed with `CONTRACT_RELATIVE_PATH`; see section 4.
+3. **Per-wave control roots.** A process error, not a code defect — see the
+   canonical-layout rule in section 9.
+4. **Scientific merge was development-only, five layers deep.** The bridge
+   called `merge_candidate02_full100` directly; the registry had no merger
+   binding; the v4 merger needs frozen materialization and root-seal evidence
+   the merge view never carried; the downstream summary validator assumed the
+   development shape; and receipt replay read the plan from the summary, which
+   the v4 shape does not carry. Each fix exposed the next.
+5. **Snapshot handoff gap between the two bridges.** The scientific bridge kept
+   only `accepted_snapshot_sha256`; the production bridge needs the snapshot
+   body, and it cannot be rebuilt from the digests — a reconstruction attempt
+   produced a different digest and was discarded rather than used. The bridge
+   now also stores `accepted_results_snapshot`.
+
+Defect 5's first fix made that key mandatory, which broke
+`load_run009_scientific_gate_receipt`: the frozen run009 receipt is pinned by
+file hash and has no such key, so the exact-key check rejected it and the whole
+v4 plan module stopped loading. The key is now optional, validated against the
+adjacent digest when present. **Any schema change to an artifact that older
+frozen receipts are also read through must stay backward compatible**, and the
+focused regression is what caught it.
+
+## 10c. Actual dependency chain
+
+Section 2 lists seven completion criteria; they are a strict chain, not a menu.
+In particular fresh quality cannot start before the lock is fully finalized:
+
+```text
+accepted lifecycle merge view      (scientific bridge, --mode merge)
+  -> pure v4 merger                (merge_and_write_candidate02_performance_lock_v4)
+  -> v4 final production receipt   (performance_lock_v4_production_bridge)
+  -> fresh quality local staging   (--performance-receipt consumes that receipt)
+```
+
+`build_fresh_quality_plan` rejects the scientific gate receipt with
+`performance receipt is not the exact portable pin`; only the production final
+receipt authorizes it. Neither the pure merger nor the production bridge has a
+CLI — both must be driven from their module APIs, and the production bridge
+takes twelve inputs, of which eleven come from the gate receipt and the frozen
+lineage.
+
+## 11. Required post-lock gates
+
+### Fresh quality
+
+- 50 fresh paired hands / 100 roots;
+- separate 5-paired `8/128/4/0` confirmation;
+- confirmation regret mean/p95/p99/max at most 0.75/3/6/15;
+- hidden truth, unknown field, ActionKey drift, RNG overlap, and missing rows:
+  zero.
+
+### Data split
+
+| Role | Paired hands |
+|---|---:|
+| train | 6,000 |
+| safety-fit | 1,000 |
+| threshold-lock | 1,000 |
+| diagnostic holdout | 1,000 |
+
+Exactly 10% of each split receives preregistered high-precision confirmation.
+Core weights use train only. Safety/risk fitting uses safety-fit only.
+Threshold-lock cannot update weights. Diagnostic holdout cannot select a
+threshold.
+
+### Runtime gate
+
+Override only when:
+
+- candidate and baseline semantic ActionKeys differ;
+- predicted delta minus downside p95 and ensemble disagreement is positive;
+- seat-calibrated safe probability exceeds the frozen threshold;
+- input schema, ActionKey mapping, and model hashes match exactly.
+
+### Promotion
+
+- five opponent policies and at least three ABR families;
+- paired seat-swap overall and by seat;
+- at least 300 valid overrides and at least 100 per seat;
+- gain/override and EV/hand CI95 lower bounds above zero;
+- false-positive rate at most 0.30 overall and 0.35 per seat;
+- override-loss p95/p99/max at most 25/40/50;
+- every opponent mean at least -0.005 and CI95 lower bound at least -0.02;
+- non-fire trajectory mismatch zero;
+- learned ABR worst response at least -0.01 point/hand.
+
+## 11b. Measured override economics from turn 1
+
+The promotion thresholds in section 11 are easier to read against the turn-1
+results already in `outputs/evals/`, which used the same override design. Read
+these before planning any T3 run size; they are the only measured prior.
+
+Raw candidate/baseline disagreement, margin >= 1
+(`hu_turn1_stage1_stage9f_p2_full2k/t1_decision_analysis_3000_margin1`):
+
+| Quantity | Value |
+|---|---|
+| fired rows | 963 of 4,777 valid (`override_rate_on_valid` 0.202) |
+| mean delta | **-2.18** points per firing |
+| CI95 | [-2.97, -1.39] — significantly negative |
+| median / min / max | 0.0 / -40.2 / +49.5 |
+| implied sigma | ~12.5 points (`std_error` 0.4025 x sqrt(963)) |
+| `non_fired_delta_max_abs` | 0.0 — exact non-fire confirmed |
+
+Taking the candidate action on every disagreement *loses*. The safe-override
+selector exists to find the positive subset, and it does
+(`hu_turn1_stage11_selector_c2_500`, 500 paired seeds):
+
+| Quantity | Value |
+|---|---|
+| realized overrides | 15 of 2,000 decisions (~0.75%) |
+| mean delta per firing | **+4.08** points |
+| `avg_score_per_hand_for_a` | +0.042 (stage12: +0.085) |
+| `non_fired_final_mismatch_count` | 0 |
+
+Two consequences for sizing a T3 run:
+
+1. **Section 11's "at least 300 valid overrides" is conservative, not tight.**
+   With paired seat-swap and exact non-fire, non-firing hands contribute zero
+   variance, so the effective sample size is the firing count. CI95 above zero
+   needs `n_fire > (1.96 * sigma / mu)^2`; at sigma 12.5 and mu +4.08 that is
+   36 firings. 300 is roughly 8x the statistical minimum.
+2. **The firing rate, not the threshold, drives cost.** At the turn-1 rate of
+   ~1%, reaching 300 firings needs ~40,000 decisions, i.e. ~20,000 paired
+   hands. Promotion hands are cheap — they are played by the runtime policy
+   (second-seat p95 ~1.1 s), not by the 92 s teacher — but the count is large,
+   and section 11 does not say whether 300 is required per opponent, per ABR
+   family, or overall.
+
+The T3 firing rate is unmeasured. Its upper bound is the raw disagreement rate,
+which needs no trained selector — only the teacher and the baseline — and is
+therefore worth measuring before committing to the 9,000-paired label run.
+
+## 12. Expected remaining time
+
+If every frozen gate passes on its first attempt:
+
+- realistic: 6-9 calendar days;
+- best case with overlap: 4-5 days;
+- one redesign cycle: 10-14 days.
+
+The largest wall-clock item is the 9,000-paired teacher-label run. With the
+current accepted C4 layout, no more than eight `c4-standard-16` workers may run
+simultaneously.
+
+That item has now been costed against measurement rather than estimate. Run
+`regular-hu-m31-c02-f100wv2-plock-20260723-003` collected 100 paired hands for
+about **18.6 c4-standard-16 VM-hours** end to end, including one Spot
+preemption and its `a01` resume. Scaling linearly:
+
+| Quantity | 100 paired hands (measured) | 9,000 paired hands (extrapolated) |
+|---|---|---|
+| VM-hours | 18.6 | ~1,670 |
+| Wall clock at 8 workers | ~2.5 h | **~8.7 days** |
+| Spot cost at $0.20-0.30/VM-h | ~$5 | **~$330-500** |
+
+So the label run alone plausibly consumes the entire USD 500 authorisation and
+the whole "realistic 6-9 calendar days" budget. Two things follow:
+
+- The wall-clock half is fixable for free. The eight-worker ceiling is the C4
+  quota (128 vCPU), not a contract; raising it to 512 vCPU gives 32 workers and
+  cuts ~8.7 days to ~2.2 days. Quota increases cost nothing and one has already
+  been granted for this project (24 -> 128).
+- The money half is not fixable by parallelism, because VM-hours are unchanged.
+  It needs a smaller label set, a cheaper teacher configuration, or a new
+  budget decision. Section 1's rule against expanding spend without a fresh
+  frozen pilot applies here.
+
+Section 11b explains why the T3 firing rate should be measured before this run
+is authorised: it sets the promotion evaluation size, the other unbounded cost.
+
+The currently authorized M3.1 cloud hard cap is USD 500. Do not expand later
+milestone spending without a new frozen pilot and budget decision.
+
