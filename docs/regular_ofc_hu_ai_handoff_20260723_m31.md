@@ -889,3 +889,59 @@ authoritative one.
 
 Next: the cloud run via `run_hu_m31_t3_step6d_fresh_quality_gcp_v1.py`, which
 consumes this staging directory. Fifteen jobs, roughly USD 3.
+
+## 17. Where the remaining headroom is, per street
+
+Every street already carries a model, and T0/T1/T2 already carry the same
+override-plus-safe-selector pair this milestone is building for T3:
+
+```
+DEFAULT_HU_TURN0_STAGE19_P0_MODEL / ..._SAFE_SELECTOR_MODEL
+DEFAULT_HU_TURN1_STAGE18_P1_MODEL / ..._SAFE_SELECTOR_MODEL
+DEFAULT_HU_TURN2_STAGE8B_MODEL
+```
+
+`models/` holds 38 turn0, 228 turn1, 169 turn2 and 63 turn3 files. So the M3.x
+curriculum is not building street policies from nothing; it is rebuilding them
+on top of the exact T4 solver, with a far stricter verification process. The
+backward order follows from that: a street cannot be evaluated until the play
+below it is correct.
+
+That reframes the open question. It is not "which street is unbuilt" but:
+
+> **How much headroom does each already-built street still have?**
+
+Only turn 1 has been measured, and only against `stage9f_p2`:
+
+| | value |
+|---|---:|
+| oracle ceiling | +0.92 pts/hand |
+| achieved by the shipped selector | +0.06 pts/hand |
+| **capture rate** | **~6.5%** |
+
+A street that has already been through one pass is leaving roughly 93% of its
+available value unclaimed. T0, T2 and T3 have never been measured this way.
+
+The measurement is cheap — `ofc_regular.trace_hu_turn3_overrides` and its
+turn-0/1/2 equivalents run locally, free, in minutes, and section 11c shows the
+method. Running it for every street produces a headroom table, and that table
+is what should decide where the next USD 330-500 goes.
+
+Two caveats keep this from being a conclusion:
+
+1. The oracle is an unreachable upper bound. It selects on realized outcomes,
+   much of which is downstream randomness no decision-time predictor can see.
+   A fair version would fit the best predictor available at decision time and
+   report *its* capture, not the oracle's.
+2. Section 11c's T3 numbers were measured against the trace tool's default
+   baseline, not `stage9f_p2`, and that bias flatters the ceiling. Per-street
+   comparison must use the production baseline for every street or none.
+
+A further structural question, unresolved: the teacher's budget is
+`8/32/4/0` — eight candidate placements, thirty-two evaluations, four
+downstream T3 rollouts, and an exact T4. A first-seat decision costs about 92
+seconds, and almost all of it is the exact T4 solve rather than search breadth.
+So the teacher pays exact-solver prices for a narrow search. Whether a wider
+candidate set with exact T4 reserved for the final few would distil better is
+untested, and it bears directly on whether more labels of the *current* teacher
+are worth buying.
