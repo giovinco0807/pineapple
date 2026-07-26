@@ -945,3 +945,84 @@ So the teacher pays exact-solver prices for a narrow search. Whether a wider
 candidate set with exact T4 reserved for the final few would distil better is
 untested, and it bears directly on whether more labels of the *current* teacher
 are worth buying.
+
+## 18. The T4 evaluation is the cost, and it is the one place with perfect labels
+
+Measured from run `-20260726-005`'s accepted candidate hands (100 hands, 200
+roots), reading `source_result.decision`:
+
+| quantity | first seat | second seat | ratio |
+|---|---:|---:|---:|
+| `child_information_set_count` | 91,116 | 1,332 | 68x |
+| `native_latency_ms` | 55,838 | 822 | 68x |
+| wall seconds (mean) | 50.90 | 0.78 | 65x |
+
+Latency tracks the child information-set count almost exactly, and
+`validation_latency_ms` is 13 ms against 55,838 ms of native search. **The T3
+decision cost is the number of T4 evaluations and essentially nothing else.**
+The first seat is expensive because the opponent has not placed yet, so the
+child set is two orders of magnitude larger.
+
+The budget is `candidate_samples 8 / evaluation_samples 32 /
+downstream_t3_samples 4 / downstream_t4_samples 0`, with
+`use_t4_action_cache: True` and `runtime_id: hu_m31_t3_crn_exact_t4_v1`. The
+zero is not a shortcut: T4 children are solved exactly rather than sampled. The
+cache only helps a position that recurs.
+
+### Why this matters for where the money goes
+
+T4 is the only street in this game with a perfect teacher. It is exactly
+solvable, so (position -> exact EV, exact best placement) pairs are unlimited
+and noise-free. Every other street's teacher is itself an approximation — T3's
+32 evaluation samples carry roughly 18% standard error.
+
+So the current error budget is lopsided:
+
+| error source | current |
+|---|---|
+| T4 leaf evaluation | **zero** — exact |
+| unknown-card sampling | 32 samples, ~18% s.e. |
+| opponent T3 response | 4 samples |
+
+Exactness removed the smallest term. The dominant error is sampling, and
+sampling is starved precisely because the exact leaf is expensive.
+
+A learned T4 evaluator inverts that trade. If it carried, say, 2% error but
+made leaves cheap enough to raise evaluation samples from 32 to 512, sampling
+error would fall to about 4.4% and the total would improve. `models/` currently
+holds no T4 model at all — 38 turn0, 228 turn1, 169 turn2, 63 turn3 files, and
+nothing for the final street.
+
+The speedup compounds backwards: cheaper T4 makes T3 labels cheaper, T2 search
+uses T3, and so on up the backward curriculum. The 9,000-paired label run
+in section 11d is priced against the current leaf cost.
+
+### What such a model must not smooth over
+
+1. **Fouling is a cliff, not a gradient.** It is also decidable exactly and
+   cheaply once a placement is fixed, so the natural split is to check fouling
+   exactly and have the model predict EV conditional on a legal board.
+2. **Fantasy Land is a discrete jump** worth tens of points at the QQ boundary.
+   A regressor that interpolates across it will be badly wrong exactly where
+   the decision matters. It wants its own head or an explicit feature.
+3. **The exactness claim is worth keeping.** It does not have to be given up:
+   evaluate the search interior with the model and re-solve the chosen line,
+   or the top few, exactly. What gets reported stays exact; only the 91,116
+   interior evaluations get cheap.
+
+This pattern is already running in the sibling `ai/` codebase, where a value
+network (corr 0.921, MAE 4.08) backs an MCTS evaluator instead of exact
+evaluation at every leaf.
+
+### Cheapest way to test it
+
+Nothing here requires cloud spend:
+
+1. Generate exact T4 labels locally — they are free and unlimited.
+2. Fit a small evaluator and measure held-out error against exact values.
+3. Re-run `evaluate_t3` with the model at the leaf and compare both the
+   decision agreement and the wall time against the exact runtime, on the same
+   roots the lock already measured.
+
+Step 3 answers the real question directly: does the decision change, and by how
+much does 55 seconds fall.
