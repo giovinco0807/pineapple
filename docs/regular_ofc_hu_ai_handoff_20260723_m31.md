@@ -1088,3 +1088,67 @@ MAE well under 1.0 is the bar worth aiming at rather than assuming.
 Fouling and Fantasy Land still need the treatment in section 18: fouling stays
 an exact check, and the FL jump at the QQ boundary wants its own head or an
 explicit feature rather than being smoothed across.
+
+## 20. Building the T4-first evaluator: measured pipeline
+
+### Scoring context is frozen into the labels
+
+The lock ran with, and these labels therefore encode:
+
+```json
+{"fl_ev": {"14": 10.227020614683454}, "fantasyland_cards": 14,
+ "foul_enabled": true, "hu_line_points": true,
+ "middle_trips_royalty": 2, "scoop_bonus": 3}
+```
+
+`ScoringContext.fl_ev` is a list of (cards, value) pairs, so a Fantasy Land
+chain is representable, but only the 14-card entry is set and its value is taken
+to already account for chaining, chains being rare. **Changing `fl_ev` later
+invalidates every label and the model fitted on them**, so it is worth treating
+as frozen alongside the plan.
+
+### Where the states come from
+
+`hu_m31_t3_behavior_roots.generate_behavior_t3_roots` plays T0-T2 with one of
+the five frozen behavior profiles and returns both sequential T3 roots, keeping
+the opponent's private discards out of every model input. Fresh quality uses the
+same routine, so labels built on it inherit that information discipline.
+
+T4-first states are then produced the way the search reaches them: apply a legal
+T3 placement, advance the opponent, and deal the remaining unknowns. That keeps
+the training distribution equal to the search's query distribution instead of to
+uniform random boards.
+
+Stage-3 profiles need the Rust feature encoder. Rather than building one, pin
+the frozen copy the lock already uses, via
+`hu_turn3_stage3_feature_rust.pinned_feature_encoder_library`, SHA-256
+`82510e563ee290cd536e7aebe6bcf0efefac061af5488851f0a582bb4ef83411`.
+
+### Measured costs
+
+| step | rate | per 10,000 |
+|---|---:|---:|
+| T3 skeleton generation (5 profiles, self-play T0-T2) | 7.5 roots/s | 22 min |
+| exact T4-first label | 308 labels/s | 32 s |
+
+Skeleton generation is 40x the cost of labelling, so it is the constraint. About
+ten minutes buys 1,000 skeletons and roughly 100,000 labels.
+
+### Label quality, first 2,000
+
+| property | value |
+|---|---|
+| `best_score` | mean +0.119, sd 8.106, range -29.8 .. +33.2 |
+| distinct observations | 2,000 of 2,000 |
+| QQ+ on top (FL-qualifying) | 17.6% |
+| `legal_action_count` | only 3 or 6 |
+
+FL coverage at 17.6% matters: the model has to learn the discrete jump at the QQ
+boundary, and a set that rarely entered it would teach nothing there. The Q pair
+count dominating K and A is the signature of real play aiming at Fantasy Land,
+which random boards would not reproduce.
+
+The `legal_action_count` taking only two values exposed the limit of seeding
+from the lock roots alone: 200 roots means about 100 board skeletons, and
+resampling completions multiplies rows without adding structure. That is why the
+skeletons are generated fresh rather than reused.
