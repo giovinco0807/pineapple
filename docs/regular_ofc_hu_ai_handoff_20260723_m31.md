@@ -1152,3 +1152,86 @@ The `legal_action_count` taking only two values exposed the limit of seeding
 from the lock roots alone: 200 roots means about 100 board skeletons, and
 resampling completions multiplies rows without adding structure. That is why the
 skeletons are generated fresh rather than reused.
+
+## 21. The T4 evaluator was built and measured. It does not pay off.
+
+Sections 18-20 argued that the exact T4 leaf is where a T3 decision spends its
+time, and that a learned leaf should therefore buy a large speedup. The model
+was built and measured end to end. **The conclusion does not hold**, and the
+reason is worth keeping.
+
+### The model works
+
+Trained on 324,360 exact T4-first labels, held out by skeleton:
+
+| features | corr | MAE |
+|---|---:|---:|
+| raw card one-hots | 0.038 | 7.06 |
+| + `score_board` outcomes per legal action | 0.838 | 3.63 |
+| + row-versus-row comparison against the opponent | **0.895** | **2.86** |
+
+The first attempt memorised its training rows at corr 0.9999 while generalising
+at 0.038: the encoding separated states but carried no structure to generalise
+over. Poker value is a non-linear function of card combinations and asking a
+tree to rediscover hand ranking from one-hots is not reasonable. Feeding
+`score_board`'s own outputs fixed it, and describing each hero action *against
+the opponent's rows* — which is how OFC actually pays — fixed it further.
+
+A useful negative result along the way: correcting the Fantasy Land flag (
+`FantasylandEntry` is a dataclass, so `if score.fl_entry` is always true; the
+field is `.qualifies`) moved MAE by 0.003. FL was not the binding constraint;
+the opponent's description was.
+
+### But the substitution does not pay
+
+Measured on 120 fresh roots from an unused seed base, comparing the T3 action
+chosen with exact leaves against the same choice with learned leaves:
+
+| quantity | value |
+|---|---|
+| same action chosen | **67.5%** |
+| regret when it differs | mean +0.247, p95 +1.44, max +2.90 |
+| exact leaf time | 118.76 s |
+| learned leaf time | 32.19 s |
+| **speedup** | **3.7x**, not the ~100x estimated |
+
+Two separate problems. The decision changes one time in three, which defeats
+the point of a drop-in leaf — though the regret when it differs is small, so
+the model is confusing near-ties rather than blundering. And the speedup is an
+order of magnitude below the estimate because **feature extraction costs more
+than inference**: `encode` runs `generate_turn_actions` and up to eight
+`score_board` calls per leaf, in Python.
+
+### Why the premise was wrong
+
+`score_t4_first_actions` in `rust/hu_m3_engine/src/search.rs` is already
+optimised in exactly the way that would have made a learned leaf worthwhile:
+
+```rust
+// Opponent terminal boards depend on the future deal, but not on which
+// hero action is being evaluated. Score them once and share that exact
+// response table across every legal hero action.
+let opponent_responses = precompute_t4_opponent_responses(...);
+```
+
+The opponent response table is built once per deal set and shared across every
+hero action; both loops are `par_iter`; scoring uses a `CompactBoardScore` and a
+`_trusted` path that skips validation; ActionKey hashing was deliberately
+removed as "pure overhead". What is left for a model to replace is a minimax
+over precomputed compact scores — plausibly faster than any learned evaluator.
+
+So the arithmetic in section 18, "91,116 child information sets x 3.29 ms", is
+misleading: the children are not 91,116 independent exact solves, because the
+expensive part is shared between them. The measured 3.7x is what that structure
+actually permits.
+
+### What this does and does not close
+
+- A T4-first evaluator is learnable to corr 0.895 with cheap, exact, unlimited
+  labels. That remains true and the pipeline is in section 20.
+- Replacing the leaf **does not** change the price of the 9,000-paired label run
+  in section 11d. That premise is withdrawn.
+- If T3 search time is worth attacking, the place to look is the T3 layer —
+  pruning dominated T3 actions, or sharing structure across `evaluation_samples`
+  x `downstream_t3_samples` — not inside T4. That is untested speculation, not a
+  measurement.
