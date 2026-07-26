@@ -1026,3 +1026,65 @@ Nothing here requires cloud spend:
 
 Step 3 answers the real question directly: does the decision change, and by how
 much does 55 seconds fall.
+
+## 19. Exact T4 measured: cost, seat asymmetry, and what to model
+
+Measured locally against the frozen candidate library, on T4 states built from
+the lock roots (one T3 placement applied, opponent advanced to eleven cards):
+
+| seat / to_act | n | mean | p95 | legal actions | best_score mean | sd |
+|---|---:|---:|---:|---:|---:|---:|
+| first / first | 80 | **3.29 ms** | 4.59 ms | 4.2 | +0.919 | 8.465 |
+| second / second | 80 | **0.29 ms** | 0.43 ms | 4.4 | -1.131 | 10.668 |
+
+**The seat is not a detail; it is the shape of the problem.** Acting second at
+T4 means the opponent's board is already complete, so the actor scores four
+legal placements deterministically — 0.29 ms, and nothing worth approximating.
+Acting first means the opponent still holds two cards, so every completion has
+to be expanded. Same action count, eleven times the cost, and `best_score` even
+changes sign between the two.
+
+So a learned leaf should cover **T4-first only**. Second seat stays exact: it is
+already fast and it is a deterministic scoring, not a search.
+
+That is also precisely the leaf the expensive path expands. A first-seat T3
+decision visits 91,116 child information sets (section 18), and those children
+are T4-first states.
+
+### Label economics
+
+At 3.29 ms per exact evaluation, one core produces about **281 labels per
+second — roughly one million per hour**, with zero label noise because the
+value is exact. Sixteen cores make that sixteen million an hour. T4 is the only
+street in this game where the teacher is free, unlimited and correct.
+
+### Expected effect
+
+A small evaluator answers in tens of microseconds, so:
+
+| | exact leaf | learned leaf |
+|---|---:|---:|
+| per leaf | 3.29 ms | ~0.03 ms |
+| first-seat T3 decision | 55.8 s measured | order of 0.5 s |
+
+The same 92-second budget would then buy `evaluation_samples` in the thousands
+rather than 32, taking sampling error from roughly 18% to under 2% — which is
+the dominant error term identified in section 18.
+
+### What the model has to predict
+
+`evaluate_t4` returns `best_score`, `actions`, `legal_action_count`,
+`selected_action_key`, `selection_score_gap` and
+`evaluation_sample_regret_of_locked_selection`. With only ~4 legal actions, an
+accurate `best_score` makes the action choice nearly free, so the regression
+target is the scalar exact EV.
+
+Difficulty is bounded but real: `best_score` has a standard deviation of 8.5 to
+10.7 points. For comparison the sibling `ai/` value network reaches corr 0.921 /
+MAE 4.08 on a harder problem; T4-first is easier — two cards left, ~4 legal
+actions, opponent nearly complete — so a tighter fit should be achievable, but
+MAE well under 1.0 is the bar worth aiming at rather than assuming.
+
+Fouling and Fantasy Land still need the treatment in section 18: fouling stays
+an exact check, and the FL jump at the QQ boundary wants its own head or an
+explicit feature rather than being smoothed across.
