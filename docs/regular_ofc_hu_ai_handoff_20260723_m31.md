@@ -749,20 +749,47 @@ Together these mean a run started on Windows cannot be finished on Linux: the
 sealed `local_destination` and `controller_journal_dir` are Windows strings that
 no Linux path resolves to. Start on the platform you intend to finish on.
 
+There is a fourth requirement, and it is the one that costs the most attempts:
+**the frozen wheelhouse pins versions, not just distributions.** Installing the
+right packages at their latest versions gets you scikit-learn 1.9 against models
+pickled with 1.8, which fails at root materialisation with the unhelpful
+`No module named '_loss'` — the pickle names an internal module that moved.
+Read `wheelhouse_manifest.json`'s `version` field and install exactly those.
+Only the ABI tag may differ from the workers' (cp311 there, cp312 under Ubuntu
+24.04); the versions must not.
+
 Working WSL setup (no root required):
 
 ```bash
-python3 -m venv ~/ofc-fq-venv          # ensurepip is present on Ubuntu 24.04
-~/ofc-fq-venv/bin/pip install numpy    # the only missing import
+python3 -m venv ~/ofc-fq-venv                  # ensurepip ships with Ubuntu 24.04
+V=~/ofc-fq-venv/bin
+$V/pip install --index-url https://download.pytorch.org/whl/cpu torch==2.6.0+cpu
+$V/pip install numpy==2.2.6 scikit-learn==1.8.0 scipy==1.15.3 lightgbm==4.6.0 \
+               joblib==1.4.2 threadpoolctl==3.6.0 networkx==3.4.2 sympy==1.13.1 \
+               mpmath==1.3.0 filelock fsspec jinja2 markupsafe pygments \
+               typing-extensions==4.13.2
 export CLOUDSDK_CONFIG=/mnt/c/Users/<user>/AppData/Roaming/gcloud
 export PYTHONPATH=<repo>/src
 ```
 
+Verify before running anything expensive:
+
+```bash
+$V/python -c "import ctypes; ctypes.CDLL('<dev>/native/candidate/release/libofc_hu_m3_engine.so')"
+PYTHONPATH=<repo>/src $V/python -c "
+from ofc_regular.hu_turn3_model import load_hu_action_value_model
+load_hu_action_value_model('<repo>/models/hu_turn1_stage1_stage9f_p2_full2k_hgb_leaf3_lr01_l2_1.pkl')"
+```
+
+The second line is the check that would have caught the version skew directly,
+rather than after a staging attempt.
+
 `CLOUDSDK_CONFIG` matters: WSL's `gcloud` resolves to the Windows SDK through
 `/mnt/c` but reads its own empty config, so it reports no active account until
 pointed at the Windows credential store. The frozen cp311 wheelhouse is *not*
-installed locally — staging only repackages and hash-checks it — so a local
-venv on a different Python cannot perturb pinned evidence.
+installed locally — staging only repackages and hash-checks it — so matching its
+pins in a local venv cannot perturb pinned evidence; diverging from them only
+breaks the local replay.
 
 ## 14. Run history, and why wave 0 ran five times
 
@@ -832,3 +859,33 @@ already in place.
 Do not start step 4's label run on the strength of the section 11c numbers.
 They were measured against the wrong baseline, and section 11c explains why the
 bias runs in the direction that would flatter that decision.
+
+## 16. Fresh quality: local staging complete
+
+Run -005's lock finalized on Linux and authorizes quality:
+
+- `performance_lock_v4_production_receipt.json` — `status: qualified`,
+  `decision: performance_lock_v4_finalized_qualified_open_quality_pilot_only`
+- `build_fresh_quality_plan` on it returns `quality_pilot_authorized: true`,
+  which is the check that failed for run -004 with
+  `performance receipt is not the exact portable pin`
+
+Staging output, `~/ofc-runs/regular-hu-m31-t3-fqv1-20260726-004`:
+
+```json
+{"status": "complete_local_staging_ready_cloud_not_authorized",
+ "paired_hand_count": 55, "root_count": 110,
+ "job_count": 15, "wave_job_counts": [8, 7], "cloud_called": false}
+```
+
+That matches the section 11 contract: 50 primary plus 5 confirmation paired
+hands, 110 actor observations, 15 jobs over two waves.
+
+Three earlier attempts under `-fqv1-20260726-001..003` are failed-closed
+directories, each holding a `LOCAL_STAGING_FAILED.json` naming the stage and
+error. They are retained deliberately — staging is create-only and a failure
+must be retried in a new directory, never repaired in place. `-004` is the
+authoritative one.
+
+Next: the cloud run via `run_hu_m31_t3_step6d_fresh_quality_gcp_v1.py`, which
+consumes this staging directory. Fifteen jobs, roughly USD 3.
