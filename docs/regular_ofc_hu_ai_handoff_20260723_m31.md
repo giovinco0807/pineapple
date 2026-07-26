@@ -1235,3 +1235,108 @@ actually permits.
   pruning dominated T3 actions, or sharing structure across `evaluation_samples`
   x `downstream_t3_samples` — not inside T4. That is untested speculation, not a
   measurement.
+
+## 22. What the T3 search actually enumerates, read from the call graph
+
+Sections 18 and 21 asserted that the T4 leaf is exact. That assertion is
+correct, but it was carried as a one-line claim about a config value. This
+section records the mechanism, read directly from
+`rust/hu_m3_engine/src/search.rs`, because it determines where accuracy can be
+bought and where it cannot.
+
+### `downstream_t4_samples: 0` is a sentinel for exact, not an omission
+
+`build_t4_future_plan` (search.rs:593) branches on the sample count:
+
+```rust
+if unknown.len() != 24 {
+    return Err(format!("T4 first uniform belief requires 24 unknown cards, ..."));
+}
+let (deals, rng_key_digests) = if sample_count == 0 {
+    (combinations_three(&unknown), Vec::new())
+} else {
+    ... counter_sample_t4_deal ...
+};
+```
+
+Zero takes the enumerating branch. The 24-card count is asserted, not assumed,
+so the deal set is exactly C(24,3) = **2,024** futures. `locked_t4_action`
+(1196) passes `downstream_t4_samples` as both `candidate_samples` and
+`evaluation_samples`, so every T4 node reached from a T3 rollout takes that
+branch.
+
+### The two T4 seats are exact for different reasons
+
+`select_t4_action_without_result` (1230) splits on act order:
+
+| | second seat | first seat |
+|---|---|---|
+| precondition | opponent board `card_count() == 13` | both boards `== 11` |
+| futures | none — opponent is complete | C(24,3) = 2,024, enumerated |
+| hero actions | all legal, `generate_turn_actions_trusted` | all legal |
+| method | `heads_up_terminal_score_compact` per action | `score_t4_first_actions` over the deal set |
+| measured | 0.29 ms | 3.29 ms |
+
+Second seat has no uncertainty left to resolve: the opponent's board is final,
+so each legal action is scored in closed form. First seat enumerates every deal
+against every legal action. Neither samples. The 11x latency gap is the 2,024
+futures, and the 68x gap at T3 is the same effect compounded.
+
+### The only approximation in a T3 decision is the particle set
+
+Both rollouts take one `HiddenCardParticle` and play one line to terminal:
+
+```rust
+// rollout_t3_second (1110)
+particle.draw(3, 0) -> opponent T4 first  -> locked_t4_action   // exact
+particle.draw(3, 3) -> hero     T4 second -> locked_t4_action   // exact
+
+// rollout_t3_first (1146)
+particle.draw(3, 0) -> opponent T3 second -> locked_t3_second_action  // 4 particles
+particle.draw(3, 3) -> hero     T4 first  -> locked_t4_action   // exact
+particle.draw(3, 6) -> opponent T4 second -> locked_t4_action   // exact
+```
+
+`locked_t3_second_action` (1284) is the one nested node that is itself
+approximate: it draws `downstream_t3_samples` particles and scores its own
+legal actions over them. Everything below it is exact.
+
+So the error budget in section 18 is confirmed with the mechanism attached:
+
+| layer | treatment | approximate? |
+|---|---|---|
+| T4 second | closed-form terminal score | no |
+| T4 first | all legal actions x 2,024 deals | no |
+| nested T3 second response | 4 particles | yes |
+| root hidden cards | 8 candidate / 32 evaluation particles | yes |
+| uniform belief over the 24 unknown | modelling assumption | see below |
+
+### The belief is uniform, and that is an assumption rather than a result
+
+`build_t4_future_plan` weights all C(24,3) deals equally. Given that belief the
+computation is exact; the belief itself ignores that the opponent's observed
+placements are evidence about the opponent's discards. This is consistent with
+the constraint that opponent private discards and the realized deck tail must
+not be exposed, and each actor is given only its own discards
+(`particle.opponent_private_discards` goes into the opponent's own
+observation). Recording it here so "exact" is not later read as "optimal":
+`evaluation_plan.mode` is `exact_uniform_marginal`, and the second word is
+load-bearing.
+
+### Consequence for where to spend
+
+Accuracy at T3 cannot be bought inside T4 — there is nothing left to make
+exact. It can only be bought by raising `evaluation_samples` above 32, which
+costs T4 solves linearly. That is the same wall section 21 hit from the other
+side: a learned leaf was supposed to fund those extra samples and returned only
+3.7x. Section 21's closing suggestion stands unchanged — if T3 time is worth
+attacking, attack the T3 layer (dominated-action pruning, sharing structure
+across `evaluation_samples` x `downstream_t3_samples`), not T4.
+
+### Correction to the conversational record
+
+A verbal answer given during this review stated that `locked_t4_action`
+collapses T4 to a single heuristic move and does not try all legal T4 actions.
+That is wrong on both counts, as the code above shows. Sections 18 and 21 were
+not affected — both already recorded the leaf as exact. No measurement or
+conclusion elsewhere in this document depends on the incorrect statement.
