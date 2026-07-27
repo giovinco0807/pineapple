@@ -1340,3 +1340,101 @@ collapses T4 to a single heuristic move and does not try all legal T4 actions.
 That is wrong on both counts, as the code above shows. Sections 18 and 21 were
 not affected — both already recorded the leaf as exact. No measurement or
 conclusion elsewhere in this document depends on the incorrect statement.
+
+## 23. The learned-evaluator program: goal, measured state, and milestones
+
+Sections 18-22 measured their way from "the exact T4 leaf is where a T3
+decision spends its time" to a pair of learned evaluators that are pinned,
+parity-checked, and opt-in. The work has outgrown that framing: the objective
+is no longer to make one label run affordable but to reach near-optimal
+placement on every street. This section fixes the destination and the route.
+
+### The goal, operationalized
+
+True optimality is not provable here — the T3 information-set space alone is
+on the order of 10^9 and every teacher in this program samples — so the goal
+is defined by what can be measured:
+
+- **G1, per decision.** On every street and seat, EV given up per decision,
+  judged by an independent 2048-particle referee on held-out positions, is
+  within 3x that referee's own seed-to-seed disagreement.
+- **G2, against production.** Each street's evaluator is at least 5x more
+  accurate per decision than the production stage it would stand in for.
+- **G3, whole games.** A policy assembled from the learned evaluators beats
+  the production chain (stage19_p0 -> stage18_p1 -> stage9f_p2 ->
+  stage7_m5_r10 -> exact T4) in paired seat-swapped play over at least 3,000
+  hands, 95% interval excluding zero.
+- **G4, runtime.** Under 1 ms per decision, native.
+
+Out of scope: play inside Fantasy Land (a different decision problem), and
+any claim of mathematical optimality, which stays prohibited without proof.
+
+### Measured state
+
+| street/seat | evaluator | error, referee-judged | production stage | native cost |
+|---|---|---|---|---|
+| T4 second | exact closed form | zero | — | ~µs |
+| T4 first | learned MLP | +0.00013 vs exact | — | 14 + 9.6 µs |
+| T3 second | learned MLP, 512p labels | +0.070 biased measure; referee number is M1's first deliverable | +0.772 (6.7-11x worse) | 63 + 11 µs |
+| T3 first | not yet modeled | — | +0.92 turn-1 oracle context | teacher 6.2x cheaper now |
+
+Supporting measurements, all on one fixed 863-position set:
+
+- Teacher self-disagreement across seeds: 32 particles +0.305, 512 +0.0152,
+  2048 +0.0096. The earlier claim that particles do not pay is withdrawn; it
+  came from comparing different root sets.
+- A model trained on 32-particle labels beats its own teacher, referee-judged
+  (+0.219 vs +0.305): fitting many noisy targets recovers more than any one
+  of them contains.
+- Label quality A/B on identical positions and features, labels alone
+  swapped: +0.11515 (32p) vs +0.07019 (512p), paired difference -0.045,
+  CI [-0.067, -0.023].
+
+### The two habits the gains came from
+
+Reading failing hands, not aggregates: three printed hands found the three
+facts missing from the T4 encoder (an opponent already committed to fouling,
+a made flush filed as a high card, a kicker deciding a line), worth a 36x
+error reduction. And demanding that a second implementation reproduce the
+numbers: the Rust parity test caught the Python encoder drawing its
+unknown-card order from a shuffled deck — nondeterministic features that
+training and evaluation never surfaced.
+
+### Milestones
+
+| # | scope | exit criterion | estimate* |
+|---|---|---|---|
+| M1 | T3 second finalized on 512p labels | artifact + Rust weights + parity + referee-judged error recorded, gap to G1 quantified, worst hands re-read | 0.5-1 d |
+| M2 | T3 first | teacher cost/noise measured first; VM build decision taken explicitly before generation; beats production first seat | 1-2 d |
+| M3 | T2 both seats | teacher = playouts over learned T3/T4; outlook redesign (forced assignment fails at 4 open slots) | 2-3 d |
+| M4 | T1 both seats | same pattern | 1-2 d |
+| M5 | T0 | measure against stage19_p0 first; replace only if it wins | 1 d |
+| M6 | whole-game benchmark | G3 verdict, G4 verified | 1 d |
+| M7 | expert iteration | regenerate labels under the new policy's own behavior distribution; retrain; repeat | ongoing |
+
+*This session's estimates ran 2-4x off in both directions; read as ranges.
+
+M7 is expert iteration, not classical reinforcement learning: every step is
+supervised, but the loop is policy iteration. Two feedback channels drive it
+— the label distribution moves onto positions the current policy actually
+reaches, and the teacher search itself improves because it runs on the
+improved models. Classical episodic RL is avoided deliberately: game outcomes
+carry +/-20 points of variance per hand while search labels price a single
+decision, and the sibling ai/ project's self-play value net plateaued until
+search labels replaced episodic ones. The fixed point of this loop is a best
+response to the modeled opponent distribution, not a game-theoretic
+equilibrium; with all placements public and only discards hidden, that
+distinction is far milder here than in most poker variants.
+
+### Standing decisions
+
+- The cloud path is a decision to take explicitly before M2's generation, not
+  silently: local 512p T3-second throughput is ~2.9 positions/s (7.3 h per
+  50k), and the T3-first teacher is slower per position even after the 6.2x.
+- `rust/hu_m3_engine` stays untracked pending an explicit decision to version
+  the crate — as its own commit, not folded into feature work.
+- Everything ships opt-in. Unset configuration is asserted byte-identical by
+  test. Promotion into any production profile is a separate locked decision
+  gated on G3.
+- Artifacts: labels and models under WSL `~/ofc-t3` and `~/ofc-t4`; weights
+  as flat images pinned by SHA-256 in test fixtures and model metadata.
