@@ -1438,3 +1438,27 @@ distinction is far milder here than in most poker variants.
   gated on G3.
 - Artifacts: labels and models under WSL `~/ofc-t3` and `~/ofc-t4`; weights
   as flat images pinned by SHA-256 in test fixtures and model metadata.
+
+### M1 result
+
+The T3 second-seat evaluator retrained on the 512-particle labels, everything
+else held fixed:
+
+| quantity | 32p-label model | 512p-label model |
+|---|---|---|
+| referee-judged error (2048p referee, own noise +0.0096) | +0.0793 | **+0.0298** [CI +0.0226, +0.0370] |
+| worst held-out loss | +4.175 | +2.679 |
+| failing positions (of 863) | 219 | 161 |
+| training plateau | epoch ~10 | epoch 54 -- cleaner labels keep teaching |
+
+G1 asks for 3x the referee's own noise, which is 0.0287 here; the point
+estimate lands at 3.1x with the interval spanning the threshold. Recorded as
+at-the-line rather than met. G2 is met with room (11x better than the
+production second-seat stage on the shared diagnostic). The remaining worst
+case is once again foul-risk weighting -- the model trades a two-draw bottom
+against a locked king-pair top too cheaply -- the same family the tail has
+always come from, at smaller magnitude each iteration.
+
+Weights `t3_model_v2.bin`, sha256 e9cd7416..., end-to-end Rust parity worst
+difference 1.182e-5 across 987 predictions; full crate suite green. Model
+metadata records label provenance including the learned-T4-leaf digest.
