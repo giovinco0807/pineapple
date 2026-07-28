@@ -1462,3 +1462,36 @@ always come from, at smaller magnitude each iteration.
 Weights `t3_model_v2.bin`, sha256 e9cd7416..., end-to-end Rust parity worst
 difference 1.182e-5 across 987 predictions; full crate suite green. Model
 metadata records label provenance including the learned-T4-leaf digest.
+
+### M2 result
+
+The T3 first-seat evaluator, trained on 50,000 positions at 128 particles
+under the compounding teacher (learned T4 leaf + learned T3-second nested
+response, 269x the all-exact search):
+
+| chooser, charged by an independent 512p seed | EV given up | worse rate |
+|---|---|---|
+| the 512p teacher itself (the floor) | +0.0408 | 25.4% |
+| **the learned model** | **+0.0718** | 33.4% |
+| production first seat (stage7_m5_r10) | +0.6169 | 53.3% |
+
+Gap attributable to the model: +0.0310, against the second seat's +0.0202 --
+1.5x, on labels a quarter the particle count. Paired against production the
+model gives up 0.545 less per decision [CI +0.451, +0.639]; G2 is met at
+8.6x. G1 formally wants a 2048-particle referee, which was not generated for
+this seat (4x the referee cost); recorded as approximated by the gap rather
+than measured against the stated floor.
+
+The 512-particle relabeling run planned as `t3first-512p-r1` was not needed:
+128-particle labels landed the model well inside every downstream tolerance,
+and the cloud path stays validated-but-unused. Weights
+`t3first_model_v1.bin`, sha256 36334b4b..., end-to-end Rust parity worst
+6.592e-6 across 681 predictions.
+
+With those weights in place the T2 teacher went live in the same session: the
+engine's `evaluate_t2` (second seat, "t2" request kind) plays the opponent's
+T3 first-seat reply through this model, the hero's T3 second-seat reply
+through `t3_model_v2`, and the final street through the learned T4 leaf. It
+has no sampled fallback on purpose -- the nested search it replaces costs
+minutes per decision -- and refuses, naming the missing model, unless all
+three digests are pinned. M3 label generation is unblocked.
