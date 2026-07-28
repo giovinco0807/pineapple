@@ -143,7 +143,13 @@ v1は未使用seedや未実装checkpointを要求する一方、hashを内容へ
   gate v2は104チェック中2件（`t1_bb`/`t2_bb`の点推定NLL delta、+1.4e-5 / +4.1e-9
   nats）で失敗し`promotion_eligible=false`。統計的UCB検定は全層PASSのため、
   失敗は点推定`<=0`厳密条件のノイズ脆弱性に起因する。gate v3案は
-  `ai/reports/m3_calibration_gate_status_20260728/README.md`参照。）
+  `ai/reports/m3_calibration_gate_status_20260728/README.md`参照。
+  2026-07-29追記: gate v3（点推定toleranceを1/10000へ変更、UCB等他は不変、
+  post-hoc supersessionとして`gate_v3_supersession.md`に開示）で再集計し、
+  104チェック全PASS・`promotion_eligible=true`の`calibration_v3.json`
+  （SHA-256 `e6e0c8e80ecbe77dbe9dcbfa05e01558c085926f5b496753410e97a2ee5fb796`）
+  を得た。M3aの次工程は、このcalibrated behaviorをM3 range gateへ接続し
+  T3教師生成へ進むことである。）
 - `Q_r -> C_r -> R_r(C_r) -> B_r`の非循環T3固定点gate v2と、72件の実MCCFR jobを
   生成・全asset replayするsmokeを実装した。smokeは2 seeds、各層1 root、2 transitions
   のため本番最小数を満たさず、意図どおり昇格・収束・強度claimはすべてfalse。
