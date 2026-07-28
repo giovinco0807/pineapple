@@ -1,0 +1,1093 @@
+{
+  "diagnostic_only": true,
+  "elapsed_seconds": 435.5683686733246,
+  "fixture": {
+    "bb_hidden_discards": [
+      "3c",
+      "3d",
+      "3h"
+    ],
+    "board_bb": [
+      [
+        "Qs",
+        "Qh"
+      ],
+      [
+        "5c",
+        "6c",
+        "7c",
+        "8h",
+        "9h"
+      ],
+      [
+        "4c",
+        "4d",
+        "4h",
+        "4s"
+      ]
+    ],
+    "board_btn": [
+      [
+        "Ah",
+        "Ad"
+      ],
+      [
+        "7d",
+        "8d",
+        "9c",
+        "Tc",
+        "Jh"
+      ],
+      [
+        "2c",
+        "2d",
+        "2h",
+        "2s"
+      ]
+    ],
+    "fl_live_bb": "QQ top pair, open top slot (trips upgrade possible)",
+    "fl_live_btn": "AA top pair, open top slot",
+    "physical_pool_size": 26
+  },
+  "fl_ev_base": {
+    "14": 0.0,
+    "15": 10.7,
+    "16": 29.9,
+    "17": 63.5
+  },
+  "fl_ev_scales": [
+    0.8,
+    1.0,
+    1.2
+  ],
+  "hand_picked_draws": [
+    [
+      "Qd",
+      "Ks",
+      "5s"
+    ],
+    [
+      "Qd",
+      "X1",
+      "5s"
+    ],
+    [
+      "X1",
+      "X2",
+      "5s"
+    ],
+    [
+      "Ac",
+      "X1",
+      "Ts"
+    ],
+    [
+      "Qd",
+      "Ac",
+      "X2"
+    ],
+    [
+      "Ts",
+      "9d",
+      "5s"
+    ]
+  ],
+  "method": "t4_bb_exact_uniform_deal_response_v1 (unguarded diagnostic path)",
+  "promotion_eligible": false,
+  "random_draw_count": 30,
+  "rows": [
+    {
+      "baseline_best_action": "{\"discard\":\"5s\",\"placements\":[[\"Qd\",\"top\"],[\"Ks\",\"bottom\"]]}",
+      "baseline_best_ev": 25.786153846153347,
+      "draw": [
+        "Qd",
+        "Ks",
+        "5s"
+      ],
+      "joker_count": 0,
+      "legal_action_count": 6,
+      "scales": {
+        "0.8": {
+          "action_changed": false,
+          "baseline_action_regret": 0.0,
+          "best_action": "{\"discard\":\"5s\",\"placements\":[[\"Qd\",\"top\"],[\"Ks\",\"bottom\"]]}",
+          "best_ev": 21.805846153845597,
+          "best_ev_delta_vs_baseline": -3.9803076923077505
+        },
+        "1.2": {
+          "action_changed": false,
+          "baseline_action_regret": 0.0,
+          "best_action": "{\"discard\":\"5s\",\"placements\":[[\"Qd\",\"top\"],[\"Ks\",\"bottom\"]]}",
+          "best_ev": 29.76646153846207,
+          "best_ev_delta_vs_baseline": 3.980307692308724
+        }
+      }
+    },
+    {
+      "baseline_best_action": "{\"discard\":\"5s\",\"placements\":[[\"Qd\",\"top\"],[\"X1\",\"bottom\"]]}",
+      "baseline_best_ev": 30.10407692307701,
+      "draw": [
+        "Qd",
+        "X1",
+        "5s"
+      ],
+      "joker_count": 1,
+      "legal_action_count": 6,
+      "scales": {
+        "0.8": {
+          "action_changed": false,
+          "baseline_action_regret": 0.0,
+          "best_action": "{\"discard\":\"5s\",\"placements\":[[\"Qd\",\"top\"],[\"X1\",\"bottom\"]]}",
+          "best_ev": 25.52672307692234,
+          "best_ev_delta_vs_baseline": -4.577353846154669
+        },
+        "1.2": {
+          "action_changed": false,
+          "baseline_action_regret": 0.0,
+          "best_action": "{\"discard\":\"5s\",\"placements\":[[\"Qd\",\"top\"],[\"X1\",\"bottom\"]]}",
+          "best_ev": 34.68143076923196,
+          "best_ev_delta_vs_baseline": 4.577353846154949
+        }
+      }
+    },
+    {
+      "baseline_best_action": "{\"discard\":\"5s\",\"placements\":[[\"X1\",\"top\"],[\"X2\",\"bottom\"]]}",
+      "baseline_best_ev": 34.83323076923146,
+      "draw": [
+        "X1",
+        "X2",
+        "5s"
+      ],
+      "joker_count": 2,
+      "legal_action_count": 6,
+      "scales": {
+        "0.8": {
+          "action_changed": false,
+          "baseline_action_regret": 0.0,
+          "best_action": "{\"discard\":\"5s\",\"placements\":[[\"X1\",\"top\"],[\"X2\",\"bottom\"]]}",
+          "best_ev": 29.601969230769022,
+          "best_ev_delta_vs_baseline": -5.231261538462441
+        },
+        "1.2": {
+          "action_changed": false,
+          "baseline_action_regret": 0.0,
+          "best_action": "{\"discard\":\"5s\",\"placements\":[[\"X1\",\"top\"],[\"X2\",\"bottom\"]]}",
+          "best_ev": 40.06449230769421,
+          "best_ev_delta_vs_baseline": 5.231261538462746
+        }
+      }
+    },
+    {
+      "baseline_best_action": "{\"discard\":\"Ac\",\"placements\":[[\"X1\",\"top\"],[\"Ts\",\"bottom\"]]}",
+      "baseline_best_ev": 34.83323076923146,
+      "draw": [
+        "Ac",
+        "X1",
+        "Ts"
+      ],
+      "joker_count": 1,
+      "legal_action_count": 6,
+      "scales": {
+        "0.8": {
+          "action_changed": false,
+          "baseline_action_regret": 0.0,
+          "best_action": "{\"discard\":\"Ac\",\"placements\":[[\"X1\",\"top\"],[\"Ts\",\"bottom\"]]}",
+          "best_ev": 29.60196923076903,
+          "best_ev_delta_vs_baseline": -5.231261538462434
+        },
+        "1.2": {
+          "action_changed": false,
+          "baseline_action_regret": 0.0,
+          "best_action": "{\"discard\":\"Ac\",\"placements\":[[\"X1\",\"top\"],[\"Ts\",\"bottom\"]]}",
+          "best_ev": 40.06449230769421,
+          "best_ev_delta_vs_baseline": 5.231261538462746
+        }
+      }
+    },
+    {
+      "baseline_best_action": "{\"discard\":\"Ac\",\"placements\":[[\"Qd\",\"top\"],[\"X2\",\"bottom\"]]}",
+      "baseline_best_ev": 34.83323076923146,
+      "draw": [
+        "Qd",
+        "Ac",
+        "X2"
+      ],
+      "joker_count": 1,
+      "legal_action_count": 6,
+      "scales": {
+        "0.8": {
+          "action_changed": false,
+          "baseline_action_regret": 0.0,
+          "best_action": "{\"discard\":\"Ac\",\"placements\":[[\"Qd\",\"top\"],[\"X2\",\"bottom\"]]}",
+          "best_ev": 29.60196923076903,
+          "best_ev_delta_vs_baseline": -5.231261538462434
+        },
+        "1.2": {
+          "action_changed": false,
+          "baseline_action_regret": 0.0,
+          "best_action": "{\"discard\":\"Ac\",\"placements\":[[\"Qd\",\"top\"],[\"X2\",\"bottom\"]]}",
+          "best_ev": 40.06449230769421,
+          "best_ev_delta_vs_baseline": 5.231261538462746
+        }
+      }
+    },
+    {
+      "baseline_best_action": "{\"discard\":\"5s\",\"placements\":[[\"9d\",\"top\"],[\"Ts\",\"bottom\"]]}",
+      "baseline_best_ev": -51.89846153846055,
+      "draw": [
+        "Ts",
+        "9d",
+        "5s"
+      ],
+      "joker_count": 0,
+      "legal_action_count": 6,
+      "scales": {
+        "0.8": {
+          "action_changed": false,
+          "baseline_action_regret": 0.0,
+          "best_action": "{\"discard\":\"5s\",\"placements\":[[\"9d\",\"top\"],[\"Ts\",\"bottom\"]]}",
+          "best_ev": -43.17876923076926,
+          "best_ev_delta_vs_baseline": 8.71969230769129
+        },
+        "1.2": {
+          "action_changed": false,
+          "baseline_action_regret": 0.0,
+          "best_action": "{\"discard\":\"5s\",\"placements\":[[\"9d\",\"top\"],[\"Ts\",\"bottom\"]]}",
+          "best_ev": -60.618153846155195,
+          "best_ev_delta_vs_baseline": -8.719692307694643
+        }
+      }
+    },
+    {
+      "baseline_best_action": "{\"discard\":\"Jd\",\"placements\":[[\"Kc\",\"top\"],[\"Td\",\"bottom\"]]}",
+      "baseline_best_ev": -51.89846153846055,
+      "draw": [
+        "Td",
+        "Jd",
+        "Kc"
+      ],
+      "joker_count": 0,
+      "legal_action_count": 6,
+      "scales": {
+        "0.8": {
+          "action_changed": false,
+          "baseline_action_regret": 0.0,
+          "best_action": "{\"discard\":\"Jd\",\"placements\":[[\"Kc\",\"top\"],[\"Td\",\"bottom\"]]}",
+          "best_ev": -43.17876923076926,
+          "best_ev_delta_vs_baseline": 8.71969230769129
+        },
+        "1.2": {
+          "action_changed": false,
+          "baseline_action_regret": 0.0,
+          "best_action": "{\"discard\":\"Jd\",\"placements\":[[\"Kc\",\"top\"],[\"Td\",\"bottom\"]]}",
+          "best_ev": -60.618153846155174,
+          "best_ev_delta_vs_baseline": -8.719692307694622
+        }
+      }
+    },
+    {
+      "baseline_best_action": "{\"discard\":\"7s\",\"placements\":[[\"9s\",\"top\"],[\"As\",\"bottom\"]]}",
+      "baseline_best_ev": -47.758230769229684,
+      "draw": [
+        "7s",
+        "9s",
+        "As"
+      ],
+      "joker_count": 0,
+      "legal_action_count": 6,
+      "scales": {
+        "0.8": {
+          "action_changed": false,
+          "baseline_action_regret": 0.0,
+          "best_action": "{\"discard\":\"7s\",\"placements\":[[\"9s\",\"top\"],[\"As\",\"bottom\"]]}",
+          "best_ev": -39.63558461538434,
+          "best_ev_delta_vs_baseline": 8.122646153845345
+        },
+        "1.2": {
+          "action_changed": false,
+          "baseline_action_regret": 0.0,
+          "best_action": "{\"discard\":\"7s\",\"placements\":[[\"9s\",\"top\"],[\"As\",\"bottom\"]]}",
+          "best_ev": -55.88087692307796,
+          "best_ev_delta_vs_baseline": -8.12264615384828
+        }
+      }
+    },
+    {
+      "baseline_best_action": "{\"discard\":\"As\",\"placements\":[[\"Js\",\"top\"],[\"Td\",\"bottom\"]]}",
+      "baseline_best_ev": -47.758230769229684,
+      "draw": [
+        "Td",
+        "Js",
+        "As"
+      ],
+      "joker_count": 0,
+      "legal_action_count": 6,
+      "scales": {
+        "0.8": {
+          "action_changed": false,
+          "baseline_action_regret": 0.0,
+          "best_action": "{\"discard\":\"As\",\"placements\":[[\"Js\",\"top\"],[\"Td\",\"bottom\"]]}",
+          "best_ev": -39.63558461538434,
+          "best_ev_delta_vs_baseline": 8.122646153845345
+        },
+        "1.2": {
+          "action_changed": false,
+          "baseline_action_regret": 0.0,
+          "best_action": "{\"discard\":\"As\",\"placements\":[[\"Js\",\"top\"],[\"Td\",\"bottom\"]]}",
+          "best_ev": -55.88087692307796,
+          "best_ev_delta_vs_baseline": -8.12264615384828
+        }
+      }
+    },
+    {
+      "baseline_best_action": "{\"discard\":\"8s\",\"placements\":[[\"9s\",\"top\"],[\"Jd\",\"bottom\"]]}",
+      "baseline_best_ev": -51.89846153846055,
+      "draw": [
+        "Jd",
+        "8s",
+        "9s"
+      ],
+      "joker_count": 0,
+      "legal_action_count": 6,
+      "scales": {
+        "0.8": {
+          "action_changed": false,
+          "baseline_action_regret": 0.0,
+          "best_action": "{\"discard\":\"8s\",\"placements\":[[\"9s\",\"top\"],[\"Jd\",\"bottom\"]]}",
+          "best_ev": -43.17876923076926,
+          "best_ev_delta_vs_baseline": 8.71969230769129
+        },
+        "1.2": {
+          "action_changed": false,
+          "baseline_action_regret": 0.0,
+          "best_action": "{\"discard\":\"8s\",\"placements\":[[\"9s\",\"top\"],[\"Jd\",\"bottom\"]]}",
+          "best_ev": -60.618153846155195,
+          "best_ev_delta_vs_baseline": -8.719692307694643
+        }
+      }
+    },
+    {
+      "baseline_best_action": "{\"discard\":\"Kc\",\"placements\":[[\"Qc\",\"top\"],[\"Qd\",\"bottom\"]]}",
+      "baseline_best_ev": 25.786153846153336,
+      "draw": [
+        "Qd",
+        "Qc",
+        "Kc"
+      ],
+      "joker_count": 0,
+      "legal_action_count": 6,
+      "scales": {
+        "0.8": {
+          "action_changed": false,
+          "baseline_action_regret": 0.0,
+          "best_action": "{\"discard\":\"Kc\",\"placements\":[[\"Qc\",\"top\"],[\"Qd\",\"bottom\"]]}",
+          "best_ev": 21.805846153845597,
+          "best_ev_delta_vs_baseline": -3.98030769230774
+        },
+        "1.2": {
+          "action_changed": false,
+          "baseline_action_regret": 0.0,
+          "best_action": "{\"discard\":\"Kc\",\"placements\":[[\"Qc\",\"top\"],[\"Qd\",\"bottom\"]]}",
+          "best_ev": 29.76646153846207,
+          "best_ev_delta_vs_baseline": 3.9803076923087346
+        }
+      }
+    },
+    {
+      "baseline_best_action": "{\"discard\":\"9s\",\"placements\":[[\"Qc\",\"top\"],[\"Td\",\"bottom\"]]}",
+      "baseline_best_ev": 25.786153846153336,
+      "draw": [
+        "Td",
+        "Qc",
+        "9s"
+      ],
+      "joker_count": 0,
+      "legal_action_count": 6,
+      "scales": {
+        "0.8": {
+          "action_changed": false,
+          "baseline_action_regret": 0.0,
+          "best_action": "{\"discard\":\"9s\",\"placements\":[[\"Qc\",\"top\"],[\"Td\",\"bottom\"]]}",
+          "best_ev": 21.805846153845597,
+          "best_ev_delta_vs_baseline": -3.98030769230774
+        },
+        "1.2": {
+          "action_changed": false,
+          "baseline_action_regret": 0.0,
+          "best_action": "{\"discard\":\"9s\",\"placements\":[[\"Qc\",\"top\"],[\"Td\",\"bottom\"]]}",
+          "best_ev": 29.76646153846207,
+          "best_ev_delta_vs_baseline": 3.9803076923087346
+        }
+      }
+    },
+    {
+      "baseline_best_action": "{\"discard\":\"5h\",\"placements\":[[\"8s\",\"top\"],[\"Kh\",\"bottom\"]]}",
+      "baseline_best_ev": -51.89846153846055,
+      "draw": [
+        "5h",
+        "Kh",
+        "8s"
+      ],
+      "joker_count": 0,
+      "legal_action_count": 6,
+      "scales": {
+        "0.8": {
+          "action_changed": false,
+          "baseline_action_regret": 0.0,
+          "best_action": "{\"discard\":\"5h\",\"placements\":[[\"8s\",\"top\"],[\"Kh\",\"bottom\"]]}",
+          "best_ev": -43.17876923076926,
+          "best_ev_delta_vs_baseline": 8.71969230769129
+        },
+        "1.2": {
+          "action_changed": false,
+          "baseline_action_regret": 0.0,
+          "best_action": "{\"discard\":\"5h\",\"placements\":[[\"8s\",\"top\"],[\"Kh\",\"bottom\"]]}",
+          "best_ev": -60.618153846155195,
+          "best_ev_delta_vs_baseline": -8.719692307694643
+        }
+      }
+    },
+    {
+      "baseline_best_action": "{\"discard\":\"5h\",\"placements\":[[\"Qd\",\"top\"],[\"8s\",\"bottom\"]]}",
+      "baseline_best_ev": 25.786153846153336,
+      "draw": [
+        "5h",
+        "Qd",
+        "8s"
+      ],
+      "joker_count": 0,
+      "legal_action_count": 6,
+      "scales": {
+        "0.8": {
+          "action_changed": false,
+          "baseline_action_regret": 0.0,
+          "best_action": "{\"discard\":\"5h\",\"placements\":[[\"Qd\",\"top\"],[\"8s\",\"bottom\"]]}",
+          "best_ev": 21.805846153845597,
+          "best_ev_delta_vs_baseline": -3.98030769230774
+        },
+        "1.2": {
+          "action_changed": false,
+          "baseline_action_regret": 0.0,
+          "best_action": "{\"discard\":\"5h\",\"placements\":[[\"Qd\",\"top\"],[\"8s\",\"bottom\"]]}",
+          "best_ev": 29.76646153846207,
+          "best_ev_delta_vs_baseline": 3.9803076923087346
+        }
+      }
+    },
+    {
+      "baseline_best_action": "{\"discard\":\"9d\",\"placements\":[[\"Qc\",\"top\"],[\"Qd\",\"bottom\"]]}",
+      "baseline_best_ev": 25.786153846153336,
+      "draw": [
+        "9d",
+        "Qd",
+        "Qc"
+      ],
+      "joker_count": 0,
+      "legal_action_count": 6,
+      "scales": {
+        "0.8": {
+          "action_changed": false,
+          "baseline_action_regret": 0.0,
+          "best_action": "{\"discard\":\"9d\",\"placements\":[[\"Qc\",\"top\"],[\"Qd\",\"bottom\"]]}",
+          "best_ev": 21.805846153845597,
+          "best_ev_delta_vs_baseline": -3.98030769230774
+        },
+        "1.2": {
+          "action_changed": false,
+          "baseline_action_regret": 0.0,
+          "best_action": "{\"discard\":\"9d\",\"placements\":[[\"Qc\",\"top\"],[\"Qd\",\"bottom\"]]}",
+          "best_ev": 29.76646153846207,
+          "best_ev_delta_vs_baseline": 3.9803076923087346
+        }
+      }
+    },
+    {
+      "baseline_best_action": "{\"discard\":\"5s\",\"placements\":[[\"7h\",\"top\"],[\"Ks\",\"bottom\"]]}",
+      "baseline_best_ev": -51.89846153846055,
+      "draw": [
+        "7h",
+        "5s",
+        "Ks"
+      ],
+      "joker_count": 0,
+      "legal_action_count": 6,
+      "scales": {
+        "0.8": {
+          "action_changed": false,
+          "baseline_action_regret": 0.0,
+          "best_action": "{\"discard\":\"5s\",\"placements\":[[\"7h\",\"top\"],[\"Ks\",\"bottom\"]]}",
+          "best_ev": -43.17876923076926,
+          "best_ev_delta_vs_baseline": 8.71969230769129
+        },
+        "1.2": {
+          "action_changed": false,
+          "baseline_action_regret": 0.0,
+          "best_action": "{\"discard\":\"5s\",\"placements\":[[\"7h\",\"top\"],[\"Ks\",\"bottom\"]]}",
+          "best_ev": -60.618153846155195,
+          "best_ev_delta_vs_baseline": -8.719692307694643
+        }
+      }
+    },
+    {
+      "baseline_best_action": "{\"discard\":\"5h\",\"placements\":[[\"Kh\",\"top\"],[\"Td\",\"bottom\"]]}",
+      "baseline_best_ev": -51.89846153846055,
+      "draw": [
+        "5h",
+        "Kh",
+        "Td"
+      ],
+      "joker_count": 0,
+      "legal_action_count": 6,
+      "scales": {
+        "0.8": {
+          "action_changed": false,
+          "baseline_action_regret": 0.0,
+          "best_action": "{\"discard\":\"5h\",\"placements\":[[\"Kh\",\"top\"],[\"Td\",\"bottom\"]]}",
+          "best_ev": -43.17876923076926,
+          "best_ev_delta_vs_baseline": 8.71969230769129
+        },
+        "1.2": {
+          "action_changed": false,
+          "baseline_action_regret": 0.0,
+          "best_action": "{\"discard\":\"5h\",\"placements\":[[\"Kh\",\"top\"],[\"Td\",\"bottom\"]]}",
+          "best_ev": -60.618153846155174,
+          "best_ev_delta_vs_baseline": -8.719692307694622
+        }
+      }
+    },
+    {
+      "baseline_best_action": "{\"discard\":\"8c\",\"placements\":[[\"8s\",\"top\"],[\"Th\",\"bottom\"]]}",
+      "baseline_best_ev": -51.89846153846055,
+      "draw": [
+        "Th",
+        "8c",
+        "8s"
+      ],
+      "joker_count": 0,
+      "legal_action_count": 6,
+      "scales": {
+        "0.8": {
+          "action_changed": false,
+          "baseline_action_regret": 0.0,
+          "best_action": "{\"discard\":\"8c\",\"placements\":[[\"8s\",\"top\"],[\"Th\",\"bottom\"]]}",
+          "best_ev": -43.17876923076926,
+          "best_ev_delta_vs_baseline": 8.71969230769129
+        },
+        "1.2": {
+          "action_changed": false,
+          "baseline_action_regret": 0.0,
+          "best_action": "{\"discard\":\"8c\",\"placements\":[[\"8s\",\"top\"],[\"Th\",\"bottom\"]]}",
+          "best_ev": -60.618153846155195,
+          "best_ev_delta_vs_baseline": -8.719692307694643
+        }
+      }
+    },
+    {
+      "baseline_best_action": "{\"discard\":\"8s\",\"placements\":[[\"As\",\"top\"],[\"Kh\",\"bottom\"]]}",
+      "baseline_best_ev": -47.758230769229684,
+      "draw": [
+        "Kh",
+        "8s",
+        "As"
+      ],
+      "joker_count": 0,
+      "legal_action_count": 6,
+      "scales": {
+        "0.8": {
+          "action_changed": false,
+          "baseline_action_regret": 0.0,
+          "best_action": "{\"discard\":\"8s\",\"placements\":[[\"As\",\"top\"],[\"Kh\",\"bottom\"]]}",
+          "best_ev": -39.63558461538434,
+          "best_ev_delta_vs_baseline": 8.122646153845345
+        },
+        "1.2": {
+          "action_changed": false,
+          "baseline_action_regret": 0.0,
+          "best_action": "{\"discard\":\"8s\",\"placements\":[[\"As\",\"top\"],[\"Kh\",\"bottom\"]]}",
+          "best_ev": -55.88087692307796,
+          "best_ev_delta_vs_baseline": -8.12264615384828
+        }
+      }
+    },
+    {
+      "baseline_best_action": "{\"discard\":\"5h\",\"placements\":[[\"Js\",\"top\"],[\"Kd\",\"bottom\"]]}",
+      "baseline_best_ev": -51.89846153846055,
+      "draw": [
+        "5h",
+        "Kd",
+        "Js"
+      ],
+      "joker_count": 0,
+      "legal_action_count": 6,
+      "scales": {
+        "0.8": {
+          "action_changed": false,
+          "baseline_action_regret": 0.0,
+          "best_action": "{\"discard\":\"5h\",\"placements\":[[\"Js\",\"top\"],[\"Kd\",\"bottom\"]]}",
+          "best_ev": -43.17876923076926,
+          "best_ev_delta_vs_baseline": 8.71969230769129
+        },
+        "1.2": {
+          "action_changed": false,
+          "baseline_action_regret": 0.0,
+          "best_action": "{\"discard\":\"5h\",\"placements\":[[\"Js\",\"top\"],[\"Kd\",\"bottom\"]]}",
+          "best_ev": -60.618153846155195,
+          "best_ev_delta_vs_baseline": -8.719692307694643
+        }
+      }
+    },
+    {
+      "baseline_best_action": "{\"discard\":\"As\",\"placements\":[[\"Qc\",\"top\"],[\"X2\",\"bottom\"]]}",
+      "baseline_best_ev": 34.83323076923146,
+      "draw": [
+        "Qc",
+        "As",
+        "X2"
+      ],
+      "joker_count": 1,
+      "legal_action_count": 6,
+      "scales": {
+        "0.8": {
+          "action_changed": false,
+          "baseline_action_regret": 0.0,
+          "best_action": "{\"discard\":\"As\",\"placements\":[[\"Qc\",\"top\"],[\"X2\",\"bottom\"]]}",
+          "best_ev": 29.601969230769022,
+          "best_ev_delta_vs_baseline": -5.231261538462441
+        },
+        "1.2": {
+          "action_changed": false,
+          "baseline_action_regret": 0.0,
+          "best_action": "{\"discard\":\"As\",\"placements\":[[\"Qc\",\"top\"],[\"X2\",\"bottom\"]]}",
+          "best_ev": 40.06449230769421,
+          "best_ev_delta_vs_baseline": 5.231261538462746
+        }
+      }
+    },
+    {
+      "baseline_best_action": "{\"discard\":\"Jd\",\"placements\":[[\"Js\",\"top\"],[\"Kh\",\"bottom\"]]}",
+      "baseline_best_ev": -51.89846153846055,
+      "draw": [
+        "Kh",
+        "Jd",
+        "Js"
+      ],
+      "joker_count": 0,
+      "legal_action_count": 6,
+      "scales": {
+        "0.8": {
+          "action_changed": false,
+          "baseline_action_regret": 0.0,
+          "best_action": "{\"discard\":\"Jd\",\"placements\":[[\"Js\",\"top\"],[\"Kh\",\"bottom\"]]}",
+          "best_ev": -43.17876923076926,
+          "best_ev_delta_vs_baseline": 8.71969230769129
+        },
+        "1.2": {
+          "action_changed": false,
+          "baseline_action_regret": 0.0,
+          "best_action": "{\"discard\":\"Jd\",\"placements\":[[\"Js\",\"top\"],[\"Kh\",\"bottom\"]]}",
+          "best_ev": -60.618153846155195,
+          "best_ev_delta_vs_baseline": -8.719692307694643
+        }
+      }
+    },
+    {
+      "baseline_best_action": "{\"discard\":\"Ac\",\"placements\":[[\"Jc\",\"top\"],[\"Jd\",\"bottom\"]]}",
+      "baseline_best_ev": -47.758230769229684,
+      "draw": [
+        "Jd",
+        "Jc",
+        "Ac"
+      ],
+      "joker_count": 0,
+      "legal_action_count": 6,
+      "scales": {
+        "0.8": {
+          "action_changed": false,
+          "baseline_action_regret": 0.0,
+          "best_action": "{\"discard\":\"Ac\",\"placements\":[[\"Jc\",\"top\"],[\"Jd\",\"bottom\"]]}",
+          "best_ev": -39.63558461538434,
+          "best_ev_delta_vs_baseline": 8.122646153845345
+        },
+        "1.2": {
+          "action_changed": false,
+          "baseline_action_regret": 0.0,
+          "best_action": "{\"discard\":\"Ac\",\"placements\":[[\"Jc\",\"top\"],[\"Jd\",\"bottom\"]]}",
+          "best_ev": -55.88087692307798,
+          "best_ev_delta_vs_baseline": -8.122646153848294
+        }
+      }
+    },
+    {
+      "baseline_best_action": "{\"discard\":\"Jc\",\"placements\":[[\"X2\",\"top\"],[\"Ks\",\"bottom\"]]}",
+      "baseline_best_ev": 30.10407692307701,
+      "draw": [
+        "Jc",
+        "Ks",
+        "X2"
+      ],
+      "joker_count": 1,
+      "legal_action_count": 6,
+      "scales": {
+        "0.8": {
+          "action_changed": false,
+          "baseline_action_regret": 0.0,
+          "best_action": "{\"discard\":\"Jc\",\"placements\":[[\"X2\",\"top\"],[\"Ks\",\"bottom\"]]}",
+          "best_ev": 25.52672307692234,
+          "best_ev_delta_vs_baseline": -4.577353846154669
+        },
+        "1.2": {
+          "action_changed": false,
+          "baseline_action_regret": 0.0,
+          "best_action": "{\"discard\":\"Jc\",\"placements\":[[\"X2\",\"top\"],[\"Ks\",\"bottom\"]]}",
+          "best_ev": 34.68143076923196,
+          "best_ev_delta_vs_baseline": 4.577353846154949
+        }
+      }
+    },
+    {
+      "baseline_best_action": "{\"discard\":\"As\",\"placements\":[[\"Jc\",\"top\"],[\"Ts\",\"bottom\"]]}",
+      "baseline_best_ev": -47.758230769229684,
+      "draw": [
+        "Jc",
+        "Ts",
+        "As"
+      ],
+      "joker_count": 0,
+      "legal_action_count": 6,
+      "scales": {
+        "0.8": {
+          "action_changed": false,
+          "baseline_action_regret": 0.0,
+          "best_action": "{\"discard\":\"As\",\"placements\":[[\"Jc\",\"top\"],[\"Ts\",\"bottom\"]]}",
+          "best_ev": -39.63558461538434,
+          "best_ev_delta_vs_baseline": 8.122646153845345
+        },
+        "1.2": {
+          "action_changed": false,
+          "baseline_action_regret": 0.0,
+          "best_action": "{\"discard\":\"As\",\"placements\":[[\"Jc\",\"top\"],[\"Ts\",\"bottom\"]]}",
+          "best_ev": -55.88087692307796,
+          "best_ev_delta_vs_baseline": -8.12264615384828
+        }
+      }
+    },
+    {
+      "baseline_best_action": "{\"discard\":\"7h\",\"placements\":[[\"X1\",\"top\"],[\"Td\",\"bottom\"]]}",
+      "baseline_best_ev": 30.10407692307701,
+      "draw": [
+        "7h",
+        "Td",
+        "X1"
+      ],
+      "joker_count": 1,
+      "legal_action_count": 6,
+      "scales": {
+        "0.8": {
+          "action_changed": false,
+          "baseline_action_regret": 0.0,
+          "best_action": "{\"discard\":\"7h\",\"placements\":[[\"X1\",\"top\"],[\"Td\",\"bottom\"]]}",
+          "best_ev": 25.52672307692234,
+          "best_ev_delta_vs_baseline": -4.577353846154669
+        },
+        "1.2": {
+          "action_changed": false,
+          "baseline_action_regret": 0.0,
+          "best_action": "{\"discard\":\"7h\",\"placements\":[[\"X1\",\"top\"],[\"Td\",\"bottom\"]]}",
+          "best_ev": 34.68143076923196,
+          "best_ev_delta_vs_baseline": 4.577353846154949
+        }
+      }
+    },
+    {
+      "baseline_best_action": "{\"discard\":\"5h\",\"placements\":[[\"5s\",\"top\"],[\"Ac\",\"bottom\"]]}",
+      "baseline_best_ev": -47.758230769229684,
+      "draw": [
+        "5h",
+        "Ac",
+        "5s"
+      ],
+      "joker_count": 0,
+      "legal_action_count": 6,
+      "scales": {
+        "0.8": {
+          "action_changed": false,
+          "baseline_action_regret": 0.0,
+          "best_action": "{\"discard\":\"5h\",\"placements\":[[\"5s\",\"top\"],[\"Ac\",\"bottom\"]]}",
+          "best_ev": -39.63558461538434,
+          "best_ev_delta_vs_baseline": 8.122646153845345
+        },
+        "1.2": {
+          "action_changed": false,
+          "baseline_action_regret": 0.0,
+          "best_action": "{\"discard\":\"5h\",\"placements\":[[\"5s\",\"top\"],[\"Ac\",\"bottom\"]]}",
+          "best_ev": -55.88087692307798,
+          "best_ev_delta_vs_baseline": -8.122646153848294
+        }
+      }
+    },
+    {
+      "baseline_best_action": "{\"discard\":\"5d\",\"placements\":[[\"9s\",\"top\"],[\"Js\",\"bottom\"]]}",
+      "baseline_best_ev": -51.89846153846055,
+      "draw": [
+        "5d",
+        "9s",
+        "Js"
+      ],
+      "joker_count": 0,
+      "legal_action_count": 6,
+      "scales": {
+        "0.8": {
+          "action_changed": false,
+          "baseline_action_regret": 0.0,
+          "best_action": "{\"discard\":\"5d\",\"placements\":[[\"9s\",\"top\"],[\"Js\",\"bottom\"]]}",
+          "best_ev": -43.17876923076926,
+          "best_ev_delta_vs_baseline": 8.71969230769129
+        },
+        "1.2": {
+          "action_changed": false,
+          "baseline_action_regret": 0.0,
+          "best_action": "{\"discard\":\"5d\",\"placements\":[[\"9s\",\"top\"],[\"Js\",\"bottom\"]]}",
+          "best_ev": -60.618153846155195,
+          "best_ev_delta_vs_baseline": -8.719692307694643
+        }
+      }
+    },
+    {
+      "baseline_best_action": "{\"discard\":\"5h\",\"placements\":[[\"Qd\",\"top\"],[\"6s\",\"bottom\"]]}",
+      "baseline_best_ev": 25.786153846153336,
+      "draw": [
+        "5h",
+        "Qd",
+        "6s"
+      ],
+      "joker_count": 0,
+      "legal_action_count": 6,
+      "scales": {
+        "0.8": {
+          "action_changed": false,
+          "baseline_action_regret": 0.0,
+          "best_action": "{\"discard\":\"5h\",\"placements\":[[\"Qd\",\"top\"],[\"6s\",\"bottom\"]]}",
+          "best_ev": 21.805846153845597,
+          "best_ev_delta_vs_baseline": -3.98030769230774
+        },
+        "1.2": {
+          "action_changed": false,
+          "baseline_action_regret": 0.0,
+          "best_action": "{\"discard\":\"5h\",\"placements\":[[\"Qd\",\"top\"],[\"6s\",\"bottom\"]]}",
+          "best_ev": 29.76646153846207,
+          "best_ev_delta_vs_baseline": 3.9803076923087346
+        }
+      }
+    },
+    {
+      "baseline_best_action": "{\"discard\":\"5h\",\"placements\":[[\"6s\",\"top\"],[\"Jd\",\"bottom\"]]}",
+      "baseline_best_ev": -51.89846153846055,
+      "draw": [
+        "5h",
+        "Jd",
+        "6s"
+      ],
+      "joker_count": 0,
+      "legal_action_count": 6,
+      "scales": {
+        "0.8": {
+          "action_changed": false,
+          "baseline_action_regret": 0.0,
+          "best_action": "{\"discard\":\"5h\",\"placements\":[[\"6s\",\"top\"],[\"Jd\",\"bottom\"]]}",
+          "best_ev": -43.17876923076926,
+          "best_ev_delta_vs_baseline": 8.71969230769129
+        },
+        "1.2": {
+          "action_changed": false,
+          "baseline_action_regret": 0.0,
+          "best_action": "{\"discard\":\"5h\",\"placements\":[[\"6s\",\"top\"],[\"Jd\",\"bottom\"]]}",
+          "best_ev": -60.618153846155195,
+          "best_ev_delta_vs_baseline": -8.719692307694643
+        }
+      }
+    },
+    {
+      "baseline_best_action": "{\"discard\":\"Ac\",\"placements\":[[\"Qc\",\"top\"],[\"Js\",\"bottom\"]]}",
+      "baseline_best_ev": 30.10407692307701,
+      "draw": [
+        "Qc",
+        "Ac",
+        "Js"
+      ],
+      "joker_count": 0,
+      "legal_action_count": 6,
+      "scales": {
+        "0.8": {
+          "action_changed": false,
+          "baseline_action_regret": 0.0,
+          "best_action": "{\"discard\":\"Ac\",\"placements\":[[\"Qc\",\"top\"],[\"Js\",\"bottom\"]]}",
+          "best_ev": 25.526723076922348,
+          "best_ev_delta_vs_baseline": -4.5773538461546615
+        },
+        "1.2": {
+          "action_changed": false,
+          "baseline_action_regret": 0.0,
+          "best_action": "{\"discard\":\"Ac\",\"placements\":[[\"Qc\",\"top\"],[\"Js\",\"bottom\"]]}",
+          "best_ev": 34.68143076923196,
+          "best_ev_delta_vs_baseline": 4.577353846154949
+        }
+      }
+    },
+    {
+      "baseline_best_action": "{\"discard\":\"Td\",\"placements\":[[\"X1\",\"top\"],[\"X2\",\"bottom\"]]}",
+      "baseline_best_ev": 34.83323076923146,
+      "draw": [
+        "Td",
+        "X1",
+        "X2"
+      ],
+      "joker_count": 2,
+      "legal_action_count": 6,
+      "scales": {
+        "0.8": {
+          "action_changed": false,
+          "baseline_action_regret": 0.0,
+          "best_action": "{\"discard\":\"Td\",\"placements\":[[\"X1\",\"top\"],[\"X2\",\"bottom\"]]}",
+          "best_ev": 29.601969230769022,
+          "best_ev_delta_vs_baseline": -5.231261538462441
+        },
+        "1.2": {
+          "action_changed": false,
+          "baseline_action_regret": 0.0,
+          "best_action": "{\"discard\":\"Td\",\"placements\":[[\"X1\",\"top\"],[\"X2\",\"bottom\"]]}",
+          "best_ev": 40.06449230769421,
+          "best_ev_delta_vs_baseline": 5.231261538462746
+        }
+      }
+    },
+    {
+      "baseline_best_action": "{\"discard\":\"Ac\",\"placements\":[[\"X1\",\"top\"],[\"Kh\",\"bottom\"]]}",
+      "baseline_best_ev": 34.83323076923146,
+      "draw": [
+        "Kh",
+        "Ac",
+        "X1"
+      ],
+      "joker_count": 1,
+      "legal_action_count": 6,
+      "scales": {
+        "0.8": {
+          "action_changed": false,
+          "baseline_action_regret": 0.0,
+          "best_action": "{\"discard\":\"Ac\",\"placements\":[[\"X1\",\"top\"],[\"Kh\",\"bottom\"]]}",
+          "best_ev": 29.60196923076903,
+          "best_ev_delta_vs_baseline": -5.231261538462434
+        },
+        "1.2": {
+          "action_changed": false,
+          "baseline_action_regret": 0.0,
+          "best_action": "{\"discard\":\"Ac\",\"placements\":[[\"X1\",\"top\"],[\"Kh\",\"bottom\"]]}",
+          "best_ev": 40.06449230769421,
+          "best_ev_delta_vs_baseline": 5.231261538462746
+        }
+      }
+    },
+    {
+      "baseline_best_action": "{\"discard\":\"9d\",\"placements\":[[\"X1\",\"top\"],[\"Ks\",\"bottom\"]]}",
+      "baseline_best_ev": 30.10407692307701,
+      "draw": [
+        "9d",
+        "Ks",
+        "X1"
+      ],
+      "joker_count": 1,
+      "legal_action_count": 6,
+      "scales": {
+        "0.8": {
+          "action_changed": false,
+          "baseline_action_regret": 0.0,
+          "best_action": "{\"discard\":\"9d\",\"placements\":[[\"X1\",\"top\"],[\"Ks\",\"bottom\"]]}",
+          "best_ev": 25.52672307692234,
+          "best_ev_delta_vs_baseline": -4.577353846154669
+        },
+        "1.2": {
+          "action_changed": false,
+          "baseline_action_regret": 0.0,
+          "best_action": "{\"discard\":\"9d\",\"placements\":[[\"X1\",\"top\"],[\"Ks\",\"bottom\"]]}",
+          "best_ev": 34.68143076923196,
+          "best_ev_delta_vs_baseline": 4.577353846154949
+        }
+      }
+    },
+    {
+      "baseline_best_action": "{\"discard\":\"5h\",\"placements\":[[\"7h\",\"top\"],[\"Ac\",\"bottom\"]]}",
+      "baseline_best_ev": -47.758230769229684,
+      "draw": [
+        "5h",
+        "7h",
+        "Ac"
+      ],
+      "joker_count": 0,
+      "legal_action_count": 6,
+      "scales": {
+        "0.8": {
+          "action_changed": false,
+          "baseline_action_regret": 0.0,
+          "best_action": "{\"discard\":\"5h\",\"placements\":[[\"7h\",\"top\"],[\"Ac\",\"bottom\"]]}",
+          "best_ev": -39.63558461538434,
+          "best_ev_delta_vs_baseline": 8.122646153845345
+        },
+        "1.2": {
+          "action_changed": false,
+          "baseline_action_regret": 0.0,
+          "best_action": "{\"discard\":\"5h\",\"placements\":[[\"7h\",\"top\"],[\"Ac\",\"bottom\"]]}",
+          "best_ev": -55.88087692307798,
+          "best_ev_delta_vs_baseline": -8.122646153848294
+        }
+      }
+    },
+    {
+      "baseline_best_action": "{\"discard\":\"8s\",\"placements\":[[\"As\",\"top\"],[\"Td\",\"bottom\"]]}",
+      "baseline_best_ev": -47.758230769229684,
+      "draw": [
+        "Td",
+        "8s",
+        "As"
+      ],
+      "joker_count": 0,
+      "legal_action_count": 6,
+      "scales": {
+        "0.8": {
+          "action_changed": false,
+          "baseline_action_regret": 0.0,
+          "best_action": "{\"discard\":\"8s\",\"placements\":[[\"As\",\"top\"],[\"Td\",\"bottom\"]]}",
+          "best_ev": -39.63558461538434,
+          "best_ev_delta_vs_baseline": 8.122646153845345
+        },
+        "1.2": {
+          "action_changed": false,
+          "baseline_action_regret": 0.0,
+          "best_action": "{\"discard\":\"8s\",\"placements\":[[\"As\",\"top\"],[\"Td\",\"bottom\"]]}",
+          "best_ev": -55.88087692307796,
+          "best_ev_delta_vs_baseline": -8.12264615384828
+        }
+      }
+    }
+  ],
+  "schema": "ofc_t4_bb_fl_ev_sensitivity/v1",
+  "seed": 20260728,
+  "serving_changed": false,
+  "summary": {
+    "0.8": {
+      "changed_draws": [],
+      "max_baseline_action_regret": 0.0,
+      "mean_baseline_action_regret": 0.0,
+      "roots": 36,
+      "top_action_change_rate": 0.0,
+      "top_action_changed": 0
+    },
+    "1.2": {
+      "changed_draws": [],
+      "max_baseline_action_regret": 0.0,
+      "mean_baseline_action_regret": 0.0,
+      "roots": 36,
+      "top_action_change_rate": 0.0,
+      "top_action_changed": 0
+    }
+  }
+}

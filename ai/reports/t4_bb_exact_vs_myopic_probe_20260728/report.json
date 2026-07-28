@@ -1,0 +1,1067 @@
+{
+  "baseline_rule": "best_t4_completion(opponent_board=None)  # legacy myopic",
+  "belief_model": "uniform_exchangeable_restart_v1",
+  "candidate_rule": "t4_bb_exact_uniform_deal_response_v1",
+  "diagnostic_only": true,
+  "elapsed_seconds": 197.16148042678833,
+  "fl_live_count": 20,
+  "full_game_strength_claim": false,
+  "promotion_eligible": false,
+  "random_count": 40,
+  "rows": [
+    {
+      "draw": [
+        "5h",
+        "3c",
+        "Qd"
+      ],
+      "exact_action": "{\"discard\":\"3c\",\"placements\":[[\"5h\",\"middle\"],[\"Qd\",\"middle\"]]}",
+      "exact_ev": 6.0,
+      "fired": false,
+      "generator": "random_legal",
+      "legal_action_count": 3,
+      "myopic_action": "{\"discard\":\"3c\",\"placements\":[[\"5h\",\"middle\"],[\"Qd\",\"middle\"]]}",
+      "myopic_ev": 6.0,
+      "myopic_regret": 0.0,
+      "seed": 20260728,
+      "visible_joker_count": 0
+    },
+    {
+      "draw": [
+        "2h",
+        "8d",
+        "3s"
+      ],
+      "exact_action": "{\"discard\":\"2h\",\"placements\":[[\"3s\",\"bottom\"],[\"8d\",\"bottom\"]]}",
+      "exact_ev": -5.861538461538461,
+      "fired": false,
+      "generator": "random_legal",
+      "legal_action_count": 3,
+      "myopic_action": "{\"discard\":\"2h\",\"placements\":[[\"3s\",\"bottom\"],[\"8d\",\"bottom\"]]}",
+      "myopic_ev": -5.861538461538461,
+      "myopic_regret": 0.0,
+      "seed": 20260729,
+      "visible_joker_count": 1
+    },
+    {
+      "draw": [
+        "2s",
+        "Ah",
+        "9h"
+      ],
+      "exact_action": "{\"discard\":\"Ah\",\"placements\":[[\"2s\",\"middle\"],[\"9h\",\"middle\"]]}",
+      "exact_ev": -1.051153846153846,
+      "fired": false,
+      "generator": "random_legal",
+      "legal_action_count": 3,
+      "myopic_action": "{\"discard\":\"Ah\",\"placements\":[[\"2s\",\"middle\"],[\"9h\",\"middle\"]]}",
+      "myopic_ev": -1.051153846153846,
+      "myopic_regret": 0.0,
+      "seed": 20260730,
+      "visible_joker_count": 2
+    },
+    {
+      "draw": [
+        "9s",
+        "Ad",
+        "2h"
+      ],
+      "exact_action": "{\"discard\":\"2h\",\"placements\":[[\"9s\",\"middle\"],[\"Ad\",\"middle\"]]}",
+      "exact_ev": -6.050769230769231,
+      "fired": false,
+      "generator": "random_legal",
+      "legal_action_count": 3,
+      "myopic_action": "{\"discard\":\"2h\",\"placements\":[[\"9s\",\"middle\"],[\"Ad\",\"middle\"]]}",
+      "myopic_ev": -6.050769230769231,
+      "myopic_regret": 0.0,
+      "seed": 20260731,
+      "visible_joker_count": 1
+    },
+    {
+      "draw": [
+        "Th",
+        "Qh",
+        "Kd"
+      ],
+      "exact_action": "{\"discard\":\"Kd\",\"placements\":[[\"Qh\",\"bottom\"],[\"Th\",\"bottom\"]]}",
+      "exact_ev": -6.338461538461538,
+      "fired": false,
+      "generator": "random_legal",
+      "legal_action_count": 3,
+      "myopic_action": "{\"discard\":\"Kd\",\"placements\":[[\"Qh\",\"bottom\"],[\"Th\",\"bottom\"]]}",
+      "myopic_ev": -6.338461538461538,
+      "myopic_regret": 0.0,
+      "seed": 20260732,
+      "visible_joker_count": 1
+    },
+    {
+      "draw": [
+        "6s",
+        "Ah",
+        "2c"
+      ],
+      "exact_action": "{\"discard\":\"2c\",\"placements\":[[\"6s\",\"top\"],[\"Ah\",\"bottom\"]]}",
+      "exact_ev": 4.492307692307692,
+      "fired": false,
+      "generator": "random_legal",
+      "legal_action_count": 6,
+      "myopic_action": "{\"discard\":\"2c\",\"placements\":[[\"6s\",\"top\"],[\"Ah\",\"bottom\"]]}",
+      "myopic_ev": 4.492307692307692,
+      "myopic_regret": 0.0,
+      "seed": 20260733,
+      "visible_joker_count": 1
+    },
+    {
+      "draw": [
+        "3c",
+        "8h",
+        "Ks"
+      ],
+      "exact_action": "{\"discard\":\"3c\",\"placements\":[[\"8h\",\"top\"],[\"Ks\",\"middle\"]]}",
+      "exact_ev": 6.0,
+      "fired": false,
+      "generator": "random_legal",
+      "legal_action_count": 6,
+      "myopic_action": "{\"discard\":\"3c\",\"placements\":[[\"8h\",\"top\"],[\"Ks\",\"middle\"]]}",
+      "myopic_ev": 6.0,
+      "myopic_regret": 0.0,
+      "seed": 20260734,
+      "visible_joker_count": 0
+    },
+    {
+      "draw": [
+        "Ad",
+        "8s",
+        "8d"
+      ],
+      "exact_action": "{\"discard\":\"8d\",\"placements\":[[\"8s\",\"bottom\"],[\"Ad\",\"bottom\"]]}",
+      "exact_ev": -5.967692307692308,
+      "fired": false,
+      "generator": "random_legal",
+      "legal_action_count": 3,
+      "myopic_action": "{\"discard\":\"8d\",\"placements\":[[\"8s\",\"bottom\"],[\"Ad\",\"bottom\"]]}",
+      "myopic_ev": -5.967692307692308,
+      "myopic_regret": 0.0,
+      "seed": 20260735,
+      "visible_joker_count": 1
+    },
+    {
+      "draw": [
+        "3s",
+        "Jc",
+        "Jd"
+      ],
+      "exact_action": "{\"discard\":\"3s\",\"placements\":[[\"Jc\",\"top\"],[\"Jd\",\"middle\"]]}",
+      "exact_ev": 0.0,
+      "fired": false,
+      "generator": "random_legal",
+      "legal_action_count": 6,
+      "myopic_action": "{\"discard\":\"3s\",\"placements\":[[\"Jc\",\"top\"],[\"Jd\",\"middle\"]]}",
+      "myopic_ev": 0.0,
+      "myopic_regret": 0.0,
+      "seed": 20260736,
+      "visible_joker_count": 1
+    },
+    {
+      "draw": [
+        "7s",
+        "4s",
+        "9h"
+      ],
+      "exact_action": "{\"discard\":\"4s\",\"placements\":[[\"7s\",\"top\"],[\"9h\",\"top\"]]}",
+      "exact_ev": -5.981538461538461,
+      "fired": false,
+      "generator": "random_legal",
+      "legal_action_count": 3,
+      "myopic_action": "{\"discard\":\"4s\",\"placements\":[[\"7s\",\"top\"],[\"9h\",\"top\"]]}",
+      "myopic_ev": -5.981538461538461,
+      "myopic_regret": 0.0,
+      "seed": 20260737,
+      "visible_joker_count": 0
+    },
+    {
+      "draw": [
+        "2h",
+        "Qc",
+        "4d"
+      ],
+      "exact_action": "{\"discard\":\"2h\",\"placements\":[[\"4d\",\"top\"],[\"Qc\",\"middle\"]]}",
+      "exact_ev": -4.076923076923077,
+      "fired": false,
+      "generator": "random_legal",
+      "legal_action_count": 6,
+      "myopic_action": "{\"discard\":\"2h\",\"placements\":[[\"4d\",\"top\"],[\"Qc\",\"middle\"]]}",
+      "myopic_ev": -4.076923076923077,
+      "myopic_regret": 0.0,
+      "seed": 20260738,
+      "visible_joker_count": 0
+    },
+    {
+      "draw": [
+        "4s",
+        "As",
+        "2h"
+      ],
+      "exact_action": "{\"discard\":\"As\",\"placements\":[[\"2h\",\"top\"],[\"4s\",\"bottom\"]]}",
+      "exact_ev": -0.046153846153846156,
+      "fired": true,
+      "generator": "random_legal",
+      "legal_action_count": 6,
+      "myopic_action": "{\"discard\":\"2h\",\"placements\":[[\"4s\",\"top\"],[\"As\",\"bottom\"]]}",
+      "myopic_ev": -0.3769230769230769,
+      "myopic_regret": 0.33076923076923076,
+      "seed": 20260739,
+      "visible_joker_count": 0
+    },
+    {
+      "draw": [
+        "7c",
+        "2c",
+        "4s"
+      ],
+      "exact_action": "{\"discard\":\"2c\",\"placements\":[[\"4s\",\"bottom\"],[\"7c\",\"bottom\"]]}",
+      "exact_ev": 5.953846153846154,
+      "fired": false,
+      "generator": "random_legal",
+      "legal_action_count": 3,
+      "myopic_action": "{\"discard\":\"2c\",\"placements\":[[\"4s\",\"bottom\"],[\"7c\",\"bottom\"]]}",
+      "myopic_ev": 5.953846153846154,
+      "myopic_regret": 0.0,
+      "seed": 20260740,
+      "visible_joker_count": 2
+    },
+    {
+      "draw": [
+        "Kh",
+        "4h",
+        "4s"
+      ],
+      "exact_action": "{\"discard\":\"4h\",\"placements\":[[\"4s\",\"top\"],[\"Kh\",\"middle\"]]}",
+      "exact_ev": 0.0,
+      "fired": false,
+      "generator": "random_legal",
+      "legal_action_count": 6,
+      "myopic_action": "{\"discard\":\"4h\",\"placements\":[[\"4s\",\"top\"],[\"Kh\",\"middle\"]]}",
+      "myopic_ev": 0.0,
+      "myopic_regret": 0.0,
+      "seed": 20260741,
+      "visible_joker_count": 1
+    },
+    {
+      "draw": [
+        "7d",
+        "7h",
+        "2s"
+      ],
+      "exact_action": "{\"discard\":\"2s\",\"placements\":[[\"7d\",\"top\"],[\"7h\",\"bottom\"]]}",
+      "exact_ev": -6.922307692307692,
+      "fired": false,
+      "generator": "random_legal",
+      "legal_action_count": 6,
+      "myopic_action": "{\"discard\":\"2s\",\"placements\":[[\"7d\",\"top\"],[\"7h\",\"bottom\"]]}",
+      "myopic_ev": -6.922307692307692,
+      "myopic_regret": 0.0,
+      "seed": 20260742,
+      "visible_joker_count": 1
+    },
+    {
+      "draw": [
+        "Ac",
+        "4h",
+        "9s"
+      ],
+      "exact_action": "{\"discard\":\"4h\",\"placements\":[[\"9s\",\"top\"],[\"Ac\",\"bottom\"]]}",
+      "exact_ev": -10.739192307692406,
+      "fired": false,
+      "generator": "random_legal",
+      "legal_action_count": 6,
+      "myopic_action": "{\"discard\":\"4h\",\"placements\":[[\"9s\",\"top\"],[\"Ac\",\"bottom\"]]}",
+      "myopic_ev": -10.739192307692406,
+      "myopic_regret": 0.0,
+      "seed": 20260743,
+      "visible_joker_count": 1
+    },
+    {
+      "draw": [
+        "8d",
+        "3c",
+        "2s"
+      ],
+      "exact_action": "{\"discard\":\"2s\",\"placements\":[[\"3c\",\"top\"],[\"8d\",\"middle\"]]}",
+      "exact_ev": 6.0,
+      "fired": false,
+      "generator": "random_legal",
+      "legal_action_count": 6,
+      "myopic_action": "{\"discard\":\"2s\",\"placements\":[[\"3c\",\"top\"],[\"8d\",\"middle\"]]}",
+      "myopic_ev": 6.0,
+      "myopic_regret": 0.0,
+      "seed": 20260744,
+      "visible_joker_count": 0
+    },
+    {
+      "draw": [
+        "7c",
+        "2s",
+        "8d"
+      ],
+      "exact_action": "{\"discard\":\"2s\",\"placements\":[[\"7c\",\"top\"],[\"8d\",\"top\"]]}",
+      "exact_ev": -5.320769230769231,
+      "fired": false,
+      "generator": "random_legal",
+      "legal_action_count": 3,
+      "myopic_action": "{\"discard\":\"2s\",\"placements\":[[\"7c\",\"top\"],[\"8d\",\"top\"]]}",
+      "myopic_ev": -5.320769230769231,
+      "myopic_regret": 0.0,
+      "seed": 20260745,
+      "visible_joker_count": 1
+    },
+    {
+      "draw": [
+        "2d",
+        "3d",
+        "2s"
+      ],
+      "exact_action": "{\"discard\":\"2d\",\"placements\":[[\"2s\",\"top\"],[\"3d\",\"middle\"]]}",
+      "exact_ev": 0.0,
+      "fired": false,
+      "generator": "random_legal",
+      "legal_action_count": 6,
+      "myopic_action": "{\"discard\":\"2d\",\"placements\":[[\"2s\",\"top\"],[\"3d\",\"middle\"]]}",
+      "myopic_ev": 0.0,
+      "myopic_regret": 0.0,
+      "seed": 20260746,
+      "visible_joker_count": 1
+    },
+    {
+      "draw": [
+        "Jd",
+        "4c",
+        "9d"
+      ],
+      "exact_action": "{\"discard\":\"4c\",\"placements\":[[\"9d\",\"middle\"],[\"Jd\",\"bottom\"]]}",
+      "exact_ev": -6.8538461538461535,
+      "fired": false,
+      "generator": "random_legal",
+      "legal_action_count": 6,
+      "myopic_action": "{\"discard\":\"4c\",\"placements\":[[\"9d\",\"middle\"],[\"Jd\",\"bottom\"]]}",
+      "myopic_ev": -6.8538461538461535,
+      "myopic_regret": 0.0,
+      "seed": 20260747,
+      "visible_joker_count": 1
+    },
+    {
+      "draw": [
+        "X1",
+        "5d",
+        "4c"
+      ],
+      "exact_action": "{\"discard\":\"4c\",\"placements\":[[\"5d\",\"bottom\"],[\"X1\",\"bottom\"]]}",
+      "exact_ev": 4.966153846153846,
+      "fired": false,
+      "generator": "random_legal",
+      "legal_action_count": 3,
+      "myopic_action": "{\"discard\":\"4c\",\"placements\":[[\"5d\",\"bottom\"],[\"X1\",\"bottom\"]]}",
+      "myopic_ev": 4.966153846153846,
+      "myopic_regret": 0.0,
+      "seed": 20260748,
+      "visible_joker_count": 1
+    },
+    {
+      "draw": [
+        "Qc",
+        "6c",
+        "2s"
+      ],
+      "exact_action": "{\"discard\":\"2s\",\"placements\":[[\"6c\",\"top\"],[\"Qc\",\"top\"]]}",
+      "exact_ev": -1.1930769230769231,
+      "fired": false,
+      "generator": "random_legal",
+      "legal_action_count": 3,
+      "myopic_action": "{\"discard\":\"2s\",\"placements\":[[\"6c\",\"top\"],[\"Qc\",\"top\"]]}",
+      "myopic_ev": -1.1930769230769231,
+      "myopic_regret": 0.0,
+      "seed": 20260749,
+      "visible_joker_count": 0
+    },
+    {
+      "draw": [
+        "Qc",
+        "Td",
+        "7s"
+      ],
+      "exact_action": "{\"discard\":\"7s\",\"placements\":[[\"Qc\",\"middle\"],[\"Td\",\"middle\"]]}",
+      "exact_ev": 0.0,
+      "fired": false,
+      "generator": "random_legal",
+      "legal_action_count": 3,
+      "myopic_action": "{\"discard\":\"7s\",\"placements\":[[\"Qc\",\"middle\"],[\"Td\",\"middle\"]]}",
+      "myopic_ev": 0.0,
+      "myopic_regret": 0.0,
+      "seed": 20260750,
+      "visible_joker_count": 0
+    },
+    {
+      "draw": [
+        "6d",
+        "2h",
+        "Tc"
+      ],
+      "exact_action": "{\"discard\":\"Tc\",\"placements\":[[\"2h\",\"top\"],[\"6d\",\"top\"]]}",
+      "exact_ev": 6.0,
+      "fired": false,
+      "generator": "random_legal",
+      "legal_action_count": 3,
+      "myopic_action": "{\"discard\":\"Tc\",\"placements\":[[\"2h\",\"top\"],[\"6d\",\"top\"]]}",
+      "myopic_ev": 6.0,
+      "myopic_regret": 0.0,
+      "seed": 20260751,
+      "visible_joker_count": 0
+    },
+    {
+      "draw": [
+        "2s",
+        "4c",
+        "5d"
+      ],
+      "exact_action": "{\"discard\":\"2s\",\"placements\":[[\"4c\",\"middle\"],[\"5d\",\"middle\"]]}",
+      "exact_ev": -5.176153846153846,
+      "fired": false,
+      "generator": "random_legal",
+      "legal_action_count": 3,
+      "myopic_action": "{\"discard\":\"2s\",\"placements\":[[\"4c\",\"middle\"],[\"5d\",\"middle\"]]}",
+      "myopic_ev": -5.176153846153846,
+      "myopic_regret": 0.0,
+      "seed": 20260752,
+      "visible_joker_count": 0
+    },
+    {
+      "draw": [
+        "3d",
+        "Jc",
+        "2s"
+      ],
+      "exact_action": "{\"discard\":\"2s\",\"placements\":[[\"3d\",\"middle\"],[\"Jc\",\"middle\"]]}",
+      "exact_ev": -0.5976923076923077,
+      "fired": false,
+      "generator": "random_legal",
+      "legal_action_count": 3,
+      "myopic_action": "{\"discard\":\"2s\",\"placements\":[[\"3d\",\"middle\"],[\"Jc\",\"middle\"]]}",
+      "myopic_ev": -0.5976923076923077,
+      "myopic_regret": 0.0,
+      "seed": 20260753,
+      "visible_joker_count": 0
+    },
+    {
+      "draw": [
+        "9h",
+        "Kc",
+        "Ah"
+      ],
+      "exact_action": "{\"discard\":\"9h\",\"placements\":[[\"Ah\",\"top\"],[\"Kc\",\"top\"]]}",
+      "exact_ev": 0.0,
+      "fired": false,
+      "generator": "random_legal",
+      "legal_action_count": 3,
+      "myopic_action": "{\"discard\":\"9h\",\"placements\":[[\"Ah\",\"top\"],[\"Kc\",\"top\"]]}",
+      "myopic_ev": 0.0,
+      "myopic_regret": 0.0,
+      "seed": 20260754,
+      "visible_joker_count": 1
+    },
+    {
+      "draw": [
+        "Ac",
+        "Js",
+        "Kd"
+      ],
+      "exact_action": "{\"discard\":\"Ac\",\"placements\":[[\"Js\",\"middle\"],[\"Kd\",\"bottom\"]]}",
+      "exact_ev": -5.787307692307692,
+      "fired": false,
+      "generator": "random_legal",
+      "legal_action_count": 6,
+      "myopic_action": "{\"discard\":\"Ac\",\"placements\":[[\"Js\",\"middle\"],[\"Kd\",\"bottom\"]]}",
+      "myopic_ev": -5.787307692307692,
+      "myopic_regret": 0.0,
+      "seed": 20260755,
+      "visible_joker_count": 1
+    },
+    {
+      "draw": [
+        "X2",
+        "5d",
+        "6c"
+      ],
+      "exact_action": "{\"discard\":\"5d\",\"placements\":[[\"6c\",\"middle\"],[\"X2\",\"bottom\"]]}",
+      "exact_ev": -0.6915384615384615,
+      "fired": false,
+      "generator": "random_legal",
+      "legal_action_count": 6,
+      "myopic_action": "{\"discard\":\"5d\",\"placements\":[[\"6c\",\"middle\"],[\"X2\",\"bottom\"]]}",
+      "myopic_ev": -0.6915384615384615,
+      "myopic_regret": 0.0,
+      "seed": 20260756,
+      "visible_joker_count": 1
+    },
+    {
+      "draw": [
+        "Ac",
+        "X1",
+        "3d"
+      ],
+      "exact_action": "{\"discard\":\"3d\",\"placements\":[[\"Ac\",\"top\"],[\"X1\",\"middle\"]]}",
+      "exact_ev": -3.0307692307692307,
+      "fired": false,
+      "generator": "random_legal",
+      "legal_action_count": 6,
+      "myopic_action": "{\"discard\":\"3d\",\"placements\":[[\"Ac\",\"top\"],[\"X1\",\"middle\"]]}",
+      "myopic_ev": -3.0307692307692307,
+      "myopic_regret": 0.0,
+      "seed": 20260757,
+      "visible_joker_count": 2
+    },
+    {
+      "draw": [
+        "Ad",
+        "6h",
+        "Ac"
+      ],
+      "exact_action": "{\"discard\":\"6h\",\"placements\":[[\"Ac\",\"top\"],[\"Ad\",\"bottom\"]]}",
+      "exact_ev": -7.316923076923077,
+      "fired": false,
+      "generator": "random_legal",
+      "legal_action_count": 6,
+      "myopic_action": "{\"discard\":\"6h\",\"placements\":[[\"Ac\",\"top\"],[\"Ad\",\"bottom\"]]}",
+      "myopic_ev": -7.316923076923077,
+      "myopic_regret": 0.0,
+      "seed": 20260758,
+      "visible_joker_count": 1
+    },
+    {
+      "draw": [
+        "8s",
+        "Ad",
+        "Kc"
+      ],
+      "exact_action": "{\"discard\":\"8s\",\"placements\":[[\"Ad\",\"top\"],[\"Kc\",\"top\"]]}",
+      "exact_ev": 0.0,
+      "fired": false,
+      "generator": "random_legal",
+      "legal_action_count": 3,
+      "myopic_action": "{\"discard\":\"8s\",\"placements\":[[\"Ad\",\"top\"],[\"Kc\",\"top\"]]}",
+      "myopic_ev": 0.0,
+      "myopic_regret": 0.0,
+      "seed": 20260759,
+      "visible_joker_count": 1
+    },
+    {
+      "draw": [
+        "Th",
+        "3s",
+        "6c"
+      ],
+      "exact_action": "{\"discard\":\"3s\",\"placements\":[[\"6c\",\"top\"],[\"Th\",\"middle\"]]}",
+      "exact_ev": 3.443076923076923,
+      "fired": false,
+      "generator": "random_legal",
+      "legal_action_count": 6,
+      "myopic_action": "{\"discard\":\"3s\",\"placements\":[[\"6c\",\"top\"],[\"Th\",\"middle\"]]}",
+      "myopic_ev": 3.443076923076923,
+      "myopic_regret": 0.0,
+      "seed": 20260760,
+      "visible_joker_count": 1
+    },
+    {
+      "draw": [
+        "Qc",
+        "7c",
+        "8s"
+      ],
+      "exact_action": "{\"discard\":\"7c\",\"placements\":[[\"8s\",\"bottom\"],[\"Qc\",\"bottom\"]]}",
+      "exact_ev": -9.989230769230769,
+      "fired": false,
+      "generator": "random_legal",
+      "legal_action_count": 3,
+      "myopic_action": "{\"discard\":\"7c\",\"placements\":[[\"8s\",\"bottom\"],[\"Qc\",\"bottom\"]]}",
+      "myopic_ev": -9.989230769230769,
+      "myopic_regret": 0.0,
+      "seed": 20260761,
+      "visible_joker_count": 1
+    },
+    {
+      "draw": [
+        "3d",
+        "Kd",
+        "Qs"
+      ],
+      "exact_action": "{\"discard\":\"Qs\",\"placements\":[[\"Kd\",\"middle\"],[\"3d\",\"bottom\"]]}",
+      "exact_ev": -2.8838461538461537,
+      "fired": true,
+      "generator": "random_legal",
+      "legal_action_count": 6,
+      "myopic_action": "{\"discard\":\"Kd\",\"placements\":[[\"Qs\",\"middle\"],[\"3d\",\"bottom\"]]}",
+      "myopic_ev": -3.502307692307692,
+      "myopic_regret": 0.6184615384615384,
+      "seed": 20260762,
+      "visible_joker_count": 0
+    },
+    {
+      "draw": [
+        "X1",
+        "As",
+        "7s"
+      ],
+      "exact_action": "{\"discard\":\"7s\",\"placements\":[[\"As\",\"top\"],[\"X1\",\"top\"]]}",
+      "exact_ev": 0.0,
+      "fired": false,
+      "generator": "random_legal",
+      "legal_action_count": 3,
+      "myopic_action": "{\"discard\":\"7s\",\"placements\":[[\"As\",\"top\"],[\"X1\",\"top\"]]}",
+      "myopic_ev": 0.0,
+      "myopic_regret": 0.0,
+      "seed": 20260763,
+      "visible_joker_count": 1
+    },
+    {
+      "draw": [
+        "5s",
+        "Kd",
+        "Kc"
+      ],
+      "exact_action": "{\"discard\":\"5s\",\"placements\":[[\"Kc\",\"middle\"],[\"Kd\",\"middle\"]]}",
+      "exact_ev": 10.0,
+      "fired": false,
+      "generator": "random_legal",
+      "legal_action_count": 3,
+      "myopic_action": "{\"discard\":\"5s\",\"placements\":[[\"Kc\",\"middle\"],[\"Kd\",\"middle\"]]}",
+      "myopic_ev": 10.0,
+      "myopic_regret": 0.0,
+      "seed": 20260764,
+      "visible_joker_count": 2
+    },
+    {
+      "draw": [
+        "Ad",
+        "6h",
+        "4d"
+      ],
+      "exact_action": "{\"discard\":\"4d\",\"placements\":[[\"6h\",\"middle\"],[\"Ad\",\"middle\"]]}",
+      "exact_ev": -10.87076923076923,
+      "fired": false,
+      "generator": "random_legal",
+      "legal_action_count": 3,
+      "myopic_action": "{\"discard\":\"4d\",\"placements\":[[\"6h\",\"middle\"],[\"Ad\",\"middle\"]]}",
+      "myopic_ev": -10.87076923076923,
+      "myopic_regret": 0.0,
+      "seed": 20260765,
+      "visible_joker_count": 2
+    },
+    {
+      "draw": [
+        "9s",
+        "Kh",
+        "Th"
+      ],
+      "exact_action": "{\"discard\":\"9s\",\"placements\":[[\"Kh\",\"middle\"],[\"Th\",\"middle\"]]}",
+      "exact_ev": 0.0,
+      "fired": false,
+      "generator": "random_legal",
+      "legal_action_count": 3,
+      "myopic_action": "{\"discard\":\"9s\",\"placements\":[[\"Kh\",\"middle\"],[\"Th\",\"middle\"]]}",
+      "myopic_ev": 0.0,
+      "myopic_regret": 0.0,
+      "seed": 20260766,
+      "visible_joker_count": 0
+    },
+    {
+      "draw": [
+        "8c",
+        "Js",
+        "8s"
+      ],
+      "exact_action": "{\"discard\":\"8c\",\"placements\":[[\"8s\",\"top\"],[\"Js\",\"top\"]]}",
+      "exact_ev": 0.0,
+      "fired": false,
+      "generator": "random_legal",
+      "legal_action_count": 3,
+      "myopic_action": "{\"discard\":\"8c\",\"placements\":[[\"8s\",\"top\"],[\"Js\",\"top\"]]}",
+      "myopic_ev": 0.0,
+      "myopic_regret": 0.0,
+      "seed": 20260767,
+      "visible_joker_count": 0
+    },
+    {
+      "draw": [
+        "Qd",
+        "Ks",
+        "5s"
+      ],
+      "exact_action": "{\"discard\":\"5s\",\"placements\":[[\"Qd\",\"top\"],[\"Ks\",\"bottom\"]]}",
+      "exact_ev": 25.786153846153347,
+      "fired": false,
+      "generator": "fl_live",
+      "legal_action_count": 6,
+      "myopic_action": "{\"discard\":\"5s\",\"placements\":[[\"Qd\",\"top\"],[\"Ks\",\"bottom\"]]}",
+      "myopic_ev": 25.786153846153347,
+      "myopic_regret": 0.0,
+      "seed": null,
+      "visible_joker_count": 0
+    },
+    {
+      "draw": [
+        "Qd",
+        "X1",
+        "5s"
+      ],
+      "exact_action": "{\"discard\":\"5s\",\"placements\":[[\"Qd\",\"top\"],[\"X1\",\"bottom\"]]}",
+      "exact_ev": 30.10407692307701,
+      "fired": false,
+      "generator": "fl_live",
+      "legal_action_count": 6,
+      "myopic_action": "{\"discard\":\"5s\",\"placements\":[[\"Qd\",\"top\"],[\"X1\",\"bottom\"]]}",
+      "myopic_ev": 30.10407692307701,
+      "myopic_regret": 0.0,
+      "seed": null,
+      "visible_joker_count": 1
+    },
+    {
+      "draw": [
+        "X1",
+        "X2",
+        "5s"
+      ],
+      "exact_action": "{\"discard\":\"5s\",\"placements\":[[\"X1\",\"top\"],[\"X2\",\"bottom\"]]}",
+      "exact_ev": 34.83323076923146,
+      "fired": false,
+      "generator": "fl_live",
+      "legal_action_count": 6,
+      "myopic_action": "{\"discard\":\"5s\",\"placements\":[[\"X1\",\"top\"],[\"X2\",\"bottom\"]]}",
+      "myopic_ev": 34.83323076923146,
+      "myopic_regret": 0.0,
+      "seed": null,
+      "visible_joker_count": 2
+    },
+    {
+      "draw": [
+        "Ac",
+        "X1",
+        "Ts"
+      ],
+      "exact_action": "{\"discard\":\"Ac\",\"placements\":[[\"X1\",\"top\"],[\"Ts\",\"bottom\"]]}",
+      "exact_ev": 34.83323076923146,
+      "fired": false,
+      "generator": "fl_live",
+      "legal_action_count": 6,
+      "myopic_action": "{\"discard\":\"Ac\",\"placements\":[[\"X1\",\"top\"],[\"Ts\",\"bottom\"]]}",
+      "myopic_ev": 34.83323076923146,
+      "myopic_regret": 0.0,
+      "seed": null,
+      "visible_joker_count": 1
+    },
+    {
+      "draw": [
+        "Qd",
+        "Ac",
+        "X2"
+      ],
+      "exact_action": "{\"discard\":\"Ac\",\"placements\":[[\"Qd\",\"top\"],[\"X2\",\"bottom\"]]}",
+      "exact_ev": 34.83323076923146,
+      "fired": false,
+      "generator": "fl_live",
+      "legal_action_count": 6,
+      "myopic_action": "{\"discard\":\"Ac\",\"placements\":[[\"Qd\",\"top\"],[\"X2\",\"bottom\"]]}",
+      "myopic_ev": 34.83323076923146,
+      "myopic_regret": 0.0,
+      "seed": null,
+      "visible_joker_count": 1
+    },
+    {
+      "draw": [
+        "Ts",
+        "9d",
+        "5s"
+      ],
+      "exact_action": "{\"discard\":\"5s\",\"placements\":[[\"9d\",\"top\"],[\"Ts\",\"bottom\"]]}",
+      "exact_ev": -51.89846153846055,
+      "fired": false,
+      "generator": "fl_live",
+      "legal_action_count": 6,
+      "myopic_action": "{\"discard\":\"5s\",\"placements\":[[\"9d\",\"top\"],[\"Ts\",\"bottom\"]]}",
+      "myopic_ev": -51.89846153846055,
+      "myopic_regret": 0.0,
+      "seed": null,
+      "visible_joker_count": 0
+    },
+    {
+      "draw": [
+        "Td",
+        "Jd",
+        "Kc"
+      ],
+      "exact_action": "{\"discard\":\"Jd\",\"placements\":[[\"Kc\",\"top\"],[\"Td\",\"bottom\"]]}",
+      "exact_ev": -51.89846153846055,
+      "fired": false,
+      "generator": "fl_live",
+      "legal_action_count": 6,
+      "myopic_action": "{\"discard\":\"Jd\",\"placements\":[[\"Kc\",\"top\"],[\"Td\",\"bottom\"]]}",
+      "myopic_ev": -51.89846153846055,
+      "myopic_regret": 0.0,
+      "seed": null,
+      "visible_joker_count": 0
+    },
+    {
+      "draw": [
+        "7s",
+        "9s",
+        "As"
+      ],
+      "exact_action": "{\"discard\":\"7s\",\"placements\":[[\"9s\",\"top\"],[\"As\",\"bottom\"]]}",
+      "exact_ev": -47.758230769229684,
+      "fired": false,
+      "generator": "fl_live",
+      "legal_action_count": 6,
+      "myopic_action": "{\"discard\":\"7s\",\"placements\":[[\"9s\",\"top\"],[\"As\",\"bottom\"]]}",
+      "myopic_ev": -47.758230769229684,
+      "myopic_regret": 0.0,
+      "seed": null,
+      "visible_joker_count": 0
+    },
+    {
+      "draw": [
+        "Td",
+        "Js",
+        "As"
+      ],
+      "exact_action": "{\"discard\":\"As\",\"placements\":[[\"Js\",\"top\"],[\"Td\",\"bottom\"]]}",
+      "exact_ev": -47.758230769229684,
+      "fired": false,
+      "generator": "fl_live",
+      "legal_action_count": 6,
+      "myopic_action": "{\"discard\":\"As\",\"placements\":[[\"Js\",\"top\"],[\"Td\",\"bottom\"]]}",
+      "myopic_ev": -47.758230769229684,
+      "myopic_regret": 0.0,
+      "seed": null,
+      "visible_joker_count": 0
+    },
+    {
+      "draw": [
+        "Jd",
+        "8s",
+        "9s"
+      ],
+      "exact_action": "{\"discard\":\"8s\",\"placements\":[[\"9s\",\"top\"],[\"Jd\",\"bottom\"]]}",
+      "exact_ev": -51.89846153846055,
+      "fired": false,
+      "generator": "fl_live",
+      "legal_action_count": 6,
+      "myopic_action": "{\"discard\":\"8s\",\"placements\":[[\"9s\",\"top\"],[\"Jd\",\"bottom\"]]}",
+      "myopic_ev": -51.89846153846055,
+      "myopic_regret": 0.0,
+      "seed": null,
+      "visible_joker_count": 0
+    },
+    {
+      "draw": [
+        "Qd",
+        "Qc",
+        "Kc"
+      ],
+      "exact_action": "{\"discard\":\"Kc\",\"placements\":[[\"Qc\",\"top\"],[\"Qd\",\"bottom\"]]}",
+      "exact_ev": 25.786153846153336,
+      "fired": false,
+      "generator": "fl_live",
+      "legal_action_count": 6,
+      "myopic_action": "{\"discard\":\"Kc\",\"placements\":[[\"Qc\",\"top\"],[\"Qd\",\"bottom\"]]}",
+      "myopic_ev": 25.786153846153336,
+      "myopic_regret": 0.0,
+      "seed": null,
+      "visible_joker_count": 0
+    },
+    {
+      "draw": [
+        "Td",
+        "Qc",
+        "9s"
+      ],
+      "exact_action": "{\"discard\":\"9s\",\"placements\":[[\"Qc\",\"top\"],[\"Td\",\"bottom\"]]}",
+      "exact_ev": 25.786153846153336,
+      "fired": false,
+      "generator": "fl_live",
+      "legal_action_count": 6,
+      "myopic_action": "{\"discard\":\"9s\",\"placements\":[[\"Qc\",\"top\"],[\"Td\",\"bottom\"]]}",
+      "myopic_ev": 25.786153846153336,
+      "myopic_regret": 0.0,
+      "seed": null,
+      "visible_joker_count": 0
+    },
+    {
+      "draw": [
+        "5h",
+        "Kh",
+        "8s"
+      ],
+      "exact_action": "{\"discard\":\"5h\",\"placements\":[[\"8s\",\"top\"],[\"Kh\",\"bottom\"]]}",
+      "exact_ev": -51.89846153846055,
+      "fired": false,
+      "generator": "fl_live",
+      "legal_action_count": 6,
+      "myopic_action": "{\"discard\":\"5h\",\"placements\":[[\"8s\",\"top\"],[\"Kh\",\"bottom\"]]}",
+      "myopic_ev": -51.89846153846055,
+      "myopic_regret": 0.0,
+      "seed": null,
+      "visible_joker_count": 0
+    },
+    {
+      "draw": [
+        "5h",
+        "Qd",
+        "8s"
+      ],
+      "exact_action": "{\"discard\":\"5h\",\"placements\":[[\"Qd\",\"top\"],[\"8s\",\"bottom\"]]}",
+      "exact_ev": 25.786153846153336,
+      "fired": false,
+      "generator": "fl_live",
+      "legal_action_count": 6,
+      "myopic_action": "{\"discard\":\"5h\",\"placements\":[[\"Qd\",\"top\"],[\"8s\",\"bottom\"]]}",
+      "myopic_ev": 25.786153846153336,
+      "myopic_regret": 0.0,
+      "seed": null,
+      "visible_joker_count": 0
+    },
+    {
+      "draw": [
+        "9d",
+        "Qd",
+        "Qc"
+      ],
+      "exact_action": "{\"discard\":\"9d\",\"placements\":[[\"Qc\",\"top\"],[\"Qd\",\"bottom\"]]}",
+      "exact_ev": 25.786153846153336,
+      "fired": false,
+      "generator": "fl_live",
+      "legal_action_count": 6,
+      "myopic_action": "{\"discard\":\"9d\",\"placements\":[[\"Qc\",\"top\"],[\"Qd\",\"bottom\"]]}",
+      "myopic_ev": 25.786153846153336,
+      "myopic_regret": 0.0,
+      "seed": null,
+      "visible_joker_count": 0
+    },
+    {
+      "draw": [
+        "7h",
+        "5s",
+        "Ks"
+      ],
+      "exact_action": "{\"discard\":\"5s\",\"placements\":[[\"7h\",\"top\"],[\"Ks\",\"bottom\"]]}",
+      "exact_ev": -51.89846153846055,
+      "fired": false,
+      "generator": "fl_live",
+      "legal_action_count": 6,
+      "myopic_action": "{\"discard\":\"5s\",\"placements\":[[\"7h\",\"top\"],[\"Ks\",\"bottom\"]]}",
+      "myopic_ev": -51.89846153846055,
+      "myopic_regret": 0.0,
+      "seed": null,
+      "visible_joker_count": 0
+    },
+    {
+      "draw": [
+        "5h",
+        "Kh",
+        "Td"
+      ],
+      "exact_action": "{\"discard\":\"5h\",\"placements\":[[\"Kh\",\"top\"],[\"Td\",\"bottom\"]]}",
+      "exact_ev": -51.89846153846055,
+      "fired": false,
+      "generator": "fl_live",
+      "legal_action_count": 6,
+      "myopic_action": "{\"discard\":\"5h\",\"placements\":[[\"Kh\",\"top\"],[\"Td\",\"bottom\"]]}",
+      "myopic_ev": -51.89846153846055,
+      "myopic_regret": 0.0,
+      "seed": null,
+      "visible_joker_count": 0
+    },
+    {
+      "draw": [
+        "Th",
+        "8c",
+        "8s"
+      ],
+      "exact_action": "{\"discard\":\"8c\",\"placements\":[[\"8s\",\"top\"],[\"Th\",\"bottom\"]]}",
+      "exact_ev": -51.89846153846055,
+      "fired": false,
+      "generator": "fl_live",
+      "legal_action_count": 6,
+      "myopic_action": "{\"discard\":\"8c\",\"placements\":[[\"8s\",\"top\"],[\"Th\",\"bottom\"]]}",
+      "myopic_ev": -51.89846153846055,
+      "myopic_regret": 0.0,
+      "seed": null,
+      "visible_joker_count": 0
+    },
+    {
+      "draw": [
+        "Kh",
+        "8s",
+        "As"
+      ],
+      "exact_action": "{\"discard\":\"8s\",\"placements\":[[\"As\",\"top\"],[\"Kh\",\"bottom\"]]}",
+      "exact_ev": -47.758230769229684,
+      "fired": false,
+      "generator": "fl_live",
+      "legal_action_count": 6,
+      "myopic_action": "{\"discard\":\"8s\",\"placements\":[[\"As\",\"top\"],[\"Kh\",\"bottom\"]]}",
+      "myopic_ev": -47.758230769229684,
+      "myopic_regret": 0.0,
+      "seed": null,
+      "visible_joker_count": 0
+    },
+    {
+      "draw": [
+        "5h",
+        "Kd",
+        "Js"
+      ],
+      "exact_action": "{\"discard\":\"5h\",\"placements\":[[\"Js\",\"top\"],[\"Kd\",\"bottom\"]]}",
+      "exact_ev": -51.89846153846055,
+      "fired": false,
+      "generator": "fl_live",
+      "legal_action_count": 6,
+      "myopic_action": "{\"discard\":\"5h\",\"placements\":[[\"Js\",\"top\"],[\"Kd\",\"bottom\"]]}",
+      "myopic_ev": -51.89846153846055,
+      "myopic_regret": 0.0,
+      "seed": null,
+      "visible_joker_count": 0
+    }
+  ],
+  "schema": "ofc_t4_bb_exact_vs_myopic_probe/v1",
+  "seed": 20260728,
+  "serving_changed": false,
+  "summary": {
+    "all": {
+      "fire_rate": 0.03333333333333333,
+      "fired": 2,
+      "max_regret": 0.6184615384615384,
+      "mean_regret": 0.01582051282051282,
+      "mean_regret_when_fired": 0.47461538461538455,
+      "min_regret": 0.0,
+      "roots": 60
+    },
+    "by_generator": {
+      "fl_live": {
+        "fire_rate": 0.0,
+        "fired": 0,
+        "max_regret": 0.0,
+        "mean_regret": 0.0,
+        "mean_regret_when_fired": 0.0,
+        "min_regret": 0.0,
+        "roots": 20
+      },
+      "random_legal": {
+        "fire_rate": 0.05,
+        "fired": 2,
+        "max_regret": 0.6184615384615384,
+        "mean_regret": 0.02373076923076923,
+        "mean_regret_when_fired": 0.47461538461538455,
+        "min_regret": 0.0,
+        "roots": 40
+      }
+    }
+  }
+}
