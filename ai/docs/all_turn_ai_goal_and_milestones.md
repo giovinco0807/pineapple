@@ -138,6 +138,12 @@ v1は未使用seedや未実装checkpointを要求する一方、hashを内容へ
   `9d99cc235701d930879cba577022f3646d367a212488ad5655bf904405c56382`で一致した。
   natural evaluationとlocked calibrationは単一writer runnerで実行中であり、まだ
   calibration artifactは未公開であるため`promotion_eligible=false`を維持する。
+  （2026-07-28追記: locked calibrationは完走済み。`calibration.json`は
+  `stage=calibration_complete`、natural評価536,228行/135 shards完了。ただし
+  gate v2は104チェック中2件（`t1_bb`/`t2_bb`の点推定NLL delta、+1.4e-5 / +4.1e-9
+  nats）で失敗し`promotion_eligible=false`。統計的UCB検定は全層PASSのため、
+  失敗は点推定`<=0`厳密条件のノイズ脆弱性に起因する。gate v3案は
+  `ai/reports/m3_calibration_gate_status_20260728/README.md`参照。）
 - `Q_r -> C_r -> R_r(C_r) -> B_r`の非循環T3固定点gate v2と、72件の実MCCFR jobを
   生成・全asset replayするsmokeを実装した。smokeは2 seeds、各層1 root、2 transitions
   のため本番最小数を満たさず、意図どおり昇格・収束・強度claimはすべてfalse。
