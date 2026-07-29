@@ -14,6 +14,8 @@
 //! legacy crate as unused.  Here the Fantasyland EV is read from
 //! `ai/config/fl_ev.json` and its SHA-256 is emitted with every result.
 
+mod evaluator;
+
 use anyhow::{anyhow, bail, Context, Result};
 use clap::Parser;
 use ofc_core::{
