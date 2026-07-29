@@ -395,28 +395,29 @@ fn solve(request: &Request, fl_ev: &FlEv) -> Result<Response> {
         .map(|card| to_core_card(&card))
         .collect::<Result<Vec<_>>>()?;
 
-    // The opponent's reply shapes are fixed by where its two open slots are, so
-    // the (which two of three cards, into which rows) patterns are enumerated
-    // once instead of per draw.
-    let mut reply_patterns: Vec<([usize; 2], [usize; 2])> = Vec::new();
-    for discard_index in 0..3usize {
-        let kept: Vec<usize> = (0..3).filter(|index| *index != discard_index).collect();
-        for row_a in 0..3usize {
-            for row_b in 0..3usize {
-                let mut need = [0usize; 3];
-                need[row_a] += 1;
-                need[row_b] += 1;
-                if (0..3).any(|row| need[row] > opponent_open[row]) {
-                    continue;
-                }
-                if row_a == row_b && kept[0] > kept[1] {
-                    continue; // same row: order is irrelevant
-                }
-                reply_patterns.push(([kept[0], kept[1]], [row_a, row_b]));
+    // The opponent keeps two of its three cards, so its final board is fixed by
+    // an unordered PAIR of cards plus a row assignment.  Enumerating the row
+    // assignments once, and then the terminal of each (pair, assignment), costs
+    // `C(n,2) x assignments` evaluations instead of `C(n,3) x replies` -- the
+    // same board is otherwise re-evaluated once for every draw that contains
+    // the pair.
+    let mut row_assignments: Vec<[usize; 2]> = Vec::new();
+    for row_a in 0..3usize {
+        for row_b in 0..3usize {
+            let mut need = [0usize; 3];
+            need[row_a] += 1;
+            need[row_b] += 1;
+            if (0..3).any(|row| need[row] > opponent_open[row]) {
+                continue;
+            }
+            if row_a == row_b && !row_assignments.iter().any(|rows| rows == &[row_a, row_b]) {
+                row_assignments.push([row_a, row_b]);
+            } else if row_a != row_b {
+                row_assignments.push([row_a, row_b]);
             }
         }
     }
-    if reply_patterns.is_empty() {
+    if row_assignments.is_empty() {
         bail!("opponent has no legal T4 reply shape");
     }
 
@@ -424,37 +425,51 @@ fn solve(request: &Request, fl_ev: &FlEv) -> Result<Response> {
     // `C(n,3) x replies` boards are evaluated once per root and reused.  This
     // is the difference between one and `len(actions)` passes over the most
     // expensive part of the solve.
-    let reply_count = reply_patterns.len();
+    let assignment_count = row_assignments.len();
     let pool_len = pool.len();
-    let mut draws: Vec<[Card; 3]> = Vec::new();
-    for a in 0..pool_len {
-        for b in (a + 1)..pool_len {
-            for c in (b + 1)..pool_len {
-                draws.push([pool[a], pool[b], pool[c]]);
-            }
+
+    // Index unordered pairs as `pair_index(i, j)` for i < j.
+    let pair_index = |i: usize, j: usize| -> usize { i * pool_len + j };
+    let mut pair_slots: Vec<(usize, usize)> = Vec::new();
+    for i in 0..pool_len {
+        for j in (i + 1)..pool_len {
+            pair_slots.push((i, j));
         }
     }
     // This precompute dominates the solve, so it carries the root's
     // parallelism; the per-action pass below is pure arithmetic.
-    let opponent_terminals: Vec<Terminal> = draws
+    let pair_terminals: Vec<((usize, usize), Vec<Terminal>)> = pair_slots
         .par_iter()
-        .flat_map_iter(|opponent_draw| {
+        .map(|(i, j)| {
             let mut scratch = opponent_base.clone();
-            let mut local = Vec::with_capacity(reply_count);
-            for (cards, rows) in &reply_patterns {
-                scratch.rows[rows[0]].push(opponent_draw[cards[0]]);
-                scratch.rows[rows[1]].push(opponent_draw[cards[1]]);
+            let mut local = Vec::with_capacity(assignment_count);
+            for rows in &row_assignments {
+                scratch.rows[rows[0]].push(pool[*i]);
+                scratch.rows[rows[1]].push(pool[*j]);
                 local.push(terminal_of(&scratch));
                 scratch.rows[rows[1]].pop();
                 scratch.rows[rows[0]].pop();
             }
-            local.into_iter()
+            ((*i, *j), local)
         })
         .collect();
-    let draw_count = opponent_terminals.len() / reply_count;
-    if draw_count == 0 {
+    let mut terminal_table: Vec<Option<Vec<Terminal>>> = vec![None; pool_len * pool_len];
+    for ((i, j), terminals) in pair_terminals {
+        terminal_table[pair_index(i, j)] = Some(terminals);
+    }
+
+    let mut draws: Vec<[usize; 3]> = Vec::new();
+    for a in 0..pool_len {
+        for b in (a + 1)..pool_len {
+            for c in (b + 1)..pool_len {
+                draws.push([a, b, c]);
+            }
+        }
+    }
+    if draws.is_empty() {
         bail!("opponent draw enumeration is empty");
     }
+    let draw_count = draws.len();
 
     let results: Result<Vec<ActionResult>> = actions
         .par_iter()
@@ -463,19 +478,25 @@ fn solve(request: &Request, fl_ev: &FlEv) -> Result<Response> {
             let hero_terminal = terminal_of(&hero_final);
 
             let mut total = 0.0f64;
-            for draw_index in 0..draw_count {
-                let base = draw_index * reply_count;
+            for draw in &draws {
+                // The opponent keeps two of the three dealt cards, so its reply
+                // is one of three pairs, each already evaluated above.
                 let mut best = f64::NEG_INFINITY;
-                for offset in 0..reply_count {
-                    // Opponent maximizes its own score; ties do not change the
-                    // hero EV, so only the max is needed.
-                    let score = hero_score(
-                        &opponent_terminals[base + offset],
-                        &hero_terminal,
-                        fl_ev,
-                    );
-                    if score > best {
-                        best = score;
+                for (first, second) in [
+                    (draw[0], draw[1]),
+                    (draw[0], draw[2]),
+                    (draw[1], draw[2]),
+                ] {
+                    let terminals = terminal_table[pair_index(first, second)]
+                        .as_ref()
+                        .ok_or_else(|| anyhow!("opponent pair terminal is missing"))?;
+                    for terminal in terminals {
+                        // Opponent maximizes its own score; ties do not change
+                        // the hero EV, so only the max is needed.
+                        let score = hero_score(terminal, &hero_terminal, fl_ev);
+                        if score > best {
+                            best = score;
+                        }
                     }
                 }
                 total += -best;
