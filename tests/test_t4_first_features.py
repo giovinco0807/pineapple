@@ -28,7 +28,7 @@ def test_encode_shape_and_finiteness_across_roots(seed):
             root["btn_board"],
             list(root["bb_discards"]) + [action.discard],
         )
-        assert len(vector) == features.FEATURE_SIZE == 101
+        assert len(vector) == features.FEATURE_SIZE == 109
         assert all(isinstance(value, float) for value in vector)
         assert all(value == value for value in vector)  # no NaN
         assert all(-1.0 <= value <= 2.0 for value in vector)
@@ -100,3 +100,30 @@ def test_encode_rejects_incomplete_boards():
     root, board, actions = _root_actions(20260729)
     with pytest.raises(ValueError, match="complete"):
         features.encode(root["bb_board"], root["btn_board"], root["bb_discards"])
+
+
+def test_joint_block_detects_certain_opponent_foul():
+    """seed 5000103 from the diagnosis: opponent fouls on every draw."""
+    root = probe.sample_random_root(5000103)
+    cache = features.NodeCache.for_root(
+        root["bb_board"], root["btn_board"], root["draw"], root["bb_discards"]
+    )
+    block = features.opponent_joint_block(root["btn_board"], cache.pool)
+    assert block[0] == 1.0          # foul_rate
+    assert block[2] == 0.0          # no surviving royalty
+    assert block[3] == 0.0          # no surviving Fantasyland
+    assert block[5] == 0.0 and block[6] == 0.0   # both tail probabilities
+
+
+def test_joint_block_is_bounded_and_finite_across_strata():
+    for seed in (5000000, 5000034, 5000568, 5000706, 5000763):
+        root = probe.sample_random_root(seed)
+        cache = features.NodeCache.for_root(
+            root["bb_board"], root["btn_board"], root["draw"], root["bb_discards"]
+        )
+        block = features.opponent_joint_block(root["btn_board"], cache.pool)
+        assert len(block) == features.JOINT_SIZE_ADDED == 8
+        assert all(value == value for value in block)
+        assert 0.0 <= block[0] <= 1.0
+        assert 0.0 <= block[5] <= 1.0 and 0.0 <= block[6] <= 1.0
+        assert block[6] <= block[5] + 1e-9   # P(>=15) cannot exceed P(>=6)

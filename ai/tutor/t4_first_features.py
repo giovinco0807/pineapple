@@ -61,8 +61,12 @@ _MAX_FL_EV = 63.5
 # Block sizes.  Kept explicit so a drifted encoder is loud rather than silent.
 # bust/royalty/FL (8) + 3 rows x spread (11) + joker count (1)
 HERO_SIZE = 42
-# 3 rows x (category histogram 9 + royalty + FL + room) + 3 suits + 2 joker counts
-OPPONENT_SIZE = 41
+# 3 rows x (category histogram 9 + royalty + FL + room) + 3 suits + 2 joker
+# counts + the joint completion block (8).
+OPPONENT_SIZE = 49
+# Self value the opponent assigns to a fouled board, matching the scorer.
+FOUL_SELF_VALUE = -6.0
+JOINT_SIZE_ADDED = 8
 # locked-foul facts (5) + per-row comparison (3) + wins/scoop/bust/rooms (4)
 JOINT_SIZE = 12
 CONTEXT_SIZE = 6
@@ -172,6 +176,183 @@ def hero_block(hero_board: Sequence[Sequence[str]]) -> list[float]:
     return out
 
 
+def _top_fl_ev(top_cards: Sequence[str]) -> float:
+    qualified, count = check_fl_entry(list(top_cards))
+    return float(RolloutEvaluator.FL_EV.get(count, 0)) if qualified else 0.0
+
+
+def _constrained_facts(rows: Sequence[Sequence[str]]) -> tuple[bool, float, float]:
+    evaluation = evaluate_board_with_joker_constraint(
+        list(rows[0]), list(rows[1]), list(rows[2])
+    )
+    if evaluation["busted"]:
+        return True, 0.0, 0.0
+    royalty = sum(
+        _row_royalty(index, evaluation[name])
+        for index, name in enumerate(("top", "middle", "bottom"))
+    )
+    return False, float(royalty), _top_fl_ev(evaluation["top"])
+
+
+def opponent_joint_block(
+    opponent_board: Sequence[Sequence[str]],
+    pool: Sequence[str],
+) -> list[float]:
+    """Exact joint outlook of the opponent's two-card completion.
+
+    The per-row histograms above treat each row independently, but the
+    opponent places only two cards in total and chooses which row each goes
+    to.  The diagnosis in
+    ``ai/reports/t4_first_node_error_diagnosis_20260729/`` showed that this
+    omission is the dominant deficiency: the opponent's foul probability alone
+    correlates -0.470 with the model's within-root common error, and the
+    current per-row features explain 0.9% of that error against 41.5% once
+    these joint facts are present.  Fantasyland is also folded in here
+    conditional on surviving, which fixes the structural error of adding a
+    row-wise FL expectation independently of the foul.
+
+    For every draw the opponent keeps two of three cards and takes the legal
+    final maximizing its own royalty + FL EV, with a foul worth -6.  Line wins
+    against the hero are deliberately excluded: they are action-dependent,
+    while this block must stay shared across the node's actions.
+    """
+    rooms = [ROW_CAPACITY[index] - len(opponent_board[index]) for index in range(3)]
+    open_rows = [index for index in range(3) if rooms[index] > 0]
+    if sum(rooms) != 2 or not open_rows:
+        raise ValueError("opponent must have exactly two open slots at T4 first")
+    board_has_joker = any(is_joker(card) for row in opponent_board for card in row)
+
+    fixed_value: dict[int, int] = {}
+    fixed_royalty: dict[int, float] = {}
+    for index in range(3):
+        if rooms[index] == 0:
+            fixed_value[index] = evaluate_hand(
+                list(opponent_board[index]), ROW_CAPACITY[index]
+            )
+            fixed_royalty[index] = float(_row_royalty(index, opponent_board[index]))
+    fixed_top_fl = _top_fl_ev(opponent_board[0]) if rooms[0] == 0 else None
+
+    # Per-row completion tables: the enumeration below is then lookups.
+    one_card: dict[int, dict[str, tuple[int, float, float]]] = {}
+    two_card: dict[int, dict[tuple[str, str], tuple[int, float, float]]] = {}
+    for index in open_rows:
+        base = list(opponent_board[index])
+        if rooms[index] == 1:
+            one_card[index] = {}
+            for card in pool:
+                filled = base + [card]
+                one_card[index][card] = (
+                    evaluate_hand(filled, ROW_CAPACITY[index]),
+                    float(_row_royalty(index, filled)),
+                    _top_fl_ev(filled) if index == 0 else 0.0,
+                )
+        else:
+            two_card[index] = {}
+            for pair in combinations(pool, 2):
+                key = tuple(sorted(pair))
+                filled = base + list(key)
+                two_card[index][key] = (
+                    evaluate_hand(filled, ROW_CAPACITY[index]),
+                    float(_row_royalty(index, filled)),
+                    _top_fl_ev(filled) if index == 0 else 0.0,
+                )
+
+    def finals_for(kept: tuple[str, ...]):
+        results = []
+        base_values = [0, 0, 0]
+        base_royalty = [0.0, 0.0, 0.0]
+        for index in range(3):
+            if rooms[index] == 0:
+                base_values[index] = fixed_value[index]
+                base_royalty[index] = fixed_royalty[index]
+        if len(open_rows) == 2:
+            first, second = open_rows
+            for a, b in ((kept[0], kept[1]), (kept[1], kept[0])):
+                values = list(base_values)
+                royalties = list(base_royalty)
+                fl = fixed_top_fl if fixed_top_fl is not None else 0.0
+                value_a, royalty_a, fl_a = one_card[first][a]
+                value_b, royalty_b, fl_b = one_card[second][b]
+                values[first], royalties[first] = value_a, royalty_a
+                values[second], royalties[second] = value_b, royalty_b
+                if first == 0:
+                    fl = fl_a
+                elif second == 0:
+                    fl = fl_b
+                results.append((values, sum(royalties), fl, (a, b)))
+        else:
+            row = open_rows[0]
+            values = list(base_values)
+            royalties = list(base_royalty)
+            fl = fixed_top_fl if fixed_top_fl is not None else 0.0
+            key = tuple(sorted(kept))
+            value, royalty, fl_row = two_card[row][key]
+            values[row], royalties[row] = value, royalty
+            if row == 0:
+                fl = fl_row
+            results.append((values, sum(royalties), fl, key))
+        return results
+
+    def self_value(values, royalty, fl, placed) -> float:
+        if values[0] <= values[1] <= values[2]:
+            return royalty + fl
+        # A raw ordering violation is only rescuable through the canonical
+        # joker constraint, so fall back to it just when a joker is present.
+        if not (board_has_joker or any(is_joker(card) for card in placed)):
+            return FOUL_SELF_VALUE
+        rows_final = [list(opponent_board[index]) for index in range(3)]
+        if len(open_rows) == 2:
+            rows_final[open_rows[0]].append(placed[0])
+            rows_final[open_rows[1]].append(placed[1])
+        else:
+            rows_final[open_rows[0]].extend(placed)
+        busted, constrained_royalty, constrained_fl = _constrained_facts(rows_final)
+        return FOUL_SELF_VALUE if busted else constrained_royalty + constrained_fl
+
+    best_values: list[float] = []
+    fouls = 0
+    survive_royalty = 0.0
+    survive_fl = 0.0
+    survivors = 0
+    for draw in combinations(pool, 3):
+        best = None
+        best_parts = (0.0, 0.0)
+        for kept in combinations(draw, 2):
+            for values, royalty, fl, placed in finals_for(kept):
+                value = self_value(values, royalty, fl, placed)
+                if best is None or value > best:
+                    best = value
+                    best_parts = (0.0, 0.0) if value == FOUL_SELF_VALUE else (royalty, fl)
+        best_values.append(float(best))
+        if best == FOUL_SELF_VALUE:
+            fouls += 1
+        else:
+            survivors += 1
+            survive_royalty += best_parts[0]
+            survive_fl += best_parts[1]
+
+    count = len(best_values)
+    if count == 0:
+        raise ValueError("opponent joint enumeration is empty")
+    mean = sum(best_values) / count
+    variance = sum((value - mean) ** 2 for value in best_values) / count
+    survive_denominator = max(survivors, 1)
+    return [
+        fouls / count,
+        mean / _MAX_ROYALTY,
+        (survive_royalty / survive_denominator) / _MAX_ROYALTY,
+        (survive_fl / survive_denominator) / _MAX_FL_EV,
+        (variance**0.5) / _MAX_ROYALTY,
+        sum(1 for value in best_values if value >= 6.0) / count,
+        sum(1 for value in best_values if value >= 15.0) / count,
+        (
+            sum(value for value in best_values if value > FOUL_SELF_VALUE)
+            / survive_denominator
+        )
+        / _MAX_ROYALTY,
+    ]
+
+
 def opponent_block(
     opponent_board: Sequence[Sequence[str]],
     pool: Sequence[str],
@@ -231,6 +412,7 @@ def opponent_block(
         sum(1 for row in opponent_board for card in row if is_joker(card)) / 2.0
     )
     out.append(sum(1 for card in pool if is_joker(card)) / 2.0)
+    out.extend(opponent_joint_block(opponent_board, pool))
     assert len(out) == OPPONENT_SIZE, len(out)
     return out, categories_now
 

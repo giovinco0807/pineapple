@@ -1,0 +1,589 @@
+labelling 800 roots with the Rust exact solver ...
+labelled in 5.1s; computing joint metrics ...
+  100/800  (19s)
+  200/800  (36s)
+  300/800  (52s)
+  400/800  (64s)
+  500/800  (89s)
+  600/800  (111s)
+  700/800  (129s)
+  800/800  (141s)
+
+roots 800   mean|common| 1.164   bias -0.035   mean spread 0.321   share within 1pt 0.598
+
+### correlation with signed common error
+              joint_ev: r = +0.453
+       joint_foul_rate: r = -0.470
+         joint_royalty: r = +0.183
+              joint_fl: r = +0.080
+             joint_std: r = +0.128
+       overstate_royfl: r = -0.044
+          overstate_ev: r = -0.116
+        exp_lines_mean: r = -0.016
+           bust_payoff: r = -0.374
+             approx_ev: r = -0.300
+         indep_royalty: r = +0.020
+              indep_fl: r = +0.007
+        locked_cat_any: r = +0.009
+            opp_jokers: r = -0.011
+           pool_jokers: r = +0.041
+     cat_slack_mid_bot: r = +0.069
+     cat_slack_top_mid: r = -0.027
+        pool_high_frac: r = -0.007
+        hero_bust_mean: r = -0.010
+     hero_royalty_mean: r = +0.022
+          hero_fl_mean: r = +nan
+            exact_mean: r = -0.300
+
+### linear R^2 against common error
+  controls only (current-feature facts): 0.009
+  controls + joint opponent facts:       0.415
+    +         joint_ev alone: 0.391  (delta +0.383)
+    +  joint_foul_rate alone: 0.395  (delta +0.386)
+    +    joint_royalty alone: 0.071  (delta +0.063)
+    +         joint_fl alone: 0.017  (delta +0.009)
+    +        joint_std alone: 0.026  (delta +0.018)
+    +   exp_lines_mean alone: 0.009  (delta +0.000)
+    +      bust_payoff alone: 0.227  (delta +0.218)
+    +        approx_ev alone: 0.229  (delta +0.221)
+
+### composed approx_ev as a node value (no learning)
+  corr(approx_ev, exact_mean) = +0.813
+  MAE(approx_ev - exact_mean) = 1.004
+  model:  corr(pred_mean, exact_mean) = +0.914   MAE 1.164
+
+### stratified common error by hero bust share
+  hero bust   never: n= 224  mean|common| 1.044  bias -0.079
+  hero bust partial: n= 230  mean|common| 1.146  bias +0.075
+  hero bust  always: n= 346  mean|common| 1.254  bias -0.081
+
+### stratified |common| by joker counts
+  pool_jokers=0: n= 234  mean|common| 1.197  bias -0.111
+  pool_jokers=1: n= 417  mean|common| 1.125  bias -0.046
+  pool_jokers=2: n= 149  mean|common| 1.223  bias +0.111
+  opp_jokers=0: n= 496  mean|common| 1.156  bias -0.028
+  opp_jokers=1: n= 270  mean|common| 1.189  bias -0.028
+  opp_jokers=2: n=  34  mean|common| 1.094  bias -0.195
+
+### stratified common error by joint foul rate
+  foul in [0.000, 0.001): n= 129  mean|common| 1.075  bias +0.742
+  foul in [0.001, 0.050): n= 135  mean|common| 1.131  bias +0.935
+  foul in [0.050, 0.250): n= 104  mean|common| 0.954  bias +0.516
+  foul in [0.250, 0.750): n= 186  mean|common| 1.122  bias -0.118
+  foul in [0.750, 1.010): n= 246  mean|common| 1.351  bias -1.146
+
+### 12 most NEGATIVE common error (model too pessimistic)
+
+================================================================================================
+seed 5000763   common -7.283   spread 0.526   exact_mean +0.000   node_err -6.857
+  BB (hero)
+    top: Jh Jc  [2/3]
+    mid: 7d 5h 9c 2h 7s  [pair]
+    bot: X1 Jd Ah Ac  [4/5]
+  BTN (opp)
+    top: 5d As  [2/3]
+    mid: 5s Kd 7h Qc 4d  [high]
+    bot: 8h 6h 8d 6s  [4/5]
+  draw ['Ad', '3h', '3s']   hero dead ['9h', '4s', 'Th']
+  pool (26): 4h Qh Kh 2d 3d 6d 9d Td Qd 2c 3c 4c 5c 6c 7c 8c Tc Kc 2s 8s 9s Ts Js Qs Ks X2
+  OPP JOINT: ev -6.000  foul 1.000  royalty 0.000  fl 0.000  std 0.00
+  OPP INDEP (current features): royalty 1.500  fl 1.150  locked_cat 0  overstatement +8.650
+  hero: bust 1.00  royalty 0.00  fl 0.00   exp_lines +2.67   approx_ev +0.00
+      exact     pred   resid   action
+      0.000   -8.072   -8.07   3s->top, Ad->bottom (discard 3h)
+      0.000   -6.921   -6.92   Ad->top, 3s->bottom (discard 3h)
+      0.000   -8.072   -8.07   3h->top, Ad->bottom (discard 3s)
+      0.000   -6.921   -6.92   Ad->top, 3h->bottom (discard 3s)
+      0.000   -6.857   -6.86   3h->top, 3s->bottom (discard Ad)
+
+================================================================================================
+seed 5000103   common -6.282   spread 0.120   exact_mean +0.000   node_err -6.103
+  BB (hero)
+    top: Qd Qs Kh  [pair]
+    mid: Ts 3s 9h  [3/5]
+    bot: X2 8s 6c 5d 6h  [trips]
+  BTN (opp)
+    top: 7s  [1/3]
+    mid: 4s Ad Kd Ah Th  [pair]
+    bot: 7c 4c 8h 3c X1  [pair]
+  draw ['3d', 'Js', 'Jd']   hero dead ['2d', '7h', 'Tc']
+  pool (26): 2h 3h 4h 5h Jh Qh 4d 6d 7d 8d 9d Td 2c 5c 8c 9c Jc Qc Kc Ac 2s 5s 6s 9s Ks As
+  OPP JOINT: ev -6.000  foul 1.000  royalty 0.000  fl 0.000  std 0.00
+  OPP INDEP (current features): royalty 0.295  fl 0.125  locked_cat 0  overstatement +6.420
+  hero: bust 1.00  royalty 0.00  fl 0.00   exp_lines +0.99   approx_ev +0.00
+      exact     pred   resid   action
+      0.000   -6.103   -6.10   Jd->middle, Js->middle (discard 3d)
+      0.000   -6.372   -6.37   3d->middle, Js->middle (discard Jd)
+      0.000   -6.372   -6.37   3d->middle, Jd->middle (discard Js)
+
+================================================================================================
+seed 5000686   common -6.243   spread 0.137   exact_mean +4.000   node_err -6.266
+  BB (hero)
+    top: 8c Js 4d  [high]
+    mid: 7c 4c 6s  [3/5]
+    bot: Ah 8h Qs Qh Qc  [trips]
+  BTN (opp)
+    top: 8s 5d 5c  [pair]
+    mid: Kd 2s 2c Td 5h  [pair]
+    bot: X2 6h 3d  [3/5]
+  draw ['Ts', '2d', '7s']   hero dead ['6c', 'Tc', 'Qd']
+  pool (26): 2h 3h 4h 7h 9h Th Jh Kh 6d 7d 8d 9d Jd Ad 3c 9c Jc Kc Ac 3s 4s 5s 9s Ks As X1
+  OPP JOINT: ev -6.000  foul 1.000  royalty 0.000  fl 0.000  std 0.00
+  OPP INDEP (current features): royalty 0.375  fl 0.000  locked_cat 0  overstatement +6.375
+  hero: bust 0.33  royalty 0.00  fl 0.00   exp_lines +0.09   approx_ev +4.00
+      exact     pred   resid   action
+      6.000   -0.426   -6.43   7s->middle, Ts->middle (discard 2d)
+      6.000   -0.266   -6.27   2d->middle, 7s->middle (discard Ts)
+      0.000   -6.037   -6.04   2d->middle, Ts->middle (discard 7s)
+
+================================================================================================
+seed 5000757   common -6.112   spread 0.581   exact_mean +1.000   node_err -7.289
+  BB (hero)
+    top: 7c 4h 8s  [high]
+    mid: 5d 9d X1 Qs  [4/5]
+    bot: 9c 2d 3d 4c  [4/5]
+  BTN (opp)
+    top: Qd Ks  [2/3]
+    mid: Td Kc 9h Kh  [4/5]
+    bot: 2c 3c 5c 5s Ah  [pair]
+  draw ['Ad', '7s', '5h']   hero dead ['7h', '6d', 'Jh']
+  pool (26): 2h 3h 6h 8h Th Qh 4d 7d 8d Jd Kd 6c 8c Tc Jc Qc Ac 2s 3s 4s 6s 9s Ts Js As X2
+  OPP JOINT: ev -6.000  foul 1.000  royalty 0.000  fl 0.000  std 0.00
+  OPP INDEP (current features): royalty 1.308  fl 0.823  locked_cat 0  overstatement +8.131
+  hero: bust 0.83  royalty 0.00  fl 0.00   exp_lines -1.87   approx_ev +1.00
+      exact     pred   resid   action
+      6.000   -1.289   -7.29   7s->middle, Ad->bottom (discard 5h)
+      0.000   -5.520   -5.52   Ad->middle, 7s->bottom (discard 5h)
+      0.000   -5.795   -5.79   5h->middle, Ad->bottom (discard 7s)
+      0.000   -5.835   -5.84   Ad->middle, 5h->bottom (discard 7s)
+      0.000   -5.556   -5.56   5h->middle, 7s->bottom (discard Ad)
+
+================================================================================================
+seed 5000494   common -6.054   spread 0.036   exact_mean +0.000   node_err -6.027
+  BB (hero)
+    top: 4s Jc 2s  [high]
+    mid: 2d As Kh Qd Tc  [high]
+    bot: Td 6c Jd  [3/5]
+  BTN (opp)
+    top: X1 Qs  [2/3]
+    mid: 8c 9h 6s 5d 3c  [high]
+    bot: 3h 7h 5s 7c  [4/5]
+  draw ['7s', '8d', 'Kc']   hero dead ['X2', 'Ks', 'Th']
+  pool (26): 2h 4h 5h 6h 8h Jh Qh Ah 3d 4d 6d 7d 9d Kd Ad 2c 4c 5c 9c Qc Ac 3s 8s 9s Ts Js
+  OPP JOINT: ev -6.000  foul 1.000  royalty 0.000  fl 0.000  std 0.00
+  OPP INDEP (current features): royalty 8.269  fl 8.746  locked_cat 1  overstatement +23.015
+  hero: bust 1.00  royalty 0.00  fl 0.00   exp_lines -1.00   approx_ev +0.00
+      exact     pred   resid   action
+      0.000   -6.027   -6.03   8d->bottom, Kc->bottom (discard 7s)
+      0.000   -6.027   -6.03   7s->bottom, Kc->bottom (discard 8d)
+      0.000   -6.109   -6.11   7s->bottom, 8d->bottom (discard Kc)
+
+================================================================================================
+seed 5000568   common -6.009   spread 0.457   exact_mean +6.000   node_err -5.324
+  BB (hero)
+    top: 9d Th Ac  [high]
+    mid: Kh 5c 6h  [3/5]
+    bot: 6c 9c X1 2s Qd  [pair]
+  BTN (opp)
+    top: Kc Ks  [2/3]
+    mid: 4d 8c Ts Js  [4/5]
+    bot: 4h As 3c 2d X2  [straight]
+  draw ['Jc', '5s', 'Jh']   hero dead ['8d', '7h', '7d']
+  pool (26): 2h 3h 5h 8h 9h Qh Ah 3d 5d 6d Td Jd Kd Ad 2c 4c 7c Tc Qc 3s 4s 6s 7s 8s 9s Qs
+  OPP JOINT: ev -6.000  foul 1.000  royalty 0.000  fl 0.000  std 0.00
+  OPP INDEP (current features): royalty 10.500  fl 12.731  locked_cat 0  overstatement +29.231
+  hero: bust 0.00  royalty 0.00  fl 0.00   exp_lines -1.26   approx_ev +6.00
+      exact     pred   resid   action
+      6.000    0.676   -5.32   Jc->middle, Jh->middle (discard 5s)
+      6.000   -0.351   -6.35   5s->middle, Jh->middle (discard Jc)
+      6.000   -0.351   -6.35   5s->middle, Jc->middle (discard Jh)
+
+================================================================================================
+seed 5000176   common -5.771   spread 0.199   exact_mean +0.000   node_err -5.589
+  BB (hero)
+    top: Kc 8d  [2/3]
+    mid: 3d 2s Ah 3c  [4/5]
+    bot: 4d 2h 9d Qs 6s  [high]
+  BTN (opp)
+    top: 5h  [1/3]
+    mid: X1 As Kh 5c Jh  [pair]
+    bot: 2d 6d Ac Qd 7d  [high]
+  draw ['7s', 'Ad', '6h']   hero dead ['Js', '5s', 'Qc']
+  pool (26): 3h 4h 7h 8h 9h Th Qh 5d Td Jd Kd 2c 4c 6c 7c 8c 9c Tc Jc 3s 4s 8s 9s Ts Ks X2
+  OPP JOINT: ev -6.000  foul 1.000  royalty 0.000  fl 0.000  std 0.00
+  OPP INDEP (current features): royalty 0.495  fl 0.294  locked_cat 1  overstatement +6.790
+  hero: bust 1.00  royalty 0.00  fl 0.00   exp_lines -0.83   approx_ev +0.00
+      exact     pred   resid   action
+      0.000   -6.070   -6.07   7s->top, Ad->middle (discard 6h)
+      0.000   -5.653   -5.65   Ad->top, 7s->middle (discard 6h)
+      0.000   -6.070   -6.07   6h->top, Ad->middle (discard 7s)
+      0.000   -5.653   -5.65   Ad->top, 6h->middle (discard 7s)
+      0.000   -5.589   -5.59   6h->top, 7s->middle (discard Ad)
+
+================================================================================================
+seed 5000132   common -5.765   spread 0.481   exact_mean +2.667   node_err -4.919
+  BB (hero)
+    top: 8c 5h 7h  [high]
+    mid: 9c 5d 8d 5c  [4/5]
+    bot: 4s 5s 2s Ac  [4/5]
+  BTN (opp)
+    top: 8h  [1/3]
+    mid: 3c 4c Jd As Ah  [pair]
+    bot: 9s Jh 6h Kc X2  [pair]
+  draw ['Js', '3d', '4d']   hero dead ['Ts', 'Qs', 'Jc']
+  pool (26): 2h 3h 4h 9h Th Qh Kh 2d 6d 7d 9d Td Qd Kd Ad 2c 6c 7c Tc Qc 3s 6s 7s 8s Ks X1
+  OPP JOINT: ev -6.000  foul 1.000  royalty 0.000  fl 0.000  std 0.00
+  OPP INDEP (current features): royalty 0.843  fl 0.485  locked_cat 0  overstatement +7.328
+  hero: bust 0.67  royalty 0.67  fl 0.00   exp_lines -2.04   approx_ev +2.22
+      exact     pred   resid   action
+      8.000    2.833   -5.17   Js->middle, 3d->bottom (discard 4d)
+      8.000    3.081   -4.92   4d->middle, 3d->bottom (discard Js)
+      0.000   -6.195   -6.19   Js->middle, 4d->bottom (discard 3d)
+      0.000   -6.057   -6.06   4d->middle, Js->bottom (discard 3d)
+      0.000   -6.057   -6.06   3d->middle, Js->bottom (discard 4d)
+
+================================================================================================
+seed 5000712   common -5.487   spread 0.126   exact_mean +0.000   node_err -5.298
+  BB (hero)
+    top: X1 7c  [2/3]
+    mid: 2d As Kd Ah  [4/5]
+    bot: Jh Qs Tc 9s 7s  [high]
+  BTN (opp)
+    top: Kh 3d  [2/3]
+    mid: 8s 9h 3s 6s Qd  [high]
+    bot: Ac Ad 3c 9d  [4/5]
+  draw ['8c', 'Td', 'X2']   hero dead ['7h', 'Kc', '7d']
+  pool (26): 2h 3h 4h 5h 6h 8h Th Qh 4d 5d 6d 8d Jd 2c 4c 5c 6c 9c Jc Qc 2s 4s 5s Ts Js Ks
+  OPP JOINT: ev -6.000  foul 1.000  royalty 0.000  fl 0.000  std 0.00
+  OPP INDEP (current features): royalty 0.308  fl 0.412  locked_cat 0  overstatement +6.719
+  hero: bust 1.00  royalty 0.00  fl 0.00   exp_lines +0.95   approx_ev +0.00
+      exact     pred   resid   action
+      0.000   -5.588   -5.59   Td->top, X2->middle (discard 8c)
+      0.000   -5.298   -5.30   X2->top, Td->middle (discard 8c)
+      0.000   -5.671   -5.67   8c->top, X2->middle (discard Td)
+      0.000   -5.298   -5.30   X2->top, 8c->middle (discard Td)
+      0.000   -5.556   -5.56   8c->top, Td->middle (discard X2)
+
+================================================================================================
+seed 5000291   common -5.485   spread 2.597   exact_mean +5.000   node_err -2.634
+  BB (hero)
+    top: 2s 7s 9s  [high]
+    mid: Kc 6h 2d 9h  [4/5]
+    bot: 5h 3d 5c Kh  [4/5]
+  BTN (opp)
+    top: 4h  [1/3]
+    mid: Ts Td 4d Tc Qh  [trips]
+    bot: 8d Kd 4c X2 Qs  [pair]
+  draw ['X1', '6c', '7h']   hero dead ['6s', 'As', '8s']
+  pool (26): 2h 3h 8h Th Jh Ah 5d 6d 7d 9d Jd Qd Ad 2c 3c 7c 8c 9c Jc Qc Ac 3s 4s 5s Js Ks
+  OPP JOINT: ev -6.000  foul 1.000  royalty 0.000  fl 0.000  std 0.00
+  OPP INDEP (current features): royalty 2.243  fl 0.276  locked_cat 1  overstatement +8.519
+  hero: bust 0.17  royalty 0.00  fl 0.00   exp_lines -1.87   approx_ev +5.00
+      exact     pred   resid   action
+      6.000    3.366   -2.63   7h->middle, X1->bottom (discard 6c)
+      6.000   -2.252   -8.25   X1->middle, 7h->bottom (discard 6c)
+      6.000    2.445   -3.55   6c->middle, X1->bottom (discard 7h)
+      6.000   -2.252   -8.25   X1->middle, 6c->bottom (discard 7h)
+      6.000   -1.741   -7.74   7h->middle, 6c->bottom (discard X1)
+
+================================================================================================
+seed 5000023   common -5.455   spread 0.105   exact_mean +0.000   node_err -5.376
+  BB (hero)
+    top: Js Th Ac  [high]
+    mid: Ks X1 Qd Kh  [4/5]
+    bot: Jh 5d 2d Qs  [4/5]
+  BTN (opp)
+    top: Qh  [1/3]
+    mid: 8d Tc 6h 4d 3s  [high]
+    bot: 6s 2h 2c 7d 3c  [pair]
+  draw ['4c', 'Jc', '6c']   hero dead ['6d', 'Ah', '8c']
+  pool (26): 3h 4h 5h 7h 8h 9h 3d 9d Td Jd Kd Ad 5c 7c 9c Qc Kc 2s 4s 5s 7s 8s 9s Ts As X2
+  OPP JOINT: ev -6.000  foul 1.000  royalty 0.000  fl 0.000  std 0.00
+  OPP INDEP (current features): royalty 1.283  fl 0.570  locked_cat 0  overstatement +7.853
+  hero: bust 1.00  royalty 0.00  fl 0.00   exp_lines +0.98   approx_ev +0.00
+      exact     pred   resid   action
+      0.000   -5.612   -5.61   6c->middle, Jc->bottom (discard 4c)
+      0.000   -5.376   -5.38   Jc->middle, 6c->bottom (discard 4c)
+      0.000   -5.612   -5.61   4c->middle, Jc->bottom (discard 6c)
+      0.000   -5.376   -5.38   Jc->middle, 4c->bottom (discard 6c)
+      0.000   -5.376   -5.38   4c->middle, 6c->bottom (discard Jc)
+
+================================================================================================
+seed 5000634   common -5.372   spread 0.114   exact_mean +0.000   node_err -5.237
+  BB (hero)
+    top: 4d 2d  [2/3]
+    mid: Th 2s 8c Ts  [4/5]
+    bot: Ac Kc Qh 3c 5s  [high]
+  BTN (opp)
+    top: Ad 9c Qc  [high]
+    mid: 7s Jd Js  [3/5]
+    bot: X2 7d 9d 4h 2h  [pair]
+  draw ['Qd', 'As', '6c']   hero dead ['Kh', '3d', '3s']
+  pool (26): 3h 5h 6h 7h 8h 9h Jh Ah 5d 6d 8d Td Kd 2c 4c 5c 7c Tc Jc 4s 6s 8s 9s Qs Ks X1
+  OPP JOINT: ev -6.000  foul 1.000  royalty 0.000  fl 0.000  std 0.00
+  OPP INDEP (current features): royalty 0.831  fl 0.000  locked_cat 0  overstatement +6.831
+  hero: bust 1.00  royalty 0.00  fl 0.00   exp_lines -3.00   approx_ev +0.00
+      exact     pred   resid   action
+      0.000   -5.237   -5.24   As->top, Qd->middle (discard 6c)
+      0.000   -5.291   -5.29   Qd->top, As->middle (discard 6c)
+      0.000   -5.508   -5.51   6c->top, Qd->middle (discard As)
+      0.000   -5.359   -5.36   Qd->top, 6c->middle (discard As)
+      0.000   -5.579   -5.58   6c->top, As->middle (discard Qd)
+
+### 12 most POSITIVE common error (model too optimistic)
+
+================================================================================================
+seed 5000025   common +8.170   spread 2.761   exact_mean -9.780   node_err +12.312
+  BB (hero)
+    top: 4d 3d Jh  [high]
+    mid: 5h 5d Qd 9h 3h  [pair]
+    bot: 7c 8d 5c  [3/5]
+  BTN (opp)
+    top: 7s Kd  [2/3]
+    mid: Ks 3s Qh Kc  [4/5]
+    bot: As 5s Js 3c Ad  [pair]
+  draw ['4c', '8s', '6h']   hero dead ['6c', '7d', 'Th']
+  pool (26): 2h 4h 7h 8h Kh Ah 2d 6d 9d Td Jd 2c 8c 9c Tc Jc Qc Ac 2s 4s 6s 9s Ts Qs X1 X2
+  OPP JOINT: ev +6.115  foul 0.000  royalty 2.725  fl 3.399  std 8.61
+  OPP INDEP (current features): royalty 1.231  fl 1.235  locked_cat 0  overstatement -3.650
+  hero: bust 0.00  royalty 0.67  fl 0.00   exp_lines -2.33   approx_ev -7.79
+      exact     pred   resid   action
+     -5.115    7.197  +12.31   4c->bottom, 6h->bottom (discard 8s)
+    -12.113   -6.014   +6.10   6h->bottom, 8s->bottom (discard 4c)
+    -12.113   -6.014   +6.10   4c->bottom, 8s->bottom (discard 6h)
+
+================================================================================================
+seed 5000198   common +6.936   spread 1.106   exact_mean -6.786   node_err +6.986
+  BB (hero)
+    top: 3d 2h Jd  [high]
+    mid: 9h Kh Ts Jc 4h  [high]
+    bot: 5h 9d 6s  [3/5]
+  BTN (opp)
+    top: 7d 7c Ad  [pair]
+    mid: Ah Th Qd Td Kd  [pair]
+    bot: Jh Js Kc  [3/5]
+  draw ['4c', 'X2', 'Ks']   hero dead ['5d', '8h', 'Qc']
+  pool (26): 3h 6h 7h Qh 2d 4d 6d 8d 2c 3c 5c 6c 8c 9c Tc Ac 2s 3s 4s 5s 7s 8s 9s Qs As X1
+  OPP JOINT: ev +2.000  foul 0.000  royalty 2.000  fl 0.000  std 0.00
+  OPP INDEP (current features): royalty 2.000  fl 0.000  locked_cat 0  overstatement +0.000
+  hero: bust 0.33  royalty 0.00  fl 0.00   exp_lines -2.42   approx_ev -5.61
+      exact     pred   resid   action
+     -4.358    2.628   +6.99   Ks->bottom, X2->bottom (discard 4c)
+     -8.000    0.546   +8.55   4c->bottom, X2->bottom (discard Ks)
+     -8.000   -2.723   +5.28   4c->bottom, Ks->bottom (discard X2)
+
+================================================================================================
+seed 5000706   common +6.060   spread 0.201   exact_mean -4.720   node_err +5.918
+  BB (hero)
+    top: Td 2c  [2/3]
+    mid: 5s 4d Js 5h  [4/5]
+    bot: 9d 8s 8d 9s 2d  [two-pair]
+  BTN (opp)
+    top: As Ah 9c  [pair]
+    mid: X1 Qd Tc Ad 3h  [pair]
+    bot: 4h Ac Kh  [3/5]
+  draw ['Ts', '5d', '7h']   hero dead ['8h', '7s', '4s']
+  pool (26): 2h 6h 9h Th Jh Qh 3d 6d 7d Jd Kd 3c 4c 5c 6c 7c 8c Jc Qc Kc 2s 3s 6s Qs Ks X2
+  OPP JOINT: ev +1.426  foul 0.835  royalty 1.488  fl 4.945  std 16.68
+  OPP INDEP (current features): royalty 9.000  fl 29.900  locked_cat 0  overstatement +37.474
+  hero: bust 0.50  royalty 0.00  fl 0.00   exp_lines -0.39   approx_ev -4.46
+      exact     pred   resid   action
+     -2.014    3.904   +5.92   7h->top, Ts->middle (discard 5d)
+     -2.014    3.836   +5.85   5d->top, Ts->middle (discard 7h)
+     -2.014    3.836   +5.85   5d->top, 7h->middle (discard Ts)
+     -7.426   -1.409   +6.02   Ts->top, 7h->middle (discard 5d)
+     -7.426   -1.008   +6.42   Ts->top, 5d->middle (discard 7h)
+
+================================================================================================
+seed 5000357   common +5.982   spread 0.249   exact_mean -5.952   node_err +6.170
+  BB (hero)
+    top: Qc  [1/3]
+    mid: Ts 6c 2s 3s Jh  [high]
+    bot: Td 5d Qd 2d Th  [pair]
+  BTN (opp)
+    top: 9d Kd  [2/3]
+    mid: 4c 4d 6h Qs  [4/5]
+    bot: 5h Ad 6s 8d 6d  [pair]
+  draw ['7c', 'Jd', '7h']   hero dead ['7d', 'As', 'Ac']
+  pool (26): 2h 3h 4h 8h 9h Qh Kh Ah 3d 2c 3c 5c 8c 9c Tc Jc Kc 4s 5s 7s 8s 9s Js Ks X1 X2
+  OPP JOINT: ev -0.048  foul 0.008  royalty 0.129  fl 0.148  std 0.54
+  OPP INDEP (current features): royalty 2.308  fl 2.058  locked_cat 0  overstatement +4.414
+  hero: bust 1.00  royalty 0.00  fl 0.00   exp_lines -0.54   approx_ev -6.23
+      exact     pred   resid   action
+     -5.952    0.218   +6.17   7h->top, Jd->top (discard 7c)
+     -5.952    0.218   +6.17   7c->top, Jd->top (discard 7h)
+     -5.952   -0.343   +5.61   7c->top, 7h->top (discard Jd)
+
+================================================================================================
+seed 5000355   common +5.597   spread 0.080   exact_mean -6.318   node_err +5.717
+  BB (hero)
+    top: 3s Qd Js  [high]
+    mid: 9h 9c 8s  [3/5]
+    bot: 5s 3d 2s As 3c  [pair]
+  BTN (opp)
+    top: Ks 6d  [2/3]
+    mid: 9d X2 7s 9s  [4/5]
+    bot: Ac Qc 8d Jd Ah  [pair]
+  draw ['Kh', '7h', 'Jh']   hero dead ['X1', 'Qh', '4h']
+  pool (26): 2h 3h 5h 6h 8h Th 2d 4d 5d 7d Td Kd Ad 2c 4c 5c 6c 7c 8c Tc Jc Kc 4s 6s Ts Qs
+  OPP JOINT: ev +0.318  foul 0.000  royalty 2.318  fl 0.000  std 0.47
+  OPP INDEP (current features): royalty 3.500  fl 0.823  locked_cat 1  overstatement +4.005
+  hero: bust 1.00  royalty 0.00  fl 0.00   exp_lines -3.00   approx_ev -8.32
+      exact     pred   resid   action
+     -6.318   -0.781   +5.54   Jh->middle, Kh->middle (discard 7h)
+     -6.318   -0.781   +5.54   7h->middle, Kh->middle (discard Jh)
+     -6.318   -0.600   +5.72   7h->middle, Jh->middle (discard Kh)
+
+================================================================================================
+seed 5000065   common +5.528   spread 2.171   exact_mean -4.921   node_err +6.463
+  BB (hero)
+    top: Th 5s  [2/3]
+    mid: 9h X1 Kd Ac  [4/5]
+    bot: Ah 5h 3h Ts 3c  [pair]
+  BTN (opp)
+    top: 6c  [1/3]
+    mid: Qd Jd 8d 2c 2s  [pair]
+    bot: Td 2h 7d 9c 7h  [pair]
+  draw ['Qh', '4s', '9d']   hero dead ['3d', '4d', '4c']
+  pool (26): 4h 6h 8h Jh Kh 2d 5d 6d Ad 5c 7c 8c Tc Jc Qc Kc 3s 6s 7s 8s 9s Js Qs Ks As X2
+  OPP JOINT: ev -0.258  foul 0.043  royalty 0.143  fl 0.130  std 1.22
+  OPP INDEP (current features): royalty 0.985  fl 1.646  locked_cat 0  overstatement +2.889
+  hero: bust 0.33  royalty 0.00  fl 0.00   exp_lines -1.86   approx_ev -3.20
+      exact     pred   resid   action
+     -3.693    2.771   +6.46   Qh->top, 4s->middle (discard 9d)
+     -4.735    2.550   +7.29   9d->top, Qh->middle (discard 4s)
+     -4.735    2.550   +7.29   9d->top, 4s->middle (discard Qh)
+     -4.879    2.713   +7.59   4s->top, Qh->middle (discard 9d)
+     -5.742   -3.555   +2.19   Qh->top, 9d->middle (discard 4s)
+
+================================================================================================
+seed 5000034   common +5.332   spread 0.015   exact_mean -4.892   node_err +5.354
+  BB (hero)
+    top: Ah Qs  [2/3]
+    mid: 9h 9d 8c 7h  [4/5]
+    bot: 5c 3d 3s 4c Jc  [pair]
+  BTN (opp)
+    top: Jd Jh  [2/3]
+    mid: Qh Ks 5s 7c Kd  [pair]
+    bot: Ts As 5h 3c  [4/5]
+  draw ['Tc', '6d', '6c']   hero dead ['2c', '7s', 'Qc']
+  pool (26): 2h 3h 4h 6h 8h Th Kh 2d 4d 5d 7d 8d Td Qd Ad 9c Kc Ac 2s 4s 6s 8s 9s Js X1 X2
+  OPP JOINT: ev -1.108  foul 0.592  royalty 2.451  fl 0.024  std 5.90
+  OPP INDEP (current features): royalty 7.500  fl 7.327  locked_cat 0  overstatement +15.935
+  hero: bust 1.00  royalty 0.00  fl 0.00   exp_lines -1.62   approx_ev -4.92
+      exact     pred   resid   action
+     -4.892    0.461   +5.35   6d->top, Tc->middle (discard 6c)
+     -4.892    0.428   +5.32   Tc->top, 6d->middle (discard 6c)
+     -4.892    0.461   +5.35   6c->top, Tc->middle (discard 6d)
+     -4.892    0.428   +5.32   Tc->top, 6c->middle (discard 6d)
+     -4.892    0.428   +5.32   6c->top, 6d->middle (discard Tc)
+
+================================================================================================
+seed 5000108   common +5.128   spread 0.000   exact_mean -7.155   node_err +5.128
+  BB (hero)
+    top: Qc 8h 6c  [high]
+    mid: Th Ac Qs 8s  [4/5]
+    bot: Jd Ts 5c 4c  [4/5]
+  BTN (opp)
+    top: 2h Ks 7d  [high]
+    mid: Kh Tc 6s Jc 7s  [high]
+    bot: 6h X1 5d  [3/5]
+  draw ['3s', '6d', '7c']   hero dead ['Js', 'Kc', 'Qd']
+  pool (26): 3h 4h 5h 7h 9h Jh Qh Ah 2d 3d 4d 8d 9d Td Kd Ad 2c 3c 8c 9c 2s 4s 5s 9s As X2
+  OPP JOINT: ev +1.155  foul 0.000  royalty 1.155  fl 0.000  std 1.77
+  OPP INDEP (current features): royalty 0.517  fl 0.000  locked_cat 0  overstatement -0.638
+  hero: bust 1.00  royalty 0.00  fl 0.00   exp_lines -1.00   approx_ev -7.15
+      exact     pred   resid   action
+     -7.155   -2.026   +5.13   6d->middle, 7c->bottom (discard 3s)
+     -7.155   -2.026   +5.13   7c->middle, 6d->bottom (discard 3s)
+     -7.155   -2.026   +5.13   3s->middle, 7c->bottom (discard 6d)
+     -7.155   -2.026   +5.13   7c->middle, 3s->bottom (discard 6d)
+     -7.155   -2.026   +5.13   3s->middle, 6d->bottom (discard 7c)
+
+================================================================================================
+seed 5000513   common +5.040   spread 0.896   exact_mean +1.579   node_err +3.732
+  BB (hero)
+    top: 5c 6c 8d  [high]
+    mid: 3c 8c 5d 7d 6h  [high]
+    bot: X2 3h 7h  [3/5]
+  BTN (opp)
+    top: 4s 8h 9h  [high]
+    mid: 4c 7c Jd  [3/5]
+    bot: Kc Qs 4d Ac 3d  [high]
+  draw ['4h', 'Qh', '6d']   hero dead ['Ad', 'Tc', 'X1']
+  pool (26): 2h 5h Th Jh Kh Ah 2d 9d Td Qd Kd 2c 9c Jc Qc 2s 3s 5s 6s 7s 8s 9s Ts Js Ks As
+  OPP JOINT: ev -0.496  foul 0.083  royalty 0.000  fl 0.000  std 1.65
+  OPP INDEP (current features): royalty 0.018  fl 0.000  locked_cat 0  overstatement +0.515
+  hero: bust 0.00  royalty 2.00  fl 0.00   exp_lines -1.00   approx_ev +1.58
+      exact     pred   resid   action
+      3.579    7.275   +3.70   4h->bottom, Qh->bottom (discard 6d)
+      1.579    7.311   +5.73   4h->bottom, 6d->bottom (discard Qh)
+     -0.421    5.269   +5.69   6d->bottom, Qh->bottom (discard 4h)
+
+================================================================================================
+seed 5000695   common +4.890   spread 0.000   exact_mean -5.991   node_err +4.890
+  BB (hero)
+    top: 5s Ad 6h  [high]
+    mid: Kc Jh Js Ks  [4/5]
+    bot: 7s 9c 3d Kh  [4/5]
+  BTN (opp)
+    top: 4h  [1/3]
+    mid: 5h X2 5c Qc 6c  [trips]
+    bot: Ts Tc Kd 9d 3s  [pair]
+  draw ['8d', '6s', '2d']   hero dead ['3h', 'Td', '7d']
+  pool (26): 2h 7h 8h 9h Th Qh Ah 4d 5d 6d Jd Qd 2c 3c 4c 7c 8c Jc Ac 2s 4s 8s 9s Qs As X1
+  OPP JOINT: ev -0.009  foul 0.002  royalty 2.037  fl 0.108  std 0.24
+  OPP INDEP (current features): royalty 2.702  fl 1.724  locked_cat 1  overstatement +4.435
+  hero: bust 1.00  royalty 0.00  fl 0.00   exp_lines -1.91   approx_ev -8.14
+      exact     pred   resid   action
+     -5.991   -1.101   +4.89   6s->middle, 8d->bottom (discard 2d)
+     -5.991   -1.101   +4.89   8d->middle, 6s->bottom (discard 2d)
+     -5.991   -1.101   +4.89   2d->middle, 8d->bottom (discard 6s)
+     -5.991   -1.101   +4.89   8d->middle, 2d->bottom (discard 6s)
+     -5.991   -1.101   +4.89   2d->middle, 6s->bottom (discard 8d)
+
+================================================================================================
+seed 5000079   common +4.849   spread 0.486   exact_mean -5.953   node_err +5.585
+  BB (hero)
+    top: Js As  [2/3]
+    mid: Qd 3d 8c 6s  [4/5]
+    bot: Kh 5h 7h 9d Jh  [high]
+  BTN (opp)
+    top: 9s  [1/3]
+    mid: 7s 4h 8s 8h X2  [trips]
+    bot: Jc 2c 3h Jd Ks  [pair]
+  draw ['3c', 'Qc', 'Kc']   hero dead ['5d', 'Tc', 'X1']
+  pool (26): 2h 6h 9h Th Qh Ah 2d 4d 6d 7d 8d Td Kd Ad 4c 5c 6c 7c 9c Ac 2s 3s 4s 5s Ts Qs
+  OPP JOINT: ev -0.047  foul 0.015  royalty 2.015  fl 0.000  std 0.78
+  OPP INDEP (current features): royalty 2.809  fl 0.471  locked_cat 1  overstatement +3.328
+  hero: bust 1.00  royalty 0.00  fl 0.00   exp_lines -1.44   approx_ev -7.92
+      exact     pred   resid   action
+     -5.953   -1.486   +4.47   Kc->top, Qc->middle (discard 3c)
+     -5.953   -1.460   +4.49   Qc->top, Kc->middle (discard 3c)
+     -5.953   -1.505   +4.45   3c->top, Qc->middle (discard Kc)
+     -5.953   -0.381   +5.57   Qc->top, 3c->middle (discard Kc)
+     -5.953   -1.425   +4.53   3c->top, Kc->middle (discard Qc)
+
+================================================================================================
+seed 5000563   common +4.444   spread 0.596   exact_mean -0.111   node_err +5.051
+  BB (hero)
+    top: 5h Kh 3h  [high]
+    mid: 4h 6s 5c 6c  [4/5]
+    bot: X2 7c 9s Kd  [4/5]
+  BTN (opp)
+    top: X1  [1/3]
+    mid: 2s Jh 9h Ah 6d  [high]
+    bot: Ts 9d 6h Ad Jc  [high]
+  draw ['9c', '8h', '4s']   hero dead ['8d', 'Jd', '4c']
+  pool (26): 2h 7h Th Qh 2d 3d 4d 5d 7d Td Qd 2c 3c 8c Tc Qc Kc Ac 3s 5s 7s 8s Js Qs Ks As
+  OPP JOINT: ev -0.065  foul 0.011  royalty 4.794  fl 2.699  std 0.62
+  OPP INDEP (current features): royalty 6.400  fl 10.163  locked_cat 0  overstatement +16.628
+  hero: bust 0.17  royalty 0.00  fl 0.00   exp_lines +1.00   approx_ev -7.60
+      exact     pred   resid   action
+      1.054    4.960   +3.91   8h->middle, 9c->bottom (discard 4s)
+      1.054    6.089   +5.04   9c->middle, 8h->bottom (discard 4s)
+      1.054    4.942   +3.89   4s->middle, 9c->bottom (discard 8h)
+      1.054    6.089   +5.04   9c->middle, 4s->bottom (discard 8h)
+      1.054    6.104   +5.05   8h->middle, 4s->bottom (discard 9c)
+
+wrote ai\reports\t4_first_node_error_diagnosis_20260729\analysis.json   elapsed 141.4s
