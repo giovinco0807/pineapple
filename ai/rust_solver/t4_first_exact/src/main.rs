@@ -17,6 +17,7 @@
 use anyhow::{anyhow, bail, Context, Result};
 use clap::Parser;
 use ofc_core::{
+    evaluate_hand_value,
     check_fl_entry, compare_3_hands, compare_5_hands, evaluate_board_with_joker_constraint,
     get_bottom_royalty, get_middle_royalty, get_top_royalty, Card,
 };
@@ -170,13 +171,17 @@ impl CoreBoard {
 }
 
 /// Terminal facts of one complete board, after canonical joker constraint.
+///
+/// Row hand values are kept as the encoded comparison keys rather than the
+/// cards, because scoring only ever compares them.  That keeps the struct
+/// copyable and lets the opponent's terminals be computed once per root and
+/// reused across every hero action.
+#[derive(Clone, Copy)]
 struct Terminal {
     busted: bool,
     royalty: i32,
     fl_card_count: u8,
-    top: Vec<Card>,
-    middle: Vec<Card>,
-    bottom: Vec<Card>,
+    values: [u32; 3],
 }
 
 fn terminal_of(board: &CoreBoard) -> Terminal {
@@ -195,9 +200,11 @@ fn terminal_of(board: &CoreBoard) -> Terminal {
         busted,
         royalty,
         fl_card_count,
-        top: eval.top,
-        middle: eval.mid,
-        bottom: eval.bot,
+        values: [
+            evaluate_hand_value(&eval.top, 3),
+            evaluate_hand_value(&eval.mid, 5),
+            evaluate_hand_value(&eval.bot, 5),
+        ],
     }
 }
 
@@ -211,9 +218,12 @@ fn hero_score(hero: &Terminal, opponent: &Terminal, fl_ev: &FlEv) -> f64 {
     } else if opponent.busted {
         6.0 + hero.royalty as f64
     } else {
-        let lines = compare_3_hands(&hero.top, &opponent.top)
-            + compare_5_hands(&hero.middle, &opponent.middle)
-            + compare_5_hands(&hero.bottom, &opponent.bottom);
+        let lines: i32 = (0..3)
+            .map(|row| {
+                let (a, b) = (hero.values[row], opponent.values[row]);
+                (a > b) as i32 - (a < b) as i32
+            })
+            .sum();
         let scoop = if lines == 3 {
             3
         } else if lines == -3 {
@@ -375,52 +385,102 @@ fn solve(request: &Request, fl_ev: &FlEv) -> Result<Response> {
         bail!("opponent board must have exactly two open slots");
     }
 
+    // The unknown pool is action-independent: two of the three drawn cards land
+    // on the hero board and the third is discarded, so all three leave the pool
+    // either way.  Computing it once also lets the inner loop stay allocation
+    // free, which is what makes teacher-scale generation affordable.
+    let pool: Vec<Card> = all_cards()
+        .into_iter()
+        .filter(|card| !used.contains(card))
+        .map(|card| to_core_card(&card))
+        .collect::<Result<Vec<_>>>()?;
+
+    // The opponent's reply shapes are fixed by where its two open slots are, so
+    // the (which two of three cards, into which rows) patterns are enumerated
+    // once instead of per draw.
+    let mut reply_patterns: Vec<([usize; 2], [usize; 2])> = Vec::new();
+    for discard_index in 0..3usize {
+        let kept: Vec<usize> = (0..3).filter(|index| *index != discard_index).collect();
+        for row_a in 0..3usize {
+            for row_b in 0..3usize {
+                let mut need = [0usize; 3];
+                need[row_a] += 1;
+                need[row_b] += 1;
+                if (0..3).any(|row| need[row] > opponent_open[row]) {
+                    continue;
+                }
+                if row_a == row_b && kept[0] > kept[1] {
+                    continue; // same row: order is irrelevant
+                }
+                reply_patterns.push(([kept[0], kept[1]], [row_a, row_b]));
+            }
+        }
+    }
+    if reply_patterns.is_empty() {
+        bail!("opponent has no legal T4 reply shape");
+    }
+
+    // The opponent's terminal facts do not depend on the hero's action, so all
+    // `C(n,3) x replies` boards are evaluated once per root and reused.  This
+    // is the difference between one and `len(actions)` passes over the most
+    // expensive part of the solve.
+    let reply_count = reply_patterns.len();
+    let pool_len = pool.len();
+    let mut draws: Vec<[Card; 3]> = Vec::new();
+    for a in 0..pool_len {
+        for b in (a + 1)..pool_len {
+            for c in (b + 1)..pool_len {
+                draws.push([pool[a], pool[b], pool[c]]);
+            }
+        }
+    }
+    // This precompute dominates the solve, so it carries the root's
+    // parallelism; the per-action pass below is pure arithmetic.
+    let opponent_terminals: Vec<Terminal> = draws
+        .par_iter()
+        .flat_map_iter(|opponent_draw| {
+            let mut scratch = opponent_base.clone();
+            let mut local = Vec::with_capacity(reply_count);
+            for (cards, rows) in &reply_patterns {
+                scratch.rows[rows[0]].push(opponent_draw[cards[0]]);
+                scratch.rows[rows[1]].push(opponent_draw[cards[1]]);
+                local.push(terminal_of(&scratch));
+                scratch.rows[rows[1]].pop();
+                scratch.rows[rows[0]].pop();
+            }
+            local.into_iter()
+        })
+        .collect();
+    let draw_count = opponent_terminals.len() / reply_count;
+    if draw_count == 0 {
+        bail!("opponent draw enumeration is empty");
+    }
+
     let results: Result<Vec<ActionResult>> = actions
         .par_iter()
         .map(|action| {
-            // The hero's discard leaves the deck along with the other dead
-            // cards, so each action sees its own remaining pool.
-            let mut pool: Vec<String> = Vec::with_capacity(26);
-            for card in all_cards() {
-                if used.contains(&card) {
-                    continue;
-                }
-                pool.push(card);
-            }
             let hero_final = apply(&hero_base, action)?;
             let hero_terminal = terminal_of(&hero_final);
 
             let mut total = 0.0f64;
-            let mut draws = 0usize;
-            let pool_len = pool.len();
-            for a in 0..pool_len {
-                for b in (a + 1)..pool_len {
-                    for c in (b + 1)..pool_len {
-                        let opponent_draw =
-                            [pool[a].clone(), pool[b].clone(), pool[c].clone()];
-                        let mut best: Option<f64> = None;
-                        for reply in legal_actions(&opponent_base, &opponent_draw) {
-                            let opponent_final = apply(&opponent_base, &reply)?;
-                            let opponent_terminal = terminal_of(&opponent_final);
-                            // Opponent maximizes its own score; ties do not
-                            // change the hero EV, so only the max is needed.
-                            let score =
-                                hero_score(&opponent_terminal, &hero_terminal, fl_ev);
-                            if best.map_or(true, |current| score > current) {
-                                best = Some(score);
-                            }
-                        }
-                        let best = best.ok_or_else(|| {
-                            anyhow!("opponent has no legal T4 reply")
-                        })?;
-                        total += -best;
-                        draws += 1;
+            for draw_index in 0..draw_count {
+                let base = draw_index * reply_count;
+                let mut best = f64::NEG_INFINITY;
+                for offset in 0..reply_count {
+                    // Opponent maximizes its own score; ties do not change the
+                    // hero EV, so only the max is needed.
+                    let score = hero_score(
+                        &opponent_terminals[base + offset],
+                        &hero_terminal,
+                        fl_ev,
+                    );
+                    if score > best {
+                        best = score;
                     }
                 }
+                total += -best;
             }
-            if draws == 0 {
-                bail!("opponent draw enumeration is empty");
-            }
+            let draws = draw_count;
             let mut placements: Vec<(String, String)> = (0..2)
                 .map(|slot| {
                     (
@@ -467,22 +527,40 @@ struct Cli {
     /// Canonical Fantasyland EV config.
     #[arg(long, default_value = "ai/config/fl_ev.json")]
     fl_ev_config: PathBuf,
+    /// Roots solved per parallel batch before flushing output.
+    #[arg(long, default_value_t = 256)]
+    chunk_size: usize,
 }
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
     let fl_ev = FlEv::load(&cli.fl_ev_config)?;
     let reader = BufReader::new(File::open(&cli.input)?);
-    let mut writer = BufWriter::new(File::create(&cli.output)?);
+    let mut requests: Vec<Request> = Vec::new();
     for line in reader.lines() {
         let line = line?;
         if line.trim().is_empty() {
             continue;
         }
-        let request: Request = serde_json::from_str(&line)?;
-        let response = solve(&request, &fl_ev)?;
-        writeln!(writer, "{}", serde_json::to_string(&response)?)?;
+        requests.push(serde_json::from_str(&line)?);
     }
-    writer.flush()?;
+
+    // Root-level parallelism: teacher generation is many independent roots, and
+    // the per-action rayon inside `solve` cannot saturate the machine on roots
+    // with only three legal actions.
+    let mut writer = BufWriter::new(File::create(&cli.output)?);
+    for chunk in requests.chunks(cli.chunk_size.max(1)) {
+        let solved: Result<Vec<String>> = chunk
+            .par_iter()
+            .map(|request| {
+                let response = solve(request, &fl_ev)?;
+                Ok(serde_json::to_string(&response)?)
+            })
+            .collect();
+        for line in solved? {
+            writeln!(writer, "{line}")?;
+        }
+        writer.flush()?;
+    }
     Ok(())
 }
