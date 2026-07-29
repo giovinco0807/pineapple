@@ -612,6 +612,149 @@ fn solve(request: &Request, fl_ev: &FlEv) -> Result<Response> {
     })
 }
 
+#[derive(Deserialize)]
+struct JointRequest {
+    id: String,
+    /// Opponent board with exactly two open slots.
+    btn: BoardStr,
+    /// Cards unseen from the acting seat's information set.
+    pool: Vec<String>,
+}
+
+#[derive(Serialize)]
+struct JointResponse {
+    id: String,
+    schema: &'static str,
+    fl_ev_config_sha256: String,
+    pool_size: usize,
+    opponent_joint_block: [f64; 8],
+}
+
+/// Joint block only: the opponent pair terminals without the per-action pass.
+/// Used when a caller needs the shared node block but not the exact action EVs.
+fn solve_joint_only(request: &JointRequest, fl_ev: &FlEv) -> Result<JointResponse> {
+    let opponent_base = CoreBoard::from_str_board(&request.btn)?;
+    if opponent_base.card_count() != 11 {
+        bail!("joint-only solve requires an 11-card opponent board");
+    }
+    let opponent_open = opponent_base.open_slots();
+    if opponent_open.iter().sum::<usize>() != 2 {
+        bail!("opponent board must have exactly two open slots");
+    }
+    let pool: Vec<Card> = request
+        .pool
+        .iter()
+        .map(|card| to_core_card(card))
+        .collect::<Result<Vec<_>>>()?;
+    if pool.len() < 3 {
+        bail!("pool must hold at least three cards");
+    }
+
+    let mut row_assignments: Vec<[usize; 2]> = Vec::new();
+    for row_a in 0..3usize {
+        for row_b in 0..3usize {
+            let mut need = [0usize; 3];
+            need[row_a] += 1;
+            need[row_b] += 1;
+            if (0..3).any(|row| need[row] > opponent_open[row]) {
+                continue;
+            }
+            if row_a == row_b {
+                if !row_assignments.iter().any(|rows| rows == &[row_a, row_b]) {
+                    row_assignments.push([row_a, row_b]);
+                }
+            } else {
+                row_assignments.push([row_a, row_b]);
+            }
+        }
+    }
+    let pool_len = pool.len();
+    let mut pair_slots: Vec<(usize, usize)> = Vec::new();
+    for i in 0..pool_len {
+        for j in (i + 1)..pool_len {
+            pair_slots.push((i, j));
+        }
+    }
+    let pair_terminals: Vec<((usize, usize), Vec<Terminal>)> = pair_slots
+        .par_iter()
+        .map(|(i, j)| {
+            let mut scratch = opponent_base.clone();
+            let mut local = Vec::with_capacity(row_assignments.len());
+            for rows in &row_assignments {
+                scratch.rows[rows[0]].push(pool[*i]);
+                scratch.rows[rows[1]].push(pool[*j]);
+                local.push(terminal_of(&scratch));
+                scratch.rows[rows[1]].pop();
+                scratch.rows[rows[0]].pop();
+            }
+            ((*i, *j), local)
+        })
+        .collect();
+    let mut table: Vec<Option<Vec<Terminal>>> = vec![None; pool_len * pool_len];
+    for ((i, j), terminals) in pair_terminals {
+        table[i * pool_len + j] = Some(terminals);
+    }
+
+    let mut best_self: Vec<f64> = Vec::new();
+    let mut fouls = 0usize;
+    let mut survivors = 0usize;
+    let (mut survive_royalty, mut survive_fl) = (0.0f64, 0.0f64);
+    for a in 0..pool_len {
+        for b in (a + 1)..pool_len {
+            for c in (b + 1)..pool_len {
+                let mut best = f64::NEG_INFINITY;
+                let mut parts = (0.0f64, 0.0f64);
+                for (first, second) in [(a, b), (a, c), (b, c)] {
+                    let terminals = table[first * pool_len + second]
+                        .as_ref()
+                        .ok_or_else(|| anyhow!("pair terminal missing"))?;
+                    for terminal in terminals {
+                        let value = opponent_self_value(terminal, fl_ev);
+                        if value > best {
+                            best = value;
+                            parts = if terminal.busted {
+                                (0.0, 0.0)
+                            } else {
+                                (terminal.royalty as f64, fl_ev.value(terminal.fl_card_count))
+                            };
+                        }
+                    }
+                }
+                if best <= -6.0 {
+                    fouls += 1;
+                } else {
+                    survivors += 1;
+                    survive_royalty += parts.0;
+                    survive_fl += parts.1;
+                }
+                best_self.push(best);
+            }
+        }
+    }
+    let count = best_self.len() as f64;
+    let mean = best_self.iter().sum::<f64>() / count;
+    let variance = best_self.iter().map(|v| (v - mean) * (v - mean)).sum::<f64>() / count;
+    let denominator = survivors.max(1) as f64;
+    const MAX_ROYALTY: f64 = 25.0;
+    const MAX_FL_EV: f64 = 63.5;
+    Ok(JointResponse {
+        id: request.id.clone(),
+        schema: "ofc_t4_first_joint_block/v1",
+        fl_ev_config_sha256: fl_ev.config_sha256.clone(),
+        pool_size: pool_len,
+        opponent_joint_block: [
+            fouls as f64 / count,
+            mean / MAX_ROYALTY,
+            (survive_royalty / denominator) / MAX_ROYALTY,
+            (survive_fl / denominator) / MAX_FL_EV,
+            variance.sqrt() / MAX_ROYALTY,
+            best_self.iter().filter(|v| **v >= 6.0).count() as f64 / count,
+            best_self.iter().filter(|v| **v >= 15.0).count() as f64 / count,
+            (best_self.iter().filter(|v| **v > -6.0).sum::<f64>() / denominator) / MAX_ROYALTY,
+        ],
+    })
+}
+
 #[derive(Parser)]
 #[command(about = "Exact T4 first-seat solver (canonical FL EV, f64 scoring)")]
 struct Cli {
@@ -627,11 +770,37 @@ struct Cli {
     /// Roots solved per parallel batch before flushing output.
     #[arg(long, default_value_t = 256)]
     chunk_size: usize,
+    /// Read {id, btn, pool} lines and emit only the shared joint block.
+    #[arg(long, default_value_t = false)]
+    joint_only: bool,
 }
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
     let fl_ev = FlEv::load(&cli.fl_ev_config)?;
+    if cli.joint_only {
+        let reader = BufReader::new(File::open(&cli.input)?);
+        let mut requests: Vec<JointRequest> = Vec::new();
+        for line in reader.lines() {
+            let line = line?;
+            if !line.trim().is_empty() {
+                requests.push(serde_json::from_str(&line)?);
+            }
+        }
+        let mut writer = BufWriter::new(File::create(&cli.output)?);
+        for chunk in requests.chunks(cli.chunk_size.max(1)) {
+            let solved: Result<Vec<String>> = chunk
+                .par_iter()
+                .map(|request| Ok(serde_json::to_string(&solve_joint_only(request, &fl_ev)?)?))
+                .collect();
+            for line in solved? {
+                writeln!(writer, "{line}")?;
+            }
+            writer.flush()?;
+        }
+        return Ok(());
+    }
+
     let reader = BufReader::new(File::open(&cli.input)?);
     let mut requests: Vec<Request> = Vec::new();
     for line in reader.lines() {
