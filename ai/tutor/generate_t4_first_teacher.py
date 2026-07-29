@@ -128,7 +128,11 @@ def build_rows(root: dict, labelled: dict) -> list[tuple[list[float], float, int
         bottom=list(root["bb_board"][2]),
     )
     cache = features.NodeCache.for_root(
-        root["bb_board"], root["btn_board"], root["draw"], root["bb_discards"]
+        root["bb_board"],
+        root["btn_board"],
+        root["draw"],
+        root["bb_discards"],
+        joint_block=labelled.get("opponent_joint_block"),
     )
     ev_by_key = {row["action_key"]: float(row["ev"]) for row in labelled["actions"]}
     all_cards = (

@@ -344,6 +344,20 @@ struct Response {
     remaining_deck_size: usize,
     enumerated_draws: usize,
     actions: Vec<ActionResult>,
+    /// Action-independent joint outlook of the opponent's two-card completion.
+    /// Order matches `ai/tutor/t4_first_features.opponent_joint_block`.
+    opponent_joint_block: [f64; 8],
+}
+
+/// The opponent's own value of a finished board: royalty plus Fantasyland,
+/// with a foul worth -6.  Line wins against the hero are excluded on purpose --
+/// they are action-dependent, and this block must stay shared across the node.
+fn opponent_self_value(terminal: &Terminal, fl_ev: &FlEv) -> f64 {
+    if terminal.busted {
+        -6.0
+    } else {
+        terminal.royalty as f64 + fl_ev.value(terminal.fl_card_count)
+    }
 }
 
 fn solve(request: &Request, fl_ev: &FlEv) -> Result<Response> {
@@ -520,6 +534,67 @@ fn solve(request: &Request, fl_ev: &FlEv) -> Result<Response> {
         })
         .collect();
 
+    // The joint block reuses the pair terminals already computed above, so it
+    // costs one pass over the draws rather than a second enumeration.
+    let mut best_self: Vec<f64> = Vec::with_capacity(draw_count);
+    let mut fouls = 0usize;
+    let mut survivors = 0usize;
+    let mut survive_royalty = 0.0f64;
+    let mut survive_fl = 0.0f64;
+    for draw in &draws {
+        let mut best = f64::NEG_INFINITY;
+        let mut best_parts = (0.0f64, 0.0f64);
+        for (first, second) in [
+            (draw[0], draw[1]),
+            (draw[0], draw[2]),
+            (draw[1], draw[2]),
+        ] {
+            let terminals = terminal_table[pair_index(first, second)]
+                .as_ref()
+                .ok_or_else(|| anyhow!("opponent pair terminal is missing"))?;
+            for terminal in terminals {
+                let value = opponent_self_value(terminal, fl_ev);
+                if value > best {
+                    best = value;
+                    best_parts = if terminal.busted {
+                        (0.0, 0.0)
+                    } else {
+                        (
+                            terminal.royalty as f64,
+                            fl_ev.value(terminal.fl_card_count),
+                        )
+                    };
+                }
+            }
+        }
+        if best <= -6.0 {
+            fouls += 1;
+        } else {
+            survivors += 1;
+            survive_royalty += best_parts.0;
+            survive_fl += best_parts.1;
+        }
+        best_self.push(best);
+    }
+    let count = best_self.len() as f64;
+    let mean = best_self.iter().sum::<f64>() / count;
+    let variance =
+        best_self.iter().map(|v| (v - mean) * (v - mean)).sum::<f64>() / count;
+    let survive_denominator = survivors.max(1) as f64;
+    const MAX_ROYALTY: f64 = 25.0;
+    const MAX_FL_EV: f64 = 63.5;
+    let joint_block = [
+        fouls as f64 / count,
+        mean / MAX_ROYALTY,
+        (survive_royalty / survive_denominator) / MAX_ROYALTY,
+        (survive_fl / survive_denominator) / MAX_FL_EV,
+        variance.sqrt() / MAX_ROYALTY,
+        best_self.iter().filter(|v| **v >= 6.0).count() as f64 / count,
+        best_self.iter().filter(|v| **v >= 15.0).count() as f64 / count,
+        (best_self.iter().filter(|v| **v > -6.0).sum::<f64>() / survive_denominator)
+            / MAX_ROYALTY,
+    ];
+
     let mut actions_out = results?;
     actions_out.sort_by(|a, b| a.action_key.cmp(&b.action_key));
     let remaining = 54 - used.len();
@@ -533,6 +608,7 @@ fn solve(request: &Request, fl_ev: &FlEv) -> Result<Response> {
         remaining_deck_size: remaining,
         enumerated_draws: enumerated,
         actions: actions_out,
+        opponent_joint_block: joint_block,
     })
 }
 

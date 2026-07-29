@@ -293,13 +293,21 @@ def opponent_joint_block(
             results.append((values, sum(royalties), fl, key))
         return results
 
-    def self_value(values, royalty, fl, placed) -> float:
+    def self_value(values, royalty, fl, placed) -> tuple[float, float, float]:
+        """Return (value, royalty, FL) that are always mutually consistent.
+
+        The royalty and Fantasyland parts must come from the same evaluation
+        as the value.  Reading them off the unconstrained per-row tables while
+        the value came from the constrained board overstates both whenever a
+        joker was pushed down, which is the divergence the Rust parity check
+        caught.
+        """
         if values[0] <= values[1] <= values[2]:
-            return royalty + fl
+            return royalty + fl, royalty, fl
         # A raw ordering violation is only rescuable through the canonical
         # joker constraint, so fall back to it just when a joker is present.
         if not (board_has_joker or any(is_joker(card) for card in placed)):
-            return FOUL_SELF_VALUE
+            return FOUL_SELF_VALUE, 0.0, 0.0
         rows_final = [list(opponent_board[index]) for index in range(3)]
         if len(open_rows) == 2:
             rows_final[open_rows[0]].append(placed[0])
@@ -307,7 +315,9 @@ def opponent_joint_block(
         else:
             rows_final[open_rows[0]].extend(placed)
         busted, constrained_royalty, constrained_fl = _constrained_facts(rows_final)
-        return FOUL_SELF_VALUE if busted else constrained_royalty + constrained_fl
+        if busted:
+            return FOUL_SELF_VALUE, 0.0, 0.0
+        return constrained_royalty + constrained_fl, constrained_royalty, constrained_fl
 
     best_values: list[float] = []
     fouls = 0
@@ -319,10 +329,10 @@ def opponent_joint_block(
         best_parts = (0.0, 0.0)
         for kept in combinations(draw, 2):
             for values, royalty, fl, placed in finals_for(kept):
-                value = self_value(values, royalty, fl, placed)
+                value, used_royalty, used_fl = self_value(values, royalty, fl, placed)
                 if best is None or value > best:
                     best = value
-                    best_parts = (0.0, 0.0) if value == FOUL_SELF_VALUE else (royalty, fl)
+                    best_parts = (used_royalty, used_fl)
         best_values.append(float(best))
         if best == FOUL_SELF_VALUE:
             fouls += 1
@@ -356,6 +366,7 @@ def opponent_joint_block(
 def opponent_block(
     opponent_board: Sequence[Sequence[str]],
     pool: Sequence[str],
+    joint_block: Sequence[float] | None = None,
 ) -> tuple[list[float], list[int]]:
     """Outlook over the opponent's remaining draw, action-independent.
 
@@ -412,7 +423,13 @@ def opponent_block(
         sum(1 for row in opponent_board for card in row if is_joker(card)) / 2.0
     )
     out.append(sum(1 for card in pool if is_joker(card)) / 2.0)
-    out.extend(opponent_joint_block(opponent_board, pool))
+    # The Rust solver already enumerates the opponent's pair terminals, so it
+    # can hand this block over for free; recompute only when it did not.
+    if joint_block is None:
+        joint_block = opponent_joint_block(opponent_board, pool)
+    if len(joint_block) != JOINT_SIZE_ADDED:
+        raise ValueError("supplied joint block has the wrong width")
+    out.extend(float(value) for value in joint_block)
     assert len(out) == OPPONENT_SIZE, len(out)
     return out, categories_now
 
@@ -500,10 +517,13 @@ class NodeCache:
         opponent_board: Sequence[Sequence[str]],
         pool: Sequence[str],
         dead_count: int,
+        joint_block: Sequence[float] | None = None,
     ) -> None:
         self.opponent_board = tuple(tuple(row) for row in opponent_board)
         self.pool = tuple(pool)
-        self._opponent, self._categories = opponent_block(self.opponent_board, self.pool)
+        self._opponent, self._categories = opponent_block(
+            self.opponent_board, self.pool, joint_block
+        )
         self._context = context_block(self.pool, dead_count)
 
     @classmethod
@@ -513,13 +533,14 @@ class NodeCache:
         opponent_board: Sequence[Sequence[str]],
         draw: Sequence[str],
         prior_dead: Sequence[str],
+        joint_block: Sequence[float] | None = None,
     ) -> "NodeCache":
         pool = unknown_pool(
             hero_board_11,
             opponent_board,
             list(prior_dead) + list(draw),
         )
-        return cls(opponent_board, pool, len(prior_dead) + 1)
+        return cls(opponent_board, pool, len(prior_dead) + 1, joint_block)
 
 
 def encode_action(
