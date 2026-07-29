@@ -93,11 +93,39 @@ fn fl_ev_for(table: &FlTable, card_count: u8) -> f32 {
     }
 }
 
-/// Exact terminal facts of the completed hero board (42 dims).
-pub fn hero_block(rows: &[Vec<Card>; 3], fl_table: &FlTable, out: &mut Vec<f32>) {
+/// One constrained evaluation of the hero board, reused by both per-action
+/// blocks.  Computing it twice was pure duplicated work: the constrained
+/// evaluation is the most expensive thing in the per-draw loop.
+pub struct HeroEval {
+    pub busted: bool,
+    pub rows: [Vec<Card>; 3],
+    pub values: [u32; 3],
+}
+
+pub fn hero_eval(rows: &[Vec<Card>; 3]) -> HeroEval {
     let eval = evaluate_board_with_joker_constraint(&rows[0], &rows[1], &rows[2]);
-    let busted = eval.busted;
     let final_rows = [eval.top, eval.mid, eval.bot];
+    let values = [
+        evaluate_hand_value(&final_rows[0], 3),
+        evaluate_hand_value(&final_rows[1], 5),
+        evaluate_hand_value(&final_rows[2], 5),
+    ];
+    HeroEval {
+        busted: eval.busted,
+        rows: final_rows,
+        values,
+    }
+}
+
+/// Exact terminal facts of the completed hero board (42 dims).
+pub fn hero_block(
+    rows: &[Vec<Card>; 3],
+    eval: &HeroEval,
+    fl_table: &FlTable,
+    out: &mut Vec<f32>,
+) {
+    let busted = eval.busted;
+    let final_rows = &eval.rows;
     let royalties: [i32; 3] = if busted {
         [0, 0, 0]
     } else {
@@ -126,10 +154,7 @@ pub fn hero_block(rows: &[Vec<Card>; 3], fl_table: &FlTable, out: &mut Vec<f32>)
     out.push(fl_count as f32 / 17.0);
     out.push(fl_ev / MAX_FL_EV);
     for index in 0..3 {
-        spread(
-            evaluate_hand_value(&final_rows[index], ROW_CAPACITY[index]),
-            out,
-        );
+        spread(eval.values[index], out);
     }
     let jokers = rows.iter().flatten().filter(|card| card.is_joker()).count();
     out.push(jokers as f32 / 2.0);
@@ -137,7 +162,7 @@ pub fn hero_block(rows: &[Vec<Card>; 3], fl_table: &FlTable, out: &mut Vec<f32>)
 
 /// Facts the per-row histograms cannot express (12 dims).
 pub fn joint_block(
-    hero_rows: &[Vec<Card>; 3],
+    hero: &HeroEval,
     opponent_rows: &[Vec<Card>; 3],
     opponent_categories: &[usize; 3],
     out: &mut Vec<f32>,
@@ -147,13 +172,7 @@ pub fn joint_block(
         ROW_CAPACITY[1] - opponent_rows[1].len(),
         ROW_CAPACITY[2] - opponent_rows[2].len(),
     ];
-    let eval = evaluate_board_with_joker_constraint(&hero_rows[0], &hero_rows[1], &hero_rows[2]);
-    let hero_final = [eval.top, eval.mid, eval.bot];
-    let hero_values: [u32; 3] = [
-        evaluate_hand_value(&hero_final[0], 3),
-        evaluate_hand_value(&hero_final[1], 5),
-        evaluate_hand_value(&hero_final[2], 5),
-    ];
+    let hero_values = hero.values;
 
     let locked_middle = rooms[2] == 0 && opponent_categories[1] > opponent_categories[2];
     let locked_top = rooms[1] == 0 && opponent_categories[0] > opponent_categories[1];
@@ -182,7 +201,7 @@ pub fn joint_block(
     }
     out.push(wins as f32 / 3.0);
     out.push(if wins == 3 { 1.0 } else { 0.0 });
-    out.push(if eval.busted { 1.0 } else { 0.0 });
+    out.push(if hero.busted { 1.0 } else { 0.0 });
     out.push(rooms.iter().sum::<usize>() as f32 / 5.0);
 }
 
@@ -315,4 +334,122 @@ impl Model {
         *scratch = current;
         value
     }
+}
+
+// ------------------------------------------------------------------
+// Node-shared blocks (opponent per-row outlook and context)
+// ------------------------------------------------------------------
+
+/// Per-row completion histograms, royalty, FL and room (41 dims), plus the
+/// opponent categories the joint block needs.  Shared across the node.
+pub fn opponent_rowwise_block(
+    opponent_rows: &[Vec<Card>; 3],
+    pool: &[Card],
+    fl_table: &FlTable,
+    out: &mut Vec<f32>,
+) -> [usize; 3] {
+    let mut categories = [0usize; 3];
+    for row in 0..3 {
+        let capacity = ROW_CAPACITY[row];
+        let room = capacity - opponent_rows[row].len();
+        categories[row] = partial_category(&opponent_rows[row], capacity);
+        let mut histogram = [0.0f32; CATEGORIES];
+        let mut royalty_total = 0.0f32;
+        let mut fl_total = 0.0f32;
+        let mut samples = 0usize;
+        let mut filled = opponent_rows[row].clone();
+        if room == 0 {
+            let value = evaluate_hand_value(&filled, capacity);
+            histogram[category_of(value).min(CATEGORIES - 1)] = 1.0;
+            royalty_total = row_royalty(row, &filled) as f32;
+            if row == 0 {
+                let (qualified, count) = check_fl_entry(&filled);
+                if qualified {
+                    fl_total = fl_ev_for(fl_table, count);
+                }
+            }
+            samples = 1;
+        } else if room == 1 {
+            for card in pool {
+                filled.push(*card);
+                let value = evaluate_hand_value(&filled, capacity);
+                histogram[category_of(value).min(CATEGORIES - 1)] += 1.0;
+                royalty_total += row_royalty(row, &filled) as f32;
+                if row == 0 {
+                    let (qualified, count) = check_fl_entry(&filled);
+                    if qualified {
+                        fl_total += fl_ev_for(fl_table, count);
+                    }
+                }
+                samples += 1;
+                filled.pop();
+            }
+        } else {
+            for i in 0..pool.len() {
+                for j in (i + 1)..pool.len() {
+                    filled.push(pool[i]);
+                    filled.push(pool[j]);
+                    let value = evaluate_hand_value(&filled, capacity);
+                    histogram[category_of(value).min(CATEGORIES - 1)] += 1.0;
+                    royalty_total += row_royalty(row, &filled) as f32;
+                    if row == 0 {
+                        let (qualified, count) = check_fl_entry(&filled);
+                        if qualified {
+                            fl_total += fl_ev_for(fl_table, count);
+                        }
+                    }
+                    samples += 1;
+                    filled.pop();
+                    filled.pop();
+                }
+            }
+        }
+        let denominator = samples.max(1) as f32;
+        for bin in histogram {
+            out.push(bin / denominator);
+        }
+        out.push(royalty_total / denominator / MAX_ROYALTY);
+        out.push(fl_total / denominator / MAX_FL_EV);
+        out.push(room as f32 / 5.0);
+    }
+    for row in 0..3 {
+        let mut suits = [0u8; 4];
+        for card in &opponent_rows[row] {
+            if !card.is_joker() {
+                suits[card.suit as usize] += 1;
+            }
+        }
+        out.push(*suits.iter().max().unwrap_or(&0) as f32 / 5.0);
+    }
+    out.push(
+        opponent_rows
+            .iter()
+            .flatten()
+            .filter(|card| card.is_joker())
+            .count() as f32
+            / 2.0,
+    );
+    out.push(pool.iter().filter(|card| card.is_joker()).count() as f32 / 2.0);
+    categories
+}
+
+/// Remaining-deck summary (6 dims).
+pub fn context_block(pool: &[Card], dead_count: usize, out: &mut Vec<f32>) {
+    let mut ranks = [0u32; 15];
+    let mut jokers = 0u32;
+    for card in pool {
+        if card.is_joker() {
+            jokers += 1;
+        } else {
+            ranks[card.rank as usize] += 1;
+        }
+    }
+    let high: u32 = ranks[12] + ranks[13] + ranks[14];
+    let distinct = ranks.iter().filter(|count| **count > 0).count();
+    out.push(pool.len() as f32 / 54.0);
+    out.push(dead_count as f32 / 6.0);
+    out.push(high as f32 / pool.len().max(1) as f32);
+    out.push(jokers as f32 / 2.0);
+    out.push(*ranks.iter().max().unwrap_or(&0) as f32 / 4.0);
+    out.push(distinct as f32 / 13.0);
 }

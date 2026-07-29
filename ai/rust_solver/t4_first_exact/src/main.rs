@@ -15,6 +15,7 @@
 //! `ai/config/fl_ev.json` and its SHA-256 is emitted with every result.
 
 mod evaluator;
+mod t3_second;
 
 use anyhow::{anyhow, bail, Context, Result};
 use clap::Parser;
@@ -40,7 +41,7 @@ const ROW_CAPACITY: [usize; 3] = [3, 5, 5];
 // because the two jokers are interchangeable for hand strength.
 // ------------------------------------------------------------------
 
-fn all_cards() -> Vec<String> {
+pub(crate) fn all_cards() -> Vec<String> {
     let mut cards = Vec::with_capacity(54);
     for suit in ["s", "h", "d", "c"] {
         for rank in ["2", "3", "4", "5", "6", "7", "8", "9", "T", "J", "Q", "K", "A"] {
@@ -56,7 +57,7 @@ fn is_joker(card: &str) -> bool {
     card == "X1" || card == "X2" || card == "JK"
 }
 
-fn to_core_card(card: &str) -> Result<Card> {
+pub(crate) fn to_core_card(card: &str) -> Result<Card> {
     if is_joker(card) {
         return Ok(Card { rank: 0, suit: 4 });
     }
@@ -87,7 +88,7 @@ fn to_core_card(card: &str) -> Result<Card> {
 // Fantasyland EV table (canonical source of truth)
 // ------------------------------------------------------------------
 
-struct FlEv {
+pub(crate) struct FlEv {
     by_card_count: BTreeMap<u8, f64>,
     config_sha256: String,
 }
@@ -134,14 +135,14 @@ impl FlEv {
 // ------------------------------------------------------------------
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-struct BoardStr {
+pub(crate) struct BoardStr {
     top: Vec<String>,
     middle: Vec<String>,
     bottom: Vec<String>,
 }
 
 #[derive(Clone)]
-struct CoreBoard {
+pub(crate) struct CoreBoard {
     rows: [Vec<Card>; 3],
 }
 
@@ -179,14 +180,14 @@ impl CoreBoard {
 /// copyable and lets the opponent's terminals be computed once per root and
 /// reused across every hero action.
 #[derive(Clone, Copy)]
-struct Terminal {
+pub(crate) struct Terminal {
     busted: bool,
     royalty: i32,
     fl_card_count: u8,
     values: [u32; 3],
 }
 
-fn terminal_of(board: &CoreBoard) -> Terminal {
+pub(crate) fn terminal_of(board: &CoreBoard) -> Terminal {
     let eval = evaluate_board_with_joker_constraint(&board.rows[0], &board.rows[1], &board.rows[2]);
     let busted = eval.busted;
     let (royalty, fl_card_count) = if busted {
@@ -243,7 +244,7 @@ fn hero_score(hero: &Terminal, opponent: &Terminal, fl_ev: &FlEv) -> f64 {
 // ------------------------------------------------------------------
 
 /// One legal placement of two drawn cards, with the third discarded.
-struct Action {
+pub(crate) struct Action {
     /// Row index per placed card, aligned with `cards`.
     rows: [usize; 2],
     cards: [String; 2],
@@ -274,7 +275,7 @@ impl Action {
     }
 }
 
-fn legal_actions(board: &CoreBoard, draw: &[String]) -> Vec<Action> {
+pub(crate) fn legal_actions(board: &CoreBoard, draw: &[String]) -> Vec<Action> {
     let open = board.open_slots();
     let mut actions = Vec::new();
     // Choose which card is discarded, then place the remaining two in order.
@@ -302,7 +303,7 @@ fn legal_actions(board: &CoreBoard, draw: &[String]) -> Vec<Action> {
     actions
 }
 
-fn apply(board: &CoreBoard, action: &Action) -> Result<CoreBoard> {
+pub(crate) fn apply(board: &CoreBoard, action: &Action) -> Result<CoreBoard> {
     let mut next = board.clone();
     for slot in 0..2 {
         next.rows[action.rows[slot]].push(to_core_card(&action.cards[slot])?);
@@ -329,7 +330,7 @@ struct Request {
 }
 
 #[derive(Serialize)]
-struct ActionResult {
+pub(crate) struct ActionResult {
     action_key: String,
     ev: f64,
     discard: String,
@@ -354,7 +355,7 @@ struct Response {
 /// The opponent's own value of a finished board: royalty plus Fantasyland,
 /// with a foul worth -6.  Line wins against the hero are excluded on purpose --
 /// they are action-dependent, and this block must stay shared across the node.
-fn opponent_self_value(terminal: &Terminal, fl_ev: &FlEv) -> f64 {
+pub(crate) fn opponent_self_value(terminal: &Terminal, fl_ev: &FlEv) -> f64 {
     if terminal.busted {
         -6.0
     } else {
@@ -775,11 +776,51 @@ struct Cli {
     /// Read {id, btn, pool} lines and emit only the shared joint block.
     #[arg(long, default_value_t = false)]
     joint_only: bool,
+    /// Read T3 second-seat requests and evaluate them with the learned model.
+    #[arg(long)]
+    t3_second_model: Option<PathBuf>,
 }
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
     let fl_ev = FlEv::load(&cli.fl_ev_config)?;
+    if let Some(model_path) = &cli.t3_second_model {
+        let image = std::fs::read(model_path)?;
+        let model = evaluator::Model::load(&image).map_err(|e| anyhow!("{e}"))?;
+        let fl_table: evaluator::FlTable = [
+            fl_ev.value(14) as f32,
+            fl_ev.value(15) as f32,
+            fl_ev.value(16) as f32,
+            fl_ev.value(17) as f32,
+        ];
+        let reader = BufReader::new(File::open(&cli.input)?);
+        let mut requests: Vec<t3_second::T3Request> = Vec::new();
+        for line in reader.lines() {
+            let line = line?;
+            if !line.trim().is_empty() {
+                requests.push(serde_json::from_str(&line)?);
+            }
+        }
+        let mut writer = BufWriter::new(File::create(&cli.output)?);
+        for chunk in requests.chunks(cli.chunk_size.max(1)) {
+            // Roots carry the parallelism here; the per-action work inside is
+            // then sequential, which avoids nested rayon contention.
+            let solved: Result<Vec<String>> = chunk
+                .par_iter()
+                .map(|request| {
+                    Ok(serde_json::to_string(&t3_second::solve(
+                        request, &fl_ev, &model, &fl_table,
+                    )?)?)
+                })
+                .collect();
+            for line in solved? {
+                writeln!(writer, "{line}")?;
+            }
+            writer.flush()?;
+        }
+        return Ok(());
+    }
+
     if cli.joint_only {
         let reader = BufReader::new(File::open(&cli.input)?);
         let mut requests: Vec<JointRequest> = Vec::new();
