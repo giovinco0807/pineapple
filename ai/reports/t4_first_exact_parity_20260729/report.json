@@ -1,0 +1,108 @@
+{
+  "action_key_set_mismatches": 0,
+  "max_abs_ev_delta": 0.0,
+  "python_seconds": 102.14077496528625,
+  "roots": 12,
+  "rows": [
+    {
+      "action_keys_match": true,
+      "max_abs_ev_delta": 0.0,
+      "python_action_count": 3,
+      "rust_action_count": 3,
+      "seed": 20260729,
+      "visible_joker_count": 1
+    },
+    {
+      "action_keys_match": true,
+      "max_abs_ev_delta": 0.0,
+      "python_action_count": 3,
+      "rust_action_count": 3,
+      "seed": 20260730,
+      "visible_joker_count": 2
+    },
+    {
+      "action_keys_match": true,
+      "max_abs_ev_delta": 0.0,
+      "python_action_count": 3,
+      "rust_action_count": 3,
+      "seed": 20260731,
+      "visible_joker_count": 1
+    },
+    {
+      "action_keys_match": true,
+      "max_abs_ev_delta": 0.0,
+      "python_action_count": 3,
+      "rust_action_count": 3,
+      "seed": 20260732,
+      "visible_joker_count": 1
+    },
+    {
+      "action_keys_match": true,
+      "max_abs_ev_delta": 0.0,
+      "python_action_count": 6,
+      "rust_action_count": 6,
+      "seed": 20260733,
+      "visible_joker_count": 1
+    },
+    {
+      "action_keys_match": true,
+      "max_abs_ev_delta": 0.0,
+      "python_action_count": 6,
+      "rust_action_count": 6,
+      "seed": 20260734,
+      "visible_joker_count": 0
+    },
+    {
+      "action_keys_match": true,
+      "max_abs_ev_delta": 0.0,
+      "python_action_count": 3,
+      "rust_action_count": 3,
+      "seed": 20260735,
+      "visible_joker_count": 1
+    },
+    {
+      "action_keys_match": true,
+      "max_abs_ev_delta": 0.0,
+      "python_action_count": 6,
+      "rust_action_count": 6,
+      "seed": 20260736,
+      "visible_joker_count": 1
+    },
+    {
+      "action_keys_match": true,
+      "max_abs_ev_delta": 0.0,
+      "python_action_count": 3,
+      "rust_action_count": 3,
+      "seed": 20260737,
+      "visible_joker_count": 0
+    },
+    {
+      "action_keys_match": true,
+      "max_abs_ev_delta": 0.0,
+      "python_action_count": 6,
+      "rust_action_count": 6,
+      "seed": 20260738,
+      "visible_joker_count": 0
+    },
+    {
+      "action_keys_match": true,
+      "max_abs_ev_delta": 0.0,
+      "python_action_count": 6,
+      "rust_action_count": 6,
+      "seed": 20260739,
+      "visible_joker_count": 0
+    },
+    {
+      "action_keys_match": true,
+      "max_abs_ev_delta": 0.0,
+      "python_action_count": 3,
+      "rust_action_count": 3,
+      "seed": 20260740,
+      "visible_joker_count": 2
+    }
+  ],
+  "rust_seconds": 3.6925017833709717,
+  "schema": "ofc_t4_first_exact_parity/v1",
+  "seed": 20260729,
+  "speedup": 27.661672480504407
+}
