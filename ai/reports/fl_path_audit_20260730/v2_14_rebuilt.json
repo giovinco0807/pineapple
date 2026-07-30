@@ -1,0 +1,90 @@
+{
+  "cards_per_hand": 14,
+  "deterministic": true,
+  "examples": {
+    "claims_no_foul_but_raw_board_fouls": [
+      [
+        [
+          [
+            "9c",
+            "9h",
+            "Ks"
+          ],
+          [
+            "4d",
+            "X2",
+            "5d",
+            "Td",
+            "Qd"
+          ],
+          [
+            "8h",
+            "2h",
+            "Ah",
+            "Jh",
+            "5h"
+          ]
+        ],
+        16
+      ],
+      [
+        [
+          [
+            "2s",
+            "Ts",
+            "Js"
+          ],
+          [
+            "X2",
+            "8c",
+            "Kc",
+            "6c",
+            "5c"
+          ],
+          [
+            "Qd",
+            "2d",
+            "Ad",
+            "Td",
+            "3d"
+          ]
+        ],
+        12
+      ],
+      [
+        [
+          [
+            "6s",
+            "2s",
+            "8d"
+          ],
+          [
+            "X2",
+            "7c",
+            "Kc",
+            "Tc",
+            "Jc"
+          ],
+          [
+            "Ah",
+            "Th",
+            "4h",
+            "9h",
+            "8h"
+          ]
+        ],
+        12
+      ]
+    ]
+  },
+  "findings": {
+    "claims_no_foul_but_raw_board_fouls": 5
+  },
+  "hands": 400,
+  "mean_royalty_canonical": 14.3625,
+  "mean_royalty_claimed": 14.3625,
+  "ms_per_hand": 2421.190544962883,
+  "scored": 400,
+  "seed": 20260730,
+  "version": 2
+}
