@@ -1,0 +1,19 @@
+{
+  "acceptance_note": null,
+  "counts": [
+    14,
+    14
+  ],
+  "immediate_score_mean": -0.01954,
+  "immediate_score_std": 12.964384605078639,
+  "library": "D:\\ofc_data\\fl_library_14",
+  "library_boards": 24000,
+  "pairs": 200000,
+  "royalty_mean": 15.153445,
+  "schema": "ofc_fl_vs_fl_convolution/v1",
+  "score_se": 0.0289892452634076,
+  "stay_both": 0.113065,
+  "stay_hero": 0.37669,
+  "stay_joint_minus_independent": -0.029606337499999996,
+  "stay_opp": 0.37875
+}
