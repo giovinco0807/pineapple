@@ -19,7 +19,7 @@
 | bot royalty | straight2/flush4/FH6/quads10/SF15/royal25 | ✓ | 実測 |
 | top royalty | 66=1..AA=9、trips 222=10..AAA=22 | ✓ | 実測 |
 | FL進入 | QQ=14/KK=15/AA=16/trips(任意ランク)=17 | 変則(チェーン) | 実測(22トリップスで17) |
-| FL stay | トップtrips or ボトムquads+、次回14枚 | ✓ | config+fl_solver |
+| FL stay | トップtrips or ボトムquads+。**進入時の枚数を引き継ぐ**(17枚で進入→stayは17枚) | 変則(オーナー訂正 2026-07-31) | commit 373ee02、backend/game_state.py fl_card_count |
 | ジョーカー | ボトムアップ制約置換(bot最強→mid≤bot→top≤mid) | 変則(正典化済み) | 移行監査20k局面 |
 | ゼロサム | score(A,B) = -score(B,A) | ✓ | 既存テストassert |
 | FL盤面 | 非FL側からは配置終了まで非公開 | ✓ | commit 6a05a79 |
@@ -84,6 +84,14 @@ AIは点数EVを最大化しており、チップ制約(スタック残量で±�
 トップ(3枚)とミドル(5枚)の比較は「トリップス同士はランク比較、
 3枚トリップスは5枚ツーペアに勝ちストレートに負ける」という標準拡張。
 実装はこの規約で一貫(`evaluate_hand`が同一エンコードで比較)。異議があれば今。
+
+### 訂正 (2026-07-31): FL stayの枚数
+
+初版の本表は「stay後は常に14枚」と誤記していた(regularルールの値)。
+ジョーカールールでは**stayは進入時の枚数を引き継ぐ**(commit 373ee02)。
+帰結: FL EVの連鎖は同枚数で複利になり、FL_EV(n) = E[score_n] / (1 - stay_n)
+の構造を持つ(17枚はstay率~0.78で約4.5倍)。M-Cの固定点式、
+normal-vs-FLの相手stay項(FL_EV(相手の枚数))はこの規則で実装する。
 
 ## 4. 監査で確定した非バグ(記録)
 
