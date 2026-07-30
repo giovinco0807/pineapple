@@ -5,7 +5,7 @@
 use rayon::prelude::*;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
-use std::io::{self, BufRead, Write};
+use std::io;
 
 /// Card representation
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -201,7 +201,7 @@ fn get_straight_high_card(rank_counts: &[u8; 15], jokers: u8) -> u8 {
     best_high
 }
 
-fn evaluate_5_card(cards: &[Card]) -> (HandRank, u32) {
+pub fn evaluate_5_card(cards: &[Card]) -> (HandRank, u32) {
     let (rank, strength) = ofc_core::evaluate_5_card(&to_core_cards(cards));
     let rank = match rank {
         ofc_core::HandRank::HighCard => HandRank::HighCard,
@@ -218,7 +218,7 @@ fn evaluate_5_card(cards: &[Card]) -> (HandRank, u32) {
     (rank, strength)
 }
 
-fn evaluate_3_card(cards: &[Card]) -> (HandRank3, u32) {
+pub fn evaluate_3_card(cards: &[Card]) -> (HandRank3, u32) {
     let (rank, strength) = ofc_core::evaluate_3_card(&to_core_cards(cards));
     let rank = match rank {
         ofc_core::HandRank3::HighCard => HandRank3::HighCard,
@@ -242,15 +242,15 @@ fn calculate_strength(rank_counts: &[u8; 15]) -> u32 {
 //  Royalty Calculation
 // ============================================================
 
-fn get_top_royalty(cards: &[Card]) -> i32 {
+pub fn get_top_royalty(cards: &[Card]) -> i32 {
     ofc_core::get_top_royalty(&to_core_cards(cards))
 }
 
-fn get_middle_royalty(cards: &[Card]) -> i32 {
+pub fn get_middle_royalty(cards: &[Card]) -> i32 {
     ofc_core::get_middle_royalty(&to_core_cards(cards))
 }
 
-fn get_bottom_royalty(cards: &[Card]) -> i32 {
+pub fn get_bottom_royalty(cards: &[Card]) -> i32 {
     ofc_core::get_bottom_royalty(&to_core_cards(cards))
 }
 
@@ -267,14 +267,12 @@ fn check_fl_stay(top: &[Card], middle: &[Card], bottom: &[Card]) -> bool {
 // ============================================================
 
 /// Get comparable strength for 5-card hand
-#[allow(dead_code)]
 fn get_5card_strength(cards: &[Card]) -> (u8, u32) {
     let (rank, strength) = evaluate_5_card(cards);
     (rank as u8, strength)
 }
 
 /// Get comparable strength for 3-card hand (mapped to 5-card scale)
-#[allow(dead_code)]
 fn get_3card_strength(cards: &[Card]) -> (u8, u32) {
     let (rank, strength) = evaluate_3_card(cards);
     // Map 3-card ranks:
@@ -310,7 +308,7 @@ fn raw_score_bound(top: &[Card], middle: &[Card], bottom: &[Card]) -> f64 {
 }
 
 /// Compare two 5-card hands. Returns -1 if a < b, 0 if equal, 1 if a > b
-fn compare_5_hands(a: &[Card], b: &[Card]) -> i32 {
+pub fn compare_5_hands(a: &[Card], b: &[Card]) -> i32 {
     ofc_core::compare_5_hands(&to_core_cards(a), &to_core_cards(b))
 }
 
@@ -1031,6 +1029,34 @@ pub fn solve_fantasyland_v2(cards: &[Card]) -> Option<Placement> {
     solve_fantasyland(cards)
 }
 
+/// Fast role-based solver that avoids exhaustive search fallback
+pub fn solve_fantasyland_v2_fast(cards: &[Card]) -> Option<Placement> {
+    let n = cards.len();
+    if n < 13 || n > 17 { return None; }
+    
+    // Phase A: Bottom FL Stay (RF, SF, Quads)
+    let a = phase_a_bottom_fl_stay(cards);
+    
+    // Early exit: if score >= 41, can't do better with Phase B
+    if a.as_ref().map(|p| p.score >= 41.0).unwrap_or(false) {
+        return a;
+    }
+    
+    // Phase B: Top FL Stay (Trips)
+    let b = phase_b_top_fl_stay(cards);
+    let best_ab = max_placement(a, b);
+    
+    // Early exit: if score >= 41, done
+    if best_ab.as_ref().map(|p| p.score >= 41.0).unwrap_or(false) {
+        return best_ab;
+    }
+    
+    // Phase C: No FL Stay (Full House for royalties)
+    let c = phase_c_no_fl_stay(cards);
+    
+    max_placement(best_ab, c)
+}
+
 // ============================================================
 //  Main - JSON stdin/stdout interface
 // ============================================================
@@ -1062,7 +1088,7 @@ struct Response {
 //  FL vs Normal opponent scoring
 // ============================================================
 
-fn compare_3_hands(a: &[Card], b: &[Card]) -> i32 {
+pub fn compare_3_hands(a: &[Card], b: &[Card]) -> i32 {
     ofc_core::compare_3_hands(&to_core_cards(a), &to_core_cards(b))
 }
 
@@ -1215,30 +1241,8 @@ fn solve_fl_vs_normal(cards: &[Card], opp: &OpponentBoard) -> Option<Placement> 
 // ============================================================
 
 use rand::prelude::*;
-use std::fs::File;
 
-const RANK_CHARS: [char; 13] = ['2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K', 'A'];
-const SUIT_CHARS: [char; 4] = ['s', 'h', 'd', 'c'];
-
-fn rank_to_char(rank: u8) -> char {
-    if rank >= 2 && rank <= 14 {
-        RANK_CHARS[(rank - 2) as usize]
-    } else if rank == 0 {
-        'X'  // Joker
-    } else {
-        '?'
-    }
-}
-
-fn suit_to_char(suit: u8) -> char {
-    if suit < 4 {
-        SUIT_CHARS[suit as usize]
-    } else {
-        'J'  // Joker
-    }
-}
-
-fn create_deck(include_jokers: bool) -> Vec<Card> {
+pub fn create_deck(include_jokers: bool) -> Vec<Card> {
     let mut deck = Vec::new();
     for suit in 0..4u8 {
         for rank in 2..=14u8 {
@@ -1252,221 +1256,30 @@ fn create_deck(include_jokers: bool) -> Vec<Card> {
     deck
 }
 
-fn deal_hand(num_cards: usize, include_jokers: bool, rng: &mut impl Rng) -> Vec<Card> {
+pub fn deal_hand(num_cards: usize, include_jokers: bool, rng: &mut impl Rng) -> Vec<Card> {
     let mut deck = create_deck(include_jokers);
     deck.shuffle(rng);
     deck.into_iter().take(num_cards).collect()
 }
 
-fn card_to_string(card: &Card) -> String {
-    if card.is_joker() {
-        "JK".to_string()
-    } else {
-        format!("{}{}", rank_to_char(card.rank), suit_to_char(card.suit))
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn card(rank: u8, suit: u8) -> Card {
+        Card { rank, suit }
+    }
+
+    #[test]
+    fn bridge_uses_canonical_top_joker_downgrade() {
+        let top = [card(12, 0), card(12, 1), card(0, 4)];
+        let middle = [card(13, 0), card(13, 1), card(9, 2), card(8, 3), card(7, 0)];
+        let bottom = [card(14, 0), card(14, 1), card(14, 2), card(5, 3), card(4, 2)];
+
+        let rows = canonical_rows(&top, &middle, &bottom);
+        assert!(!rows.busted);
+        assert_eq!(rows.top_royalty, 7);
     }
 }
 
-#[derive(Serialize)]
-struct DataSample {
-    sample_id: usize,
-    num_cards: usize,
-    joker_count: usize,
-    hand: Vec<String>,
-    solution: SolutionStrings,
-    reward: f64,
-    royalties: i32,
-    can_stay: bool,
-}
-
-#[derive(Serialize)]
-struct SolutionStrings {
-    top: Vec<String>,
-    middle: Vec<String>,
-    bottom: Vec<String>,
-}
-
-fn generate_data(samples: usize, num_cards: usize, fixed_jokers: Option<usize>, output_path: &str) {
-    let mut rng = thread_rng();
-    let mut results = Vec::new();
-    
-    let include_jokers = fixed_jokers.map(|j| j > 0).unwrap_or(true);
-    
-    let start = std::time::Instant::now();
-    
-    for i in 0..samples {
-        // Deal hand (retry if joker count doesn't match)
-        let hand = loop {
-            let h = deal_hand(num_cards, include_jokers, &mut rng);
-            let joker_count = h.iter().filter(|c| c.is_joker()).count();
-            
-            if let Some(target) = fixed_jokers {
-                if joker_count == target {
-                    break h;
-                }
-            } else {
-                break h;
-            }
-        };
-        
-        let joker_count = hand.iter().filter(|c| c.is_joker()).count();
-        
-        // Solve using v2 (role-based, ~8x faster)
-        if let Some(placement) = solve_fantasyland_v2(&hand) {
-            let sample = DataSample {
-                sample_id: i,
-                num_cards,
-                joker_count,
-                hand: hand.iter().map(card_to_string).collect(),
-                solution: SolutionStrings {
-                    top: placement.top.iter().map(card_to_string).collect(),
-                    middle: placement.middle.iter().map(card_to_string).collect(),
-                    bottom: placement.bottom.iter().map(card_to_string).collect(),
-                },
-                reward: placement.score,
-                royalties: placement.total_royalty,
-                can_stay: placement.can_stay,
-            };
-            results.push(sample);
-        }
-        
-        if (i + 1) % 100 == 0 {
-            let elapsed = start.elapsed().as_secs_f64();
-            let rate = (i + 1) as f64 / elapsed;
-            let eta = (samples - i - 1) as f64 / rate;
-            eprintln!("  {}/{} ({:.1}/s, ETA: {:.0}s)", i + 1, samples, rate, eta);
-        }
-    }
-    
-    let elapsed = start.elapsed().as_secs_f64();
-    
-    // Statistics
-    let stay_count = results.iter().filter(|r| r.can_stay).count();
-    let total_royalties: i32 = results.iter().map(|r| r.royalties).sum();
-    
-    eprintln!("\n=== Statistics ===");
-    eprintln!("FL Stay Rate: {}/{} ({:.1}%)", stay_count, results.len(), 
-        100.0 * stay_count as f64 / results.len() as f64);
-    eprintln!("Avg Royalties: {:.2}", total_royalties as f64 / results.len() as f64);
-    
-    // Write to file
-    let file = File::create(output_path).expect("Failed to create output file");
-    let mut writer = std::io::BufWriter::new(file);
-    for sample in &results {
-        writeln!(writer, "{}", serde_json::to_string(sample).unwrap()).unwrap();
-    }
-    
-    eprintln!("\nDone! {} samples in {:.1}s ({:.1}/s)", results.len(), elapsed, 
-        results.len() as f64 / elapsed);
-    eprintln!("Output: {}", output_path);
-}
-
-fn run_stdin_mode() {
-    let stdin = io::stdin();
-    let stdout = io::stdout();
-    let mut stdout = stdout.lock();
-    
-    for line in stdin.lock().lines() {
-        let line = match line {
-            Ok(l) => l,
-            Err(e) => {
-                let resp = Response {
-                    success: false,
-                    placement: None,
-                    error: Some(format!("Read error: {}", e)),
-                };
-                writeln!(stdout, "{}", serde_json::to_string(&resp).unwrap()).unwrap();
-                continue;
-            }
-        };
-        
-        if line.trim().is_empty() { continue; }
-        
-        let request: Result<Request, _> = serde_json::from_str(&line);
-        
-        let resp = match request {
-            Ok(req) => {
-                let start = std::time::Instant::now();
-                let placement = if let Some(ref opp) = req.opponent {
-                    eprintln!("Solving FL vs opponent board...");
-                    solve_fl_vs_normal(&req.cards, opp)
-                } else if req.version == 2 {
-                    solve_fantasyland_v2(&req.cards)
-                } else {
-                    solve_fantasyland(&req.cards)
-                };
-                let elapsed = start.elapsed().as_secs_f64();
-                let mode = if req.opponent.is_some() { "vs_opp" } else if req.version == 2 { "v2" } else { "v1" };
-                eprintln!("Solved {} in {:.3}s", mode, elapsed);
-                
-                Response {
-                    success: true,
-                    placement,
-                    error: None,
-                }
-            }
-            Err(e) => Response {
-                success: false,
-                placement: None,
-                error: Some(format!("Parse error: {}", e)),
-            },
-        };
-        
-        writeln!(stdout, "{}", serde_json::to_string(&resp).unwrap()).unwrap();
-        stdout.flush().unwrap();
-    }
-}
-
-fn main() {
-    let args: Vec<String> = std::env::args().collect();
-    
-    if args.len() > 1 && args[1] == "generate" {
-        // Data generation mode
-        let mut samples = 1000;
-        let mut num_cards = 14;
-        let mut fixed_jokers: Option<usize> = None;
-        let mut output = String::new();
-        
-        let mut i = 2;
-        while i < args.len() {
-            match args[i].as_str() {
-                "--samples" | "-n" => {
-                    i += 1;
-                    samples = args[i].parse().expect("Invalid samples");
-                }
-                "--cards" | "-c" => {
-                    i += 1;
-                    num_cards = args[i].parse().expect("Invalid cards");
-                }
-                "--jokers" | "-j" => {
-                    i += 1;
-                    fixed_jokers = Some(args[i].parse().expect("Invalid jokers"));
-                }
-                "--output" | "-o" => {
-                    i += 1;
-                    output = args[i].clone();
-                }
-                _ => {}
-            }
-            i += 1;
-        }
-        
-        if output.is_empty() {
-            if let Some(j) = fixed_jokers {
-                output = format!("fl_rust_{}cards_joker{}.jsonl", num_cards, j);
-            } else {
-                output = format!("fl_rust_{}cards_random.jsonl", num_cards);
-            }
-        }
-        
-        eprintln!("Generating {} samples with {} cards", samples, num_cards);
-        if let Some(j) = fixed_jokers {
-            eprintln!("Fixed jokers: {}", j);
-        }
-        
-        generate_data(samples, num_cards, fixed_jokers, &output);
-    } else {
-        // Stdin/stdout mode (default)
-        run_stdin_mode();
-    }
-}
 
