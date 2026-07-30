@@ -1,0 +1,196 @@
+{
+  "cards_per_hand": 14,
+  "deterministic": true,
+  "examples": {
+    "claims_no_foul_but_raw_board_fouls": [
+      [
+        [
+          [
+            "9c",
+            "9h",
+            "Ks"
+          ],
+          [
+            "4d",
+            "X2",
+            "5d",
+            "Td",
+            "Qd"
+          ],
+          [
+            "8h",
+            "2h",
+            "Ah",
+            "Jh",
+            "5h"
+          ]
+        ],
+        16
+      ],
+      [
+        [
+          [
+            "5c",
+            "3c",
+            "9s"
+          ],
+          [
+            "Th",
+            "Jh",
+            "4h",
+            "X1",
+            "6h"
+          ],
+          [
+            "Kd",
+            "6d",
+            "Jd",
+            "7d",
+            "8d"
+          ]
+        ],
+        12
+      ],
+      [
+        [
+          [
+            "Ac",
+            "6h",
+            "9c"
+          ],
+          [
+            "Ts",
+            "X2",
+            "8s",
+            "2s",
+            "5s"
+          ],
+          [
+            "2d",
+            "3d",
+            "Td",
+            "5d",
+            "7d"
+          ]
+        ],
+        12
+      ]
+    ],
+    "foul_verdict_differs": [
+      [
+        [
+          [
+            "Kd",
+            "2d",
+            "Kc"
+          ],
+          [
+            "Qs",
+            "X2",
+            "7s",
+            "9s",
+            "4s"
+          ],
+          [
+            "Jh",
+            "9h",
+            "3h",
+            "6h",
+            "2h"
+          ]
+        ],
+        true,
+        false
+      ]
+    ],
+    "royalty_differs": [
+      [
+        [
+          [
+            "Ac",
+            "6h",
+            "9c"
+          ],
+          [
+            "Ts",
+            "X2",
+            "8s",
+            "2s",
+            "5s"
+          ],
+          [
+            "2d",
+            "3d",
+            "Td",
+            "5d",
+            "7d"
+          ]
+        ],
+        4,
+        12
+      ],
+      [
+        [
+          [
+            "Kd",
+            "2d",
+            "Kc"
+          ],
+          [
+            "Qs",
+            "X2",
+            "7s",
+            "9s",
+            "4s"
+          ],
+          [
+            "Jh",
+            "9h",
+            "3h",
+            "6h",
+            "2h"
+          ]
+        ],
+        0,
+        20
+      ],
+      [
+        [
+          [
+            "7s",
+            "3d",
+            "Qs"
+          ],
+          [
+            "2c",
+            "Ac",
+            "8c",
+            "9c",
+            "X1"
+          ],
+          [
+            "2h",
+            "6h",
+            "Jh",
+            "Qh",
+            "9h"
+          ]
+        ],
+        4,
+        12
+      ]
+    ]
+  },
+  "findings": {
+    "claims_no_foul_but_raw_board_fouls": 12,
+    "foul_verdict_differs": 1,
+    "royalty_differs": 3
+  },
+  "hands": 400,
+  "mean_royalty_canonical": 14.2725,
+  "mean_royalty_claimed": 14.3625,
+  "ms_per_hand": 7.199394106864929,
+  "scored": 400,
+  "seed": 20260730,
+  "version": 2
+}
