@@ -3,6 +3,8 @@
 //! Extracted from fl_solver main.rs for reuse across FL solver and backward induction.
 
 use serde::{Deserialize, Serialize};
+use std::cell::RefCell;
+use std::collections::HashMap;
 
 // ============================================================
 //  Card & Hand Rank Types
@@ -146,99 +148,292 @@ pub fn get_straight_high_card(rank_counts: &[u8; 15], jokers: u8) -> u8 {
     best_high
 }
 
-pub fn evaluate_5_card(cards: &[Card]) -> (HandRank, u32) {
+const HAND_VALUE_BASE: u32 = 15;
+const HAND_VALUE_CATEGORY_BASE: u32 = 15u32.pow(5);
+
+/// Canonical base-15 hand value shared with `ai.engine.game_engine.evaluate_hand`.
+///
+/// Keeping this value identical to Python is important: a three-card top row and
+/// a five-card middle row can then be compared directly, including trips vs
+/// trips and all kickers.  The old Rust evaluator returned only the set of
+/// distinct ranks, which lost pair/trips structure and made those comparisons
+/// disagree with Python.
+fn encode_hand_value(category: u8, ranks: &[u8]) -> u32 {
+    let mut value = category as u32;
+    for index in 0..5 {
+        value = value * HAND_VALUE_BASE + ranks.get(index).copied().unwrap_or(0) as u32;
+    }
+    value
+}
+
+fn category_from_value(value: u32) -> u8 {
+    (value / HAND_VALUE_CATEGORY_BASE) as u8
+}
+
+fn primary_rank_from_value(value: u32) -> u8 {
+    ((value / HAND_VALUE_BASE.pow(4)) % HAND_VALUE_BASE) as u8
+}
+
+/// Evaluate a row using the canonical Python base-15 representation.
+///
+/// Jokers are resolved by exhaustively trying distinct natural-card
+/// substitutions and taking the maximum natural hand. This is also what makes
+/// flush kickers and a second Joker used as a quads kicker exact.
+thread_local! {
+    /// Joker hands are evaluated by exhaustive natural substitution, which is
+    /// two to three orders of magnitude more work than a natural evaluation
+    /// and recurs constantly: a 14-card FL solve revisits the same few
+    /// thousand distinct rows across a million arrangements.  The cache key
+    /// is the sorted multiset of cards (both jokers are interchangeable for
+    /// strength) plus the row size, so a hit is exact, and the map is cleared
+    /// if it ever grows past a bound so long-running teacher generation
+    /// cannot leak.
+    static JOKER_EVAL_CACHE: RefCell<HashMap<u64, u32>> = RefCell::new(HashMap::new());
+}
+
+const JOKER_EVAL_CACHE_LIMIT: usize = 4_000_000;
+
+fn joker_eval_cache_key(cards: &[Card], expected_count: usize) -> u64 {
+    // 6 bits per card: naturals are rank*4+suit in 8..=59, any joker is 60.
+    let mut codes: [u8; 8] = [63; 8];
+    for (index, card) in cards.iter().enumerate() {
+        codes[index] = if card.is_joker() {
+            60
+        } else {
+            card.rank * 4 + card.suit
+        };
+    }
+    codes[..cards.len()].sort_unstable();
+    let mut key: u64 = expected_count as u64;
+    for code in &codes[..cards.len()] {
+        key = (key << 6) | *code as u64;
+    }
+    key
+}
+
+pub fn evaluate_hand_value(cards: &[Card], expected_count: usize) -> u32 {
+    if cards.len() != expected_count {
+        return 0;
+    }
+
+    let joker_count = count_jokers(cards) as usize;
+    if joker_count == 0 {
+        return evaluate_natural_hand_value(cards, expected_count);
+    }
+
+    let key = joker_eval_cache_key(cards, expected_count);
+    if let Some(value) = JOKER_EVAL_CACHE.with(|cache| cache.borrow().get(&key).copied()) {
+        return value;
+    }
+
+    let non_jokers: Vec<Card> = cards
+        .iter()
+        .filter(|card| !card.is_joker())
+        .copied()
+        .collect();
+    let substitutions = available_subs(cards);
+    let mut best_value = 0;
+
+    if joker_count == 1 {
+        for substitution in substitutions {
+            let mut natural = non_jokers.clone();
+            natural.push(substitution);
+            best_value = best_value.max(evaluate_natural_hand_value(&natural, expected_count));
+        }
+    } else if joker_count == 2 {
+        for first in 0..substitutions.len() {
+            for second in (first + 1)..substitutions.len() {
+                let mut natural = non_jokers.clone();
+                natural.push(substitutions[first]);
+                natural.push(substitutions[second]);
+                best_value = best_value.max(evaluate_natural_hand_value(&natural, expected_count));
+            }
+        }
+    }
+
+    best_value
+}
+
+fn evaluate_natural_hand_value(cards: &[Card], expected_count: usize) -> u32 {
+    if cards.len() != expected_count {
+        return 0;
+    }
+
     let rank_counts = count_ranks(cards);
     let suit_counts = count_suits(cards);
     let jokers = count_jokers(cards);
+    let mut ranks: Vec<u8> = cards
+        .iter()
+        .filter(|card| !card.is_joker())
+        .map(|card| card.rank)
+        .collect();
+    ranks.sort_unstable_by(|a, b| b.cmp(a));
 
-    let max_suit = suit_counts.iter().max().copied().unwrap_or(0);
-    let is_flush = max_suit + jokers >= 5;
+    let best = rank_counts.iter().copied().max().unwrap_or(0);
 
-    let (is_straight, is_wheel) = is_straight_possible(&rank_counts, jokers);
+    if expected_count == 3 {
+        if best + jokers >= 3 {
+            let trip_rank = if best >= 3 {
+                (2..=14).rev().find(|&rank| rank_counts[rank] >= 3).unwrap_or(0) as u8
+            } else if best >= 2 {
+                (2..=14).rev().find(|&rank| rank_counts[rank] >= 2).unwrap_or(0) as u8
+            } else {
+                ranks.first().copied().unwrap_or(14)
+            };
+            return encode_hand_value(3, &[trip_rank]);
+        }
+
+        if best + jokers >= 2 {
+            let (pair_rank, kicker) = if best >= 2 {
+                let pair_rank = (2..=14)
+                    .rev()
+                    .find(|&rank| rank_counts[rank] >= 2)
+                    .unwrap_or(0) as u8;
+                let kicker = ranks
+                    .iter()
+                    .copied()
+                    .find(|&rank| rank != pair_rank)
+                    .unwrap_or(0);
+                (pair_rank, kicker)
+            } else {
+                (
+                    ranks.first().copied().unwrap_or(0),
+                    ranks.get(1).copied().unwrap_or(0),
+                )
+            };
+            return encode_hand_value(1, &[pair_rank, kicker]);
+        }
+
+        return encode_hand_value(0, &ranks);
+    }
+
+    let pairs: Vec<u8> = (2..=14)
+        .rev()
+        .filter(|&rank| rank_counts[rank] >= 2)
+        .map(|rank| rank as u8)
+        .collect();
+    let non_joker_count = cards.len() as u8 - jokers;
+    let flush_suits = suit_counts.iter().filter(|&&count| count > 0).count();
+    let is_flush = flush_suits == 1 && non_joker_count + jokers == expected_count as u8;
+    let (is_straight, _) = is_straight_possible(&rank_counts, jokers);
 
     if is_flush && is_straight {
-        let high = get_straight_high_card(&rank_counts, jokers);
-        if high == 14 && !is_wheel {
-            return (HandRank::RoyalFlush, calculate_strength(&rank_counts));
-        }
-        return (HandRank::StraightFlush, calculate_strength(&rank_counts));
+        return encode_hand_value(8, &[get_straight_high_card(&rank_counts, jokers)]);
     }
 
-    let mut pairs = 0;
-    let mut trips = 0;
-    let mut quads = 0;
-    let mut remaining_jokers = jokers;
-
-    let mut counts_with_jokers: Vec<(u8, u8)> = Vec::new();
-    for r in (2..=14).rev() {
-        if rank_counts[r] > 0 {
-            counts_with_jokers.push((r as u8, rank_counts[r]));
-        }
+    if best + jokers >= 4 {
+        let quad_rank = if best >= 4 {
+            (2..=14).rev().find(|&rank| rank_counts[rank] >= 4).unwrap_or(0) as u8
+        } else if best >= 3 {
+            (2..=14).rev().find(|&rank| rank_counts[rank] >= 3).unwrap_or(0) as u8
+        } else {
+            pairs.first().copied().or_else(|| ranks.first().copied()).unwrap_or(0)
+        };
+        let kicker = ranks
+            .iter()
+            .copied()
+            .filter(|&rank| rank != quad_rank)
+            .max()
+            .unwrap_or(0);
+        return encode_hand_value(7, &[quad_rank, kicker]);
     }
 
-    for &(_, count) in &counts_with_jokers {
-        if count + remaining_jokers >= 4 && count >= 1 {
-            quads += 1;
-            let used = 4 - count;
-            remaining_jokers -= used.min(remaining_jokers);
-        } else if count + remaining_jokers >= 3 && count >= 1 {
-            trips += 1;
-            let used = 3 - count;
-            remaining_jokers -= used.min(remaining_jokers);
-        } else if count >= 2 {
-            pairs += 1;
+    if best >= 3 {
+        let trip_rank = (2..=14)
+            .rev()
+            .find(|&rank| rank_counts[rank] >= 3)
+            .unwrap_or(0) as u8;
+        if let Some(pair_rank) = (2..=14)
+            .rev()
+            .find(|&rank| rank as u8 != trip_rank && rank_counts[rank] >= 2)
+        {
+            return encode_hand_value(6, &[trip_rank, pair_rank as u8]);
         }
     }
+    if jokers >= 1 && pairs.len() >= 2 {
+        return encode_hand_value(6, &[pairs[0], pairs[1]]);
+    }
 
-    let rank = if quads >= 1 {
-        HandRank::Quads
-    } else if trips >= 1 && (pairs >= 1 || trips >= 2) {
-        HandRank::FullHouse
-    } else if is_flush {
-        HandRank::Flush
-    } else if is_straight {
-        HandRank::Straight
-    } else if trips >= 1 {
-        HandRank::Trips
-    } else if pairs >= 2 {
-        HandRank::TwoPair
-    } else if pairs >= 1 || (remaining_jokers >= 1 && counts_with_jokers.iter().any(|&(_, c)| c >= 1)) {
-        HandRank::OnePair
-    } else {
-        HandRank::HighCard
+    if is_flush {
+        return encode_hand_value(5, &ranks);
+    }
+    if is_straight {
+        return encode_hand_value(4, &[get_straight_high_card(&rank_counts, jokers)]);
+    }
+
+    if best + jokers >= 3 {
+        let trip_rank = if best >= 3 {
+            (2..=14).rev().find(|&rank| rank_counts[rank] >= 3).unwrap_or(0) as u8
+        } else if best >= 2 {
+            (2..=14).rev().find(|&rank| rank_counts[rank] >= 2).unwrap_or(0) as u8
+        } else {
+            ranks.first().copied().unwrap_or(0)
+        };
+        let kickers: Vec<u8> = ranks
+            .iter()
+            .copied()
+            .filter(|&rank| rank != trip_rank)
+            .collect();
+        return encode_hand_value(
+            3,
+            &[
+                trip_rank,
+                kickers.first().copied().unwrap_or(0),
+                kickers.get(1).copied().unwrap_or(0),
+            ],
+        );
+    }
+
+    if pairs.len() >= 2 {
+        let kicker = ranks
+            .iter()
+            .copied()
+            .filter(|rank| !pairs[..2].contains(rank))
+            .max()
+            .unwrap_or(0);
+        return encode_hand_value(2, &[pairs[0], pairs[1], kicker]);
+    }
+
+    if best >= 2 || jokers >= 1 {
+        let pair_rank = pairs.first().copied().or_else(|| ranks.first().copied()).unwrap_or(0);
+        let mut kickers: Vec<u8> = if pairs.is_empty() {
+            ranks.iter().copied().skip(1).collect()
+        } else {
+            ranks.iter().copied().filter(|&rank| rank != pair_rank).collect()
+        };
+        kickers.resize(3, 0);
+        return encode_hand_value(1, &[pair_rank, kickers[0], kickers[1], kickers[2]]);
+    }
+
+    encode_hand_value(0, &ranks)
+}
+
+pub fn evaluate_5_card(cards: &[Card]) -> (HandRank, u32) {
+    let value = evaluate_hand_value(cards, 5);
+    let category = category_from_value(value);
+    let rank = match category {
+        8 if primary_rank_from_value(value) == 14 => HandRank::RoyalFlush,
+        8 => HandRank::StraightFlush,
+        7 => HandRank::Quads,
+        6 => HandRank::FullHouse,
+        5 => HandRank::Flush,
+        4 => HandRank::Straight,
+        3 => HandRank::Trips,
+        2 => HandRank::TwoPair,
+        1 => HandRank::OnePair,
+        _ => HandRank::HighCard,
     };
-
-    (rank, calculate_strength(&rank_counts))
+    (rank, value % HAND_VALUE_CATEGORY_BASE)
 }
 
 pub fn evaluate_3_card(cards: &[Card]) -> (HandRank3, u32) {
-    let rank_counts = count_ranks(cards);
-    let jokers = count_jokers(cards);
-
-    let mut has_pair = false;
-    let mut has_trips = false;
-
-    for r in (2..=14).rev() {
-        let count = rank_counts[r];
-        if count + jokers >= 3 && count >= 1 {
-            has_trips = true;
-            break;
-        }
-        if count + jokers >= 2 && count >= 1 {
-            has_pair = true;
-        }
-    }
-
-    let rank = if has_trips {
-        HandRank3::Trips
-    } else if has_pair {
-        HandRank3::OnePair
-    } else {
-        HandRank3::HighCard
+    let value = evaluate_hand_value(cards, 3);
+    let rank = match category_from_value(value) {
+        3 => HandRank3::Trips,
+        1 => HandRank3::OnePair,
+        _ => HandRank3::HighCard,
     };
-
-    let strength = calculate_strength(&rank_counts);
-    (rank, strength)
+    (rank, value % HAND_VALUE_CATEGORY_BASE)
 }
 
 pub fn calculate_strength(rank_counts: &[u8; 15]) -> u32 {
@@ -345,61 +540,12 @@ pub fn check_fl_entry(top: &[Card]) -> (bool, u8) {
 // ============================================================
 
 pub fn compare_5_hands(a: &[Card], b: &[Card]) -> i32 {
-    let (rank_a, str_a) = evaluate_5_card(a);
-    let (rank_b, str_b) = evaluate_5_card(b);
-
-    if (rank_a as u8) != (rank_b as u8) {
-        return if (rank_a as u8) > (rank_b as u8) { 1 } else { -1 };
-    }
-
-    match rank_a {
-        HandRank::OnePair => {
-            let pair_a = get_pair_rank(a);
-            let pair_b = get_pair_rank(b);
-            if pair_a != pair_b {
-                return if pair_a > pair_b { 1 } else { -1 };
-            }
-            if str_a > str_b { 1 } else if str_a < str_b { -1 } else { 0 }
-        }
-        HandRank::Trips | HandRank::FullHouse => {
-            let trips_a = get_trips_rank(a);
-            let trips_b = get_trips_rank(b);
-            if trips_a != trips_b {
-                return if trips_a > trips_b { 1 } else { -1 };
-            }
-            if str_a > str_b { 1 } else if str_a < str_b { -1 } else { 0 }
-        }
-        HandRank::TwoPair => {
-            let pairs_a = get_two_pair_ranks(a);
-            let pairs_b = get_two_pair_ranks(b);
-            if pairs_a.0 != pairs_b.0 {
-                return if pairs_a.0 > pairs_b.0 { 1 } else { -1 };
-            }
-            if pairs_a.1 != pairs_b.1 {
-                return if pairs_a.1 > pairs_b.1 { 1 } else { -1 };
-            }
-            if str_a > str_b { 1 } else if str_a < str_b { -1 } else { 0 }
-        }
-        HandRank::Quads => {
-            let quads_a = get_quads_rank(a);
-            let quads_b = get_quads_rank(b);
-            if quads_a != quads_b {
-                return if quads_a > quads_b { 1 } else { -1 };
-            }
-            if str_a > str_b { 1 } else if str_a < str_b { -1 } else { 0 }
-        }
-        HandRank::Straight | HandRank::StraightFlush | HandRank::RoyalFlush => {
-            let rc_a = count_ranks(a);
-            let rc_b = count_ranks(b);
-            let j_a = count_jokers(a);
-            let j_b = count_jokers(b);
-            let high_a = get_straight_high_card(&rc_a, j_a);
-            let high_b = get_straight_high_card(&rc_b, j_b);
-            if high_a > high_b { 1 } else if high_a < high_b { -1 } else { 0 }
-        }
-        _ => {
-            if str_a > str_b { 1 } else if str_a < str_b { -1 } else { 0 }
-        }
+    let value_a = evaluate_hand_value(a, 5);
+    let value_b = evaluate_hand_value(b, 5);
+    match value_a.cmp(&value_b) {
+        std::cmp::Ordering::Less => -1,
+        std::cmp::Ordering::Equal => 0,
+        std::cmp::Ordering::Greater => 1,
     }
 }
 
@@ -455,66 +601,10 @@ pub fn get_quads_rank(cards: &[Card]) -> u8 {
 }
 
 pub fn is_valid_placement(top: &[Card], middle: &[Card], bottom: &[Card]) -> bool {
-    // Bottom must be >= Middle
-    if compare_5_hands(bottom, middle) < 0 {
-        return false;
-    }
-
-    // Middle must be >= Top
-    let (top_rank, _) = evaluate_3_card(top);
-    let (mid_rank, _) = evaluate_5_card(middle);
-
-    let top_rank_f: f64 = match top_rank {
-        HandRank3::HighCard => 0.0,
-        HandRank3::OnePair => 1.0,
-        HandRank3::Trips => 2.5,
-    };
-    let mid_rank_f = mid_rank as u8 as f64;
-
-    if top_rank_f > mid_rank_f {
-        return false;
-    }
-
-    // Special case: 3-card Trips vs 5-card Trips
-    if top_rank == HandRank3::Trips && mid_rank == HandRank::Trips {
-        let top_trips = get_trips_rank(top);
-        let mid_trips = get_trips_rank(middle);
-        if top_trips > mid_trips {
-            return false;
-        }
-    }
-
-    // Same rank category: compare within
-    if (top_rank_f - mid_rank_f).abs() < 0.01 {
-        match top_rank {
-            HandRank3::HighCard => {
-                let top_high = top.iter().filter(|c| !c.is_joker()).map(|c| c.rank).max().unwrap_or(0);
-                let mid_high = middle.iter().filter(|c| !c.is_joker()).map(|c| c.rank).max().unwrap_or(0);
-                if top_high > mid_high {
-                    return false;
-                }
-            }
-            HandRank3::OnePair => {
-                let top_pair = get_pair_rank(top);
-                let mid_pair = get_pair_rank(middle);
-                if top_pair > mid_pair {
-                    return false;
-                }
-                if top_pair == mid_pair {
-                    let top_kicker = top.iter().filter(|c| !c.is_joker() && c.rank != top_pair).map(|c| c.rank).max().unwrap_or(0);
-                    let mid_kicker = middle.iter().filter(|c| !c.is_joker() && c.rank != mid_pair).map(|c| c.rank).max().unwrap_or(0);
-                    if top_kicker > mid_kicker {
-                        return false;
-                    }
-                }
-            }
-            HandRank3::Trips => {
-                // Already handled above
-            }
-        }
-    }
-
-    true
+    let top_value = evaluate_hand_value(top, 3);
+    let middle_value = evaluate_hand_value(middle, 5);
+    let bottom_value = evaluate_hand_value(bottom, 5);
+    top_value <= middle_value && middle_value <= bottom_value
 }
 
 // ============================================================
@@ -623,49 +713,18 @@ pub fn evaluate_board_with_joker_constraint(
 
 /// Check if 3-card top ≤ 5-card mid (extracted from is_valid_placement)
 fn is_top_le_mid(top: &[Card], mid: &[Card]) -> bool {
-    let (top_rank, _) = evaluate_3_card(top);
-    let (mid_rank, _) = evaluate_5_card(mid);
-
-    let top_rank_f: f64 = match top_rank {
-        HandRank3::HighCard => 0.0,
-        HandRank3::OnePair => 1.0,
-        HandRank3::Trips => 2.5,
-    };
-    let mid_rank_f = mid_rank as u8 as f64;
-
-    if top_rank_f < mid_rank_f { return true; }
-    if top_rank_f > mid_rank_f { return false; }
-
-    // Same category
-    if top_rank == HandRank3::Trips && mid_rank == HandRank::Trips {
-        return get_trips_rank(top) <= get_trips_rank(mid);
-    }
-    match top_rank {
-        HandRank3::HighCard => {
-            let top_high = top.iter().filter(|c| !c.is_joker()).map(|c| c.rank).max().unwrap_or(0);
-            let mid_high = mid.iter().filter(|c| !c.is_joker()).map(|c| c.rank).max().unwrap_or(0);
-            top_high <= mid_high
-        }
-        HandRank3::OnePair => {
-            let tp = get_pair_rank(top);
-            let mp = get_pair_rank(mid);
-            if tp != mp { return tp < mp; }
-            let tk = top.iter().filter(|c| !c.is_joker() && c.rank != tp).map(|c| c.rank).max().unwrap_or(0);
-            let mk = mid.iter().filter(|c| !c.is_joker() && c.rank != mp).map(|c| c.rank).max().unwrap_or(0);
-            tk <= mk
-        }
-        _ => true,
-    }
+    evaluate_hand_value(top, 3) <= evaluate_hand_value(mid, 5)
 }
 
 /// Compare two 3-card hands (for finding best substitution)
-fn compare_3(a: &[Card], b: &[Card]) -> i32 {
-    let (ra, sa) = evaluate_3_card(a);
-    let (rb, sb) = evaluate_3_card(b);
-    if (ra as u8) != (rb as u8) {
-        return if (ra as u8) > (rb as u8) { 1 } else { -1 };
+pub fn compare_3_hands(a: &[Card], b: &[Card]) -> i32 {
+    let value_a = evaluate_hand_value(a, 3);
+    let value_b = evaluate_hand_value(b, 3);
+    match value_a.cmp(&value_b) {
+        std::cmp::Ordering::Less => -1,
+        std::cmp::Ordering::Equal => 0,
+        std::cmp::Ordering::Greater => 1,
     }
-    if sa > sb { 1 } else if sa < sb { -1 } else { 0 }
 }
 
 /// Generate all candidate substitution cards (not already in the hand)
@@ -747,7 +806,7 @@ fn constrain_3_vs_5(cards: &[Card], mid: &[Card]) -> Vec<Card> {
             let mut test = non_jokers.clone();
             test.push(*sub);
             if is_top_le_mid(&test, mid) {
-                if best.is_none() || compare_3(&test, best.as_ref().unwrap()) > 0 {
+                if best.is_none() || compare_3_hands(&test, best.as_ref().unwrap()) > 0 {
                     best = Some(test);
                 }
             }
@@ -759,7 +818,7 @@ fn constrain_3_vs_5(cards: &[Card], mid: &[Card]) -> Vec<Card> {
                 test.push(subs[i]);
                 test.push(subs[j]);
                 if is_top_le_mid(&test, mid) {
-                    if best.is_none() || compare_3(&test, best.as_ref().unwrap()) > 0 {
+                    if best.is_none() || compare_3_hands(&test, best.as_ref().unwrap()) > 0 {
                         best = Some(test);
                     }
                 }
@@ -768,4 +827,81 @@ fn constrain_3_vs_5(cards: &[Card], mid: &[Card]) -> Vec<Card> {
     }
 
     best.unwrap_or_else(|| cards.to_vec())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn card(rank: u8, suit: u8) -> Card {
+        Card { rank, suit }
+    }
+
+    fn joker() -> Card {
+        card(0, 4)
+    }
+
+    #[test]
+    fn two_jokers_choose_quads_over_full_house() {
+        let cards = [card(14, 0), card(2, 0), card(2, 1), joker(), joker()];
+        let (rank, _) = evaluate_5_card(&cards);
+        assert_eq!(rank, HandRank::Quads);
+        assert_eq!(evaluate_hand_value(&cards, 5), 5_464_125);
+        assert_eq!(get_bottom_royalty(&cards), 10);
+    }
+
+    #[test]
+    fn joker_straight_flush_value_matches_python_base15_encoding() {
+        let cards = [card(14, 0), card(13, 0), card(12, 0), joker(), joker()];
+        assert_eq!(evaluate_hand_value(&cards, 5), 6_783_750);
+        assert_eq!(evaluate_5_card(&cards).0, HandRank::RoyalFlush);
+    }
+
+    #[test]
+    fn joker_completes_highest_flush_kicker_exactly() {
+        let cards = [card(13, 1), card(12, 1), card(9, 1), card(3, 1), joker()];
+        assert_eq!(evaluate_hand_value(&cards, 5), 4_552_338);
+        assert_eq!(evaluate_5_card(&cards).0, HandRank::Flush);
+    }
+
+    #[test]
+    fn second_joker_becomes_best_quads_kicker() {
+        let cards = [card(12, 0), card(12, 1), card(12, 2), joker(), joker()];
+        assert_eq!(evaluate_hand_value(&cards, 5), 5_970_375);
+        assert_eq!(evaluate_5_card(&cards).0, HandRank::Quads);
+    }
+
+    #[test]
+    fn top_trips_rank_is_compared_against_middle_trips() {
+        let top = [card(14, 0), card(14, 1), card(14, 2)];
+        let middle = [card(2, 0), card(2, 1), card(2, 2), card(13, 0), card(12, 0)];
+        let bottom = [card(3, 0), card(3, 1), card(3, 2), card(3, 3), card(4, 0)];
+        assert!(!is_valid_placement(&top, &middle, &bottom));
+    }
+
+    #[test]
+    fn top_joker_downgrades_to_best_non_busting_pair() {
+        let top = [card(12, 0), card(12, 1), joker()];
+        let middle = [card(13, 0), card(13, 1), card(14, 2), card(11, 2), card(9, 2)];
+        let bottom = [card(14, 0), card(14, 1), card(14, 3), card(8, 0), card(7, 0)];
+
+        let eval = evaluate_board_with_joker_constraint(&top, &middle, &bottom);
+        assert!(!eval.busted);
+        assert_eq!(category_from_value(evaluate_hand_value(&eval.top, 3)), 1);
+        assert_eq!(primary_rank_from_value(evaluate_hand_value(&eval.top, 3)), 12);
+        assert_eq!(get_top_royalty(&eval.top), 7);
+        assert_eq!(check_fl_entry(&eval.top), (true, 14));
+    }
+
+    #[test]
+    fn middle_joker_downgrades_before_top_is_checked() {
+        let top = [card(11, 0), card(10, 1), card(8, 2)];
+        let middle = [card(13, 0), card(13, 1), card(12, 0), card(12, 1), joker()];
+        let bottom = [card(14, 0), card(14, 1), card(14, 2), card(9, 0), card(8, 0)];
+
+        let eval = evaluate_board_with_joker_constraint(&top, &middle, &bottom);
+        assert!(!eval.busted);
+        assert_eq!(category_from_value(evaluate_hand_value(&eval.mid, 5)), 2);
+        assert_eq!(get_middle_royalty(&eval.mid), 0);
+    }
 }
