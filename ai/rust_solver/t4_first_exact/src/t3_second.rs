@@ -57,12 +57,12 @@ pub struct T3Response {
 }
 
 /// Distinct (which two of three cards, into which rows) shapes for a board.
-struct Pattern {
-    cards: [usize; 2],
-    rows: [usize; 2],
+pub(crate) struct Pattern {
+    pub(crate) cards: [usize; 2],
+    pub(crate) rows: [usize; 2],
 }
 
-fn placement_patterns(board: &CoreBoard) -> Vec<Pattern> {
+pub(crate) fn placement_patterns(board: &CoreBoard) -> Vec<Pattern> {
     let open = board.open_slots();
     let mut seen: std::collections::BTreeSet<(usize, usize, usize, usize)> =
         std::collections::BTreeSet::new();
