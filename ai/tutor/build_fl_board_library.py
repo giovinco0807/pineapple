@@ -2,10 +2,15 @@
 
 Hands are dealt unconditionally from the full 54-card deck and solved once
 with fl_solver (version 2, canonical-correct since the 2026-07-31 rebuild).
-Consumers then filter entries whose 14 dealt cards are disjoint from the
-hero's seen set; because library hands are uniform over C(54,n), the
-surviving entries are uniform over C(unseen,n) -- exactly the conditional
-distribution the normal-vs-FL subgame needs.  No per-root solving.
+Consumers then filter entries whose dealt cards are disjoint from the hero's
+seen set; because library hands are uniform over C(54,n), the surviving
+entries are uniform over C(unseen,n) -- exactly the conditional distribution
+the normal-vs-FL subgame needs.  No per-root solving.
+
+Workers append results in batches, so progress is visible from outside and a
+killed run RESUMES by skipping the seeds already present in its shard -- the
+lesson of the 96k build, whose workers held hours of results in memory with
+nothing on disk when the host application crashed.
 
 Each entry stores the dealt-hand bitmask (for the disjointness test), the
 constrained row values, royalty, stay flag and foul flag, all recomputed in
@@ -19,6 +24,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import random
 import subprocess
 import sys
@@ -31,6 +37,7 @@ SUITS = {"s": 0, "h": 1, "d": 2, "c": 3}
 ALL_CARDS = [rank + suit for suit in "shdc" for rank in "23456789TJQKA"] + ["X1", "X2"]
 CARD_INDEX = {card: index for index, card in enumerate(ALL_CARDS)}
 LIBRARY_SCHEMA = "ofc_fl_board_library/v1"
+BATCH = 200
 
 
 def solver_path() -> Path:
@@ -54,9 +61,7 @@ def decode(card: dict, jokers_left: list[str]) -> str:
     return "23456789TJQKA"[card["rank"] - 2] + "shdc"[card["suit"]]
 
 
-def build_shard(args: tuple) -> dict:
-    """One worker: deal, solve and canonically re-score a range of hands."""
-    seed_start, count, cards_per_hand, out_path = args
+def _solve_batch(batch_seeds: list[int], cards_per_hand: int) -> tuple[list, int]:
     from ai.engine.game_engine import (
         check_fl_entry,
         evaluate_board_with_joker_constraint,
@@ -68,18 +73,25 @@ def build_shard(args: tuple) -> dict:
     )
 
     hands = []
-    for offset in range(count):
-        rng = random.Random(seed_start + offset)
+    for seed in batch_seeds:
+        rng = random.Random(seed)
         deck = ALL_CARDS[:]
         rng.shuffle(deck)
-        hands.append(deck[:cards_per_hand])
+        hands.append((seed, deck[:cards_per_hand]))
 
     payload = "\n".join(
         json.dumps({"cards": [encode(card) for card in hand], "version": 2})
-        for hand in hands
+        for _seed, hand in hands
     )
+    # Process-level parallelism only: the v1 fallback inside the solver is
+    # rayon-parallel and oversubscribes the machine otherwise.
+    environment = dict(os.environ, RAYON_NUM_THREADS="1")
     result = subprocess.run(
-        [str(solver_path())], input=payload + "\n", capture_output=True, text=True
+        [str(solver_path())],
+        input=payload + "\n",
+        capture_output=True,
+        text=True,
+        env=environment,
     )
     responses = [json.loads(line) for line in result.stdout.splitlines() if line.strip()]
     if len(responses) != len(hands):
@@ -87,7 +99,7 @@ def build_shard(args: tuple) -> dict:
 
     rows = []
     fouls = 0
-    for hand, response in zip(hands, responses):
+    for (hand_seed, hand), response in zip(hands, responses):
         if not response.get("success"):
             continue
         placement = response["placement"]
@@ -100,9 +112,7 @@ def build_shard(args: tuple) -> dict:
         busted = bool(evaluation["busted"])
         if busted:
             fouls += 1
-        final_rows = (
-            evaluation["top"], evaluation["middle"], evaluation["bottom"]
-        )
+        final_rows = (evaluation["top"], evaluation["middle"], evaluation["bottom"])
         values = [
             evaluate_hand(list(final_rows[0]), 3),
             evaluate_hand(list(final_rows[1]), 5),
@@ -117,17 +127,14 @@ def build_shard(args: tuple) -> dict:
         )
         stay = (
             not busted
-            and (
-                hand_category(values[0]) == 3
-                or hand_category(values[2]) >= 7
-            )
+            and (hand_category(values[0]) == 3 or hand_category(values[2]) >= 7)
         )
         mask = 0
         for card in hand:
             mask |= 1 << CARD_INDEX[card]
         rows.append(
             {
-                "seed": seed_start + hands.index(hand),
+                "seed": hand_seed,
                 "mask": mask,
                 "board": board,
                 "values": values,
@@ -136,10 +143,36 @@ def build_shard(args: tuple) -> dict:
                 "busted": busted,
             }
         )
-    with open(out_path, "w", encoding="utf-8") as handle:
-        for row in rows:
-            handle.write(json.dumps(row) + "\n")
-    return {"path": str(out_path), "rows": len(rows), "fouls": fouls}
+    return rows, fouls
+
+
+def build_shard(args: tuple) -> dict:
+    """One worker: solve a seed range, appending results in resumable batches."""
+    seed_start, count, cards_per_hand, out_path = args
+    out_file = Path(out_path)
+    done_seeds: set[int] = set()
+    if out_file.exists():
+        with out_file.open(encoding="utf-8") as handle:
+            for line in handle:
+                if line.strip():
+                    done_seeds.add(json.loads(line)["seed"])
+
+    pending = [
+        seed_start + offset
+        for offset in range(count)
+        if seed_start + offset not in done_seeds
+    ]
+    written = len(done_seeds)
+    fouls_total = 0
+    for start in range(0, len(pending), BATCH):
+        rows, fouls = _solve_batch(pending[start : start + BATCH], cards_per_hand)
+        fouls_total += fouls
+        with out_file.open("a", encoding="utf-8") as handle:
+            for row in rows:
+                handle.write(json.dumps(row) + "\n")
+        written += len(rows)
+        print(f"  worker@{seed_start}: {written}/{count}", flush=True)
+    return {"path": str(out_path), "rows": written, "fouls": fouls_total}
 
 
 def main() -> None:
@@ -171,8 +204,6 @@ def main() -> None:
     with ProcessPoolExecutor(max_workers=args.workers) as pool:
         for outcome in pool.map(build_shard, tasks):
             results.append(outcome)
-            done = sum(r["rows"] for r in results)
-            print(f"shard done: {outcome['rows']} rows ({done} total)", flush=True)
     manifest = {
         "schema": LIBRARY_SCHEMA,
         "hands": args.hands,
