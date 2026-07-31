@@ -17,6 +17,7 @@
 mod evaluator;
 mod t3_second;
 mod t3_vs_fl;
+mod t3_vs_fl_lib;
 
 use anyhow::{anyhow, bail, Context, Result};
 use clap::Parser;
@@ -783,11 +784,48 @@ struct Cli {
     /// Read T3-vs-FL requests and evaluate with the T4-vs-FL model image.
     #[arg(long)]
     t3_vs_fl_model: Option<PathBuf>,
+    /// T3-vs-FL with direct FL-library scoring (no learned model in labels).
+    #[arg(long, num_args = 1..)]
+    t3_vs_fl_library: Option<Vec<PathBuf>>,
 }
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
     let fl_ev = FlEv::load(&cli.fl_ev_config)?;
+    if let Some(library_dirs) = &cli.t3_vs_fl_library {
+        let library = t3_vs_fl_lib::FlLibrary::load(library_dirs)?;
+        let fl_table: evaluator::FlTable = [
+            fl_ev.value(14) as f32,
+            fl_ev.value(15) as f32,
+            fl_ev.value(16) as f32,
+            fl_ev.value(17) as f32,
+        ];
+        let reader = BufReader::new(File::open(&cli.input)?);
+        let mut requests: Vec<t3_vs_fl::T3VsFlRequest> = Vec::new();
+        for line in reader.lines() {
+            let line = line?;
+            if !line.trim().is_empty() {
+                requests.push(serde_json::from_str(&line)?);
+            }
+        }
+        let mut writer = BufWriter::new(File::create(&cli.output)?);
+        for chunk in requests.chunks(cli.chunk_size.max(1)) {
+            let solved: Result<Vec<String>> = chunk
+                .iter()
+                .map(|request| {
+                    Ok(serde_json::to_string(&t3_vs_fl_lib::solve(
+                        request, &fl_ev, &library, &fl_table,
+                    )?)?)
+                })
+                .collect();
+            for line in solved? {
+                writeln!(writer, "{line}")?;
+            }
+            writer.flush()?;
+        }
+        return Ok(());
+    }
+
     if let Some(model_path) = &cli.t3_vs_fl_model {
         let image = std::fs::read(model_path)?;
         let model = evaluator::Model::load(&image).map_err(|e| anyhow!("{e}"))?;

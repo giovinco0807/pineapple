@@ -33,11 +33,13 @@ from ai.tutor.t3_vs_fl import sample_root
 from ai.tutor.t4_vs_fl import CARD_INDEX, seen_mask
 from ai.mcts.rollout_evaluator import RolloutEvaluator
 
-DATASET_SCHEMA = "ofc_t3_vs_fl_teacher/v1"
+DATASET_SCHEMA = "ofc_t3_vs_fl_teacher/v2_library_labels"
 SPLITS = ("fit", "dev", "test")
 ACTOR_SIZE = 48
+ROWWISE_SIZE = 41
+JOINT_SIZE = 8
 FL_CONTEXT_SIZE = 12
-FEATURE_SIZE = ACTOR_SIZE + FL_CONTEXT_SIZE  # 60
+FEATURE_SIZE = ACTOR_SIZE + ROWWISE_SIZE + JOINT_SIZE + FL_CONTEXT_SIZE  # 109
 
 
 def split_of(seed: int) -> str:
@@ -69,11 +71,22 @@ def fl_context(pool_cards: list[str], opp_count: int) -> list[float]:
     ]
 
 
-def encode_t3_action(rows_11, dead_3, opp_count: int) -> list[float]:
+def encode_t3_action(rows_11, dead_3, opp_count: int, rowwise, joint) -> list[float]:
+    """109 dims: actor + own completion outlook (from Rust) + FL context.
+
+    The rowwise and joint blocks come from the solver response so the same
+    exact enumeration that priced the action also describes it -- the fix the
+    v1 failure report specified after regret came in 45x worse than T4.
+    """
     seen = seen_mask([card for row in rows_11 for card in row] + list(dead_3))
     pool = [card for card in ALL_CARDS if not ((1 << CARD_INDEX[card]) & seen)]
     actor, _categories = actor_block(rows_11, pool)
-    vector = actor + fl_context(pool, opp_count)
+    vector = (
+        actor
+        + [float(value) for value in rowwise]
+        + [float(value) for value in joint]
+        + fl_context(pool, opp_count)
+    )
     if len(vector) != FEATURE_SIZE:
         raise AssertionError(f"feature size drifted: {len(vector)}")
     return vector
@@ -123,7 +136,9 @@ def run(
                 "--input", str(scratch / "in.jsonl"),
                 "--output", str(scratch / "out.jsonl"),
                 "--fl-ev-config", str(workspace_root / "ai" / "config" / "fl_ev.json"),
-                "--t3-vs-fl-model", str(model),
+                "--t3-vs-fl-library",
+                "D:/ofc_data/fl_library_14",
+                "D:/ofc_data/fl_library_14_ext",
                 "--chunk-size", "64",
             ],
             check=True,
@@ -134,7 +149,7 @@ def run(
                 if line.strip():
                     payload = json.loads(line)
                     labels[payload["id"]] = {
-                        row["action_key"]: row["value"] for row in payload["actions"]
+                        row["action_key"]: row for row in payload["actions"]
                     }
         for root in generated:
             table = labels.get(str(root["seed"]))
@@ -159,13 +174,17 @@ def run(
                 key = exact_late.action_key(action)
                 if key not in table:
                     continue
+                row = table[key]
                 after = exact_late.apply_action(board, action)
                 rows_11 = (after.top, after.middle, after.bottom)
                 dead_3 = list(root["dead"]) + [action.discard]
                 target["x"].append(
-                    encode_t3_action(rows_11, dead_3, root["opp_count"])
+                    encode_t3_action(
+                        rows_11, dead_3, root["opp_count"],
+                        row["own_rowwise_block"], row["own_joint_block"],
+                    )
                 )
-                target["y"].append(table[key])
+                target["y"].append(row["value"])
                 target["j"].append(jokers_visible)
         done = offset + size
         rate = done / (time.time() - started)
@@ -177,9 +196,9 @@ def run(
     manifest = {
         "schema": DATASET_SCHEMA,
         "feature_size": FEATURE_SIZE,
-        "label": "rust_t3_vs_fl_value_over_learned_t4_leaf",
-        "target_is_exact": False,
-        "leaf_model": str(model),
+        "label": "direct_fl_library_scoring_no_learned_leaf",
+        "target_is_exact": "mc_only (draws + library sampling; no model error)",
+        "leaf_model": None,
         "draw_sample": draw_sample,
         "roots": roots,
         "seed": seed,

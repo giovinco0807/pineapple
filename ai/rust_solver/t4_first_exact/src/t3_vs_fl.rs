@@ -85,7 +85,7 @@ fn fl_context(
     out.push((2 - jokers.min(2)) as f32 / 2.0);
 }
 
-fn sampled_draws(pool_len: usize, want: usize, seed: &str) -> Vec<[usize; 3]> {
+pub(crate) fn sampled_draws(pool_len: usize, want: usize, seed: &str) -> Vec<[usize; 3]> {
     let mut all: Vec<[usize; 3]> = Vec::new();
     for a in 0..pool_len {
         for b in (a + 1)..pool_len {
@@ -109,6 +109,35 @@ fn sampled_draws(pool_len: usize, want: usize, seed: &str) -> Vec<[usize; 3]> {
     }
     all.truncate(want);
     all
+}
+
+/// Draw selection shared with the library-leaf module: explicit override for
+/// parity, hash-sampled otherwise.
+pub(crate) fn draws_for(
+    request: &T3VsFlRequest,
+    unseen: &[Card],
+    seed: &str,
+) -> Result<Vec<[usize; 3]>> {
+    if let Some(explicit) = &request.draws {
+        let index_of = |name: &str| -> Result<usize> {
+            let target = super::to_core_card(name)?;
+            unseen
+                .iter()
+                .position(|card| *card == target)
+                .ok_or_else(|| anyhow::anyhow!("parity draw card not unseen"))
+        };
+        return explicit
+            .iter()
+            .map(|cards| {
+                Ok([
+                    index_of(&cards[0])?,
+                    index_of(&cards[1])?,
+                    index_of(&cards[2])?,
+                ])
+            })
+            .collect();
+    }
+    Ok(sampled_draws(unseen.len(), request.draw_sample, seed))
 }
 
 pub fn solve(

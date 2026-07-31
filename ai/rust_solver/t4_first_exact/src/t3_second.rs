@@ -96,7 +96,7 @@ pub(crate) fn placement_patterns(board: &CoreBoard) -> Vec<Pattern> {
 
 /// The opponent's joint completion block over a pool, from cached pair
 /// terminals.  Mirrors `opponent_joint_block` in the Python encoder.
-fn joint_block(board: &CoreBoard, pool: &[Card], fl_ev: &FlEv) -> Result<[f64; 8]> {
+pub(crate) fn joint_block(board: &CoreBoard, pool: &[Card], fl_ev: &FlEv) -> Result<[f64; 8]> {
     let open = board.open_slots();
     if open.iter().sum::<usize>() != 2 {
         bail!("joint block needs an opponent board with two open slots");
