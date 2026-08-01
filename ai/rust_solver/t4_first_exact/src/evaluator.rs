@@ -15,6 +15,8 @@ use ofc_core::{
 pub const CATEGORIES: usize = 9;
 pub const HERO_SIZE: usize = 42;
 pub const OPPONENT_SIZE: usize = 49;
+/// The T3 acting seat's own-board block (t3_second_features.actor_block).
+pub const ACTOR_SIZE: usize = 48;
 pub const JOINT_SIZE: usize = 12;
 pub const CONTEXT_SIZE: usize = 6;
 pub const FEATURE_SIZE: usize = HERO_SIZE + OPPONENT_SIZE + JOINT_SIZE + CONTEXT_SIZE;
@@ -81,6 +83,59 @@ pub fn partial_category(cards: &[Card], capacity: usize) -> usize {
     } else {
         0
     }
+}
+
+/// The acting seat's own 11-card board at T3: per-row made value / royalty /
+/// room, ordering slack, bottom-suit concentration, FL entry facts, jokers.
+/// Byte-for-byte port of `t3_second_features.actor_block`.
+pub fn actor_block(rows: &[Vec<Card>; 3], out: &mut Vec<f32>) {
+    let capacities = [3usize, 5, 5];
+    let mut categories = [0usize; 3];
+    let mut rooms = [0usize; 3];
+    for row in 0..3 {
+        let cards = &rows[row];
+        rooms[row] = capacities[row] - cards.len();
+        let category = partial_category(cards, capacities[row]);
+        categories[row] = category;
+        if cards.len() == capacities[row] {
+            let value = evaluate_hand_value(cards, capacities[row]);
+            spread(value, out);
+            out.push(row_royalty(row, cards) as f32 / MAX_ROYALTY);
+        } else {
+            let start = out.len();
+            out.resize(start + CATEGORIES + 2, 0.0);
+            out[start + category.min(CATEGORIES - 1)] = 1.0;
+            out.push(0.0);
+        }
+        out.push(rooms[row] as f32 / 5.0);
+    }
+    // Ordering slack: how far each adjacent pair is from a foul, with rows
+    // still open to fix it.
+    out.push((categories[1] as f32 - categories[2] as f32) / 8.0);
+    out.push((categories[0] as f32 - categories[1] as f32) / 8.0);
+    out.push(if categories[0] > categories[1] { 1.0 } else { 0.0 });
+    out.push(if categories[1] > categories[2] { 1.0 } else { 0.0 });
+    let mut suits = [0u8; 4];
+    for card in &rows[2] {
+        if !card.is_joker() {
+            suits[card.suit as usize] += 1;
+        }
+    }
+    out.push(suits.iter().copied().max().unwrap_or(0) as f32 / 5.0);
+    let (fl_qualified, fl_count) = if rows[0].len() == 3 {
+        check_fl_entry(&rows[0])
+    } else {
+        (false, 0)
+    };
+    out.push(if fl_qualified { 1.0 } else { 0.0 });
+    out.push(fl_count as f32 / 17.0);
+    let jokers = rows
+        .iter()
+        .flat_map(|row| row.iter())
+        .filter(|card| card.is_joker())
+        .count();
+    out.push(jokers as f32 / 2.0);
+    out.push(rooms.iter().sum::<usize>() as f32 / 5.0);
 }
 
 /// Fantasyland EV by card count 14..17, from ai/config/fl_ev.json.

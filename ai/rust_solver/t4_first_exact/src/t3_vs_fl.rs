@@ -52,7 +52,7 @@ pub struct T3VsFlResponse {
 }
 
 /// FL context block (12 dims), pinned to `t4_vs_fl.encode_action`.
-fn fl_context(
+pub(crate) fn fl_context(
     pool: &[Card],
     opp_count: u8,
     fl_ev: &FlEv,

@@ -24,11 +24,11 @@ use super::t3_vs_fl::T3VsFlRequest;
 use super::{all_cards, apply, legal_actions, terminal_of, to_core_card, CoreBoard, FlEv};
 
 pub struct FlLibrary {
-    masks: Vec<u64>,
-    values: Vec<[u32; 3]>,
-    royalty: Vec<f64>,
-    stay: Vec<bool>,
-    busted: Vec<bool>,
+    pub(crate) masks: Vec<u64>,
+    pub(crate) values: Vec<[u32; 3]>,
+    pub(crate) royalty: Vec<f64>,
+    pub(crate) stay: Vec<bool>,
+    pub(crate) busted: Vec<bool>,
 }
 
 impl FlLibrary {
@@ -82,7 +82,7 @@ impl FlLibrary {
     }
 }
 
-fn card_bit(card: &Card) -> Result<u64> {
+pub(crate) fn card_bit(card: &Card) -> Result<u64> {
     // Index order pinned to Python ALL_CARDS: suits s,h,d,c x ranks 2..A,
     // then X1=52.  Both jokers map to bit 52|53; the mask test only needs
     // "is this physical card taken", and jokers in the library mask carry
@@ -99,20 +99,20 @@ fn card_bit(card: &Card) -> Result<u64> {
 /// loop scans L1-resident memory instead of gathering five 120k-wide arrays
 /// through an index vector (measured: that gather was ~97% of teacher time).
 #[derive(Clone, Copy)]
-struct MatchedRow {
-    values: [u32; 3],
-    royalty: f64,
-    stay: bool,
-    busted: bool,
+pub(crate) struct MatchedRow {
+    pub(crate) values: [u32; 3],
+    pub(crate) royalty: f64,
+    pub(crate) stay: bool,
+    pub(crate) busted: bool,
 }
 
 
 /// Everything score_mean reads from a terminal: against a fixed matched set
 /// the score is a pure function of this key, so per-draw memoization over
 /// the placement patterns is exact.
-type TerminalKey = (bool, i32, u8, [u32; 3]);
+pub(crate) type TerminalKey = (bool, i32, u8, [u32; 3]);
 
-fn terminal_key(terminal: &super::Terminal) -> TerminalKey {
+pub(crate) fn terminal_key(terminal: &super::Terminal) -> TerminalKey {
     (
         terminal.busted,
         terminal.royalty,
@@ -124,7 +124,7 @@ fn terminal_key(terminal: &super::Terminal) -> TerminalKey {
 /// Mean canonical score of one completed hero board over the matched rows.
 /// Iteration order matches the pre-optimization code exactly, so the float
 /// sum -- and therefore every emitted label byte -- is unchanged.
-fn score_mean(
+pub(crate) fn score_mean(
     terminal: &super::Terminal,
     matched: &[MatchedRow],
     opp_count: u8,
@@ -182,6 +182,11 @@ pub struct LibActionValue {
     pub mean_fl_samples: f64,
     pub own_joint_block: [f64; 8],
     pub own_rowwise_block: Vec<f32>,
+    /// Full 109-dim encoder vector (actor + rowwise + joint + FL context),
+    /// emitted under T3FL_EMIT_FEATURES=1 for cross-language parity checks
+    /// and consumed by the in-engine T3 policy during T2 playouts.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub features: Option<Vec<f32>>,
 }
 
 #[derive(Serialize)]
@@ -355,6 +360,22 @@ pub fn solve(
                 );
             }
 
+            let features = if std::env::var("T3FL_EMIT_FEATURES").as_deref() == Ok("1") {
+                let mut vector: Vec<f32> = Vec::with_capacity(109);
+                evaluator::actor_block(&after.rows, &mut vector);
+                vector.extend_from_slice(&rowwise);
+                vector.extend(joint.iter().map(|value| *value as f32));
+                super::t3_vs_fl::fl_context(
+                    &unseen, request.opp_count, fl_ev, &mut vector,
+                );
+                if vector.len() != 109 {
+                    bail!("t3-vs-fl feature vector drifted: {}", vector.len());
+                }
+                Some(vector)
+            } else {
+                None
+            };
+
             Ok(LibActionValue {
                 action_key: action.key(),
                 value: total / effective_draws as f64,
@@ -362,6 +383,7 @@ pub fn solve(
                 mean_fl_samples: sample_total as f64 / effective_draws as f64,
                 own_joint_block: joint,
                 own_rowwise_block: rowwise,
+                features,
             })
         })
         .collect();
