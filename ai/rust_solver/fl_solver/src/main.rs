@@ -533,6 +533,228 @@ fn find_best_for_bottom(cards: &[Card], bottom: &[Card], remaining: &[usize]) ->
 }
 
 // ============================================================
+//  Table-Driven Exact Solver v3
+// ============================================================
+//
+// The v1 exhaustive search re-evaluates every row of every candidate from
+// scratch: at 17 cards that is C(17,5)*C(12,5)*C(7,3) = 171M candidates
+// times several hand evaluations each (measured 37-180s per hand).  Here
+// every 5-card and 3-card subset is evaluated exactly once into a table
+// (6,188 + 680 rows at 17 cards), and the search walks tables sorted by
+// royalty-plus-stay upper bound with branch-and-bound cuts.  The bound is
+// the same sound raw bound v1 uses (jokers at full strength, stay from raw
+// trips-top / quads-bottom), so pruning never changes the argmax; canonical
+// evaluation runs only on candidates whose bound beats the incumbent.
+// Unlike v2's role phases, no candidate shape is ever assumed: this is the
+// full exact argmax, at production latency.
+
+/// One evaluated 5-card subset: royalty read at raw (joker-max) strength.
+struct Sub5 {
+    mask: u32,
+    roy_mid: i32,
+    roy_bot: i32,
+    /// Raw rank reaches quads or better: bottom-row stay is possible.
+    stay_bot: bool,
+    /// Canonical hand value on ofc_core's cross-row scale; exact when the
+    /// subset has no joker, joker-max otherwise.
+    value: u32,
+    has_joker: bool,
+}
+
+/// One evaluated 3-card subset.
+struct Sub3 {
+    mask: u32,
+    roy_top: i32,
+    /// Raw rank is trips: top-row stay is possible.
+    trips: bool,
+    value: u32,
+    has_joker: bool,
+}
+
+fn cards_of_mask(cards: &[Card], mask: u32) -> Vec<Card> {
+    (0..cards.len())
+        .filter(|index| mask & (1 << index) != 0)
+        .map(|index| cards[index])
+        .collect()
+}
+
+fn subset_masks(n: usize, k: usize) -> Vec<u32> {
+    let mut out = Vec::new();
+    let mut indices: Vec<usize> = (0..k).collect();
+    loop {
+        out.push(indices.iter().fold(0u32, |mask, i| mask | 1 << i));
+        // Next combination in lexicographic order.
+        let mut position = k;
+        loop {
+            if position == 0 {
+                return out;
+            }
+            position -= 1;
+            if indices[position] != position + n - k {
+                indices[position] += 1;
+                for later in (position + 1)..k {
+                    indices[later] = indices[later - 1] + 1;
+                }
+                break;
+            }
+        }
+    }
+}
+
+pub fn solve_fantasyland_v3(cards: &[Card]) -> Option<Placement> {
+    let n = cards.len();
+    if n < 13 || n > 17 {
+        return None;
+    }
+    let jokers_mask: u32 = (0..n)
+        .filter(|index| cards[*index].is_joker())
+        .fold(0u32, |mask, index| mask | 1 << index);
+
+    let fives: Vec<Sub5> = subset_masks(n, 5)
+        .into_iter()
+        .map(|mask| {
+            let row = cards_of_mask(cards, mask);
+            let (rank, _) = evaluate_5_card(&row);
+            Sub5 {
+                mask,
+                roy_mid: get_middle_royalty(&row),
+                roy_bot: get_bottom_royalty(&row),
+                stay_bot: matches!(
+                    rank,
+                    HandRank::Quads | HandRank::StraightFlush | HandRank::RoyalFlush
+                ),
+                value: ofc_core::evaluate_hand_value(&to_core_cards(&row), 5),
+                has_joker: row.iter().any(|card| card.is_joker()),
+            }
+        })
+        .collect();
+    let mut threes: Vec<Sub3> = subset_masks(n, 3)
+        .into_iter()
+        .map(|mask| {
+            let row = cards_of_mask(cards, mask);
+            let (rank, _) = evaluate_3_card(&row);
+            Sub3 {
+                mask,
+                roy_top: get_top_royalty(&row),
+                trips: rank == HandRank3::Trips,
+                value: ofc_core::evaluate_hand_value(&to_core_cards(&row), 3),
+                has_joker: row.iter().any(|card| card.is_joker()),
+            }
+        })
+        .collect();
+
+    // Bottoms by royalty + own stay grant; mids by royalty; tops by royalty
+    // + own stay grant.  Descending, so incumbents form fast and the sorted
+    // prefix bounds justify loop breaks.
+    let mut bots: Vec<&Sub5> = fives.iter().collect();
+    bots.sort_by_key(|sub| -(sub.roy_bot + if sub.stay_bot { 100 } else { 0 }));
+    let mut mids: Vec<&Sub5> = fives.iter().collect();
+    mids.sort_by_key(|sub| -sub.roy_mid);
+    threes.sort_by_key(|sub| -(sub.roy_top + if sub.trips { 100 } else { 0 }));
+
+    let key_bot = |sub: &Sub5| sub.roy_bot + if sub.stay_bot { 100 } else { 0 };
+    let key_top = |sub: &Sub3| sub.roy_top + if sub.trips { 100 } else { 0 };
+    let max_roy_mid = mids.first().map(|sub| sub.roy_mid).unwrap_or(0);
+    let max_key_top = threes.iter().map(&key_top).max().unwrap_or(0);
+
+    // Shared incumbent: scores are integers (royalty sums plus the 100 stay
+    // grant), so an AtomicI32 carries them exactly across rayon threads and
+    // every thread prunes against the best score any thread has found.
+    use std::sync::atomic::{AtomicI32, Ordering as AtomicOrdering};
+    let incumbent = AtomicI32::new(i32::MIN);
+
+    let best = bots
+        .par_iter()
+        .enumerate()
+        .filter_map(|(bot_rank, bot)| {
+            let mut local_best: Option<Placement> = None;
+            // Sorted bots: everything from here on has a bound no better
+            // than this one, but with rayon the ranks run out of order, so
+            // this is a skip rather than a break.
+            let bound_bot = key_bot(bot) + max_roy_mid + max_key_top;
+            if bound_bot <= incumbent.load(AtomicOrdering::Relaxed) {
+                return None;
+            }
+            let _ = bot_rank;
+            for mid in &mids {
+                if mid.mask & bot.mask != 0 {
+                    continue;
+                }
+                if key_bot(bot) + mid.roy_mid + max_key_top
+                    <= incumbent.load(AtomicOrdering::Relaxed)
+                {
+                    break;
+                }
+                // Joker-free rows carry exact canonical values, so an
+                // ordering violation is a guaranteed bust -- skip before
+                // any canonical work.
+                if !bot.has_joker && !mid.has_joker && mid.value > bot.value {
+                    continue;
+                }
+                let used_bm = bot.mask | mid.mask;
+                for top in &threes {
+                    if key_bot(bot) + mid.roy_mid + key_top(top)
+                        <= incumbent.load(AtomicOrdering::Relaxed)
+                    {
+                        break;
+                    }
+                    if top.mask & used_bm != 0 {
+                        continue;
+                    }
+                    if !top.has_joker && !mid.has_joker && top.value > mid.value {
+                        continue;
+                    }
+                    let used = used_bm | top.mask;
+                    // Jokers may never be discarded (owner rule: strictly
+                    // dominant to keep them).
+                    if jokers_mask & used != jokers_mask {
+                        continue;
+                    }
+                    let top_cards = cards_of_mask(cards, top.mask);
+                    let mid_cards = cards_of_mask(cards, mid.mask);
+                    let bot_cards = cards_of_mask(cards, bot.mask);
+                    let canonical = canonical_rows(&top_cards, &mid_cards, &bot_cards);
+                    if canonical.busted {
+                        continue;
+                    }
+                    let total = canonical.top_royalty
+                        + canonical.middle_royalty
+                        + canonical.bottom_royalty;
+                    let stay = canonical.can_stay;
+                    let score_int = total + if stay { 100 } else { 0 };
+                    let previous = incumbent.fetch_max(score_int, AtomicOrdering::Relaxed);
+                    let improved_locally = local_best
+                        .as_ref()
+                        .map(|placement| (score_int as f64) > placement.score)
+                        .unwrap_or(true);
+                    if score_int > previous || improved_locally {
+                        let discards = (0..n)
+                            .filter(|index| used & (1 << index) == 0)
+                            .map(|index| cards[index])
+                            .collect();
+                        local_best = Some(Placement {
+                            top: top_cards.clone(),
+                            middle: mid_cards.clone(),
+                            bottom: bot_cards.clone(),
+                            discards,
+                            top_royalty: canonical.top_royalty,
+                            middle_royalty: canonical.middle_royalty,
+                            bottom_royalty: canonical.bottom_royalty,
+                            total_royalty: total,
+                            can_stay: stay,
+                            is_bust: false,
+                            score: score_int as f64,
+                        });
+                    }
+                }
+            }
+            local_best
+        })
+        .max_by(|a, b| a.score.partial_cmp(&b.score).unwrap());
+    best
+}
+
+// ============================================================
 //  Role-Based Solver v2 (Optimized)
 // ============================================================
 
@@ -1389,13 +1611,15 @@ fn run_stdin_mode() {
                 let placement = if let Some(ref opp) = req.opponent {
                     eprintln!("Solving FL vs opponent board...");
                     solve_fl_vs_normal(&req.cards, opp)
+                } else if req.version == 3 {
+                    solve_fantasyland_v3(&req.cards)
                 } else if req.version == 2 {
                     solve_fantasyland_v2(&req.cards)
                 } else {
                     solve_fantasyland(&req.cards)
                 };
                 let elapsed = start.elapsed().as_secs_f64();
-                let mode = if req.opponent.is_some() { "vs_opp" } else if req.version == 2 { "v2" } else { "v1" };
+                let mode = if req.opponent.is_some() { "vs_opp" } else if req.version == 3 { "v3" } else if req.version == 2 { "v2" } else { "v1" };
                 eprintln!("Solved {} in {:.3}s", mode, elapsed);
                 
                 Response {

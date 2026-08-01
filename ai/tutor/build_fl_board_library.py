@@ -1,7 +1,8 @@
 """Build a global library of solved Fantasyland boards.
 
 Hands are dealt unconditionally from the full 54-card deck and solved once
-with fl_solver (version 2, canonical-correct since the 2026-07-31 rebuild).
+with fl_solver (version 3, table-driven exact; v2 was measurably suboptimal
+on ~25% of hands, see the 2026-08-01 audit).
 Consumers then filter entries whose dealt cards are disjoint from the hero's
 seen set; because library hands are uniform over C(54,n), the surviving
 entries are uniform over C(unseen,n) -- exactly the conditional distribution
@@ -80,7 +81,7 @@ def _solve_batch(batch_seeds: list[int], cards_per_hand: int) -> tuple[list, int
         hands.append((seed, deck[:cards_per_hand]))
 
     payload = "\n".join(
-        json.dumps({"cards": [encode(card) for card in hand], "version": 2})
+        json.dumps({"cards": [encode(card) for card in hand], "version": 3})
         for _seed, hand in hands
     )
     # Process-level parallelism only: the v1 fallback inside the solver is
@@ -209,7 +210,7 @@ def main() -> None:
         "hands": args.hands,
         "cards_per_hand": args.cards,
         "seed_base": args.seed_base,
-        "solver": "fl_solver v2 canonical (rebuilt 2026-07-31)",
+        "solver": "fl_solver v3 table-driven exact (2026-08-01)",
         "rows": sum(r["rows"] for r in results),
         "fouled_boards": sum(r["fouls"] for r in results),
         "elapsed_seconds": time.time() - started,
