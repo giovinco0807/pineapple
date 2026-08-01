@@ -656,6 +656,17 @@ pub fn solve_fantasyland_v3(cards: &[Card]) -> Option<Placement> {
     let key_top = |sub: &Sub3| sub.roy_top + if sub.trips { 100 } else { 0 };
     let max_roy_mid = mids.first().map(|sub| sub.roy_mid).unwrap_or(0);
     let max_key_top = threes.iter().map(&key_top).max().unwrap_or(0);
+    // Weakest trips on the canonical cross-row scale (2-2-2).  A joker top
+    // can only canonically reach trips -- and therefore stay -- if the
+    // middle admits a value at least this strong above it.
+    let trips_min = ofc_core::evaluate_hand_value(
+        &to_core_cards(&[
+            Card { rank: 2, suit: 0 },
+            Card { rank: 2, suit: 1 },
+            Card { rank: 2, suit: 2 },
+        ]),
+        3,
+    );
 
     // Shared incumbent: scores are integers (royalty sums plus the 100 stay
     // grant), so an AtomicI32 carries them exactly across rayon threads and
@@ -692,6 +703,10 @@ pub fn solve_fantasyland_v3(cards: &[Card]) -> Option<Placement> {
                     continue;
                 }
                 let used_bm = bot.mask | mid.mask;
+                // Top-row stay requires canonical trips, which the ordering
+                // constraint caps at the middle's value; a joker-free middle
+                // below the weakest trips rules it out for the whole pair.
+                let top_stay_open = mid.has_joker || mid.value >= trips_min;
                 for top in &threes {
                     if key_bot(bot) + mid.roy_mid + key_top(top)
                         <= incumbent.load(AtomicOrdering::Relaxed)
@@ -702,6 +717,18 @@ pub fn solve_fantasyland_v3(cards: &[Card]) -> Option<Placement> {
                         continue;
                     }
                     if !top.has_joker && !mid.has_joker && top.value > mid.value {
+                        continue;
+                    }
+                    // Per-candidate effective bound (v1 had this; its absence
+                    // let joker-trips tops flood canonical evaluation): stay
+                    // only counts when actually reachable for this pair.
+                    let stay_reachable =
+                        bot.stay_bot || (top.trips && top_stay_open);
+                    let bound = bot.roy_bot
+                        + mid.roy_mid
+                        + top.roy_top
+                        + if stay_reachable { 100 } else { 0 };
+                    if bound <= incumbent.load(AtomicOrdering::Relaxed) {
                         continue;
                     }
                     let used = used_bm | top.mask;
