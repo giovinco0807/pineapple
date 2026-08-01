@@ -122,16 +122,15 @@ pub(crate) fn joint_block(board: &CoreBoard, pool: &[Card], fl_ev: &FlEv) -> Res
 
     let pool_len = pool.len();
     let mut table: Vec<Option<Vec<Terminal>>> = vec![None; pool_len * pool_len];
-    let mut scratch = board.clone();
+    // Identity-keyed memo: the pair table completes the same board with
+    // heavily repeating (row, card) additions, so row evaluations are shared
+    // across the whole C(pool,2) sweep instead of recomputed per pair.
+    let mut memo = super::row_memo::TerminalMemo::new(board);
     for i in 0..pool_len {
         for j in (i + 1)..pool_len {
             let mut local = Vec::with_capacity(assignments.len());
             for rows in &assignments {
-                scratch.rows[rows[0]].push(pool[i]);
-                scratch.rows[rows[1]].push(pool[j]);
-                local.push(terminal_of(&scratch));
-                scratch.rows[rows[1]].pop();
-                scratch.rows[rows[0]].pop();
+                local.push(memo.terminal(&[(rows[0], pool[i]), (rows[1], pool[j])]));
             }
             table[i * pool_len + j] = Some(local);
         }

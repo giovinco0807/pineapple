@@ -15,6 +15,7 @@
 //! `ai/config/fl_ev.json` and its SHA-256 is emitted with every result.
 
 mod evaluator;
+mod row_memo;
 mod t3_second;
 mod t3_vs_fl;
 mod t3_vs_fl_lib;

@@ -105,11 +105,20 @@ def run(
     out_dir.mkdir(parents=True, exist_ok=True)
     scratch = out_dir / "scratch"
     scratch.mkdir(exist_ok=True)
-    buffers = {name: {"x": [], "y": [], "j": []} for name in SPLITS}
+    # Per-batch checkpoints: a killed run resumes by skipping finished chunks.
+    # Roots are seeded by absolute offset, so a resumed batch reproduces the
+    # exact roots the lost run would have generated.
+    chunk_dir = out_dir / "chunks"
+    chunk_dir.mkdir(exist_ok=True)
     started = time.time()
 
     for offset in range(0, roots, batch):
         size = min(batch, roots - offset)
+        chunk_path = chunk_dir / f"chunk_{offset:07d}.npz"
+        if chunk_path.exists():
+            print(f"[{offset + size}/{roots}] chunk exists, skipping", flush=True)
+            continue
+        buffers = {name: {"x": [], "y": [], "j": []} for name in SPLITS}
         generated = [sample_root(seed + offset + index) for index in range(size)]
         with (scratch / "in.jsonl").open("w", encoding="utf-8") as handle:
             for root in generated:
@@ -186,6 +195,14 @@ def run(
                 )
                 target["y"].append(row["value"])
                 target["j"].append(jokers_visible)
+        arrays = {}
+        for name in SPLITS:
+            arrays[f"{name}_x"] = np.asarray(buffers[name]["x"], dtype=np.float32)
+            arrays[f"{name}_y"] = np.asarray(buffers[name]["y"], dtype=np.float32)
+            arrays[f"{name}_j"] = np.asarray(buffers[name]["j"], dtype=np.int8)
+        temp = chunk_path.with_suffix(".tmp.npz")
+        np.savez_compressed(temp, **arrays)
+        temp.replace(chunk_path)
         done = offset + size
         rate = done / (time.time() - started)
         print(
@@ -206,10 +223,18 @@ def run(
         "elapsed_seconds": time.time() - started,
         "splits": {},
     }
+    chunks = [np.load(path) for path in sorted(chunk_dir.glob("chunk_*.npz"))]
+
+    def merged(key: str, empty_shape: tuple, dtype) -> np.ndarray:
+        parts = [c[key] for c in chunks if c[key].size]
+        if not parts:
+            return np.zeros(empty_shape, dtype=dtype)
+        return np.concatenate(parts)
+
     for name in SPLITS:
-        x = np.asarray(buffers[name]["x"], dtype=np.float32)
-        y = np.asarray(buffers[name]["y"], dtype=np.float32)
-        j = np.asarray(buffers[name]["j"], dtype=np.int8)
+        x = merged(f"{name}_x", (0, FEATURE_SIZE), np.float32)
+        y = merged(f"{name}_y", (0,), np.float32)
+        j = merged(f"{name}_j", (0,), np.int8)
         np.savez_compressed(out_dir / f"{name}.npz", x=x, y=y, jokers=j)
         manifest["splits"][name] = {
             "rows": int(x.shape[0]),
