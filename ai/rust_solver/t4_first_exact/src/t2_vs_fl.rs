@@ -58,6 +58,11 @@ pub struct T2VsFlActionValue {
     pub value: f64,
     pub t3_samples: usize,
     pub mean_fl_samples: f64,
+    /// Per-row completion outlook of the 9-card after-board over the unseen
+    /// pool -- the teacher encoder's rowwise block (41 dims).  The light-lap
+    /// T2 encoder is actor + rowwise + FL context; the four-open-slot joint
+    /// block is deliberately deferred.
+    pub own_rowwise_block: Vec<f32>,
 }
 
 #[derive(Serialize)]
@@ -273,6 +278,10 @@ pub fn solve(
                     .collect();
 
                 // The learned T3 policy chooses among candidate placements.
+                // The model's own input width selects the encoder: 109 is
+                // the full evaluator (actor + rowwise + joint + context),
+                // 60 is the light actor+context policy whose only job is
+                // move choice -- the distillation experiment's fast path.
                 let mut best_score = f32::NEG_INFINITY;
                 let mut chosen: Option<CoreBoard> = None;
                 for candidate in t3_candidates(&after, &t3_draw) {
@@ -284,16 +293,18 @@ pub fn solve(
                     let _ = candidate.discard_index;
                     features.clear();
                     evaluator::actor_block(&t3_after.rows, &mut features);
-                    let rowwise_start = features.len();
-                    let _categories = evaluator::opponent_rowwise_block(
-                        &t3_after.rows,
-                        &unseen_t3,
-                        fl_table,
-                        &mut features,
-                    );
-                    debug_assert_eq!(features.len() - rowwise_start, 41);
-                    for value in t3_second::joint_block(&t3_after, &unseen_t3, fl_ev)? {
-                        features.push(value as f32);
+                    if t3_model.input_dim == 109 {
+                        let _categories = evaluator::opponent_rowwise_block(
+                            &t3_after.rows,
+                            &unseen_t3,
+                            fl_table,
+                            &mut features,
+                        );
+                        for value in
+                            t3_second::joint_block(&t3_after, &unseen_t3, fl_ev)?
+                        {
+                            features.push(value as f32);
+                        }
                     }
                     super::t3_vs_fl::fl_context(
                         &unseen_t3,
@@ -301,7 +312,7 @@ pub fn solve(
                         fl_ev,
                         &mut features,
                     );
-                    if features.len() != 109 {
+                    if features.len() != t3_model.input_dim {
                         bail!("t2 playout feature width drifted: {}", features.len());
                     }
                     let predicted = t3_model.predict(&features, &mut scratch);
@@ -338,11 +349,19 @@ pub fn solve(
                 playouts += 1;
             }
             let effective = playouts.max(1);
+            let mut rowwise: Vec<f32> = Vec::with_capacity(evaluator::OPPONENT_SIZE);
+            let _categories = evaluator::opponent_rowwise_block(
+                &after.rows,
+                &unseen_t2,
+                fl_table,
+                &mut rowwise,
+            );
             Ok(T2VsFlActionValue {
                 action_key: action.key(),
                 value: total / effective as f64,
                 t3_samples: playouts,
                 mean_fl_samples: fl_samples / effective as f64,
+                own_rowwise_block: rowwise,
             })
         })
         .collect();
