@@ -15,7 +15,9 @@
 //! `ai/config/fl_ev.json` and its SHA-256 is emitted with every result.
 
 mod evaluator;
+mod playout;
 mod row_memo;
+mod t1_vs_fl;
 mod t2_vs_fl;
 mod t3_second;
 mod t3_vs_fl;
@@ -795,11 +797,64 @@ struct Cli {
     /// The exported 109-dim T3-vs-FL evaluator that chooses playout moves.
     #[arg(long)]
     t2_t3_model: Option<PathBuf>,
+    /// T1-vs-FL playout labels: FL library dirs (with --t1-t2-model and
+    /// --t2-t3-model supplying the two playout movers).
+    #[arg(long, num_args = 1..)]
+    t1_vs_fl_library: Option<Vec<PathBuf>>,
+    /// The exported T2-vs-FL evaluator that chooses the T2 playout move.
+    #[arg(long)]
+    t1_t2_model: Option<PathBuf>,
 }
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
     let fl_ev = FlEv::load(&cli.fl_ev_config)?;
+    if let Some(library_dirs) = &cli.t1_vs_fl_library {
+        let t2_path = cli
+            .t1_t2_model
+            .as_ref()
+            .ok_or_else(|| anyhow!("--t1-vs-fl-library requires --t1-t2-model"))?;
+        let t3_path = cli
+            .t2_t3_model
+            .as_ref()
+            .ok_or_else(|| anyhow!("--t1-vs-fl-library requires --t2-t3-model"))?;
+        let t2_image = std::fs::read(t2_path)?;
+        let t3_image = std::fs::read(t3_path)?;
+        let t2_model = evaluator::Model::load(&t2_image).map_err(|e| anyhow!("{e}"))?;
+        let t3_model = evaluator::Model::load(&t3_image).map_err(|e| anyhow!("{e}"))?;
+        let library = t3_vs_fl_lib::FlLibrary::load(library_dirs)?;
+        let fl_table: evaluator::FlTable = [
+            fl_ev.value(14) as f32,
+            fl_ev.value(15) as f32,
+            fl_ev.value(16) as f32,
+            fl_ev.value(17) as f32,
+        ];
+        let reader = BufReader::new(File::open(&cli.input)?);
+        let mut requests: Vec<t1_vs_fl::T1VsFlRequest> = Vec::new();
+        for line in reader.lines() {
+            let line = line?;
+            if !line.trim().is_empty() {
+                requests.push(serde_json::from_str(&line)?);
+            }
+        }
+        let mut writer = BufWriter::new(File::create(&cli.output)?);
+        for chunk in requests.chunks(cli.chunk_size.max(1)) {
+            let solved: Result<Vec<String>> = chunk
+                .iter()
+                .map(|request| {
+                    Ok(serde_json::to_string(&t1_vs_fl::solve(
+                        request, &fl_ev, &library, &fl_table, &t2_model, &t3_model,
+                    )?)?)
+                })
+                .collect();
+            for line in solved? {
+                writeln!(writer, "{line}")?;
+            }
+            writer.flush()?;
+        }
+        return Ok(());
+    }
+
     if let Some(library_dirs) = &cli.t2_vs_fl_library {
         let model_path = cli
             .t2_t3_model
