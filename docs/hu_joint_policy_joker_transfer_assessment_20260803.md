@@ -75,11 +75,21 @@ than regular's production chain. Two implications:
 1. **Round-1 label distribution risk**: behavior roots sampled from weak play
    are less representative. Mitigation: plan the cascade (M7-equivalent) as
    two rounds from the start, and
-2. **Bootstrap the behavior policy from regular models**: only ~7.2% of hands
-   contain a joker (1 − C(52,17)/C(54,17) per 17-card exposure; most positions
-   are joker-free), so a hybrid root policy — regular-track models on
-   joker-free positions, heuristic/legacy on joker positions — yields a far
-   stronger round-1 distribution almost for free.
+2. **Bootstrap the behavior policy from regular models — partially**: the
+   joker-free rate is P = C(52,17)/C(54,17) = (37×36)/(54×53) = **46.5%** of
+   own 17-card hands (so **53.5% contain a joker**, and **86.7% of games**
+   see one across the 34 dealt cards). *(This paragraph originally claimed
+   ~7.2% joker exposure — an arithmetic error caught in cross-track review on
+   08-03; the formula was right, the evaluation was not.)* A hybrid root
+   policy — regular models on joker-free hands, legacy/heuristic on joker
+   hands — therefore covers roughly half of round-1 hands well, not "almost
+   all", and the quality of the joker-hand side matters correspondingly more.
+   Two further honesty notes: even joker-free positions are not strictly
+   regular-equivalent (the unknown set still contains two jokers, which
+   shifts every outlook), which is acceptable for ROOT GENERATION (roots need
+   realism, not optimality) but disqualifies naive regular-model *serving* on
+   joker tables; and the joker track's own T3-vs-FL data confirms all three
+   joker strata (0/1/2) carry substantial mass.
 
 Upside of the weak baseline: expected whole-game gains are larger than
 regular's +1.73/hand, and the commercial story (one API covering both
@@ -101,6 +111,10 @@ unified-engine acceptance gates 1-4. Beyond that, two orderings:
 Estimate for joker HU either way, with mature machinery: **engine phase 2-4
 ~1 week (agent work + parity gates), construction ~1.5-2 weeks,
 compute ~$500-1,500** — same envelope as 3-way, lower methodological risk.
+Cross-track review note (08-03): the vs-FL half of that construction estimate
+is likely conservative — the joker track's T2-vs-FL playout labeler landed
+overnight (commit `e228adc`: T3-model moves + exact-library scoring), so the
+downward vs-FL construction is already underway on their side.
 
 A pragmatic note: the two tracks are converging on the same problems from
 opposite ends (regular built the streets and deferred FL; joker built FL and
@@ -114,5 +128,9 @@ lets each side adopt the other's finished half instead of rebuilding it.
    fl_ev-v2 harness once unified, or the M-C fixed-point numbers adopted as-is
    with a cross-check (recommended: cross-check first — the June lesson says
    the opponent's strength inside the estimator is the dominant term).
+   Shared precondition flagged in cross-track review: the FL libraries'
+   placement objective currently uses a fixed +100 stay term; substituting the
+   measured FL_EV requires regenerating the libraries (~1 hour under
+   fl_solver v3) — this gates BOTH tracks' adoption of measured chain values.
 3. Whether joker-variant models share the API surface at launch (schema
    already rules-parameterized; the decision is product, not technical).
