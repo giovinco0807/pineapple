@@ -27,6 +27,9 @@ from ai.engine.encoding import Board
 from ai.tutor.generate_t2_vs_fl_teacher import encode_t2_action
 from ai.tutor.solver_paths import _solver_path
 from ai.tutor.t2_policy_label_experiment import sample_t2_root
+from ai.tutor.joint_blocks import fetch_joint_blocks
+from ai.tutor.t4_vs_fl import CARD_INDEX, seen_mask
+from ai.engine.encoding import ALL_CARDS
 from ai.tutor.train_t4_first_evaluator import T4FirstEvaluator
 
 
@@ -116,12 +119,17 @@ def main() -> None:
             if card in ("X1", "X2")
         )
         features, values, values_b = [], [], []
+        feature_rows = []
         for action in get_turn_actions(list(root["draw"]), board):
             key = exact_late.action_key(action)
             if key not in table:
                 continue
             row = table[key]
             after = exact_late.apply_action(board, action)
+            feature_rows.append(
+                ([list(after.top), list(after.middle), list(after.bottom)],
+                 list(root["dead"]) + [action.discard])
+            )
             features.append(
                 encode_t2_action(
                     (after.top, after.middle, after.bottom),
@@ -133,6 +141,23 @@ def main() -> None:
             values.append(row["value"])
             if labels_b is not None:
                 values_b.append(labels_b[root["id"]][key]["value"])
+        if checkpoint["input_dim"] == 109:
+            requests = []
+            for position, vector in enumerate(features):
+                rows_after, dead_after = feature_rows[position]
+                seen = seen_mask([c for r in rows_after for c in r] + list(dead_after))
+                requests.append({
+                    "id": str(position),
+                    "board": {"top": rows_after[0], "middle": rows_after[1],
+                              "bottom": rows_after[2]},
+                    "pool": [card for card in ALL_CARDS
+                             if not ((1 << CARD_INDEX[card]) & seen)],
+                })
+            blocks = fetch_joint_blocks(requests, workspace_root)
+            features = [
+                vector[:89] + blocks[str(position)] + vector[89:]
+                for position, vector in enumerate(features)
+            ]
         x = (np.asarray(features, dtype=np.float32) - mean) / scale
         with torch.no_grad():
             predicted = model(torch.from_numpy(x)).squeeze(-1).numpy()

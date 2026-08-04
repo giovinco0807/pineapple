@@ -42,12 +42,12 @@ apt-get update -qq && apt-get install -y -qq python3-numpy
 mark deps_ok
 
 cd "$ROOT"
-gcloud storage cp "gs://$BUCKET/joker-fleet/src/joker_src_20260803.tar.gz" src.tar.gz
+gcloud storage cp "gs://$BUCKET/joker-fleet/src/joker_src_20260804.tar.gz" src.tar.gz
 tar -xzf src.tar.gz
 mkdir -p ai/rust_solver/target/release
-gcloud storage cp "gs://$BUCKET/joker-fleet/bin/t4_first_exact" \
+gcloud storage cp "gs://$BUCKET/joker-fleet/bin2/t4_first_exact" \
   ai/rust_solver/target/release/t4_first_exact
-gcloud storage cp "gs://$BUCKET/joker-fleet/bin/BINARIES.sha256" BINARIES.sha256
+gcloud storage cp "gs://$BUCKET/joker-fleet/bin2/BINARIES.sha256" BINARIES.sha256
 chmod +x ai/rust_solver/target/release/t4_first_exact
 # The binary is the one thing whose silent substitution would corrupt every
 # label, so it is verified rather than trusted.
@@ -59,7 +59,7 @@ ACTUAL="$(sha256sum ai/rust_solver/target/release/t4_first_exact | awk '{print $
 mkdir -p models library
 gcloud storage cp "gs://$BUCKET/joker-fleet/models/*" models/
 gcloud storage cp "gs://$BUCKET/joker-fleet/library/*" library/
-[ -f models/t2_evaluator.bin ] && [ -f models/t3_evaluator.bin ] \
+[ -f models/t1_evaluator.bin ] && [ -f models/t2_evaluator.bin ] && [ -f models/t3_evaluator.bin ] \
   || { echo "FATAL: models missing"; exit 1; }
 LIB_SHARDS="$(find library -name 'shard_*.jsonl' | wc -l)"
 [ "$LIB_SHARDS" -gt 0 ] || { echo "FATAL: FL library empty"; exit 1; }

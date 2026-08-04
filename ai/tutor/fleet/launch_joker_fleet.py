@@ -40,7 +40,7 @@ def run(command: list[str], dry_run: bool) -> tuple[int, str]:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--street", choices=["t1", "t2"], required=True)
+    parser.add_argument("--street", choices=["t0", "t1", "t2"], required=True)
     parser.add_argument("--run-id", default=None, help="defaults to <street>-r1")
     parser.add_argument("--shards", type=int, default=24)
     parser.add_argument("--roots-per-shard", type=int, default=500)

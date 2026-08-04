@@ -15,6 +15,7 @@
 //! `ai/config/fl_ev.json` and its SHA-256 is emitted with every result.
 
 mod evaluator;
+mod joint_outlook;
 mod playout;
 mod t0_vs_fl;
 mod row_memo;
@@ -812,11 +813,39 @@ struct Cli {
     /// The exported T1-vs-FL evaluator that chooses the T1 playout move.
     #[arg(long)]
     t0_t1_model: Option<PathBuf>,
+    /// Emit sampled joint-outlook blocks for {id, board, pool} requests.
+    #[arg(long, default_value_t = false)]
+    joint_outlook: bool,
 }
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
     let fl_ev = FlEv::load(&cli.fl_ev_config)?;
+    if cli.joint_outlook {
+        let reader = BufReader::new(File::open(&cli.input)?);
+        let mut requests: Vec<joint_outlook::JointOutlookRequest> = Vec::new();
+        for line in reader.lines() {
+            let line = line?;
+            if !line.trim().is_empty() {
+                requests.push(serde_json::from_str(&line)?);
+            }
+        }
+        let mut writer = BufWriter::new(File::create(&cli.output)?);
+        for chunk in requests.chunks(cli.chunk_size.max(1)) {
+            let solved: Result<Vec<String>> = chunk
+                .par_iter()
+                .map(|request| {
+                    Ok(serde_json::to_string(&joint_outlook::solve(request, &fl_ev)?)?)
+                })
+                .collect();
+            for line in solved? {
+                writeln!(writer, "{line}")?;
+            }
+            writer.flush()?;
+        }
+        return Ok(());
+    }
+
     if let Some(library_dirs) = &cli.t0_vs_fl_library {
         let t1_path = cli
             .t0_t1_model
