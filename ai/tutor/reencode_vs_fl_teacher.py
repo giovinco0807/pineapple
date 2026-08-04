@@ -40,14 +40,54 @@ NEW_FEATURE_SIZE = 48 + 41 + 8 + 12  # 109
 SAMPLERS = {"t0": sample_t0_root, "t1": sample_t1_root, "t2": sample_t2_root}
 
 
+CARD_ID = {card: (52 if card in ("X1", "X2") else "shdc".index(card[1]) * 13
+                  + "23456789TJQKA".index(card[0]))
+           for card in ALL_CARDS}
+
+
+def t0_rows(root: dict) -> list[tuple[list, list]]:
+    """T0 placements in the labeler's emitted order.
+
+    Mirrors t0_vs_fl.rs: odometer over 3^5 row codes (slot 0 varies
+    fastest), capacity check on the top row, dedup on the sorted
+    (row, card-identity) multiset, then sort by the action_key string --
+    the order the generator consumed.
+    """
+    cards = root["cards"]
+    seen: set[tuple] = set()
+    kept: list[list[int]] = []
+    for code in range(3 ** 5):
+        rows_of, value, counts = [0] * 5, code, [0, 0, 0]
+        for slot in range(5):
+            rows_of[slot] = value % 3
+            value //= 3
+            counts[rows_of[slot]] += 1
+        if counts[0] > 3:
+            continue
+        signature = tuple(sorted(
+            (rows_of[slot] << 8 | CARD_ID[cards[slot]]) for slot in range(5)
+        ))
+        if signature not in seen:
+            seen.add(signature)
+            kept.append(rows_of)
+    entries = []
+    for rows_of in kept:
+        rows = [[], [], []]
+        for slot in range(5):
+            rows[rows_of[slot]].append(cards[slot])
+        key = "|".join(",".join(sorted(row)) for row in rows)
+        entries.append((key, rows))
+    entries.sort(key=lambda item: item[0])
+    # Rows sorted per row, exactly as rows_of_action_key parsed them
+    # when the teacher encoded these rows the first time.
+    return [([sorted(r) for r in rows], []) for _key, rows in entries]
+
+
 def chunk_rows(street: str, root: dict) -> list[tuple[list, list]]:
     """(rows_after, dead_after) per action, in the generator's order."""
     out = []
     if street == "t0":
-        # T0 actions came from the labeler's enumeration; reproduce it via the
-        # same Rust order is not possible offline, so T0 re-encoding relies on
-        # the stored action order being the labeler's sorted action_key order.
-        raise NotImplementedError("t0 uses --from-labeler mode")
+        return t0_rows(root)
     board = Board(
         top=list(root["board"]["top"]),
         middle=list(root["board"]["middle"]),
@@ -66,7 +106,7 @@ def chunk_rows(street: str, root: dict) -> list[tuple[list, list]]:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--street", choices=["t1", "t2"], required=True)
+    parser.add_argument("--street", choices=["t0", "t1", "t2"], required=True)
     parser.add_argument("--in-dir", type=Path, required=True)
     parser.add_argument("--out-dir", type=Path, required=True)
     parser.add_argument("--samples", type=int, default=150)
@@ -106,9 +146,10 @@ def main() -> None:
 
         # Order rows exactly as the generator buffered them: per root, per
         # action, appended to that root's split bucket.
+        from ai.tutor.generate_t0_vs_fl_teacher import split_of as split_t0
         from ai.tutor.generate_t1_vs_fl_teacher import split_of as split_t1
         from ai.tutor.generate_t2_vs_fl_teacher import split_of as split_t2
-        split_of = split_t1 if args.street == "t1" else split_t2
+        split_of = {"t0": split_t0, "t1": split_t1, "t2": split_t2}[args.street]
         per_split_rows: dict[str, list] = {name: [] for name in SPLITS}
         requests = []
         for root, actions in per_chunk:
