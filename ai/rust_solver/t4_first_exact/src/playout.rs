@@ -18,6 +18,21 @@
 
 use anyhow::{bail, Result};
 use ofc_core::Card;
+use std::collections::HashMap;
+use std::sync::Mutex;
+
+/// Rowwise slices cached across the whole root: common random numbers make
+/// every action walk the same draw paths, so the pool at a node is
+/// identified by its seed string and row contents repeat massively across
+/// the action fan-out.  Key = (hash of the node's seed, row-cards key).
+pub(crate) type RowwiseMemo = Mutex<HashMap<(u64, u64), ([f32; 12], usize)>>;
+
+fn seed_hash(seed: &str) -> u64 {
+    use std::hash::{Hash, Hasher};
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    seed.hash(&mut hasher);
+    hasher.finish()
+}
 
 use super::evaluator;
 use super::row_memo::TerminalMemo;
@@ -40,6 +55,8 @@ pub(crate) struct Context<'a> {
     pub(crate) opp_count: u8,
     /// T4 draws sampled at the terminal; 0 enumerates all C(n,3).
     pub(crate) t4_draw_sample: usize,
+    /// Root-wide rowwise cache; see RowwiseMemo.
+    pub(crate) rowwise_memo: RowwiseMemo,
 }
 
 /// One candidate placement of two drawn cards into rows, at the Card level.
@@ -88,6 +105,10 @@ pub(crate) fn candidates(board: &CoreBoard, draw: &[Card; 3]) -> Vec<Candidate> 
 }
 
 /// Encode a board for `model`, choosing the block set by its input width.
+/// `rowwise_memo` caches per-row 12-dim slices across a node's candidates:
+/// a candidate changes at most two rows and the pool is fixed within the
+/// node, so most rows repeat -- the difference between minutes and hours on
+/// a T0 root (232 candidates x C(pool,2) evaluations per uncached row).
 pub(crate) fn encode_for(
     model: &evaluator::Model,
     board: &CoreBoard,
@@ -95,13 +116,16 @@ pub(crate) fn encode_for(
     opp_count: u8,
     fl_ev: &FlEv,
     fl_table: &evaluator::FlTable,
+    memo: &RowwiseMemo,
+    pool_key: u64,
     out: &mut Vec<f32>,
 ) -> Result<()> {
     out.clear();
     evaluator::actor_block(&board.rows, out);
     if model.input_dim >= 101 {
-        let _categories =
-            evaluator::opponent_rowwise_block(&board.rows, unseen, fl_table, out);
+        let _categories = evaluator::opponent_rowwise_block_shared(
+            &board.rows, unseen, fl_table, memo, pool_key, out,
+        );
     }
     if model.input_dim >= 109 {
         for value in t3_second::joint_block(board, unseen, fl_ev)? {
@@ -126,6 +150,7 @@ fn choose(
     draw: &[Card; 3],
     unseen: &[Card],
     context: &Context<'_>,
+    pool_key: u64,
     features: &mut Vec<f32>,
     scratch: &mut Vec<f32>,
 ) -> Result<Option<CoreBoard>> {
@@ -142,6 +167,8 @@ fn choose(
             context.opp_count,
             context.fl_ev,
             context.fl_table,
+            &context.rowwise_memo,
+            pool_key,
             features,
         )?;
         let predicted = model.predict(features, scratch);
@@ -274,8 +301,17 @@ pub(crate) fn descend(
             .filter(|(position, _)| !triple.contains(position))
             .map(|(_, card)| *card)
             .collect();
-        let Some(next_board) =
-            choose(model, board, &draw, &next_unseen, context, features, scratch)?
+        let child_seed = format!("{seed}/{index}");
+        let Some(next_board) = choose(
+            model,
+            board,
+            &draw,
+            &next_unseen,
+            context,
+            seed_hash(&child_seed),
+            features,
+            scratch,
+        )?
         else {
             continue;
         };
@@ -287,7 +323,7 @@ pub(crate) fn descend(
             jokers_seen + drawn_jokers,
             context,
             depth + 1,
-            &format!("{seed}/{index}"),
+            &child_seed,
             features,
             scratch,
         )?;

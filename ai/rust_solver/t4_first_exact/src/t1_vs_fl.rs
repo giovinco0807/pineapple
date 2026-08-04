@@ -127,6 +127,7 @@ pub fn solve(
         samples: &samples,
         opp_count: request.opp_count,
         t4_draw_sample: request.t4_draw_sample,
+        rowwise_memo: std::sync::Mutex::new(std::collections::HashMap::new()),
     };
 
     let actions = legal_actions(&base, &request.draw);

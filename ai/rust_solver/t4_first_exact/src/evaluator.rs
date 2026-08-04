@@ -488,6 +488,157 @@ pub fn opponent_rowwise_block(
     categories
 }
 
+/// Identity of one row's cards, order-insensitive, for the rowwise memo.
+fn row_cards_key(row: usize, cards: &[Card]) -> u64 {
+    // Ids are offset by one so an empty slot (0) is distinct from the 2s.
+    let mut ids: Vec<u64> = cards
+        .iter()
+        .map(|card| {
+            1 + if card.is_joker() {
+                52
+            } else {
+                card.suit as u64 * 13 + card.rank as u64 - 2
+            }
+        })
+        .collect();
+    ids.sort_unstable();
+    let mut key = (row as u64) << 60;
+    for (slot, id) in ids.iter().enumerate() {
+        key |= id << (slot * 6);
+    }
+    key
+}
+
+/// `opponent_rowwise_block` with the per-row 12-dim slice memoized on the
+/// row's cards.  Playout move choosers call the block once per candidate,
+/// but a candidate changes at most two rows, so most of each call is a
+/// repeat of the previous one -- and the pool is fixed across a node's
+/// candidates, which is what makes the row key sufficient.  Byte-identical
+/// to the uncached block: this is pure memoization of the same computation.
+pub fn opponent_rowwise_block_shared(
+    opponent_rows: &[Vec<Card>; 3],
+    pool: &[Card],
+    fl_table: &FlTable,
+    memo: &std::sync::Mutex<std::collections::HashMap<(u64, u64), ([f32; 12], usize)>>,
+    pool_key: u64,
+    out: &mut Vec<f32>,
+) -> [usize; 3] {
+    let mut categories = [0usize; 3];
+    for row in 0..3 {
+        let key = (pool_key, row_cards_key(row, &opponent_rows[row]));
+        if let Some((slice, category)) = memo.lock().unwrap().get(&key) {
+            out.extend_from_slice(slice);
+            categories[row] = *category;
+            continue;
+        }
+        // Computed outside the lock: a miss costs milliseconds and other
+        // threads should not wait on it.  A racing duplicate insert is
+        // harmless -- both compute the same numbers.
+        let mut scratch: Vec<f32> = Vec::with_capacity(12);
+        let category =
+            rowwise_single_row(row, &opponent_rows[row], pool, fl_table, &mut scratch);
+        let mut slice = [0.0f32; 12];
+        slice.copy_from_slice(&scratch);
+        memo.lock().unwrap().insert(key, (slice, category));
+        out.extend_from_slice(&slice);
+        categories[row] = category;
+    }
+    // Tail: suit concentration per row, jokers on board, jokers in pool --
+    // cheap, computed directly (matches the uncached block's tail).
+    for row in 0..3 {
+        let mut suits = [0u8; 4];
+        for card in &opponent_rows[row] {
+            if !card.is_joker() {
+                suits[card.suit as usize] += 1;
+            }
+        }
+        out.push(*suits.iter().max().unwrap_or(&0) as f32 / 5.0);
+    }
+    out.push(
+        opponent_rows
+            .iter()
+            .flatten()
+            .filter(|card| card.is_joker())
+            .count() as f32
+            / 2.0,
+    );
+    out.push(pool.iter().filter(|card| card.is_joker()).count() as f32 / 2.0);
+    categories
+}
+
+/// One row of the rowwise block (12 dims), extracted from the block above so
+/// the cached variant can compute exactly the same numbers per row.
+fn rowwise_single_row(
+    row: usize,
+    cards: &[Card],
+    pool: &[Card],
+    fl_table: &FlTable,
+    out: &mut Vec<f32>,
+) -> usize {
+    let capacity = ROW_CAPACITY[row];
+    let room = capacity - cards.len();
+    let category = partial_category(cards, capacity);
+    let mut histogram = [0.0f32; CATEGORIES];
+    let mut royalty_total = 0.0f32;
+    let mut fl_total = 0.0f32;
+    let mut samples = 0usize;
+    let mut filled = cards.to_vec();
+    if room == 0 {
+        let value = evaluate_hand_value(&filled, capacity);
+        histogram[category_of(value).min(CATEGORIES - 1)] = 1.0;
+        royalty_total = row_royalty(row, &filled) as f32;
+        if row == 0 {
+            let (qualified, count) = check_fl_entry(&filled);
+            if qualified {
+                fl_total = fl_ev_for(fl_table, count);
+            }
+        }
+        samples = 1;
+    } else if room == 1 {
+        for card in pool {
+            filled.push(*card);
+            let value = evaluate_hand_value(&filled, capacity);
+            histogram[category_of(value).min(CATEGORIES - 1)] += 1.0;
+            royalty_total += row_royalty(row, &filled) as f32;
+            if row == 0 {
+                let (qualified, count) = check_fl_entry(&filled);
+                if qualified {
+                    fl_total += fl_ev_for(fl_table, count);
+                }
+            }
+            samples += 1;
+            filled.pop();
+        }
+    } else {
+        for i in 0..pool.len() {
+            for j in (i + 1)..pool.len() {
+                filled.push(pool[i]);
+                filled.push(pool[j]);
+                let value = evaluate_hand_value(&filled, capacity);
+                histogram[category_of(value).min(CATEGORIES - 1)] += 1.0;
+                royalty_total += row_royalty(row, &filled) as f32;
+                if row == 0 {
+                    let (qualified, count) = check_fl_entry(&filled);
+                    if qualified {
+                        fl_total += fl_ev_for(fl_table, count);
+                    }
+                }
+                samples += 1;
+                filled.pop();
+                filled.pop();
+            }
+        }
+    }
+    let denominator = samples.max(1) as f32;
+    for bin in histogram {
+        out.push(bin / denominator);
+    }
+    out.push(royalty_total / denominator / MAX_ROYALTY);
+    out.push(fl_total / denominator / MAX_FL_EV);
+    out.push(room as f32 / 5.0);
+    category
+}
+
 /// Remaining-deck summary (6 dims).
 pub fn context_block(pool: &[Card], dead_count: usize, out: &mut Vec<f32>) {
     let mut ranks = [0u32; 15];
