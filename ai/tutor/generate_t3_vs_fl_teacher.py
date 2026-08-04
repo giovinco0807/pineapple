@@ -27,11 +27,13 @@ import numpy as np
 import ai.tutor.exact_late as exact_late
 from ai.engine.action_space import get_turn_actions
 from ai.engine.encoding import ALL_CARDS, Board
-from ai.tutor.generate_t4_first_teacher import _solver_path
+from ai.tutor.solver_paths import _solver_path
 from ai.tutor.t3_second_features import actor_block
 from ai.tutor.t3_vs_fl import sample_root
 from ai.tutor.t4_vs_fl import CARD_INDEX, seen_mask
-from ai.mcts.rollout_evaluator import RolloutEvaluator
+
+
+from ai.tutor.fl_ev_table import FL_EV  # noqa: E402
 
 DATASET_SCHEMA = "ofc_t3_vs_fl_teacher/v2_library_labels"
 SPLITS = ("fit", "dev", "test")
@@ -65,7 +67,7 @@ def fl_context(pool_cards: list[str], opp_count: int) -> list[float]:
         counts["K"] / 4.0,
         counts["Q"] / 4.0,
         len(pool_cards) / 54.0,
-        float(RolloutEvaluator.FL_EV.get(opp_count, 0)) / 63.5,
+        float(FL_EV.get(opp_count, 0)) / 63.5,
         sum(counts.values()) / max(len(pool_cards), 1),
         (2 - jokers) / 2.0,
     ]

@@ -25,7 +25,7 @@ import ai.tutor.exact_late as exact_late
 from ai.engine.action_space import get_turn_actions
 from ai.engine.encoding import Board
 from ai.tutor.generate_t2_vs_fl_teacher import encode_t2_action
-from ai.tutor.generate_t4_first_teacher import _solver_path
+from ai.tutor.solver_paths import _solver_path
 from ai.tutor.t2_policy_label_experiment import sample_t2_root
 from ai.tutor.train_t4_first_evaluator import T4FirstEvaluator
 

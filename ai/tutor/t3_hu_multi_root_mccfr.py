@@ -1039,7 +1039,7 @@ def _full_card_runtime_semantic_binding() -> dict[str, Any]:
                 _exact_late_module.FL_TYPE_BY_CARD_COUNT
             ),
             "exact_late.RolloutEvaluator.FL_EV": (
-                _exact_late_module.RolloutEvaluator.FL_EV
+                _exact_late_module.FL_EV
             ),
         },
     )

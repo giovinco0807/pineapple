@@ -1,24 +1,27 @@
-"""Generate T2-vs-FL teacher data: playout labels, 101-dim features.
+"""Generate T1-vs-FL teacher data: two-street playout labels, 101-dim features.
 
-Labels come from the Rust T2-vs-FL playout labeler: the light 60-dim T3
-policy chooses moves (validated 2026-08-03: its label effect sits inside the
-draw-noise floor on every metric, argmax regret 0.026 vs floor 0.078) and
-every scored number is exact library scoring at the T4 terminal.
+The Rust T1 labeler plays each action forward with the learned T2 evaluator
+choosing the next street and the light T3 policy the one after, then prices
+the 11-card terminal exactly against the FL board library.  Models choose
+moves; every scored number is exact.
 
-Features are the light-lap T2 encoder: the actor's own 9-card after-board
-(actor block 48) + its per-row completion outlook over the unseen pool
-(rowwise 41, emitted by the labeler) + FL context (12) = 101 dims.  The
-four-open-slot joint block is deliberately deferred; the regret gate decides
-whether it is missed.
+Features match the T2 encoder's shape -- actor block over the 7-card
+after-board (48) + its per-row completion outlook (41, from the labeler) +
+FL context (12) = 101 dims.
+
+Chunk files are the unit of resume and of fleet sharding: a chunk is written
+once, named by its root offset, and an existing chunk is skipped.  A fleet
+worker therefore only has to download its shard's chunks before starting.
 
 Usage:
-    python -m ai.tutor.generate_t2_vs_fl_teacher --roots 12000 --out-dir <dir>
+    python -m ai.tutor.generate_t1_vs_fl_teacher --roots 8000 --out-dir <dir>
 """
 from __future__ import annotations
 
 import argparse
 import hashlib
 import json
+import random
 import subprocess
 import time
 from pathlib import Path
@@ -27,40 +30,43 @@ import numpy as np
 
 import ai.tutor.exact_late as exact_late
 from ai.engine.action_space import get_turn_actions
-from ai.engine.encoding import ALL_CARDS, Board
-from ai.tutor.generate_t3_vs_fl_teacher import fl_context
+from ai.engine.encoding import Board
+from ai.tutor.generate_t2_vs_fl_teacher import FEATURE_SIZE, SPLITS, encode_t2_action
 from ai.tutor.solver_paths import _solver_path
-from ai.tutor.t2_policy_label_experiment import sample_t2_root
-from ai.tutor.t3_second_features import actor_block
-from ai.tutor.t4_vs_fl import CARD_INDEX, seen_mask
+from ai.tutor.t2_policy_label_experiment import ALL_CARDS
 
-DATASET_SCHEMA = "ofc_t2_vs_fl_teacher/v1_playout_labels"
-SPLITS = ("fit", "dev", "test")
-ACTOR_SIZE = 48
-ROWWISE_SIZE = 41
-FL_CONTEXT_SIZE = 12
-FEATURE_SIZE = ACTOR_SIZE + ROWWISE_SIZE + FL_CONTEXT_SIZE  # 101
+DATASET_SCHEMA = "ofc_t1_vs_fl_teacher/v1_playout_labels"
+
+
+def sample_t1_root(seed: int) -> dict:
+    """A T1 decision: the five dealt cards are placed, three are drawn."""
+    rng = random.Random(seed)
+    deck = ALL_CARDS[:]
+    rng.shuffle(deck)
+    while True:
+        top = rng.randint(0, 3)
+        mid = rng.randint(0, 5)
+        bot = 5 - top - mid
+        if 0 <= bot <= 5:
+            break
+    cards = deck[:5]
+    return {
+        "id": str(seed),
+        "board": {
+            "top": cards[:top],
+            "middle": cards[top : top + mid],
+            "bottom": cards[top + mid :],
+        },
+        "dead": [],
+        "draw": deck[5:8],
+        "opp_count": rng.choices([14, 15, 16, 17], weights=[6, 2, 1, 1])[0],
+    }
 
 
 def split_of(seed: int) -> str:
-    digest = hashlib.sha256(f"t2-vs-fl-teacher-v1/{seed}".encode()).digest()
+    digest = hashlib.sha256(f"t1-vs-fl-teacher-v1/{seed}".encode()).digest()
     bucket = int.from_bytes(digest[:4], "big") % 100
     return "fit" if bucket < 80 else ("dev" if bucket < 90 else "test")
-
-
-def encode_t2_action(rows_9, dead_2, opp_count: int, rowwise) -> list[float]:
-    """101 dims: actor + own rowwise outlook (from Rust) + FL context."""
-    seen = seen_mask([card for row in rows_9 for card in row] + list(dead_2))
-    pool = [card for card in ALL_CARDS if not ((1 << CARD_INDEX[card]) & seen)]
-    actor, _categories = actor_block(rows_9, pool)
-    vector = (
-        actor
-        + [float(value) for value in rowwise]
-        + fl_context(pool, opp_count)
-    )
-    if len(vector) != FEATURE_SIZE:
-        raise AssertionError(f"feature size drifted: {len(vector)}")
-    return vector
 
 
 def run(
@@ -68,11 +74,15 @@ def run(
     roots: int,
     seed: int,
     out_dir: Path,
+    library: str,
+    t2_model: Path,
     t3_model: Path,
+    t2_samples: int,
     t3_samples: int,
     t4_draw_sample: int,
     batch: int,
     workspace_root: Path,
+    merge: bool = True,
 ) -> dict:
     out_dir.mkdir(parents=True, exist_ok=True)
     scratch = out_dir / "scratch"
@@ -83,15 +93,16 @@ def run(
 
     for offset in range(0, roots, batch):
         size = min(batch, roots - offset)
-        chunk_path = chunk_dir / f"chunk_{offset:07d}.npz"
+        chunk_path = chunk_dir / f"chunk_{seed + offset:012d}.npz"
         if chunk_path.exists():
             print(f"[{offset + size}/{roots}] chunk exists, skipping", flush=True)
             continue
         buffers = {name: {"x": [], "y": [], "j": []} for name in SPLITS}
-        generated = [sample_t2_root(seed + offset + index) for index in range(size)]
+        generated = [sample_t1_root(seed + offset + index) for index in range(size)]
         with (scratch / "in.jsonl").open("w", encoding="utf-8") as handle:
             for root in generated:
                 payload = dict(root)
+                payload["t2_samples"] = t2_samples
                 payload["t3_samples"] = t3_samples
                 payload["t4_draw_sample"] = t4_draw_sample
                 handle.write(json.dumps(payload) + "\n")
@@ -101,7 +112,8 @@ def run(
                 "--input", str(scratch / "in.jsonl"),
                 "--output", str(scratch / "out.jsonl"),
                 "--fl-ev-config", str(workspace_root / "ai" / "config" / "fl_ev.json"),
-                "--t2-vs-fl-library", "D:/ofc_data/fl_library_14_v3",
+                "--t1-vs-fl-library", library,
+                "--t1-t2-model", str(t2_model),
                 "--t2-t3-model", str(t3_model),
                 "--chunk-size", "16",
             ],
@@ -128,7 +140,7 @@ def run(
                 1
                 for card in (
                     root["board"]["top"] + root["board"]["middle"]
-                    + root["board"]["bottom"] + root["dead"] + root["draw"]
+                    + root["board"]["bottom"] + root["draw"]
                 )
                 if card in ("X1", "X2")
             )
@@ -142,7 +154,7 @@ def run(
                 target["x"].append(
                     encode_t2_action(
                         (after.top, after.middle, after.bottom),
-                        list(root["dead"]) + [action.discard],
+                        [action.discard],
                         root["opp_count"],
                         row["own_rowwise_block"],
                     )
@@ -160,9 +172,12 @@ def run(
         done = offset + size
         rate = done / (time.time() - started)
         print(
-            f"[{done}/{roots}] {rate:.2f} roots/s eta {(roots-done)/rate/60:.0f} min",
+            f"[{done}/{roots}] {rate:.3f} roots/s eta {(roots-done)/rate/60:.0f} min",
             flush=True,
         )
+
+    if not merge:
+        return {"chunks": len(list(chunk_dir.glob("chunk_*.npz")))}
 
     chunks = [np.load(path) for path in sorted(chunk_dir.glob("chunk_*.npz"))]
 
@@ -175,14 +190,14 @@ def run(
     manifest = {
         "schema": DATASET_SCHEMA,
         "feature_size": FEATURE_SIZE,
-        "label": "playout_light_t3_policy_library_scoring",
-        "policy_validation": "argmax_regret 0.026 vs draw-noise floor 0.078 (60 roots)",
+        "label": "two_street_playout_t2_t3_movers_library_scoring",
+        "t2_samples": t2_samples,
         "t3_samples": t3_samples,
         "t4_draw_sample": t4_draw_sample,
-        "library": "D:/ofc_data/fl_library_14_v3",
+        "library": library,
         "roots": roots,
         "seed": seed,
-        "split_rule": "sha256('t2-vs-fl-teacher-v1/<seed>') % 100 -> 80/10/10",
+        "split_rule": "sha256('t1-vs-fl-teacher-v1/<seed>') % 100 -> 80/10/10",
         "elapsed_seconds": time.time() - started,
         "splits": {},
     }
@@ -205,29 +220,43 @@ def run(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--roots", type=int, default=12_000)
-    parser.add_argument("--seed", type=int, default=98_000_000)
+    parser.add_argument("--roots", type=int, default=8_000)
+    parser.add_argument("--seed", type=int, default=101_000_000)
     parser.add_argument("--out-dir", type=Path, required=True)
+    parser.add_argument("--library", default="D:/ofc_data/fl_library_14_v3")
+    parser.add_argument(
+        "--t2-model", type=Path,
+        default=Path("D:/ofc_data/t2_vs_fl_model_v1/evaluator.bin"),
+    )
     parser.add_argument(
         "--t3-model", type=Path,
         default=Path("D:/ofc_data/t3_vs_fl_model_v1/evaluator.bin"),
     )
-    parser.add_argument("--t3-samples", type=int, default=50)
-    parser.add_argument("--t4-draw-sample", type=int, default=100)
-    parser.add_argument("--batch", type=int, default=500)
+    parser.add_argument("--t2-samples", type=int, default=20)
+    parser.add_argument("--t3-samples", type=int, default=10)
+    parser.add_argument("--t4-draw-sample", type=int, default=60)
+    parser.add_argument("--batch", type=int, default=250)
     parser.add_argument("--workspace-root", type=Path, default=Path.cwd())
+    parser.add_argument(
+        "--no-merge", action="store_true",
+        help="Fleet workers only produce chunks; merging happens after receive.",
+    )
     args = parser.parse_args()
     manifest = run(
         roots=args.roots,
         seed=args.seed,
         out_dir=args.out_dir,
+        library=args.library,
+        t2_model=args.t2_model,
         t3_model=args.t3_model,
+        t2_samples=args.t2_samples,
         t3_samples=args.t3_samples,
         t4_draw_sample=args.t4_draw_sample,
         batch=args.batch,
         workspace_root=args.workspace_root.resolve(strict=True),
+        merge=not args.no_merge,
     )
-    print(json.dumps(manifest["splits"], indent=2))
+    print(json.dumps(manifest.get("splits", manifest), indent=2))
 
 
 if __name__ == "__main__":

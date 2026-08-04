@@ -20,13 +20,11 @@ import random
 from pathlib import Path
 
 import numpy as np
-import torch
 
 import ai.tutor.exact_late as exact_late
 from ai.engine.action_space import get_turn_actions
 from ai.engine.encoding import ALL_CARDS, Board
 from ai.tutor.t4_vs_fl import CARD_INDEX, encode_action, seen_mask
-from ai.tutor.train_t4_first_evaluator import T4FirstEvaluator
 
 FOUR_OPEN_SHAPES = (
     (3, 5, 1), (3, 4, 2), (3, 3, 3), (3, 2, 4), (3, 1, 5),
@@ -60,7 +58,14 @@ def sample_root(seed: int, opp_count: int = 14) -> dict:
 
 
 class LearnedT4VsFl:
+    # torch is imported here rather than at module scope: label
+    # generators import this module only for sample_root, and fleet
+    # workers would otherwise need an 800 MB dependency to draw a root.
     def __init__(self, path: Path, device: str = "cpu") -> None:
+        import torch
+
+        from ai.tutor.train_t4_first_evaluator import T4FirstEvaluator
+
         checkpoint = torch.load(path, map_location=device, weights_only=False)
         self.model = T4FirstEvaluator(
             checkpoint["input_dim"], tuple(checkpoint["hidden"])

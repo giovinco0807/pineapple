@@ -47,7 +47,7 @@ from ai.engine.game_engine import (
     hand_category,
     is_joker,
 )
-from ai.mcts.rollout_evaluator import RolloutEvaluator
+from ai.tutor.fl_ev_table import FL_EV
 
 FEATURE_SCHEMA = "ofc_t4_first_features/v1"
 
@@ -154,7 +154,7 @@ def hero_block(hero_board: Sequence[Sequence[str]]) -> list[float]:
     fl_qualified, fl_count = (False, 0)
     if not busted:
         fl_qualified, fl_count = check_fl_entry(list(rows[0]))
-    fl_ev = float(RolloutEvaluator.FL_EV.get(fl_count, 0)) if fl_qualified else 0.0
+    fl_ev = float(FL_EV.get(fl_count, 0)) if fl_qualified else 0.0
 
     out: list[float] = [
         1.0 if busted else 0.0,
@@ -178,7 +178,7 @@ def hero_block(hero_board: Sequence[Sequence[str]]) -> list[float]:
 
 def _top_fl_ev(top_cards: Sequence[str]) -> float:
     qualified, count = check_fl_entry(list(top_cards))
-    return float(RolloutEvaluator.FL_EV.get(count, 0)) if qualified else 0.0
+    return float(FL_EV.get(count, 0)) if qualified else 0.0
 
 
 def _constrained_facts(rows: Sequence[Sequence[str]]) -> tuple[bool, float, float]:
@@ -394,7 +394,7 @@ def opponent_block(
             if index == 0:
                 qualified, count = check_fl_entry(cards)
                 fl_total = (
-                    float(RolloutEvaluator.FL_EV.get(count, 0)) if qualified else 0.0
+                    float(FL_EV.get(count, 0)) if qualified else 0.0
                 )
             samples = 1
         else:
@@ -406,7 +406,7 @@ def opponent_block(
                 if index == 0:
                     qualified, count = check_fl_entry(filled)
                     if qualified:
-                        fl_total += float(RolloutEvaluator.FL_EV.get(count, 0))
+                        fl_total += float(FL_EV.get(count, 0))
                 samples += 1
         denominator = max(samples, 1)
         out.extend(bin_count / denominator for bin_count in histogram)

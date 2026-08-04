@@ -33,7 +33,7 @@ from ai.engine.game_engine import (
     get_middle_royalty,
     get_top_royalty,
 )
-from ai.mcts.rollout_evaluator import RolloutEvaluator
+from ai.tutor.fl_ev_table import FL_EV
 
 ROWS = ("top", "middle", "bottom")
 FL_TYPE_BY_CARD_COUNT = {14: "qq", 15: "kk", 16: "aa", 17: "trips"}
@@ -246,8 +246,8 @@ def _score_against_complete_opponent(board: Board, opponent_board: Board, includ
     if include_fl_ev:
         my_fl = _fl_card_count(my_board.top, my_busted)
         opp_fl = _fl_card_count(opp_board.top, opp_busted)
-        score += RolloutEvaluator.FL_EV.get(my_fl, 0)
-        score -= RolloutEvaluator.FL_EV.get(opp_fl, 0)
+        score += FL_EV.get(my_fl, 0)
+        score -= FL_EV.get(opp_fl, 0)
     return float(score)
 
 
@@ -265,7 +265,7 @@ def terminal_metrics(board: Board, opponent_board: Optional[Board] = None) -> Di
         score = _score_against_complete_opponent(board, opponent_board, include_fl_ev=True)
         raw_score = _score_against_complete_opponent(board, opponent_board, include_fl_ev=False)
     else:
-        score = float(0 if busted else royalty + RolloutEvaluator.FL_EV.get(fl_card_count, 0))
+        score = float(0 if busted else royalty + FL_EV.get(fl_card_count, 0))
         raw_score = float(0 if busted else royalty)
 
     return {

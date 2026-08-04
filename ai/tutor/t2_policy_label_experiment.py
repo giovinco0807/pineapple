@@ -24,7 +24,7 @@ from pathlib import Path
 
 import numpy as np
 
-from ai.tutor.generate_t4_first_teacher import _solver_path
+from ai.tutor.solver_paths import _solver_path
 
 ALL_CARDS = [rank + suit for suit in "shdc" for rank in "23456789TJQKA"] + ["X1", "X2"]
 ROW_CAPACITY = (3, 5, 5)

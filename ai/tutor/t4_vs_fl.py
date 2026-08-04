@@ -40,7 +40,7 @@ from ai.engine.game_engine import (
     get_middle_royalty,
     get_top_royalty,
 )
-from ai.mcts.rollout_evaluator import RolloutEvaluator
+from ai.tutor.fl_ev_table import FL_EV
 from ai.tutor.t4_first_features import hero_block
 
 CARD_INDEX = {card: index for index, card in enumerate(ALL_CARDS)}
@@ -153,7 +153,7 @@ def score_against_library(
     fl_royalty = library.royalty[indices]
     fl_stay = library.stay[indices]
     fl_busted = library.busted[indices]
-    fl_ev = RolloutEvaluator.FL_EV
+    fl_ev = FL_EV
 
     if hero["busted"]:
         base = np.where(fl_busted, 0.0, -6.0 - fl_royalty)
@@ -213,7 +213,7 @@ def encode_action(final_rows, root: dict, pool_cards: list[str]) -> list[float]:
             counts["K"] / 4.0,
             counts["Q"] / 4.0,
             len(pool_cards) / 54.0,
-            float(RolloutEvaluator.FL_EV.get(root["opp_count"], 0)) / 63.5,
+            float(FL_EV.get(root["opp_count"], 0)) / 63.5,
             sum(counts.values()) / max(len(pool_cards), 1),
             (2 - jokers) / 2.0,
         ]
