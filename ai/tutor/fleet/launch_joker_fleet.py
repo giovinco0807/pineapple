@@ -106,12 +106,16 @@ def main() -> None:
             f"jk-watchdog-seconds={args.watchdog_seconds}",
         ]
         placed = False
-        for zone in zones:
+        # Spot pools are per machine family; when every zone is dry for one
+        # family, a sibling family usually still has capacity.
+        machine_types = [args.machine_type, "n2-standard-8", "e2-standard-8"]
+        for machine_type in dict.fromkeys(machine_types):
+          for zone in zones:
             code, message = run(
                 [
                     "gcloud", "compute", "instances", "create", name,
                     "--zone", zone,
-                    "--machine-type", args.machine_type,
+                    "--machine-type", machine_type,
                     "--provisioning-model", "SPOT",
                     "--instance-termination-action", "DELETE",
                     "--image-family", "debian-12",
@@ -129,7 +133,9 @@ def main() -> None:
                 placed = True
                 break
             # Zonal stockouts are routine for Spot; the next zone is the fix.
-            print(f"  {name}: {zone} unavailable ({message.strip()[:90]})")
+            print(f"  {name}: {zone}/{machine_type} unavailable ({message.strip()[:60]})")
+          if placed:
+            break
         if not placed:
             failed.append((name, seed))
 
