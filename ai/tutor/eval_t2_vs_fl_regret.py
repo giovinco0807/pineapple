@@ -141,7 +141,7 @@ def main() -> None:
             values.append(row["value"])
             if labels_b is not None:
                 values_b.append(labels_b[root["id"]][key]["value"])
-        if checkpoint["input_dim"] == 109:
+        if checkpoint["input_dim"] in (109, 116):
             requests = []
             for position, vector in enumerate(features):
                 rows_after, dead_after = feature_rows[position]
@@ -158,6 +158,16 @@ def main() -> None:
                 vector[:89] + blocks[str(position)] + vector[89:]
                 for position, vector in enumerate(features)
             ]
+        if checkpoint["input_dim"] == 116:
+            from ai.tutor.pool_suit_block import pool_suit_block
+            widened = []
+            for position, vector in enumerate(features):
+                rows_after, dead_after = feature_rows[position]
+                seen = seen_mask([c for r in rows_after for c in r] + list(dead_after))
+                pool = [card for card in ALL_CARDS
+                        if not ((1 << CARD_INDEX[card]) & seen)]
+                widened.append(vector + pool_suit_block(rows_after, pool))
+            features = widened
         x = (np.asarray(features, dtype=np.float32) - mean) / scale
         with torch.no_grad():
             predicted = model(torch.from_numpy(x)).squeeze(-1).numpy()

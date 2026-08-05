@@ -136,6 +136,53 @@ fn prune(mut all: Vec<Vec<usize>>, cap: usize, seed: &str) -> Vec<Vec<usize>> {
     all
 }
 
+/// Every `need`-card subset of the pool, iterated without materialization.
+struct SubsetIter {
+    indices: Vec<usize>,
+    pool_len: usize,
+    done: bool,
+}
+
+impl SubsetIter {
+    fn new(pool_len: usize, need: usize) -> Self {
+        SubsetIter {
+            indices: (0..need).collect(),
+            pool_len,
+            done: need > pool_len,
+        }
+    }
+}
+
+impl Iterator for SubsetIter {
+    type Item = Vec<usize>;
+    fn next(&mut self) -> Option<Vec<usize>> {
+        if self.done {
+            return None;
+        }
+        let current = self.indices.clone();
+        let need = self.indices.len();
+        let mut position = need;
+        loop {
+            if position == 0 {
+                self.done = true;
+                break;
+            }
+            position -= 1;
+            if self.indices[position] != position + self.pool_len - need {
+                self.indices[position] += 1;
+                for later in (position + 1)..need {
+                    self.indices[later] = self.indices[later - 1] + 1;
+                }
+                break;
+            }
+        }
+        Some(current)
+    }
+}
+
+/// samples == 0 enumerates every completion exactly -- affordable up to four
+/// open slots (C(43,4) ~ 123k subsets x <= 12 arrangements through the row
+/// memo).  Larger rooms must sample: the caller keeps samples > 0 there.
 pub fn sampled_joint_block(
     board: &CoreBoard,
     pool: &[Card],
@@ -147,13 +194,25 @@ pub fn sampled_joint_block(
     let open = board.open_slots();
     let need: usize = open.iter().sum();
     let mut memo = TerminalMemo::new(board);
-    let mut best_self: Vec<f64> = Vec::with_capacity(samples);
+    let mut best_self: Vec<f64> = Vec::with_capacity(samples.max(1024));
     let (mut fouls, mut survivors) = (0usize, 0usize);
     let (mut survive_royalty, mut survive_fl) = (0.0f64, 0.0f64);
     let mut additions: Vec<(usize, Card)> = Vec::with_capacity(need);
 
-    for tick in 0..samples {
-        let subset = sampled_subset(pool.len(), need, seed, tick as u64);
+    let subsets: Box<dyn Iterator<Item = Vec<usize>>> = if samples == 0 {
+        if need > 4 {
+            anyhow::bail!("exact joint outlook is only affordable up to 4 open slots");
+        }
+        Box::new(SubsetIter::new(pool.len(), need))
+    } else {
+        let seed_owned = seed.to_string();
+        let pool_len = pool.len();
+        Box::new(
+            (0..samples).map(move |tick| sampled_subset(pool_len, need, &seed_owned, tick as u64)),
+        )
+    };
+
+    for subset in subsets {
         let cards: Vec<Card> = subset.iter().map(|index| pool[*index]).collect();
         let plans = arrangements(open, &cards, max_arrangements, seed);
         let mut best = f64::NEG_INFINITY;
