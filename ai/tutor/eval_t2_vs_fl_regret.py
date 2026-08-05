@@ -25,7 +25,7 @@ import ai.tutor.exact_late as exact_late
 from ai.engine.action_space import get_turn_actions
 from ai.engine.encoding import Board
 from ai.tutor.generate_t2_vs_fl_teacher import encode_t2_action
-from ai.tutor.solver_paths import _solver_path
+from ai.tutor.solver_paths import _solver_path, count_library_args
 from ai.tutor.t2_policy_label_experiment import sample_t2_root
 from ai.tutor.joint_blocks import fetch_joint_blocks
 from ai.tutor.t4_vs_fl import CARD_INDEX, seen_mask
@@ -80,7 +80,8 @@ def main() -> None:
                 "--input", str(in_path),
                 "--output", str(out_path),
                 "--fl-ev-config", str(workspace_root / "ai" / "config" / "fl_ev.json"),
-                "--t2-vs-fl-library", "D:/ofc_data/fl_library_14_v3",
+                "--t2-vs-fl-library", "D:/ofc_data/fl_library_14_v3",                *count_library_args(),
+
                 "--t2-t3-model", str(args.t3_model),
                 "--chunk-size", "16",
             ],

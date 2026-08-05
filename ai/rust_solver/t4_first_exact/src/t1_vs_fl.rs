@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 use super::evaluator;
 use super::playout;
 use super::t3_vs_fl::sampled_draws;
-use super::t3_vs_fl_lib::{card_bit, FlLibrary};
+use super::t3_vs_fl_lib::{card_bit, LibrarySet};
 use super::{all_cards, apply, legal_actions, to_core_card, BoardStr, CoreBoard, FlEv};
 
 #[derive(Deserialize)]
@@ -75,11 +75,12 @@ pub struct T1VsFlResponse {
 pub fn solve(
     request: &T1VsFlRequest,
     fl_ev: &FlEv,
-    library: &FlLibrary,
+    libraries: &LibrarySet,
     fl_table: &evaluator::FlTable,
     t2_model: &evaluator::Model,
     t3_model: &evaluator::Model,
 ) -> Result<T1VsFlResponse> {
+    let library = libraries.for_count(request.opp_count);
     let base = CoreBoard::from_str_board(&request.board)?;
     if base.card_count() != 5 {
         bail!("T1-vs-FL needs a 5-card hero board");

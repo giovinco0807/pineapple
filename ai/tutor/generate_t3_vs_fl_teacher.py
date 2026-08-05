@@ -27,7 +27,7 @@ import numpy as np
 import ai.tutor.exact_late as exact_late
 from ai.engine.action_space import get_turn_actions
 from ai.engine.encoding import ALL_CARDS, Board
-from ai.tutor.solver_paths import _solver_path
+from ai.tutor.solver_paths import _solver_path, count_library_args
 from ai.tutor.t3_second_features import actor_block
 from ai.tutor.t3_vs_fl import sample_root
 from ai.tutor.t4_vs_fl import CARD_INDEX, seen_mask
@@ -148,7 +148,8 @@ def run(
                 "--output", str(scratch / "out.jsonl"),
                 "--fl-ev-config", str(workspace_root / "ai" / "config" / "fl_ev.json"),
                 "--t3-vs-fl-library",
-                "D:/ofc_data/fl_library_14_v3",
+                "D:/ofc_data/fl_library_14_v3",                *count_library_args(),
+
                 "--chunk-size", "64",
             ],
             check=True,

@@ -813,6 +813,14 @@ struct Cli {
     /// The exported T1-vs-FL evaluator that chooses the T1 playout move.
     #[arg(long)]
     t0_t1_model: Option<PathBuf>,
+    /// Count-specific FL libraries; counts without one fall back to the
+    /// base (14-card) library, which is the pre-fix behavior.
+    #[arg(long)]
+    fl_library_15: Option<PathBuf>,
+    #[arg(long)]
+    fl_library_16: Option<PathBuf>,
+    #[arg(long)]
+    fl_library_17: Option<PathBuf>,
     /// Emit sampled joint-outlook blocks for {id, board, pool} requests.
     #[arg(long, default_value_t = false)]
     joint_outlook: bool,
@@ -865,7 +873,14 @@ fn main() -> Result<()> {
         let t1_model = evaluator::Model::load(&t1_image).map_err(|e| anyhow!("{e}"))?;
         let t2_model = evaluator::Model::load(&t2_image).map_err(|e| anyhow!("{e}"))?;
         let t3_model = evaluator::Model::load(&t3_image).map_err(|e| anyhow!("{e}"))?;
-        let library = t3_vs_fl_lib::FlLibrary::load(library_dirs)?;
+        let library = t3_vs_fl_lib::LibrarySet::load(
+            library_dirs,
+            [
+                cli.fl_library_15.as_ref(),
+                cli.fl_library_16.as_ref(),
+                cli.fl_library_17.as_ref(),
+            ],
+        )?;
         let fl_table: evaluator::FlTable = [
             fl_ev.value(14) as f32,
             fl_ev.value(15) as f32,
@@ -912,7 +927,14 @@ fn main() -> Result<()> {
         let t3_image = std::fs::read(t3_path)?;
         let t2_model = evaluator::Model::load(&t2_image).map_err(|e| anyhow!("{e}"))?;
         let t3_model = evaluator::Model::load(&t3_image).map_err(|e| anyhow!("{e}"))?;
-        let library = t3_vs_fl_lib::FlLibrary::load(library_dirs)?;
+        let library = t3_vs_fl_lib::LibrarySet::load(
+            library_dirs,
+            [
+                cli.fl_library_15.as_ref(),
+                cli.fl_library_16.as_ref(),
+                cli.fl_library_17.as_ref(),
+            ],
+        )?;
         let fl_table: evaluator::FlTable = [
             fl_ev.value(14) as f32,
             fl_ev.value(15) as f32,
@@ -952,7 +974,14 @@ fn main() -> Result<()> {
             .ok_or_else(|| anyhow!("--t2-vs-fl-library requires --t2-t3-model"))?;
         let image = std::fs::read(model_path)?;
         let t3_model = evaluator::Model::load(&image).map_err(|e| anyhow!("{e}"))?;
-        let library = t3_vs_fl_lib::FlLibrary::load(library_dirs)?;
+        let library = t3_vs_fl_lib::LibrarySet::load(
+            library_dirs,
+            [
+                cli.fl_library_15.as_ref(),
+                cli.fl_library_16.as_ref(),
+                cli.fl_library_17.as_ref(),
+            ],
+        )?;
         let fl_table: evaluator::FlTable = [
             fl_ev.value(14) as f32,
             fl_ev.value(15) as f32,
@@ -986,7 +1015,14 @@ fn main() -> Result<()> {
     }
 
     if let Some(library_dirs) = &cli.t3_vs_fl_library {
-        let library = t3_vs_fl_lib::FlLibrary::load(library_dirs)?;
+        let library = t3_vs_fl_lib::LibrarySet::load(
+            library_dirs,
+            [
+                cli.fl_library_15.as_ref(),
+                cli.fl_library_16.as_ref(),
+                cli.fl_library_17.as_ref(),
+            ],
+        )?;
         let fl_table: evaluator::FlTable = [
             fl_ev.value(14) as f32,
             fl_ev.value(15) as f32,

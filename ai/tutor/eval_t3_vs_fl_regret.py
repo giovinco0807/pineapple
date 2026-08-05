@@ -27,7 +27,7 @@ import ai.tutor.exact_late as exact_late
 from ai.engine.action_space import get_turn_actions
 from ai.engine.encoding import Board
 from ai.tutor.generate_t3_vs_fl_teacher import encode_t3_action
-from ai.tutor.solver_paths import _solver_path
+from ai.tutor.solver_paths import _solver_path, count_library_args
 from ai.tutor.t3_vs_fl import sample_root
 from ai.tutor.train_t4_first_evaluator import T4FirstEvaluator
 
@@ -91,7 +91,8 @@ def main() -> None:
                 "--output", str(scratch / f"out_{tag}.jsonl"),
                 "--fl-ev-config", str(workspace_root / "ai" / "config" / "fl_ev.json"),
                 "--t3-vs-fl-library",
-                "D:/ofc_data/fl_library_14_v3",
+                "D:/ofc_data/fl_library_14_v3",                *count_library_args(),
+
                 "--chunk-size", "64",
             ],
             check=True,

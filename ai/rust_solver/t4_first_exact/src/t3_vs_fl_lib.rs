@@ -82,6 +82,42 @@ impl FlLibrary {
     }
 }
 
+/// Per-count FL board libraries.  The opponent's board distribution differs
+/// by entry count (a 17-card Fantasyland places far stronger boards than a
+/// 14-card one: measured mean royalty 27.7 vs 15.3, stay 78% vs 35%), so
+/// scoring selects the matching library.  Counts without their own library
+/// fall back to the 14-card one -- the pre-fix behavior, kept so old runs
+/// stay reproducible when the extra libraries are not passed.
+pub struct LibrarySet {
+    base: FlLibrary,
+    extra: [Option<FlLibrary>; 3],
+}
+
+impl LibrarySet {
+    pub fn load(
+        base_dirs: &[std::path::PathBuf],
+        extra_dirs: [Option<&std::path::PathBuf>; 3],
+    ) -> Result<Self> {
+        let base = FlLibrary::load(base_dirs)?;
+        let mut extra: [Option<FlLibrary>; 3] = [None, None, None];
+        for (slot, dir) in extra_dirs.into_iter().enumerate() {
+            if let Some(dir) = dir {
+                extra[slot] = Some(FlLibrary::load(std::slice::from_ref(dir))?);
+            }
+        }
+        Ok(LibrarySet { base, extra })
+    }
+
+    pub fn for_count(&self, opp_count: u8) -> &FlLibrary {
+        match opp_count {
+            15..=17 => self.extra[(opp_count - 15) as usize]
+                .as_ref()
+                .unwrap_or(&self.base),
+            _ => &self.base,
+        }
+    }
+}
+
 pub(crate) fn card_bit(card: &Card) -> Result<u64> {
     // Index order pinned to Python ALL_CARDS: suits s,h,d,c x ranks 2..A,
     // then X1=52.  Both jokers map to bit 52|53; the mask test only needs
@@ -201,9 +237,10 @@ pub struct LibResponse {
 pub fn solve(
     request: &T3VsFlRequest,
     fl_ev: &FlEv,
-    library: &FlLibrary,
+    libraries: &LibrarySet,
     fl_table: &evaluator::FlTable,
 ) -> Result<LibResponse> {
+    let library = libraries.for_count(request.opp_count);
     let base = CoreBoard::from_str_board(&request.board)?;
     if base.card_count() != 9 {
         bail!("T3-vs-FL needs a 9-card hero board");

@@ -32,7 +32,7 @@ import ai.tutor.exact_late as exact_late
 from ai.engine.action_space import get_turn_actions
 from ai.engine.encoding import Board
 from ai.tutor.generate_t2_vs_fl_teacher import FEATURE_SIZE, SPLITS, encode_t2_action
-from ai.tutor.solver_paths import _solver_path
+from ai.tutor.solver_paths import _solver_path, count_library_args
 from ai.tutor.t2_policy_label_experiment import ALL_CARDS
 
 DATASET_SCHEMA = "ofc_t1_vs_fl_teacher/v1_playout_labels"
@@ -112,7 +112,8 @@ def run(
                 "--input", str(scratch / "in.jsonl"),
                 "--output", str(scratch / "out.jsonl"),
                 "--fl-ev-config", str(workspace_root / "ai" / "config" / "fl_ev.json"),
-                "--t1-vs-fl-library", library,
+                "--t1-vs-fl-library", library,                *count_library_args(),
+
                 "--t1-t2-model", str(t2_model),
                 "--t2-t3-model", str(t3_model),
                 "--chunk-size", "16",

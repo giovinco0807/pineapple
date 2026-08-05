@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 
 use super::evaluator;
 use super::playout;
-use super::t3_vs_fl_lib::{card_bit, FlLibrary};
+use super::t3_vs_fl_lib::{card_bit, LibrarySet};
 use super::{to_core_card, CoreBoard, FlEv};
 
 #[derive(Deserialize)]
@@ -117,12 +117,13 @@ fn t0_candidates(cards: &[Card; 5]) -> Vec<[usize; 5]> {
 pub fn solve(
     request: &T0VsFlRequest,
     fl_ev: &FlEv,
-    library: &FlLibrary,
+    libraries: &LibrarySet,
     fl_table: &evaluator::FlTable,
     t1_model: &evaluator::Model,
     t2_model: &evaluator::Model,
     t3_model: &evaluator::Model,
 ) -> Result<T0VsFlResponse> {
+    let library = libraries.for_count(request.opp_count);
     if request.cards.len() != 5 {
         bail!("T0-vs-FL needs exactly five dealt cards");
     }

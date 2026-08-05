@@ -22,7 +22,7 @@ use super::evaluator;
 use super::row_memo::TerminalMemo;
 use super::t3_second;
 use super::t3_vs_fl::sampled_draws;
-use super::t3_vs_fl_lib::{card_bit, score_mean, terminal_key, FlLibrary, MatchedRow, TerminalKey};
+use super::t3_vs_fl_lib::{card_bit, score_mean, terminal_key, FlLibrary, LibrarySet, MatchedRow, TerminalKey};
 use super::{all_cards, apply, legal_actions, to_core_card, BoardStr, CoreBoard, FlEv};
 
 #[derive(Deserialize)]
@@ -194,10 +194,11 @@ fn t4_library_value(
 pub fn solve(
     request: &T2VsFlRequest,
     fl_ev: &FlEv,
-    library: &FlLibrary,
+    libraries: &LibrarySet,
     fl_table: &evaluator::FlTable,
     t3_model: &evaluator::Model,
 ) -> Result<T2VsFlResponse> {
+    let library = libraries.for_count(request.opp_count);
     let base = CoreBoard::from_str_board(&request.board)?;
     if base.card_count() != 7 {
         bail!("T2-vs-FL needs a 7-card hero board");
