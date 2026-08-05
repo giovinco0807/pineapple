@@ -74,6 +74,8 @@ def run(
     batch: int,
     workspace_root: Path,
     force_opp_count: int = 0,
+    library: str = "D:/ofc_data/fl_library_14_v3",
+    merge: bool = True,
 ) -> dict:
     out_dir.mkdir(parents=True, exist_ok=True)
     scratch = out_dir / "scratch"
@@ -84,7 +86,13 @@ def run(
 
     for offset in range(0, roots, batch):
         size = min(batch, roots - offset)
-        chunk_path = chunk_dir / f"chunk_{offset:07d}.npz"
+        # Absolute-seed names: offset names collide when fleet shards share
+        # one chunks/ prefix.  Local resume of the old offset-named teacher
+        # still works because those chunks live in their own directory.
+        chunk_path = chunk_dir / f"chunk_{seed + offset:012d}.npz"
+        legacy = chunk_dir / f"chunk_{offset:07d}.npz"
+        if legacy.exists() and not chunk_path.exists():
+            chunk_path = legacy
         if chunk_path.exists():
             print(f"[{offset + size}/{roots}] chunk exists, skipping", flush=True)
             continue
@@ -105,7 +113,7 @@ def run(
                 "--input", str(scratch / "in.jsonl"),
                 "--output", str(scratch / "out.jsonl"),
                 "--fl-ev-config", str(workspace_root / "ai" / "config" / "fl_ev.json"),
-                "--t2-vs-fl-library", "D:/ofc_data/fl_library_14_v3",                *count_library_args(),
+                "--t2-vs-fl-library", library,                *count_library_args(),
 
                 "--t2-t3-model", str(t3_model),
                 "--chunk-size", "16",
@@ -169,6 +177,9 @@ def run(
             flush=True,
         )
 
+    if not merge:
+        return {"chunks": len(list(chunk_dir.glob("chunk_*.npz")))}
+
     chunks = [np.load(path) for path in sorted(chunk_dir.glob("chunk_*.npz"))]
 
     def merged(key: str, empty_shape: tuple, dtype) -> np.ndarray:
@@ -219,6 +230,13 @@ def main() -> None:
     )
     parser.add_argument("--t3-samples", type=int, default=50)
     parser.add_argument("--t4-draw-sample", type=int, default=100)
+    parser.add_argument("--library", default="D:/ofc_data/fl_library_14_v3")
+    parser.add_argument(
+        "--t2-model", type=Path, default=None,
+        help="Accepted for fleet-launcher uniformity; the T2 labeler's mover "
+        "is the T3 policy, so this is unused.",
+    )
+    parser.add_argument("--no-merge", action="store_true")
     parser.add_argument(
         "--force-opp-count", type=int, default=0,
         help="Fix every root to this FL count (per-count teachers).",
@@ -236,8 +254,10 @@ def main() -> None:
         batch=args.batch,
         workspace_root=args.workspace_root.resolve(strict=True),
         force_opp_count=args.force_opp_count,
+        library=args.library,
+        merge=not args.no_merge,
     )
-    print(json.dumps(manifest["splits"], indent=2))
+    print(json.dumps(manifest.get("splits", manifest), indent=2))
 
 
 if __name__ == "__main__":
