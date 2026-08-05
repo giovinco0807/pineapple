@@ -42,7 +42,7 @@ apt-get update -qq && apt-get install -y -qq python3-numpy
 mark deps_ok
 
 cd "$ROOT"
-gcloud storage cp "gs://$BUCKET/joker-fleet/src/joker_src_20260804.tar.gz" src.tar.gz
+gcloud storage cp "gs://$BUCKET/joker-fleet/src/joker_src_20260805.tar.gz" src.tar.gz
 tar -xzf src.tar.gz
 mkdir -p ai/rust_solver/target/release
 gcloud storage cp "gs://$BUCKET/joker-fleet/bin2/t4_first_exact" \
@@ -56,9 +56,15 @@ ACTUAL="$(sha256sum ai/rust_solver/target/release/t4_first_exact | awk '{print $
 [ "$EXPECT" = "$ACTUAL" ] || { echo "FATAL: binary sha mismatch"; exit 1; }
 # cp -r refuses a destination that does not already exist, and the trailing
 # /* form is what puts the objects directly under it rather than nested.
-mkdir -p models library
+mkdir -p models library fl_library_15_v3 fl_library_16_v3 fl_library_17_v3
 gcloud storage cp "gs://$BUCKET/joker-fleet/models/*" models/
 gcloud storage cp "gs://$BUCKET/joker-fleet/library/*" library/
+gcloud storage cp "gs://$BUCKET/joker-fleet/library15/*" fl_library_15_v3/
+gcloud storage cp "gs://$BUCKET/joker-fleet/library16/*" fl_library_16_v3/
+gcloud storage cp "gs://$BUCKET/joker-fleet/library17/*" fl_library_17_v3/
+for count in 15 16 17; do
+  [ "$(find "fl_library_${count}_v3" -name 'shard_*.jsonl' | wc -l)" -gt 0 ]     || { echo "FATAL: count library $count empty"; exit 1; }
+done
 [ -f models/t1_evaluator.bin ] && [ -f models/t2_evaluator.bin ] && [ -f models/t3_evaluator.bin ] \
   || { echo "FATAL: models missing"; exit 1; }
 LIB_SHARDS="$(find library -name 'shard_*.jsonl' | wc -l)"
@@ -80,6 +86,10 @@ echo "resume: $EXISTING chunk(s) already present"
 mark resume_ok
 
 export PYTHONPATH="$ROOT"
+# Per-count referees: labels score 15/16/17-card opponents against their own
+# board distributions instead of the 14-card stand-in.
+export JOKER_COUNT_LIBS=1
+export JOKER_LIBS_ROOT="$ROOT"
 cd "$ROOT"
 
 # Create-only publication of whatever is finished.  A chunk that already
