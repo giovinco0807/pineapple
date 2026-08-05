@@ -73,6 +73,7 @@ def run(
     t4_draw_sample: int,
     batch: int,
     workspace_root: Path,
+    force_opp_count: int = 0,
 ) -> dict:
     out_dir.mkdir(parents=True, exist_ok=True)
     scratch = out_dir / "scratch"
@@ -89,6 +90,9 @@ def run(
             continue
         buffers = {name: {"x": [], "y": [], "j": []} for name in SPLITS}
         generated = [sample_t2_root(seed + offset + index) for index in range(size)]
+        if force_opp_count:
+            for root in generated:
+                root["opp_count"] = force_opp_count
         with (scratch / "in.jsonl").open("w", encoding="utf-8") as handle:
             for root in generated:
                 payload = dict(root)
@@ -215,6 +219,10 @@ def main() -> None:
     )
     parser.add_argument("--t3-samples", type=int, default=50)
     parser.add_argument("--t4-draw-sample", type=int, default=100)
+    parser.add_argument(
+        "--force-opp-count", type=int, default=0,
+        help="Fix every root to this FL count (per-count teachers).",
+    )
     parser.add_argument("--batch", type=int, default=500)
     parser.add_argument("--workspace-root", type=Path, default=Path.cwd())
     args = parser.parse_args()
@@ -227,6 +235,7 @@ def main() -> None:
         t4_draw_sample=args.t4_draw_sample,
         batch=args.batch,
         workspace_root=args.workspace_root.resolve(strict=True),
+        force_opp_count=args.force_opp_count,
     )
     print(json.dumps(manifest["splits"], indent=2))
 
