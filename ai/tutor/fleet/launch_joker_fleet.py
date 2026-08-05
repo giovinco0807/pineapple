@@ -47,11 +47,16 @@ def main() -> None:
     parser.add_argument("--seed-base", type=int, default=101_000_000)
     parser.add_argument("--batch", type=int, default=125)
     parser.add_argument("--machine-type", default="c4-standard-8")
-    parser.add_argument("--zones", default="us-central1-b,us-central1-c,us-central1-f")
+    parser.add_argument("--zones", default="us-central1-b,us-central1-c,us-central1-f,us-west1-b,us-west1-c")
     parser.add_argument("--watchdog-seconds", type=int, default=10_800)
     parser.add_argument(
         "--extra-args", default="",
         help="passed through to the generator, e.g. '--t2-samples 20'",
+    )
+    parser.add_argument(
+        "--skip-done", action="store_true",
+        help="Skip shards whose done marker already exists (preemption "
+        "recovery relaunches only what is missing).",
     )
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
@@ -72,9 +77,23 @@ def main() -> None:
     }
     print(json.dumps(plan, indent=2))
 
+    done_seeds: set[str] = set()
+    if args.skip_done:
+        listing = subprocess.run(
+            [GCLOUD, "storage", "ls", f"gs://{BUCKET}/{prefix}/done/"],
+            capture_output=True, text=True,
+        )
+        for line in listing.stdout.splitlines():
+            marker = line.rsplit("/", 1)[-1].removesuffix(".txt").strip()
+            if marker:
+                done_seeds.add(marker)
+        print(f"skip-done: {len(done_seeds)} shard(s) already complete")
+
     launched, failed = [], []
     for index in range(args.shards):
         seed = args.seed_base + index * args.roots_per_shard
+        if args.skip_done and str(seed) in done_seeds:
+            continue
         name = f"jk-{run_id}-{index:02d}"
         metadata = [
             f"jk-bucket={BUCKET}",
