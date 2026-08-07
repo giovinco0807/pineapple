@@ -43,6 +43,22 @@ def candidate_key(cand: Dict[str, Any]) -> str:
     return sorted_rows_key(cand["board"])
 
 
+def rank_score(cand: Dict[str, Any]) -> float:
+    """The quantity the candidate list is ordered by.
+
+    Grade against this rather than `ev`: at T0 the engine ranks on
+    `candidate_score` and `ev` is not monotone in that order, so an `ev`
+    difference between two rows can carry the opposite sign to their ranks.
+    The MC evaluator emits no `rank_score` and is sorted by `ev`, so `ev` is
+    the fallback rather than an error.
+    """
+    metrics = cand.get("metrics") or {}
+    value = metrics.get("rank_score")
+    if value is None:
+        value = metrics.get("ev")
+    return float(value or 0.0)
+
+
 class TrainingSession:
     """One heads-up training hand. Hero is seat 0."""
 
@@ -261,7 +277,7 @@ class TrainingSession:
         ev_loss = None
         is_best = False
         if user_cand is not None and best_cand is not None:
-            ev_loss = float(best_cand["metrics"]["ev"]) - float(user_cand["metrics"]["ev"])
+            ev_loss = rank_score(best_cand) - rank_score(user_cand)
             is_best = user_rank == 1 or ev_loss <= 1e-9
             ev_loss = max(0.0, ev_loss)
 

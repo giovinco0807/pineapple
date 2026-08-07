@@ -316,6 +316,8 @@ table.cands tr.preview-row td { background: rgba(79, 140, 255, 0.16); }
 
 .ev-pos { color: var(--good); }
 .ev-neg { color: var(--bad); }
+/* The reference line a ranking is read against, not a score. */
+.ev-best { color: var(--good); font-weight: 700; letter-spacing: 0.02em; }
 
 /* ===== Editor picker ===== */
 .picker-grid {

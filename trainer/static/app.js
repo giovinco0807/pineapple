@@ -117,6 +117,14 @@ const Account = {
   },
 };
 
+// The quantity the candidate list is ordered by. Not always `ev`: at T0 the
+// engine ranks on `candidate_score` and `ev` is not monotone in that order, so
+// a delta taken on `ev` can come out positive for a worse-ranked line.
+function rankScore(cand) {
+  const m = (cand && cand.metrics) || {};
+  return m.rank_score != null ? m.rank_score : m.ev;
+}
+
 async function api(path, opts = {}) {
   const headers = { "Content-Type": "application/json" };
   if (Account.id) headers["X-Account-Id"] = String(Account.id);
@@ -546,21 +554,28 @@ const Training = {
     const table = document.createElement("table");
     table.className = "cands";
     table.innerHTML = `<thead><tr>
-      <th>#</th><th style="text-align:left">アクション</th><th>EV</th><th>バースト</th><th>FL</th>
+      <th>#</th><th style="text-align:left">アクション</th><th>EV差</th><th>バースト</th><th>FL</th>
     </tr></thead>`;
     const tbody = document.createElement("tbody");
     const userKey = g.user_key;
-    (g.candidates || []).forEach((cand, i) => {
+    const cands = g.candidates || [];
+    // Absolute EV is only comparable inside one position, so the ranking reads
+    // better as a loss against the best line than as raw scores.
+    const bestEv = g.best ? rankScore(g.best) : (cands[0] && rankScore(cands[0]));
+    cands.forEach((cand, i) => {
       const tr = document.createElement("tr");
       if (cand.key === userKey) tr.classList.add("user-row");
       if (i === 0) tr.classList.add("best-row");
-      const evCls = cand.metrics.ev >= 0 ? "ev-pos" : "ev-neg";
       tr.innerHTML = `<td>${i + 1}</td>`;
       const tdA = document.createElement("td");
       tdA.appendChild(actionText(cand.action));
       if (cand.key === userKey) tdA.append(" ← あなた");
       tr.appendChild(tdA);
-      tr.innerHTML += `<td class="${evCls}">${fmtSigned(cand.metrics.ev)}</td>
+      const delta = rankScore(cand) - bestEv;
+      const cell = i === 0 || delta > -0.005
+        ? `<td class="ev-best">best</td>`
+        : `<td class="ev-neg">${fmt(delta)}</td>`;
+      tr.innerHTML += `${cell}
         <td>${pct(cand.metrics.bust_rate)}</td>
         <td>${pct(cand.metrics.fl_rate)}</td>`;
       tbody.appendChild(tr);
@@ -866,7 +881,7 @@ const Editor = {
       tr.className = "selectable";
       if (i === 0) tr.classList.add("best-row");
       if (i === this.previewIdx) tr.classList.add("preview-row");
-      const delta = cand.metrics.ev - best.metrics.ev;
+      const delta = rankScore(cand) - rankScore(best);
       tr.innerHTML = `<td>${i + 1}</td>`;
       const tdA = document.createElement("td");
       tdA.appendChild(actionText(cand.action));
@@ -1050,9 +1065,11 @@ const Mistakes = {
     const table = document.createElement("table");
     table.className = "cands";
     table.style.marginTop = "10px";
-    table.innerHTML = "<thead><tr><th>#</th><th style='text-align:left'>アクション</th><th>EV</th><th>バースト</th><th>FL</th></tr></thead>";
+    table.innerHTML = "<thead><tr><th>#</th><th style='text-align:left'>アクション</th><th>EV差</th><th>バースト</th><th>FL</th></tr></thead>";
     const tbody = document.createElement("tbody");
-    (m.candidates || []).slice(0, 10).forEach((cand, i) => {
+    const rows = (m.candidates || []).slice(0, 10);
+    const bestEv = rows[0] && rankScore(rows[0]);
+    rows.forEach((cand, i) => {
       const tr = document.createElement("tr");
       if (i === 0) tr.classList.add("best-row");
       if (graded.found && i === graded.rank - 1) tr.classList.add("user-row");
@@ -1060,7 +1077,11 @@ const Mistakes = {
       const tdA = document.createElement("td");
       tdA.appendChild(actionText(cand.action));
       tr.appendChild(tdA);
-      tr.innerHTML += `<td>${fmtSigned(cand.metrics.ev)}</td><td>${pct(cand.metrics.bust_rate)}</td><td>${pct(cand.metrics.fl_rate)}</td>`;
+      const delta = rankScore(cand) - bestEv;
+      const cell = i === 0 || delta > -0.005
+        ? `<td class="ev-best">best</td>`
+        : `<td class="ev-neg">${fmt(delta)}</td>`;
+      tr.innerHTML += `${cell}<td>${pct(cand.metrics.bust_rate)}</td><td>${pct(cand.metrics.fl_rate)}</td>`;
       tbody.appendChild(tr);
     });
     table.appendChild(tbody);
@@ -1100,7 +1121,7 @@ const Mistakes = {
       if (this.boardKey(cand.board) === key) {
         found = true;
         rank = i + 1;
-        loss = m.candidates[0].metrics.ev - cand.metrics.ev;
+        loss = rankScore(m.candidates[0]) - rankScore(cand);
         isBest = i === 0;
       }
     });

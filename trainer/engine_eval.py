@@ -222,6 +222,13 @@ def _normalize_rows(
         ):
             if row.get(src) is not None:
                 metrics[dst] = float(row[src])
+        # The quantity the engine actually ranked by, which is NOT always `ev`.
+        # Measured over every street and seat: `candidate_score` is monotone in
+        # the engine's own order wherever it is emitted (T0-T2), and at T0 `ev`
+        # is NOT -- the second-ranked action can carry a higher `ev` than the
+        # first. Grading off `ev` there scores a worse move as the best one.
+        # T3/T4 emit no candidate_score and `ev` is monotone, so it stands in.
+        metrics["rank_score"] = metrics.get("candidate_score", metrics["ev"])
         candidates.append(
             {
                 "action": {"placements": placements, "discard": discards[0] if discards else None},
