@@ -70,4 +70,11 @@ python -m uvicorn trainer.app:app --host 127.0.0.1 --port 8093
 
 v1ではFL突入を検知して固定EV（+9.6、`configs/fl_ev_regular_v4_selfplay.json`）を結果に表示するのみ。
 定数は `trainer/fl_ev.py` がこのconfigから読むので、configが更新されれば自動で追従する。
+
+**要注意（未解決）**: この9.6が効くのは Python側（`evaluator.py` のMCと `game.py` の結果表示）だけ。
+T1〜T4を担う `target/release/ofc_hu_m3_engine.dll` のビルドは 2026-08-05 23:49 で、
+`rust/hu_m3_engine/src/infoset.rs` が `DEFAULT_FL_EV = 9.6` になった 08-06 19:59 より**古い**。
+つまりエンジン内部は旧定数（10.227）のままの可能性が高く、
+T0/T1先行（Python MC）とT1後攻以降（エンジン）でFLの評価がずれる。
+解消には `cargo build --release -p ofc_hu_m3_engine` での再ビルドが必要。
 FLハンド自体のプレイ・採点は未実装（`regular_fl_solver.exe --solve` で拡張可能）。
