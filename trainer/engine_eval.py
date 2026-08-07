@@ -24,6 +24,7 @@ from ofc_regular.hu_m3_rust import (  # noqa: E402
     evaluate_request,
     load_native_engine,
     t4_request,
+    t0_request,
     t1_request,
     t2_request,
     t3_request,
@@ -35,20 +36,50 @@ logger = logging.getLogger("trainer.engine")
 
 LIBRARY_PATH = _ROOT / "target" / "release" / "ofc_hu_m3_engine.dll"
 WEIGHTS_DIR = _ROOT / "rust" / "hu_m3_engine" / "tests" / "fixtures"
+# The full m7v5 pin set, strongest-first.  The engine refuses a street whose
+# downstream evaluators are not all pinned -- T1 first needs the opponent's T1
+# second reply, T0 needs every one of the seven below it -- so this table is
+# what decides which streets the engine will serve at all.
+#
+# T4/T3 are the 9.6-relabelled generation (v6 / v3 / v2); T2 and below are still
+# labelled at the June constant, which is the M7 cascade's remaining work.
+#
+# The distilled `fast_*` images are deliberately NOT pinned.  They are a speed
+# trade: the engine reaches its T0-T2 replies through them and reports those
+# evaluators as "learned_fast".  A trainer grades rather than races, so the
+# full-precision replies are the right side of that trade.
 WEIGHT_FILES = {
-    "t4": "t4_model_v5.bin",
-    "t3_second": "t3_model_v2.bin",
-    "t3_first": "t3first_model_v1.bin",
+    "t4": "t4_model_v6.bin",
+    "t3_second": "t3_model_v3.bin",
+    "t3_first": "t3first_model_v2.bin",
     "t2_second": "t2_model_v1.bin",
     "t2_first": "t2first_model_v1.bin",
+    "t1_second": "t1_model_v1.bin",
+    "t1_first": "t1first_model_v1.bin",
+    "t0_second": "t0_model_v1.bin",
+    "t0_first": "t0first_model_v1.bin",
+    # Distilled replies.  Pinned only because T0 is otherwise unusable: with
+    # full-precision replies a T0-first ranking measured 292 s here, and the
+    # opening is the one decision a trainer must answer while the user is still
+    # looking at the screen.  The package notes name the T0 second-seat reply as
+    # the one worth coarsening most -- 232 candidate boards where a turn reply
+    # is twenty-seven.  T3/T4 have no distilled image and stay full-precision.
+    "fast_t0_second": "fast_t0_second_v1.bin",
+    "fast_t1_second": "fast_t1_second_v1.bin",
+    "fast_t1_first": "fast_t1_first_v1.bin",
+    "fast_t2_second": "fast_t2_second_v1.bin",
+    "fast_t2_first": "fast_t2_first_v1.bin",
 }
 
 # (candidate_samples, evaluation_samples, downstream_t3_samples) per precision.
 # The production webapp runs 1/1/1 for interactive latency.
+# T0 is the deepest tree (232 candidate boards acting first, every street still
+# ahead), so it stays at the cheapest rung on every precision -- "high" at T0
+# would cost minutes per decision, not seconds.
 SAMPLES = {
-    "fast": {1: (1, 1, 1), 2: (1, 1, 1), 3: (1, 1, 1)},
-    "standard": {1: (1, 1, 1), 2: (2, 4, 2), 3: (8, 32, 4)},
-    "high": {1: (2, 2, 1), 2: (4, 8, 4), 3: (16, 64, 8)},
+    "fast": {0: (1, 1, 1), 1: (1, 1, 1), 2: (1, 1, 1), 3: (1, 1, 1)},
+    "standard": {0: (1, 1, 1), 1: (1, 1, 1), 2: (2, 4, 2), 3: (8, 32, 4)},
+    "high": {0: (1, 1, 1), 1: (2, 2, 1), 2: (4, 8, 4), 3: (16, 64, 8)},
 }
 
 _lock = threading.Lock()
@@ -144,6 +175,24 @@ def _joint_config(observation: ActorObservation, turn: int, precision: str) -> J
         learned_t2_second_model_sha256=weights["t2_second"][1],
         learned_t2_first_model_path=weights["t2_first"][0],
         learned_t2_first_model_sha256=weights["t2_first"][1],
+        learned_t1_second_model_path=weights["t1_second"][0],
+        learned_t1_second_model_sha256=weights["t1_second"][1],
+        learned_t1_first_model_path=weights["t1_first"][0],
+        learned_t1_first_model_sha256=weights["t1_first"][1],
+        learned_t0_second_model_path=weights["t0_second"][0],
+        learned_t0_second_model_sha256=weights["t0_second"][1],
+        learned_t0_first_model_path=weights["t0_first"][0],
+        learned_t0_first_model_sha256=weights["t0_first"][1],
+        fast_t0_second_model_path=weights["fast_t0_second"][0],
+        fast_t0_second_model_sha256=weights["fast_t0_second"][1],
+        fast_t1_second_model_path=weights["fast_t1_second"][0],
+        fast_t1_second_model_sha256=weights["fast_t1_second"][1],
+        fast_t1_first_model_path=weights["fast_t1_first"][0],
+        fast_t1_first_model_sha256=weights["fast_t1_first"][1],
+        fast_t2_second_model_path=weights["fast_t2_second"][0],
+        fast_t2_second_model_sha256=weights["fast_t2_second"][1],
+        fast_t2_first_model_path=weights["fast_t2_first"][0],
+        fast_t2_first_model_sha256=weights["fast_t2_first"][1],
     )
 
 
@@ -192,9 +241,9 @@ def evaluate_with_engine(
     position: str,
     precision: str,
 ) -> Dict[str, Any]:
-    """Full ranked candidate list from the m3 engine (T1-T4)."""
-    if turn not in (1, 2, 3, 4):
-        raise EngineUnavailable("engine evaluation covers T1-T4 only")
+    """Full ranked candidate list from the m3 engine (T0-T4)."""
+    if turn not in (0, 1, 2, 3, 4):
+        raise EngineUnavailable("engine evaluation covers T0-T4 only")
     library, _ = _ensure_loaded()
     observation = _observation(hero_board, opp_board, dealt, dead, turn, position)
 
@@ -216,8 +265,10 @@ def evaluate_with_engine(
             request = t3_request(observation, config=config)
         elif turn == 2:
             request = t2_request(observation, config=config)
-        else:
+        elif turn == 1:
             request = t1_request(observation, config=config)
+        else:
+            request = t0_request(observation, config=config)
         label = f"rust:t{turn}({config.candidate_samples}/{config.evaluation_samples})"
 
     response = evaluate_request(request, library=library)

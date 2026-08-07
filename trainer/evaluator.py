@@ -166,8 +166,8 @@ def evaluate_position(
     sims_override: Optional[int] = None,
     top_n: int = 0,
 ) -> Dict[str, Any]:
-    """Rank every legal action: m3 engine for T1-T4, Monte-Carlo for T0/fallback."""
-    if turn in (1, 2, 3, 4):
+    """Rank every legal action: m3 engine for T0-T4, Monte-Carlo as fallback."""
+    if turn in (0, 1, 2, 3, 4):
         try:
             from trainer import engine_eval
 
@@ -315,7 +315,7 @@ def describe() -> str:
         from trainer import engine_eval
 
         if engine_eval.available():
-            return "m3 engine (T1-T4) + mc-random (T0/fallback)"
+            return "m3 engine (T0-T4, m7v5 pins) + mc-random (fallback)"
     except Exception:
         pass
     return "mc-random common-futures evaluator (pure python)"
