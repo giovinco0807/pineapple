@@ -144,8 +144,14 @@ class TrainingSession:
                 self.error = str(exc)
 
     def _opponent_move(self) -> None:
-        """AI opponent plays the best fast-precision candidate."""
-        result = self.evaluate(
+        """AI opponent plays what the learned model plays.
+
+        `decide` rather than a full ranking: the opponent needs one move, and
+        ranking all 232 T0 candidates for it cost ~20 s per hand with nothing
+        reading the ranking.  Falls back to the ranked path if the engine
+        refuses, which keeps the opponent playable on a partial pin set.
+        """
+        opp_kwargs = dict(
             hero_board=board_dict(self.opp_board),
             opp_board=board_dict(self.hero_board),
             dealt=list(self.opp_dealt),
@@ -154,10 +160,19 @@ class TrainingSession:
             position="second" if self.position == "first" else "first",
             precision="fast",
         )
-        candidates = result.get("candidates") or []
-        if not candidates:
-            raise RuntimeError("AI opponent found no candidates")
-        best = candidates[0]
+        best = None
+        try:
+            from trainer import engine_eval
+
+            best = engine_eval.decide_with_engine(**opp_kwargs)
+        except Exception as exc:
+            logger.info("opponent decide unavailable (%s); falling back to ranking", exc)
+        if best is None:
+            result = self.evaluate(**opp_kwargs)
+            candidates = result.get("candidates") or []
+            if not candidates:
+                raise RuntimeError("AI opponent found no candidates")
+            best = candidates[0]
         with self._lock:
             self.opp_board = self.opp_board.place(
                 [(c, r) for c, r in best["action"]["placements"]]

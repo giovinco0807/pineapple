@@ -21,6 +21,8 @@ if str(_ROOT / "src") not in sys.path:
 from ofc_regular.hu_infoset import ActorObservation  # noqa: E402
 from ofc_regular.hu_late_street_teacher import T4SearchConfig  # noqa: E402
 from ofc_regular.hu_m3_rust import (  # noqa: E402
+    HU_M3_REQUEST_SCHEMA,
+    _joint_config_payload,
     evaluate_request,
     load_native_engine,
     t4_request,
@@ -229,6 +231,51 @@ def _normalize_rows(
             }
         )
     return candidates
+
+
+def decide_with_engine(
+    *,
+    hero_board: Dict[str, Sequence[str]],
+    opp_board: Dict[str, Sequence[str]],
+    dealt: Sequence[str],
+    dead: Sequence[str],
+    turn: int,
+    position: str,
+    precision: str = "fast",
+) -> Dict[str, Any]:
+    """The single action the learned model plays -- no ranking, no search.
+
+    This is a different operation from `evaluate_with_engine`, not a cheaper
+    setting of it.  `evaluate_*` runs the joint-exact TEACHER, the deep search
+    whose output became these models' training labels; `decide` asks the model
+    what it plays.  At T0 first seat that is 0.09 s against the teacher's 20 s,
+    because one is a forward pass over the root fan and the other searches every
+    street below it.
+
+    The trainer needs the teacher for grading -- a rank and an EV gap require
+    every candidate scored -- but the AI opponent only needs a move, and making
+    it pay for a full ranking is what put a 19.5 s wall in front of every hand
+    the hero played second.
+    """
+    library, _ = _ensure_loaded()
+    observation = _observation(hero_board, opp_board, dealt, dead, turn, position)
+    config = _joint_config(observation, turn, precision)
+    request = {
+        "schema": HU_M3_REQUEST_SCHEMA,
+        "kind": "decide",
+        "observation": observation.to_dict(),
+        "observation_fingerprint": observation.fingerprint(),
+        "config": _joint_config_payload(config),
+    }
+    response = evaluate_request(request, library=library)
+    placements = [[c, r] for c, r in response.get("placements", ())]
+    if not placements:
+        raise EngineUnavailable(f"decide returned no placements for T{turn}")
+    discards = list(response.get("discards", ()) or ())
+    return {
+        "action": {"placements": placements, "discard": discards[0] if discards else None},
+        "evaluator": f"rust:decide({response.get('evaluator', '')})",
+    }
 
 
 def evaluate_with_engine(
