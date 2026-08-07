@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OFC Pineapple トレーナー（レギュラー）</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<header>
+  <h1>OFC トレーナー<span class="sub">レギュラー（ヘッズアップ・Jokerなし）</span></h1>
+  <nav>
+    <button data-view="training" class="active">トレーニング</button>
+    <button data-view="editor">エディタ</button>
+    <button data-view="mistakes">ミス復習</button>
+  </nav>
+  <div id="account-bar">
+    <label for="account-select">アカウント</label>
+    <select id="account-select"></select>
+    <button id="account-new" title="新しいアカウントを作る">＋</button>
+    <button id="account-delete" title="このアカウントの履歴を削除">🗑</button>
+  </div>
+  <div id="global-stats">
+    <span>ハンド <b id="gs-hands">0</b></span>
+    <span>判断 <b id="gs-decisions">0</b></span>
+    <span>EVロス <b id="gs-evloss">0.0</b></span>
+    <span>ミス <b id="gs-mistakes">0</b></span>
+  </div>
+</header>
+
+<main>
+
+  <!-- ============ トレーニング ============ -->
+  <section id="view-training" class="view active">
+    <div class="layout">
+      <div class="panel">
+        <h2 id="tr-table-title">テーブル</h2>
+        <div class="board-area">
+          <div class="board-label">
+            <span class="tag">相手 (AI)</span>
+            <span id="opp-pos-label"></span>
+            <span id="opp-fl-label" class="tag fl-tag" style="display:none">FL</span>
+            <span id="opp-royalty-label"></span>
+          </div>
+          <div id="opp-board"></div>
+          <hr class="sep">
+          <div class="board-label">
+            <span class="tag">あなた</span>
+            <span id="hero-pos-label"></span>
+            <span id="hero-fl-label" class="tag fl-tag" style="display:none">FL</span>
+          </div>
+          <div id="hero-board"></div>
+          <div class="tray" id="dealt-tray">
+            <span class="tray-label">配られたカード</span>
+          </div>
+        </div>
+
+        <div id="status-line"></div>
+
+        <div class="controls">
+          <button id="btn-new-hand" class="primary">新しいハンド</button>
+          <button id="btn-check" disabled>この配置で確定</button>
+          <button id="btn-clear" disabled>クリア</button>
+          <button id="btn-play-best" disabled>最善手を打つ</button>
+        </div>
+
+        <div class="options">
+          <label><input type="checkbox" id="opt-auto-continue" checked> 最善手なら自動で次へ</label>
+          <label><input type="checkbox" id="opt-force-best"> 最善手を強制（自分の手は採点のみ）</label>
+          <label><input type="checkbox" id="opt-skip-obvious" checked> 選択肢が1つだけの時はスキップ</label>
+          <label><input type="checkbox" id="opt-auto-new"> ハンド終了後に自動で次のハンド</label>
+          <div class="opt-row">
+            精度
+            <select id="opt-precision">
+              <option value="fast">速い（粗い）</option>
+              <option value="standard" selected>標準</option>
+              <option value="high">高精度（遅い）</option>
+            </select>
+            ミス記録しきい値
+            <input type="number" id="opt-threshold" value="1.0" min="0" step="0.25" style="width:64px">
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>採点</h2>
+        <div id="grade-area">
+          <p class="muted">配置を確定すると、全候補のEVランキングと採点が表示されます。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ エディタ ============ -->
+  <section id="view-editor" class="view">
+    <div class="layout">
+      <div class="panel">
+        <h2>ポジション設定</h2>
+        <div class="zone-btns" id="ed-zones">
+          <button data-zone="hero-top">自分・トップ</button>
+          <button data-zone="hero-middle">自分・ミドル</button>
+          <button data-zone="hero-bottom">自分・ボトム</button>
+          <button data-zone="dealt" class="active">配札</button>
+          <button data-zone="opp-top">相手・トップ</button>
+          <button data-zone="opp-middle">相手・ミドル</button>
+          <button data-zone="opp-bottom">相手・ボトム</button>
+          <button data-zone="dead">死札</button>
+        </div>
+        <div class="picker-grid" id="ed-picker"></div>
+        <hr class="sep">
+        <div class="board-area">
+          <div class="board-label"><span class="tag">相手</span></div>
+          <div id="ed-opp-board"></div>
+          <div class="board-label"><span class="tag">自分</span></div>
+          <div id="ed-hero-board"></div>
+          <div class="tray" id="ed-dealt-tray"><span class="tray-label">配札</span></div>
+          <div class="tray" id="ed-dead-tray"><span class="tray-label">死札（自分の捨て札など）</span></div>
+        </div>
+        <div class="controls">
+          <div class="opt-row" style="display:flex;align-items:center;gap:8px">
+            ストリート
+            <select id="ed-turn">
+              <option value="auto" selected>自動判定</option>
+              <option value="0">T0（5枚）</option>
+              <option value="1">T1</option>
+              <option value="2">T2</option>
+              <option value="3">T3</option>
+              <option value="4">T4</option>
+            </select>
+            手番
+            <select id="ed-position">
+              <option value="first" selected>先行</option>
+              <option value="second">後攻</option>
+            </select>
+            精度
+            <select id="ed-precision">
+              <option value="fast">速い</option>
+              <option value="standard" selected>標準</option>
+              <option value="high">高精度</option>
+            </select>
+          </div>
+          <button id="ed-evaluate" class="primary">評価する</button>
+          <button id="ed-clear">全クリア</button>
+          <button id="ed-random">ランダム配札</button>
+        </div>
+        <div id="ed-status" class="muted" style="margin-top:8px"></div>
+      </div>
+
+      <div class="panel">
+        <h2>候補ランキング</h2>
+        <div id="ed-results">
+          <p class="muted">ポジションを作って「評価する」を押してください。候補をクリックすると盤面にプレビューします。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ ミス復習 ============ -->
+  <section id="view-mistakes" class="view">
+    <div class="layout">
+      <div class="panel">
+        <h2>記録されたミス <button id="mi-refresh" class="small" style="float:right">更新</button></h2>
+        <div id="mi-list" class="mistake-list"></div>
+      </div>
+      <div class="panel">
+        <h2>リトライ</h2>
+        <div id="mi-detail">
+          <p class="muted">左のリストからミスを選ぶと、同じ場面をもう一度プレイできます。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<div id="modal-backdrop">
+  <div id="modal"></div>
+</div>
+<div class="toast-wrap" id="toasts"></div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>
