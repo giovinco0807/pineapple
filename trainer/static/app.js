@@ -199,7 +199,6 @@ $$("nav button").forEach((btn) => {
     $$(".view").forEach((v) => v.classList.remove("active"));
     $(`#view-${btn.dataset.view}`).classList.add("active");
     if (btn.dataset.view === "mistakes") Mistakes.refresh();
-    if (btn.dataset.view === "results") Results.refresh();
   });
 });
 
@@ -1161,91 +1160,6 @@ const Mistakes = {
 };
 
 $("#mi-refresh").addEventListener("click", () => Mistakes.refresh());
-
-// ============ results ============
-
-const Results = {
-  async refresh() {
-    const body = $("#re-body");
-    try {
-      const r = await api("/api/results");
-      this.render(r);
-    } catch (e) {
-      body.innerHTML = `<p class="muted">取得に失敗: ${e.message}</p>`;
-    }
-  },
-
-  render(r) {
-    const body = $("#re-body");
-    const o = r.overall;
-    if (!o.n) {
-      body.innerHTML = '<p class="muted">まだハンドがありません。</p>';
-      return;
-    }
-    const sign = (v) => (v >= 0 ? "ev-pos" : "ev-neg");
-    const ci = o.ci95
-      ? `[${fmtSigned(o.ci95[0], 2)}, ${fmtSigned(o.ci95[1], 2)}]`
-      : "—";
-    // The interval is the point of this screen, so say plainly when it is not
-    // yet worth reading rather than printing a confident-looking number.
-    const warn = r.reliable
-      ? ""
-      : `<p class="muted">※ ${o.n}ハンドでは区間が広すぎて判断できません。` +
-        `${r.min_hands_for_interval}ハンド以上を目安に。</p>`;
-    // A verdict needs both a interval clear of zero AND enough hands to trust
-    // the interval at all. Showing "you are losing" next to "this sample is too
-    // small to judge" is worse than showing no verdict.
-    const beats = !r.reliable
-      ? '<span class="muted">判定にはハンド数が足りません</span>'
-      : o.ci95 && o.ci95[0] > 0
-      ? '<span class="ev-best">AIを上回っている（区間が0を跨いでいない）</span>'
-      : o.ci95 && o.ci95[1] < 0
-      ? '<span class="ev-neg">AIに負けている（区間が0を跨いでいない）</span>'
-      : '<span class="muted">まだ差は言えない（区間が0を跨いでいる）</span>';
-
-    const pct1 = (v) => (v == null ? "—" : (v * 100).toFixed(1) + "%");
-    const seatRow = (label, s) =>
-      `<tr><td>${label}</td><td>${s.n}</td>` +
-      `<td class="${s.mean == null ? "" : sign(s.mean)}">${s.mean == null ? "—" : fmtSigned(s.mean, 2)}</td>` +
-      `<td class="muted">${s.ci95 ? `[${fmtSigned(s.ci95[0], 2)}, ${fmtSigned(s.ci95[1], 2)}]` : "—"}</td></tr>`;
-
-    body.innerHTML = `
-      <div class="headline">
-        <div class="k">1ハンドあたりの得点</div>
-        <div class="big ${sign(o.mean)}">${fmtSigned(o.mean, 2)}</div>
-        <div class="muted">95%CI ${ci} ／ ${o.n}ハンド ／ 合計 ${fmtSigned(r.total_score, 0)}</div>
-        <div style="margin-top:6px">${beats}</div>
-      </div>
-      ${warn}
-      <table class="cands" style="margin-top:12px">
-        <thead><tr><th style="text-align:left">席</th><th>ハンド</th><th>得点/ハンド</th><th>95%CI</th></tr></thead>
-        <tbody>
-          ${seatRow("先行", r.by_seat.first)}
-          ${seatRow("後攻", r.by_seat.second)}
-        </tbody>
-      </table>
-      <table class="cands" style="margin-top:12px">
-        <thead><tr><th style="text-align:left">指標</th><th>あなた</th><th>AI</th></tr></thead>
-        <tbody>
-          <tr><td>バースト率</td><td>${pct1(r.rates.hero_bust)}</td><td>${pct1(r.rates.opp_bust)}</td></tr>
-          <tr><td>FL突入率</td><td>${pct1(r.rates.hero_fl_entry)}</td><td>${pct1(r.rates.opp_fl_entry)}</td></tr>
-          <tr><td>ロイヤリティ/ハンド</td><td>${fmt(r.royalty.hero_per_hand, 2)}</td><td>${fmt(r.royalty.opp_per_hand, 2)}</td></tr>
-          <tr><td>スクープ率</td><td colspan="2">${pct1(r.rates.scoop)}</td></tr>
-        </tbody>
-      </table>
-      <table class="cands" style="margin-top:12px">
-        <thead><tr><th style="text-align:left">判断の質</th><th></th></tr></thead>
-        <tbody>
-          <tr><td>判断回数</td><td>${r.play.decisions}</td></tr>
-          <tr><td>ミス（しきい値超え）</td><td>${r.play.mistakes}（${pct1(r.play.mistake_rate)}）</td></tr>
-          <tr><td>EVロス/ハンド</td><td>${fmt(r.play.ev_loss_per_hand, 2)}</td></tr>
-        </tbody>
-      </table>
-      <p class="muted" style="margin-top:10px">対戦相手: ${r.evaluator}</p>`;
-  },
-};
-
-$("#re-refresh").addEventListener("click", () => Results.refresh());
 
 // ============ account controls ============
 
