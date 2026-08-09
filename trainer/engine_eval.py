@@ -43,8 +43,11 @@ WEIGHTS_DIR = _ROOT / "rust" / "hu_m3_engine" / "tests" / "fixtures"
 # second reply, T0 needs every one of the seven below it -- so this table is
 # what decides which streets the engine will serve at all.
 #
-# T4/T3 are the 9.6-relabelled generation (v6 / v3 / v2); T2 and below are still
-# labelled at the June constant, which is the M7 cascade's remaining work.
+# T4/T3/T2 are the 9.6-relabelled generation (v6 / v3 / v2 / v2 / v2); T1 and
+# below are still labelled at the June constant, which is the M7 cascade's
+# remaining work. The T2 pair landed 2026-08-08 on 25,000 positions at 2,048
+# particles and passed its gates at +0.0171 (first) and +0.0295 (second) per
+# hand over 20,004 mirrored deals each.
 #
 # The distilled `fast_*` images are deliberately NOT pinned.  They are a speed
 # trade: the engine reaches its T0-T2 replies through them and reports those
@@ -54,8 +57,8 @@ WEIGHT_FILES = {
     "t4": "t4_model_v6.bin",
     "t3_second": "t3_model_v3.bin",
     "t3_first": "t3first_model_v2.bin",
-    "t2_second": "t2_model_v1.bin",
-    "t2_first": "t2first_model_v1.bin",
+    "t2_second": "t2_model_v2.bin",
+    "t2_first": "t2first_model_v2.bin",
     "t1_second": "t1_model_v1.bin",
     "t1_first": "t1first_model_v1.bin",
     "t0_second": "t0_model_v1.bin",
