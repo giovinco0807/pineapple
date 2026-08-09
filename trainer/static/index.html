@@ -14,6 +14,7 @@
     <button data-view="training" class="active">トレーニング</button>
     <button data-view="editor">エディタ</button>
     <button data-view="mistakes">ミス復習</button>
+    <button data-view="results">成績</button>
   </nav>
   <div id="account-bar">
     <label for="account-select">アカウント</label>
@@ -168,6 +169,16 @@
         <div id="mi-detail">
           <p class="muted">左のリストからミスを選ぶと、同じ場面をもう一度プレイできます。</p>
         </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 成績 ============ -->
+  <section id="view-results" class="view">
+    <div class="panel">
+      <h2>成績 <button id="re-refresh" class="small" style="float:right">更新</button></h2>
+      <div id="re-body">
+        <p class="muted">ハンドをプレイすると、1ハンドあたりの得点と95%信頼区間が出ます。</p>
       </div>
     </div>
   </section>

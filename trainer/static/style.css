@@ -316,6 +316,10 @@ table.cands tr.preview-row td { background: rgba(79, 140, 255, 0.16); }
 
 .ev-pos { color: var(--good); }
 .ev-neg { color: var(--bad); }
+.headline { padding: 14px 16px; background: var(--bg-panel-2); border-radius: 10px; }
+.headline .k { color: var(--text-dim); font-size: 12px; }
+.headline .big { font-size: 34px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.2; }
+
 /* The reference line a ranking is read against, not a score. */
 .ev-best { color: var(--good); font-weight: 700; letter-spacing: 0.02em; }
 

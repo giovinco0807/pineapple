@@ -43,8 +43,11 @@ WEIGHTS_DIR = _ROOT / "rust" / "hu_m3_engine" / "tests" / "fixtures"
 # second reply, T0 needs every one of the seven below it -- so this table is
 # what decides which streets the engine will serve at all.
 #
-# T4/T3 are the 9.6-relabelled generation (v6 / v3 / v2); T2 and below are still
-# labelled at the June constant, which is the M7 cascade's remaining work.
+# T4/T3/T2 are the 9.6-relabelled generation (v6 / v3 / v2 / v2 / v2); T1 and
+# below are still labelled at the June constant, which is the M7 cascade's
+# remaining work. The T2 pair landed 2026-08-08 on 25,000 positions at 2,048
+# particles and passed its gates at +0.0171 (first) and +0.0295 (second) per
+# hand over 20,004 mirrored deals each.
 #
 # The distilled `fast_*` images are deliberately NOT pinned.  They are a speed
 # trade: the engine reaches its T0-T2 replies through them and reports those
@@ -54,8 +57,8 @@ WEIGHT_FILES = {
     "t4": "t4_model_v6.bin",
     "t3_second": "t3_model_v3.bin",
     "t3_first": "t3first_model_v2.bin",
-    "t2_second": "t2_model_v1.bin",
-    "t2_first": "t2first_model_v1.bin",
+    "t2_second": "t2_model_v2.bin",
+    "t2_first": "t2first_model_v2.bin",
     "t1_second": "t1_model_v1.bin",
     "t1_first": "t1first_model_v1.bin",
     "t0_second": "t0_model_v1.bin",
@@ -74,14 +77,35 @@ WEIGHT_FILES = {
 }
 
 # (candidate_samples, evaluation_samples, downstream_t3_samples) per precision.
-# The production webapp runs 1/1/1 for interactive latency.
-# T0 is the deepest tree (232 candidate boards acting first, every street still
-# ahead), so it stays at the cheapest rung on every precision -- "high" at T0
-# would cost minutes per decision, not seconds.
+# The production webapp runs 1/1/1 for interactive latency; a trainer grades
+# instead of racing, and a grade is only worth the seconds it costs if the
+# number under it holds still.
+#
+# The middle figure is how many sampled worlds a score averages over. Measured
+# 2026-08-08, five seeds per cell, as the mean per-action score spread across
+# those seeds -- see docs/trainer_ranking_quality_20260808.md:
+#
+#   street  worlds  spread        worlds  spread     cost
+#   T1        1     16-40   ->     16      5-9       0.35 s -> 3-5 s
+#   T2        4     12.9    ->     16      4.8-6.1   0.7 s  -> 2.3 s
+#   T3       32     2.5-4.5 ->    128      1.0-1.5   0.8 s  -> 2.9 s
+#
+# An OFC hand settles for roughly +-40 points, so T1 at one world was grading
+# against a number that moved almost as far as the game does. T2's first seat
+# reaches full seed agreement at 16 worlds. T3 was already sound at 32 and is
+# raised only because it is cheap.
+#
+# T0 is deliberately NOT raised. It is the deepest tree (232 candidate boards
+# acting first, every street still ahead) and "high" there would cost minutes,
+# but the reason it stays at the floor is not cost: worlds do not fix it. A
+# 20-hand ladder measured regret 8.28 at 2 worlds and 8.90 at 32 -- sixteen
+# times the work for nothing, with the 128-world reference failing to agree
+# with itself. T0 needs a different evaluation, not a bigger one; §5 and §8 of
+# that document carry the candidate.
 SAMPLES = {
-    "fast": {0: (1, 1, 1), 1: (1, 1, 1), 2: (1, 1, 1), 3: (1, 1, 1)},
-    "standard": {0: (1, 1, 1), 1: (1, 1, 1), 2: (2, 4, 2), 3: (8, 32, 4)},
-    "high": {0: (1, 1, 1), 1: (2, 2, 1), 2: (4, 8, 4), 3: (16, 64, 8)},
+    "fast": {0: (1, 1, 1), 1: (1, 4, 1), 2: (2, 4, 2), 3: (8, 32, 4)},
+    "standard": {0: (1, 1, 1), 1: (1, 16, 1), 2: (2, 16, 2), 3: (8, 128, 4)},
+    "high": {0: (1, 1, 1), 1: (2, 64, 1), 2: (4, 64, 4), 3: (16, 128, 8)},
 }
 
 _lock = threading.Lock()

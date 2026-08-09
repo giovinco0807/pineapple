@@ -25,6 +25,7 @@ sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(ROOT))
 
 from trainer import evaluator as trainer_evaluator  # noqa: E402
+from trainer import results as trainer_results  # noqa: E402
 from trainer.game import TrainingSession  # noqa: E402
 from trainer.store import TrainerStore  # noqa: E402
 
@@ -157,6 +158,15 @@ async def history(limit: int = 100, account_id: int = Depends(current_account)):
         "hands": store.list_hands(account_id, limit=max(1, min(limit, 500))),
         "stats": store.stats(account_id),
     }
+
+
+@app.get("/api/results")
+async def results(account_id: int = Depends(current_account)):
+    """Points per hand with an interval, plus the rates behind it."""
+    hands = store.list_hands(account_id, limit=100000)
+    payload = trainer_results.summarise(hands)
+    payload["evaluator"] = trainer_evaluator.describe()
+    return payload
 
 
 # ----------------------------------------------------------------------
