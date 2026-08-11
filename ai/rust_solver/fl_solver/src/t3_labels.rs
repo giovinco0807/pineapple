@@ -78,6 +78,26 @@ fn card_name(card: &Card) -> String {
     format!("{rank}{suit}")
 }
 
+/// Rows as sorted card names, `top|mid|bot` -- the position, without an
+/// action attached.
+pub fn rows_key(rows: &[Vec<Card>; 3]) -> String {
+    rows.iter()
+        .map(|row| {
+            let mut names: Vec<String> = row.iter().map(card_name).collect();
+            names.sort();
+            names.join(",")
+        })
+        .collect::<Vec<String>>()
+        .join("|")
+}
+
+/// A flat card list as sorted names.
+pub fn cards_key(cards: &[Card]) -> String {
+    let mut names: Vec<String> = cards.iter().map(card_name).collect();
+    names.sort();
+    names.join(",")
+}
+
 fn board_key(rows: &[Vec<Card>; 3], discard: &Card) -> String {
     let mut parts: Vec<String> = rows
         .iter()

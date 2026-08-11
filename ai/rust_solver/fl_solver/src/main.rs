@@ -1810,18 +1810,29 @@ fn main() {
                                 "{{\"action_key\":\"{}\",\"value\":{},\"t4_draws\":{}}}",
                                 v.action_key, v.value, v.t4_draws))
                             .collect();
+                        // The file carries the position it labels.  A teacher
+                        // whose consumer has to re-derive the deal is one
+                        // stream-function change away from being silently
+                        // mislabelled.
                         t3_line = format!(
-                            "{{\"id\":\"{}\",\"seed\":{},\"opponents\":{},\"actions\":[{}]}}
+                            "{{\"id\":\"{}\",\"root\":{},\"opponents\":{},\"board\":\"{}\",                             \"dead\":\"{}\",\"draw\":\"{}\",\"actions\":[{}]}}
 ",
-                            request.id, seed.wrapping_add(root), opponents, actions.join(","));
+                            request.id, root, opponents,
+                            t3_labels::rows_key(&request.rows),
+                            t3_labels::cards_key(&request.dead),
+                            t3_labels::cards_key(&request.draw),
+                            actions.join(","));
                         for decision in &decisions {
                             let acts: Vec<String> = decision.actions.iter()
                                 .map(|(key, value)| format!("{{\"a\":\"{key}\",\"v\":{value}}}"))
                                 .collect();
                             t4_lines.push_str(&format!(
-                                "{{\"id\":\"{}\",\"board\":\"{}\",\"actions\":[{}]}}
+                                "{{\"id\":\"{}\",\"root\":{},\"board\":\"{}\",                                 \"dead\":\"{}\",\"draw\":\"{}\",\"actions\":[{}]}}
 ",
-                                request.id, decision.board_key, acts.join(",")));
+                                request.id, root, decision.board_key,
+                                t3_labels::cards_key(&request.dead),
+                                t3_labels::cards_key(&decision.draw),
+                                acts.join(",")));
                         }
                     }
                     Err(_) => { short.fetch_add(1, std::sync::atomic::Ordering::Relaxed); }
