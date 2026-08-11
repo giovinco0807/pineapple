@@ -154,21 +154,37 @@ def fetch_blocks(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--street", choices=["t3", "t4"], required=True)
+    parser.add_argument("--street", choices=["t2", "t3", "t4"], required=True)
     parser.add_argument("--labels", type=Path, required=True)
     parser.add_argument("--out-dir", type=Path, required=True)
     # 0 means enumerate every completion instead of sampling it.  A T3
     # placement leaves two open slots (C(40,2) = 780) and a T4 placement
-    # leaves none, so exact is affordable at both streets this encoder
-    # serves -- and the labels it pairs with are exact, so the features
-    # should not be the sampled half.
-    parser.add_argument("--joint-samples", type=int, default=0)
+    # leaves none, so exact is affordable at both -- and the labels those
+    # streets pair with are exact, so the features should not be the
+    # sampled half.
+    #
+    # A T2 placement leaves four (C(43,4) = 123,410) and exact measured
+    # 7.0 s a row: 387 hours for a 200k-row teacher, against 4.0 hours at
+    # 800 samples.  So T2 samples.  It samples 800 rather than the Rust
+    # default of 150 to keep T3's exact completion count: the sampling
+    # seed varies per action, so this noise lands directly on the ordering
+    # the gate scores, and T2's wider rooms spread the completion
+    # distribution further than the count that block was gated at.
+    parser.add_argument("--joint-samples", type=int, default=None)
     parser.add_argument("--batch", type=int, default=2000)
     parser.add_argument("--workspace-root", type=Path, default=Path.cwd())
     parser.add_argument("--solver", default=None, help="override the block binary")
+    parser.add_argument(
+        "--joint-seed-scope", choices=["root", "action"], default="root",
+        help="what the sampled joint block's completions are drawn from; "
+             "`root` shares them across a root's actions (see flush())",
+    )
     args = parser.parse_args()
+    if args.joint_samples is None:
+        args.joint_samples = 800 if args.street == "t2" else 0
     workspace_root = args.workspace_root.resolve(strict=True)
     solver = args.solver or str(_solver_path(workspace_root))
+    seed_scope = args.joint_seed_scope
     if not Path(solver).exists():
         raise SystemExit(f"no block binary at {solver}")
     args.out_dir.mkdir(parents=True, exist_ok=True)
@@ -188,7 +204,7 @@ def main() -> None:
         if not pending:
             return
         requests = []
-        for position, (rows_after, dead_after, _value, _root) in enumerate(pending):
+        for position, (rows_after, dead_after, _value, root) in enumerate(pending):
             all_seen = [c for row in rows_after for c in row] + dead_after
             # A duplicate card would shrink the mask without shrinking the
             # list -- which is exactly what a joker-naming slip looks like.
@@ -198,6 +214,15 @@ def main() -> None:
             requests.append(
                 {
                     "id": str(position),
+                    # Every action at a root shares the completion sample.  The
+                    # unseen set is the same for all of them (hero's discard is
+                    # seen whichever card it was), so this judges every
+                    # candidate board on the same drawn cards and the sampling
+                    # noise cancels in the comparison the gate scores.  Exact
+                    # enumeration ignores it.
+                    "seed": (
+                        f"root/{root}" if seed_scope == "root" else f"action/{position}"
+                    ),
                     "board": {
                         "top": rows_after[0],
                         "middle": rows_after[1],
@@ -238,10 +263,12 @@ def main() -> None:
                 continue
             record = json.loads(line)
             root = int(record["root"])
-            if args.street == "t3":
-                # `action_key` already spells the board this action reaches,
-                # plus the card it threw away: top|mid|bot|discard.  Each
-                # action re-lists the same cards, so each gets its own namer.
+            if args.street in ("t2", "t3"):
+                # Both streets write `action_key` as the board this action
+                # reaches plus the card it threw away: top|mid|bot|discard --
+                # nine cards at T2, eleven at T3, and nothing else differs.
+                # Each action re-lists the same cards, so each gets its own
+                # namer.
                 for action in record["actions"]:
                     namer = JokerNamer()
                     rows_text, discard = action["action_key"].rsplit("|", 1)

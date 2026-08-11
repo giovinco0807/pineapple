@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 anyhow = "1"
 clap = { workspace = true }
+fl_solver = { path = "../fl_solver" }
 ofc_core = { path = "../ofc_core" }
 rayon = { workspace = true }
 serde = { workspace = true }

@@ -34,6 +34,17 @@ pub struct JointOutlookRequest {
     /// Arrangements tried per completion when the exact count is too big.
     #[serde(default = "default_arrangements")]
     pub max_arrangements: usize,
+    /// What the completion sample is drawn from; defaults to `id`.
+    ///
+    /// Every action at a root leaves the SAME unseen set -- hero's discard is
+    /// seen either way -- so a caller can hand every action of a root one seed
+    /// and have each candidate board judged on the same drawn completions.
+    /// Without that the sample differs per action and its noise lands straight
+    /// on the within-root ordering, which is the only thing the ranking gate
+    /// reads.  Same reason the opponents and the T3 draws are shared in the
+    /// labelers; this block was the one sampled quantity still left free.
+    #[serde(default)]
+    pub seed: Option<String>,
 }
 
 fn default_samples() -> usize {
@@ -285,7 +296,7 @@ pub fn solve(request: &JointOutlookRequest, fl_ev: &FlEv) -> Result<JointOutlook
         &pool,
         request.samples,
         request.max_arrangements,
-        &format!("joint/{}", request.id),
+        &format!("joint/{}", request.seed.as_deref().unwrap_or(&request.id)),
         fl_ev,
     )?;
     let mut rowwise: Vec<f32> = Vec::with_capacity(super::evaluator::OPPONENT_SIZE);

@@ -122,7 +122,7 @@ pub fn solve(
     let samples = [request.t2_samples, request.t3_samples];
     let context = playout::Context {
         fl_ev,
-        library,
+        opponents: playout::Opponents::Library(library),
         fl_table,
         models: &models,
         samples: &samples,
