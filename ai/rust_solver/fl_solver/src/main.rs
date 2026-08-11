@@ -1886,6 +1886,7 @@ fn main() {
         let mut roots = 100usize;
         let mut opponents = 60usize;
         let mut t3_draws = 24usize;
+        let mut t4_draws = 0usize;
         let mut seed = 0xD00E_0001u64;
         let mut stream_offset = 0u64;
         let mut out_dir = String::from("D:/ofc_data/fl14_t2_teacher_v1");
@@ -1896,6 +1897,7 @@ fn main() {
                 "--roots" => { index += 1; roots = args[index].parse().expect("roots"); }
                 "--opponents" => { index += 1; opponents = args[index].parse().expect("opponents"); }
                 "--t3-draws" => { index += 1; t3_draws = args[index].parse().expect("t3-draws"); }
+                "--t4-draws" => { index += 1; t4_draws = args[index].parse().expect("t4-draws"); }
                 "--seed" => { index += 1; seed = args[index].parse().expect("seed"); }
                 "--stream-offset" => { index += 1; stream_offset = args[index].parse().expect("stream-offset"); }
                 "--out-dir" => { index += 1; out_dir = args[index].clone(); }
@@ -1916,7 +1918,14 @@ fn main() {
         // the parallelism lives inside `solve`, across (action, T3 draw)
         // pairs -- the opposite of `teach`, where a root is small and the
         // roots themselves are the work units.
-        let mut lines: Vec<String> = Vec::with_capacity(roots);
+        // Written as they are produced, not collected and dumped at the end.
+        // A T2 teacher is hours long; a run that publishes nothing until it
+        // finishes is a run whose whole cost is lost to one interruption.
+        use std::io::Write;
+        let mut file = std::io::BufWriter::new(
+            std::fs::File::create(format!("{out_dir}/t2_labels.jsonl")).expect("t2 out"),
+        );
+        let mut written = 0usize;
         for root in 0..roots as u64 {
             let cards = pool::deal(seed, root, 11);
             let request = t2_labels::T2Request {
@@ -1926,6 +1935,7 @@ fn main() {
                 draw: [cards[8], cards[9], cards[10]],
                 opponents,
                 t3_draws,
+                t4_draws,
             };
             let stream = pool::stream_of(root, stream_offset);
             match t2_labels::solve(&request, &loaded, &table, stream) {
@@ -1936,13 +1946,15 @@ fn main() {
                             "{{\"action_key\":\"{}\",\"value\":{},\"t3_draws\":{}}}",
                             v.action_key, v.value, v.t3_draws))
                         .collect();
-                    lines.push(format!(
+                    written += 1;
+                    let line = format!(
                         "{{\"id\":\"{}\",\"root\":{},\"stream\":{},\"opponents\":{},\"board\":\"{}\",\"dead\":\"{}\",\"draw\":\"{}\",\"actions\":[{}]}}\n",
                         request.id, root, stream, opponents,
                         t3_labels::rows_key(&request.rows),
                         t3_labels::cards_key(&request.dead),
                         t3_labels::cards_key(&request.draw),
-                        actions.join(",")));
+                        actions.join(","));
+                    file.write_all(line.as_bytes()).expect("write");
                 }
                 Err(e) => {
                     short.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
@@ -1951,20 +1963,20 @@ fn main() {
             }
             let seen = done.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
             if seen % 10 == 0 || seen == roots {
+                file.flush().expect("flush");
                 let rate = started.elapsed().as_secs_f64() / seen as f64;
                 eprintln!("[{seen}/{roots}] {:.2} s/root, eta {:.0} min",
                     rate, rate * (roots - seen) as f64 / 60.0);
             }
         }
-        use std::io::Write;
-        let mut file = std::fs::File::create(format!("{out_dir}/t2_labels.jsonl")).expect("t2 out");
-        for line in &lines {
-            file.write_all(line.as_bytes()).expect("write");
-        }
+        file.flush().expect("flush");
         eprintln!(
-            "teach-t2: {} roots, {} short draws, {} opponents, {} T3 draws, {:.1} min total",
-            lines.len(), short.load(std::sync::atomic::Ordering::Relaxed),
-            opponents, t3_draws, started.elapsed().as_secs_f64() / 60.0);
+            "teach-t2: {} roots, {} short draws, {} opponents, {} T3 draws, \
+             T4 draws {}, {:.1} min total",
+            written, short.load(std::sync::atomic::Ordering::Relaxed),
+            opponents, t3_draws,
+            if t4_draws == 0 { "all".to_string() } else { t4_draws.to_string() },
+            started.elapsed().as_secs_f64() / 60.0);
         return;
     }
 

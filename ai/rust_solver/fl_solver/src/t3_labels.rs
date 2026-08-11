@@ -266,6 +266,57 @@ pub fn completion_value(
     (total, draws)
 }
 
+/// `completion_value` with the T4 draw sampled instead of enumerated.
+///
+/// The exact version prices C(unseen, 2) = 780 pairs so that all 9,880 draws
+/// become table lookups.  That is the right trade when the eleven-card board is
+/// the thing being labelled.  It is the wrong one when the board is an interior
+/// node of a T2 search, where thousands of boards each need a value and none of
+/// them needs 780 pairs of resolution: sampling `draws` T4 draws prices about
+/// nine terminals each, which is roughly thirteen times less work at K = 24.
+///
+/// Unbiased either way -- the max is inside the average, and the average is
+/// over a uniform sample of the same draws the exact version enumerates.  What
+/// it buys is speed and what it costs is variance, which the caller pays for at
+/// the street it samples at.
+pub fn sampled_completion_value(
+    after: &[Vec<Card>; 3],
+    unseen: &[Card],
+    draws: usize,
+    stream: u64,
+    opponents: &[&PoolEntry],
+    fl_ev: &[f64; 4],
+) -> f64 {
+    let patterns = open_patterns(after);
+    let picks = crate::t2_labels::sampled_t3_draws(unseen.len(), draws, stream);
+    let mut total = 0.0f64;
+    for picked in &picks {
+        let mut best = f64::NEG_INFINITY;
+        for (first, second) in [
+            (picked[0], picked[1]),
+            (picked[0], picked[2]),
+            (picked[1], picked[2]),
+        ] {
+            for pattern in &patterns {
+                let mut final_rows = after.clone();
+                final_rows[pattern[0]].push(unseen[first]);
+                final_rows[pattern[1]].push(unseen[second]);
+                let hero = hero_terminal(&final_rows);
+                let value: f64 = opponents
+                    .iter()
+                    .map(|entry| hero_score(&hero, &entry.rows, fl_ev))
+                    .sum::<f64>()
+                    / opponents.len() as f64;
+                if value > best {
+                    best = value;
+                }
+            }
+        }
+        total += best;
+    }
+    total / picks.len().max(1) as f64
+}
+
 /// Every distinct eleven-card board a nine-card board reaches on one draw.
 pub fn t3_placements(rows: &[Vec<Card>; 3], draw: &[Card; 3]) -> Vec<[Vec<Card>; 3]> {
     let mut out = Vec::new();

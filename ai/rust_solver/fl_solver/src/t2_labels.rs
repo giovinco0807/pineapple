@@ -36,13 +36,17 @@ use rayon::prelude::*;
 
 use crate::pool::{draw, mask_of, mix64, Pool, PoolEntry, ShortDraw};
 use crate::t3_labels::{
-    board_key, completion_value, open_patterns, t3_placements, unseen_from,
+    board_key, completion_value, open_patterns, sampled_completion_value, t3_placements,
+    unseen_from,
 };
 use crate::Card;
 
 /// Mixed into the stream so the T3-draw sample and the opponent sample are
 /// independent axes.
 const T3_DRAW_STREAM: u64 = 0x7432;
+
+/// A third independent axis: the sampled T4 draws under a T3 placement.
+const T4_DRAW_STREAM: u64 = 0x7433;
 
 pub struct T2Request {
     pub id: String,
@@ -52,8 +56,13 @@ pub struct T2Request {
     pub dead: Vec<Card>,
     pub draw: [Card; 3],
     pub opponents: usize,
-    /// T3 draws sampled per action.  The only quantity this street adds.
+    /// T3 draws sampled per action.
     pub t3_draws: usize,
+    /// T4 draws sampled under each T3 placement; 0 enumerates all C(40,3).
+    ///
+    /// Enumerating is exact and costs about thirteen times more.  A first lap
+    /// that wants a whole chain sooner samples here; a final one does not.
+    pub t4_draws: usize,
 }
 
 pub struct T2ActionValue {
@@ -114,13 +123,31 @@ fn best_after_t3_draw(
     unseen_after: &[Card],
     opponents: &[&PoolEntry],
     fl_ev: &[f64; 4],
+    t4_draws: usize,
+    stream: u64,
 ) -> f64 {
     t3_placements(rows, t3_draw)
         .iter()
-        .map(|after| {
-            let (total, draws) =
-                completion_value(after, unseen_after, opponents, fl_ev, false, None);
-            total / draws.max(1) as f64
+        .enumerate()
+        .map(|(index, after)| {
+            if t4_draws == 0 {
+                let (total, draws) =
+                    completion_value(after, unseen_after, opponents, fl_ev, false, None);
+                total / draws.max(1) as f64
+            } else {
+                // The stream varies with the placement so two placements at one
+                // node are not compared on the same T4 draws by accident --
+                // sharing them there would bias the max toward whichever
+                // placement those particular draws happened to suit.
+                sampled_completion_value(
+                    after,
+                    unseen_after,
+                    t4_draws,
+                    stream.wrapping_add(index as u64),
+                    opponents,
+                    fl_ev,
+                )
+            }
         })
         .fold(f64::NEG_INFINITY, f64::max)
 }
@@ -167,7 +194,18 @@ pub fn solve(
                 .collect();
             (
                 (*action_index, *draw_index),
-                best_after_t3_draw(rows, &t3_draw, &unseen_after, &opponents, fl_ev),
+                best_after_t3_draw(
+                    rows,
+                    &t3_draw,
+                    &unseen_after,
+                    &opponents,
+                    fl_ev,
+                    request.t4_draws,
+                    stream
+                        ^ T4_DRAW_STREAM
+                        ^ ((*action_index as u64) << 32)
+                        ^ (*draw_index as u64),
+                ),
             )
         })
         .collect();
@@ -217,6 +255,7 @@ mod tests {
             draw: [cards[8], cards[9], cards[10]],
             opponents,
             t3_draws,
+            t4_draws: 0,
         }
     }
 
@@ -323,7 +362,9 @@ mod tests {
                     .filter(|(index, _)| !picked.contains(index))
                     .map(|(_, card)| *card)
                     .collect();
-                total += best_after_t3_draw(&rows, &t3_draw, &after, &opponents, &TABLE);
+                total += best_after_t3_draw(
+                    &rows, &t3_draw, &after, &opponents, &TABLE, 0, 0,
+                );
             }
             let expected = total / draws.len() as f64;
             assert_eq!(

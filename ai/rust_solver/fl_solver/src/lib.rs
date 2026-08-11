@@ -2,6 +2,44 @@
 //!
 //! Standalone executable that communicates via JSON stdin/stdout
 
+// The best-response machinery, shared as a library so the playout labelers in
+// `t4_first_exact` can price a leaf against a real Fantasyland best response
+// instead of a statically solved board.  The binary declares the same modules
+// against its own copy of `Card`; they are small and the duplication is
+// cheaper than untangling main.rs from lib.rs while a six-hour teacher runs.
+/// Every k-subset of n as a bitmask, lexicographic.  Lives here as well as
+/// in the binary because the frontier needs it and the two roots are
+/// separate crates.
+pub fn subset_masks(n: usize, k: usize) -> Vec<u32> {
+    let mut out = Vec::new();
+    let mut indices: Vec<usize> = (0..k).collect();
+    loop {
+        out.push(indices.iter().fold(0u32, |mask, i| mask | 1 << i));
+        // Next combination in lexicographic order.
+        let mut position = k;
+        loop {
+            if position == 0 {
+                return out;
+            }
+            position -= 1;
+            if indices[position] != position + n - k {
+                indices[position] += 1;
+                for later in (position + 1)..k {
+                    indices[later] = indices[later - 1] + 1;
+                }
+                break;
+            }
+        }
+    }
+}
+
+pub mod frontier;
+pub mod pool;
+pub mod t2_labels;
+pub mod t3_labels;
+pub mod t4_labels;
+pub mod vs_fl;
+
 use rayon::prelude::*;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
