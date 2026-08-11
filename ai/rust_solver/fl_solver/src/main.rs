@@ -4,6 +4,7 @@
 
 mod frontier;
 mod pool;
+mod vs_fl;
 
 use rayon::prelude::*;
 use itertools::Itertools;
