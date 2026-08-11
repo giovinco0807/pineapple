@@ -3,6 +3,7 @@
 //! Standalone executable that communicates via JSON stdin/stdout
 
 mod frontier;
+mod pool;
 
 use rayon::prelude::*;
 use itertools::Itertools;
@@ -1715,8 +1716,65 @@ fn run_stdin_mode() {
     }
 }
 
+/// Build a pre-solved frontier pool: `fl_solver pool --entries N --out FILE`.
+///
+/// Parallel over entries, sequential within one -- each frontier's residual row
+/// order is enumeration order, and a shared-frontier parallel sweep would make
+/// the pool's bytes depend on the thread count.
+fn build_pool(entries: usize, width: usize, seed: u64, table: [f64; 4], out_path: &str) {
+    use rayon::prelude::*;
+    let fl_ev = table[width.saturating_sub(14).min(3)];
+    let started = std::time::Instant::now();
+    let built: Vec<pool::PoolEntry> = (0..entries as u64)
+        .into_par_iter()
+        .map(|index| pool::build_entry(seed, index, width, fl_ev))
+        .collect();
+    let elapsed = started.elapsed().as_secs_f64();
+    let rows: usize = built.iter().map(|entry| entry.rows.len()).sum();
+    let image = pool::serialize(&pool::Pool {
+        width: width as u32,
+        fl_ev: table,
+        seed,
+        entries: built,
+    });
+    std::fs::write(out_path, &image).expect("write pool");
+    eprintln!(
+        "pool: {entries} entries, {rows} rows (mean {:.1}), {:.1} MB, {:.1}s ({:.1} ms/entry)",
+        rows as f64 / entries as f64,
+        image.len() as f64 / 1_048_576.0,
+        elapsed,
+        elapsed / entries as f64 * 1000.0,
+    );
+    // Read it back before claiming success: a pool that cannot be loaded under
+    // the table it was written with is worse than no pool.
+    let reloaded = pool::deserialize(&image, width as u32, table).expect("reload own pool");
+    assert_eq!(reloaded.entries.len(), entries);
+    eprintln!("pool: reload verified");
+}
+
 fn main() {
     let args: Vec<String> = std::env::args().collect();
+
+    if args.len() > 1 && args[1] == "pool" {
+        let mut entries = 1000usize;
+        let mut width = 14usize;
+        let mut seed = 0x2026_0811u64;
+        let mut out_path = String::from("fl_pool_14.jfl1");
+        let table = [0.0f64, 10.7, 29.9, 63.5];
+        let mut index = 2;
+        while index < args.len() {
+            match args[index].as_str() {
+                "--entries" => { index += 1; entries = args[index].parse().expect("entries"); }
+                "--width" => { index += 1; width = args[index].parse().expect("width"); }
+                "--seed" => { index += 1; seed = args[index].parse().expect("seed"); }
+                "--out" => { index += 1; out_path = args[index].clone(); }
+                _ => {}
+            }
+            index += 1;
+        }
+        build_pool(entries, width, seed, table, &out_path);
+        return;
+    }
     
     if args.len() > 1 && args[1] == "frontier" {
         let mut hands = 20usize;
