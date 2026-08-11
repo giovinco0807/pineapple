@@ -4,6 +4,7 @@
 
 mod frontier;
 mod pool;
+mod t4_labels;
 mod vs_fl;
 
 use rayon::prelude::*;
@@ -1755,6 +1756,68 @@ fn build_pool(entries: usize, width: usize, seed: u64, table: [f64; 4], out_path
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
+
+    if args.len() > 1 && args[1] == "t4-bench" {
+        let mut pool_path = String::from("D:/ofc_data/fl_pools/fl14_v1.jfl1");
+        let mut roots = 20usize;
+        let mut opponents = 200usize;
+        let mut index = 2;
+        while index < args.len() {
+            match args[index].as_str() {
+                "--pool" => { index += 1; pool_path = args[index].clone(); }
+                "--roots" => { index += 1; roots = args[index].parse().expect("roots"); }
+                "--opponents" => { index += 1; opponents = args[index].parse().expect("opponents"); }
+                _ => {}
+            }
+            index += 1;
+        }
+        let table = [0.0f64, 10.7, 29.9, 63.5];
+        let loading = std::time::Instant::now();
+        let bytes = std::fs::read(&pool_path).expect("read pool");
+        let loaded = pool::deserialize(&bytes, 14, table).expect("load pool");
+        eprintln!(
+            "pool: {} entries loaded in {:.1}s",
+            loaded.entries.len(),
+            loading.elapsed().as_secs_f64()
+        );
+        let started = std::time::Instant::now();
+        let mut short = 0usize;
+        let mut actions = 0usize;
+        let mut spreads = Vec::new();
+        for root in 0..roots as u64 {
+            let cards = pool::deal(0xB0B0_0000 + root, 0, 15);
+            let request = t4_labels::T4Request {
+                id: root.to_string(),
+                rows: [cards[0..2].to_vec(), cards[2..7].to_vec(), cards[7..11].to_vec()],
+                dead: cards[11..12].to_vec(),
+                draw: [cards[12], cards[13], cards[14]],
+                opponents,
+            };
+            match t4_labels::solve(&request, &loaded, &table, root) {
+                Ok(values) => {
+                    actions += values.len();
+                    let best = values.iter().map(|v| v.value).fold(f64::MIN, f64::max);
+                    let worst = values.iter().map(|v| v.value).fold(f64::MAX, f64::min);
+                    spreads.push(best - worst);
+                }
+                Err(e) => { short += 1; eprintln!("root {root}: short draw {}/{}", e.found, e.wanted); }
+            }
+        }
+        let elapsed = started.elapsed().as_secs_f64();
+        spreads.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        eprintln!(
+            "t4: {roots} roots, {actions} actions, {short} short draws, {:.1} ms/root ({:.2} ms/action)",
+            elapsed / roots as f64 * 1000.0,
+            elapsed / actions.max(1) as f64 * 1000.0,
+        );
+        if !spreads.is_empty() {
+            eprintln!(
+                "best-worst action spread: median {:.2}, max {:.2}",
+                spreads[spreads.len() / 2], spreads[spreads.len() - 1]
+            );
+        }
+        return;
+    }
 
     if args.len() > 1 && args[1] == "pool" {
         let mut entries = 1000usize;
