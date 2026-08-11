@@ -2,6 +2,8 @@
 //!
 //! Standalone executable that communicates via JSON stdin/stdout
 
+mod frontier;
+
 use rayon::prelude::*;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
@@ -1305,6 +1307,25 @@ struct Response {
     success: bool,
     placement: Option<Placement>,
     error: Option<String>,
+    /// The non-dominated arrangements, when the request asked for version 4.
+    ///
+    /// Stored WITHOUT the Fantasyland constant applied. The frontier is the
+    /// same set for every `fl_ev >= 0` -- royalty and the stay flag are both
+    /// monotone in the row values, so the fourth dominance component adds
+    /// nothing -- which was checked by building at 0 and at 63.5 and getting
+    /// identical sets. So a library of these survives a re-derived `fl_ev`
+    /// table: the constant is applied when scoring, not when solving.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    frontier: Option<Vec<FrontierRow>>,
+}
+
+/// One frontier row on the wire: three canonical row values, the royalty they
+/// pay, and whether the arrangement keeps Fantasyland.
+#[derive(Serialize)]
+struct FrontierRow {
+    v: [u32; 3],
+    r: i32,
+    s: bool,
 }
 
 // ============================================================
@@ -1622,6 +1643,7 @@ fn run_stdin_mode() {
                     success: false,
                     placement: None,
                     error: Some(format!("Read error: {}", e)),
+                    frontier: None,
                 };
                 writeln!(stdout, "{}", serde_json::to_string(&resp).unwrap()).unwrap();
                 continue;
@@ -1635,6 +1657,30 @@ fn run_stdin_mode() {
         let resp = match request {
             Ok(req) => {
                 let start = std::time::Instant::now();
+                if req.version == 4 {
+                    let rows = frontier::build_frontier(&req.cards, 0.0)
+                        .into_iter()
+                        .map(|entry| FrontierRow {
+                            v: [entry.top, entry.mid, entry.bot],
+                            r: entry.royalty,
+                            s: entry.stays,
+                        })
+                        .collect();
+                    writeln!(
+                        stdout,
+                        "{}",
+                        serde_json::to_string(&Response {
+                            success: true,
+                            placement: None,
+                            error: None,
+                            frontier: Some(rows),
+                        })
+                        .unwrap()
+                    )
+                    .unwrap();
+                    stdout.flush().unwrap();
+                    continue;
+                }
                 let placement = if let Some(ref opp) = req.opponent {
                     eprintln!("Solving FL vs opponent board...");
                     solve_fl_vs_normal(&req.cards, opp)
@@ -1653,12 +1699,14 @@ fn run_stdin_mode() {
                     success: true,
                     placement,
                     error: None,
+                    frontier: None,
                 }
             }
             Err(e) => Response {
                 success: false,
                 placement: None,
                 error: Some(format!("Parse error: {}", e)),
+                frontier: None,
             },
         };
         
@@ -1670,6 +1718,28 @@ fn run_stdin_mode() {
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     
+    if args.len() > 1 && args[1] == "frontier" {
+        let mut hands = 20usize;
+        let mut cards = 14usize;
+        let mut fl_ev = 0.0f64;
+        let mut boards = 8usize;
+        let mut check = false;
+        let mut index = 2;
+        while index < args.len() {
+            match args[index].as_str() {
+                "--hands" => { index += 1; hands = args[index].parse().expect("hands"); }
+                "--cards" => { index += 1; cards = args[index].parse().expect("cards"); }
+                "--fl-ev" => { index += 1; fl_ev = args[index].parse().expect("fl-ev"); }
+                "--boards" => { index += 1; boards = args[index].parse().expect("boards"); }
+                "--check" => { check = true; }
+                _ => {}
+            }
+            index += 1;
+        }
+        frontier_bench(hands, cards, fl_ev, boards, check);
+        return;
+    }
+
     if args.len() > 1 && args[1] == "generate" {
         // Data generation mode
         let mut samples = 1000;
@@ -1721,3 +1791,101 @@ fn main() {
     }
 }
 
+/// Measure the frontier, and prove it against brute force.
+///
+/// The parity arm is the point: a frontier that is merely fast is a different
+/// opponent model, not a cheaper one. Hero boards are drawn from the cards the
+/// Fantasyland hand did not take, so the comparison is against boards that
+/// actually contest the rows rather than ones trivially beaten.
+fn frontier_bench(hands: usize, cards: usize, fl_ev: f64, boards: usize, check: bool) {
+    use rand::seq::SliceRandom;
+    use rand::SeedableRng;
+
+    let mut rng = rand::rngs::StdRng::seed_from_u64(910_020_003);
+    let mut rows_total = 0usize;
+    let mut rows_max = 0usize;
+    let mut build_seconds = 0.0f64;
+    let mut tabulate_seconds = 0.0f64;
+    let mut generate_seconds = 0.0f64;
+    let mut sweep_seconds = 0.0f64;
+    let mut checked = 0usize;
+    let mut mismatches = 0usize;
+    let mut bucket_checked = 0usize;
+    let mut bucket_mismatches = 0usize;
+
+    for hand_index in 0..hands {
+        let mut deck: Vec<Card> = Vec::with_capacity(54);
+        for suit in 0..4u8 {
+            for rank in 2..=14u8 {
+                deck.push(Card { rank, suit });
+            }
+        }
+        deck.push(Card { rank: 0, suit: 4 });
+        deck.push(Card { rank: 0, suit: 4 });
+        deck.shuffle(&mut rng);
+        let hand: Vec<Card> = deck[..cards].to_vec();
+        let jokers = hand.iter().filter(|card| card.is_joker()).count();
+
+        let started = std::time::Instant::now();
+        let (frontier, tab, gen, swp) = frontier::build_frontier_timed(&hand, fl_ev);
+        build_seconds += started.elapsed().as_secs_f64();
+        tabulate_seconds += tab;
+        generate_seconds += gen;
+        sweep_seconds += swp;
+        rows_total += frontier.len();
+        rows_max = rows_max.max(frontier.len());
+
+        if check {
+            let bucketed = frontier::frontier_key(&frontier);
+            let global = frontier::frontier_key(
+                &frontier::build_frontier_unbucketed(&hand, fl_ev));
+            bucket_checked += 1;
+            if bucketed != global {
+                bucket_mismatches += 1;
+                eprintln!(
+                    "BUCKET MISMATCH hand {hand_index}: {} rows bucketed, {} global",
+                    bucketed.len(),
+                    global.len());
+            }
+            for board in 0..boards {
+                let offset = cards + board * 13;
+                if offset + 13 > deck.len() {
+                    break;
+                }
+                let hero = &deck[offset..offset + 13];
+                let hero_top = ofc_core::evaluate_hand_value(&to_core_cards(&hero[..3]), 3);
+                let hero_mid = ofc_core::evaluate_hand_value(&to_core_cards(&hero[3..8]), 5);
+                let hero_bot = ofc_core::evaluate_hand_value(&to_core_cards(&hero[8..13]), 5);
+                let fast = frontier::best_response(&frontier, hero_top, hero_mid, hero_bot);
+                let slow = frontier::best_response_brute_force(
+                    &hand, fl_ev, hero_top, hero_mid, hero_bot);
+                checked += 1;
+                if fast.to_bits() != slow.to_bits() {
+                    mismatches += 1;
+                    eprintln!(
+                        "MISMATCH hand {hand_index} board {board}: frontier {fast} brute {slow}");
+                }
+            }
+        }
+        let _ = jokers;
+    }
+
+    println!("{}", serde_json::json!({
+        "hands": hands,
+        "cards": cards,
+        "fl_ev": fl_ev,
+        "mean_frontier_rows": rows_total as f64 / hands as f64,
+        "max_frontier_rows": rows_max,
+        "mean_build_ms": 1000.0 * build_seconds / hands as f64,
+        "mean_tabulate_ms": 1000.0 * tabulate_seconds / hands as f64,
+        "mean_generate_ms": 1000.0 * generate_seconds / hands as f64,
+        "mean_sweep_ms": 1000.0 * sweep_seconds / hands as f64,
+        "parity_checked": checked,
+        "parity_mismatches": mismatches,
+        "bucket_checked": bucket_checked,
+        "bucket_mismatches": bucket_mismatches,
+    }));
+    if mismatches > 0 || bucket_mismatches > 0 {
+        std::process::exit(1);
+    }
+}

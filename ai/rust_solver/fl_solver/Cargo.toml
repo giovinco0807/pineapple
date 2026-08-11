@@ -7,7 +7,12 @@ edition = "2021"
 name = "fl_solver"
 path = "src/main.rs"
 
+[lib]
+name = "fl_solver"
+path = "src/lib.rs"
+
 [dependencies]
+ofc_core = { path = "../ofc_core" }
 rayon = { workspace = true }
 itertools = { workspace = true }
 serde = { workspace = true }
