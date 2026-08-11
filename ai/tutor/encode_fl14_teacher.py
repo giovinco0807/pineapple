@@ -164,12 +164,21 @@ def main() -> None:
     # sampled half.
     #
     # A T2 placement leaves four (C(43,4) = 123,410) and exact measured
-    # 7.0 s a row: 387 hours for a 200k-row teacher, against 4.0 hours at
-    # 800 samples.  So T2 samples.  It samples 800 rather than the Rust
-    # default of 150 to keep T3's exact completion count: the sampling
-    # seed varies per action, so this noise lands directly on the ordering
-    # the gate scores, and T2's wider rooms spread the completion
-    # distribution further than the count that block was gated at.
+    # 7.0 s a row: 387 hours for a 200k-row teacher.  So T2 samples.
+    #
+    # 400 of them, from measurement rather than taste.  Taking 800 as a
+    # stand-in for the truth, the within-root part of the block -- the only
+    # part a ranking reads -- is off by 0.0057 at 150; the encode costs
+    # 0.8 / 1.5 / 4.0 hours at 150 / 400 / 800.  A first lap buys the middle.
+    #
+    # The completions are shared across a root's actions (see
+    # `--joint-seed-scope`), which is free and correct: every action at a
+    # root leaves the same unseen set, because hero's discard is seen
+    # whichever card it was.  Measured worth: 10% off that within-root
+    # error, 0.00638 to 0.00572.  Not the several-fold that sharing the
+    # opponents and the T3 draws is worth -- the drawn cards are common,
+    # but each action takes its max over different arrangements of them, so
+    # only part of the noise cancels.
     parser.add_argument("--joint-samples", type=int, default=None)
     parser.add_argument("--batch", type=int, default=2000)
     parser.add_argument("--workspace-root", type=Path, default=Path.cwd())
@@ -181,7 +190,7 @@ def main() -> None:
     )
     args = parser.parse_args()
     if args.joint_samples is None:
-        args.joint_samples = 800 if args.street == "t2" else 0
+        args.joint_samples = 400 if args.street == "t2" else 0
     workspace_root = args.workspace_root.resolve(strict=True)
     solver = args.solver or str(_solver_path(workspace_root))
     seed_scope = args.joint_seed_scope
