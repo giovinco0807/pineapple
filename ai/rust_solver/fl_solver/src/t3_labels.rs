@@ -107,7 +107,7 @@ pub fn cards_key(cards: &[Card]) -> String {
     names.join(",")
 }
 
-fn board_key(rows: &[Vec<Card>; 3], discard: &Card) -> String {
+pub fn board_key(rows: &[Vec<Card>; 3], discard: &Card) -> String {
     let mut parts: Vec<String> = rows
         .iter()
         .map(|row| {
@@ -120,7 +120,7 @@ fn board_key(rows: &[Vec<Card>; 3], discard: &Card) -> String {
     parts.join("|")
 }
 
-fn hero_terminal(rows: &[Vec<Card>; 3]) -> HeroTerminal {
+pub fn hero_terminal(rows: &[Vec<Card>; 3]) -> HeroTerminal {
     let core: Vec<Vec<ofc_core::Card>> = rows.iter().map(|row| crate::to_core_cards(row)).collect();
     let eval = ofc_core::evaluate_board_with_joker_constraint(&core[0], &core[1], &core[2]);
     if eval.busted {
@@ -140,7 +140,7 @@ fn hero_terminal(rows: &[Vec<Card>; 3]) -> HeroTerminal {
 }
 
 /// Where two more cards can go on a board with two open slots.
-fn open_patterns(rows: &[Vec<Card>; 3]) -> Vec<[usize; 2]> {
+pub fn open_patterns(rows: &[Vec<Card>; 3]) -> Vec<[usize; 2]> {
     let capacity = [3usize, 5, 5];
     let open: Vec<usize> = (0..3).map(|row| capacity[row] - rows[row].len()).collect();
     let mut out = Vec::new();
@@ -151,6 +151,133 @@ fn open_patterns(rows: &[Vec<Card>; 3]) -> Vec<[usize; 2]> {
             need[second] += 1;
             if (0..3).all(|row| need[row] <= open[row]) {
                 out.push([first, second]);
+            }
+        }
+    }
+    out
+}
+
+/// The 54-card deck minus what hero has seen.
+///
+/// Jokers are counted rather than named -- both are `Card { rank: 0, suit: 4 }`,
+/// so "which joker" is not a question the deck can answer; "how many are left"
+/// is.
+pub fn unseen_from(seen: &[Card]) -> Vec<Card> {
+    let seen_set: std::collections::BTreeSet<(u8, u8)> =
+        seen.iter().map(|card| (card.rank, card.suit)).collect();
+    let mut unseen: Vec<Card> = Vec::new();
+    for rank in 2..=14u8 {
+        for suit in 0..4u8 {
+            if !seen_set.contains(&(rank, suit)) {
+                unseen.push(Card { rank, suit });
+            }
+        }
+    }
+    let jokers_left = 2usize.saturating_sub(seen.iter().filter(|c| c.rank == 0).count());
+    for _ in 0..jokers_left {
+        unseen.push(Card { rank: 0, suit: 4 });
+    }
+    unseen
+}
+
+/// One priced completion, before it is attributed to an action.
+pub struct T4LeafRaw {
+    pub cards: [Card; 2],
+    pub slots: [usize; 2],
+    pub rows: [usize; 2],
+    pub value: f64,
+}
+
+/// What an eleven-card board is worth: the summed best completion over every
+/// C(unseen, 3) draw, and how many draws that was.  Callers wanting a mean
+/// divide.
+///
+/// The pairs are priced once and the draws then read the table, so enumerating
+/// the draw costs almost nothing next to pricing it -- C(40,2) = 780 pricings
+/// rather than 9,880 x 3.
+///
+/// Its own function because T2 needs it too: a T2 action is worth the average
+/// over sampled T3 draws of the best eleven-card board that draw reaches, and
+/// two copies of this loop would be two places for the T4 semantics to drift.
+pub fn completion_value(
+    after: &[Vec<Card>; 3],
+    unseen: &[Card],
+    opponents: &[&PoolEntry],
+    fl_ev: &[f64; 4],
+    own_only: bool,
+    mut sink: Option<&mut Vec<T4LeafRaw>>,
+) -> (f64, usize) {
+    let patterns = open_patterns(after);
+    let pair_count = unseen.len() * (unseen.len() - 1) / 2;
+    let mut table: Vec<f64> = vec![f64::NEG_INFINITY; pair_count * patterns.len()];
+    let mut pair_index = 0usize;
+    for first in 0..unseen.len() {
+        for second in (first + 1)..unseen.len() {
+            for (slot, pattern) in patterns.iter().enumerate() {
+                let mut final_rows = after.clone();
+                final_rows[pattern[0]].push(unseen[first]);
+                final_rows[pattern[1]].push(unseen[second]);
+                let hero = hero_terminal(&final_rows);
+                let value = if own_only {
+                    crate::vs_fl::hero_own(&hero, fl_ev)
+                } else {
+                    let total: f64 = opponents
+                        .iter()
+                        .map(|entry| hero_score(&hero, &entry.rows, fl_ev))
+                        .sum();
+                    total / opponents.len() as f64
+                };
+                table[pair_index * patterns.len() + slot] = value;
+                if let Some(out) = sink.as_deref_mut() {
+                    out.push(T4LeafRaw {
+                        cards: [unseen[first], unseen[second]],
+                        slots: [first, second],
+                        rows: *pattern,
+                        value,
+                    });
+                }
+            }
+            pair_index += 1;
+        }
+    }
+    let pair_at = |first: usize, second: usize| -> usize {
+        let (low, high) = if first < second { (first, second) } else { (second, first) };
+        low * unseen.len() - low * (low + 1) / 2 + (high - low - 1)
+    };
+    let mut total = 0.0f64;
+    let mut draws = 0usize;
+    for a in 0..unseen.len() {
+        for b in (a + 1)..unseen.len() {
+            for c in (b + 1)..unseen.len() {
+                let mut best = f64::NEG_INFINITY;
+                for (first, second) in [(a, b), (a, c), (b, c)] {
+                    let base = pair_at(first, second) * patterns.len();
+                    for slot in 0..patterns.len() {
+                        if table[base + slot] > best {
+                            best = table[base + slot];
+                        }
+                    }
+                }
+                total += best;
+                draws += 1;
+            }
+        }
+    }
+    (total, draws)
+}
+
+/// Every distinct eleven-card board a nine-card board reaches on one draw.
+pub fn t3_placements(rows: &[Vec<Card>; 3], draw: &[Card; 3]) -> Vec<[Vec<Card>; 3]> {
+    let mut out = Vec::new();
+    let mut seen: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+    for discard in 0..3usize {
+        let kept: Vec<usize> = (0..3).filter(|index| *index != discard).collect();
+        for pattern in open_patterns(rows) {
+            let mut after = rows.clone();
+            after[pattern[0]].push(draw[kept[0]]);
+            after[pattern[1]].push(draw[kept[1]]);
+            if seen.insert(board_key(&after, &draw[discard])) {
+                out.push(after);
             }
         }
     }
@@ -177,21 +304,7 @@ pub fn solve_with_t4(
     let opponents: Vec<&PoolEntry> =
         draw(pool, hero_naturals, hero_jokers, request.opponents, stream)?;
 
-    let seen_set: std::collections::BTreeSet<(u8, u8)> =
-        seen.iter().map(|card| (card.rank, card.suit)).collect();
-    let mut unseen: Vec<Card> = Vec::new();
-    for rank in 2..=14u8 {
-        for suit in 0..4u8 {
-            if !seen_set.contains(&(rank, suit)) {
-                unseen.push(Card { rank, suit });
-            }
-        }
-    }
-    // Jokers hero has not seen are still out there, and there are two of them.
-    let jokers_left = 2usize.saturating_sub(hero_jokers as usize);
-    for _ in 0..jokers_left {
-        unseen.push(Card { rank: 0, suit: 4 });
-    }
+    let unseen = unseen_from(&seen);
 
     let mut values = Vec::new();
     let mut leaves = Vec::new();
@@ -209,69 +322,23 @@ pub fn solve_with_t4(
                 continue;
             }
 
-            // Price every (pair, placement) once -- the expensive step, and the
-            // reason the draw enumeration is affordable.
-            let patterns = open_patterns(&after);
-            let pair_count = unseen.len() * (unseen.len() - 1) / 2;
-            let mut table: Vec<f64> = vec![f64::NEG_INFINITY; pair_count * patterns.len()];
-            let mut pair_index = 0usize;
-            for first in 0..unseen.len() {
-                for second in (first + 1)..unseen.len() {
-                    for (slot, pattern) in patterns.iter().enumerate() {
-                        let mut final_rows = after.clone();
-                        final_rows[pattern[0]].push(unseen[first]);
-                        final_rows[pattern[1]].push(unseen[second]);
-                        let hero = hero_terminal(&final_rows);
-                        let value = if own_only {
-                            crate::vs_fl::hero_own(&hero, fl_ev)
-                        } else {
-                            let total: f64 = opponents
-                                .iter()
-                                .map(|entry| hero_score(&hero, &entry.rows, fl_ev))
-                                .sum();
-                            total / opponents.len() as f64
-                        };
-                        table[pair_index * patterns.len() + slot] = value;
-                        if keep_leaves {
-                            leaves.push(T4Leaf {
-                                action_key: action_key.clone(),
-                                cards: [unseen[first], unseen[second]],
-                                slots: [first, second],
-                                rows: *pattern,
-                                value,
-                            });
-                        }
-                    }
-                    pair_index += 1;
-                }
-            }
-
-            // Index of the (first, second) pair in the triangular table.
-            let pair_at = |first: usize, second: usize| -> usize {
-                let (low, high) = if first < second { (first, second) } else { (second, first) };
-                low * unseen.len() - low * (low + 1) / 2 + (high - low - 1)
-            };
-
-            // Now the draws: for each, hero keeps the best two of three.
-            let mut total = 0.0f64;
-            let mut draws = 0usize;
-            for a in 0..unseen.len() {
-                for b in (a + 1)..unseen.len() {
-                    for c in (b + 1)..unseen.len() {
-                        let mut best = f64::NEG_INFINITY;
-                        for (first, second) in [(a, b), (a, c), (b, c)] {
-                            let base = pair_at(first, second) * patterns.len();
-                            for slot in 0..patterns.len() {
-                                let value = table[base + slot];
-                                if value > best {
-                                    best = value;
-                                }
-                            }
-                        }
-                        total += best;
-                        draws += 1;
-                    }
-                }
+            let mut sink: Vec<T4LeafRaw> = Vec::new();
+            let (total, draws) = completion_value(
+                &after,
+                &unseen,
+                opponents.as_slice(),
+                fl_ev,
+                own_only,
+                if keep_leaves { Some(&mut sink) } else { None },
+            );
+            for raw in sink {
+                leaves.push(T4Leaf {
+                    action_key: action_key.clone(),
+                    cards: raw.cards,
+                    slots: raw.slots,
+                    rows: raw.rows,
+                    value: raw.value,
+                });
             }
             values.push(T3ActionValue {
                 action_key,
@@ -508,7 +575,7 @@ mod tests {
     fn taking_the_best_completion_is_never_worse_than_a_fixed_one() {
         let pool = tiny_pool(300);
         let request = request_from(0x7311_3000, 3);
-        let Ok((values, leaves)) = solve_with_t4(&request, &pool, &TABLE, 9, true) else {
+        let Ok((values, leaves)) = solve_with_t4(&request, &pool, &TABLE, 9, true, false) else {
             return;
         };
         for value in &values {

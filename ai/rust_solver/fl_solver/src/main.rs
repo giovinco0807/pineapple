@@ -4,6 +4,7 @@
 
 mod frontier;
 mod pool;
+mod t2_labels;
 mod t3_labels;
 mod t4_labels;
 mod vs_fl;
@@ -1877,6 +1878,93 @@ fn main() {
             short.load(std::sync::atomic::Ordering::Relaxed),
             started.elapsed().as_secs_f64() / 60.0,
         );
+        return;
+    }
+
+    if args.len() > 1 && args[1] == "teach-t2" {
+        let mut pool_path = String::from("D:/ofc_data/fl_pools/fl14_v1.jfl1");
+        let mut roots = 100usize;
+        let mut opponents = 60usize;
+        let mut t3_draws = 24usize;
+        let mut seed = 0xD00E_0001u64;
+        let mut stream_offset = 0u64;
+        let mut out_dir = String::from("D:/ofc_data/fl14_t2_teacher_v1");
+        let mut index = 2;
+        while index < args.len() {
+            match args[index].as_str() {
+                "--pool" => { index += 1; pool_path = args[index].clone(); }
+                "--roots" => { index += 1; roots = args[index].parse().expect("roots"); }
+                "--opponents" => { index += 1; opponents = args[index].parse().expect("opponents"); }
+                "--t3-draws" => { index += 1; t3_draws = args[index].parse().expect("t3-draws"); }
+                "--seed" => { index += 1; seed = args[index].parse().expect("seed"); }
+                "--stream-offset" => { index += 1; stream_offset = args[index].parse().expect("stream-offset"); }
+                "--out-dir" => { index += 1; out_dir = args[index].clone(); }
+                _ => {}
+            }
+            index += 1;
+        }
+        let table = [0.0f64, 10.7, 29.9, 63.5];
+        let bytes = std::fs::read(&pool_path).expect("read pool");
+        let loaded = pool::deserialize(&bytes, 14, table).expect("load pool");
+        eprintln!("pool: {} entries, width {}", loaded.entries.len(), loaded.width);
+        std::fs::create_dir_all(&out_dir).expect("out dir");
+        let started = std::time::Instant::now();
+        let done = std::sync::atomic::AtomicUsize::new(0);
+        let short = std::sync::atomic::AtomicUsize::new(0);
+
+        // A T2 root is expensive enough that the roots run one at a time and
+        // the parallelism lives inside `solve`, across (action, T3 draw)
+        // pairs -- the opposite of `teach`, where a root is small and the
+        // roots themselves are the work units.
+        let mut lines: Vec<String> = Vec::with_capacity(roots);
+        for root in 0..roots as u64 {
+            let cards = pool::deal(seed, root, 11);
+            let request = t2_labels::T2Request {
+                id: format!("{}", seed.wrapping_add(root)),
+                rows: [cards[0..2].to_vec(), cards[2..5].to_vec(), cards[5..7].to_vec()],
+                dead: cards[7..8].to_vec(),
+                draw: [cards[8], cards[9], cards[10]],
+                opponents,
+                t3_draws,
+            };
+            let stream = pool::stream_of(root, stream_offset);
+            match t2_labels::solve(&request, &loaded, &table, stream) {
+                Ok(values) => {
+                    let actions: Vec<String> = values
+                        .iter()
+                        .map(|v| format!(
+                            "{{\"action_key\":\"{}\",\"value\":{},\"t3_draws\":{}}}",
+                            v.action_key, v.value, v.t3_draws))
+                        .collect();
+                    lines.push(format!(
+                        "{{\"id\":\"{}\",\"root\":{},\"stream\":{},\"opponents\":{},\"board\":\"{}\",\"dead\":\"{}\",\"draw\":\"{}\",\"actions\":[{}]}}\n",
+                        request.id, root, stream, opponents,
+                        t3_labels::rows_key(&request.rows),
+                        t3_labels::cards_key(&request.dead),
+                        t3_labels::cards_key(&request.draw),
+                        actions.join(",")));
+                }
+                Err(e) => {
+                    short.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                    eprintln!("root {root}: short draw {}/{}", e.found, e.wanted);
+                }
+            }
+            let seen = done.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
+            if seen % 10 == 0 || seen == roots {
+                let rate = started.elapsed().as_secs_f64() / seen as f64;
+                eprintln!("[{seen}/{roots}] {:.2} s/root, eta {:.0} min",
+                    rate, rate * (roots - seen) as f64 / 60.0);
+            }
+        }
+        use std::io::Write;
+        let mut file = std::fs::File::create(format!("{out_dir}/t2_labels.jsonl")).expect("t2 out");
+        for line in &lines {
+            file.write_all(line.as_bytes()).expect("write");
+        }
+        eprintln!(
+            "teach-t2: {} roots, {} short draws, {} opponents, {} T3 draws, {:.1} min total",
+            lines.len(), short.load(std::sync::atomic::Ordering::Relaxed),
+            opponents, t3_draws, started.elapsed().as_secs_f64() / 60.0);
         return;
     }
 
