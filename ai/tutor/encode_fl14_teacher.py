@@ -174,7 +174,10 @@ def main() -> None:
     args.out_dir.mkdir(parents=True, exist_ok=True)
     started = time.time()
 
-    buffers = {name: {"x": [], "y": [], "j": []} for name in SPLITS}
+    # `r` is the root each row came from.  Without it the arrays are a
+    # regression set and nothing more; the gate this teacher exists for
+    # compares actions WITHIN a root, so the grouping has to survive.
+    buffers = {name: {"x": [], "y": [], "j": [], "r": []} for name in SPLITS}
     pending: list[tuple] = []
     processed = 0
     dropped = 0
@@ -226,6 +229,7 @@ def main() -> None:
             bucket["j"].append(
                 sum(1 for row in rows_after for card in row if card in ("X1", "X2"))
             )
+            bucket["r"].append(root)
         pending = []
 
     with args.labels.open(encoding="utf-8") as handle:
@@ -310,9 +314,11 @@ def main() -> None:
         x = np.asarray(buffers[name]["x"], dtype=np.float32)
         y = np.asarray(buffers[name]["y"], dtype=np.float32)
         j = np.asarray(buffers[name]["j"], dtype=np.int8)
-        np.savez_compressed(args.out_dir / f"{name}.npz", x=x, y=y, jokers=j)
+        r = np.asarray(buffers[name]["r"], dtype=np.int64)
+        np.savez_compressed(args.out_dir / f"{name}.npz", x=x, y=y, jokers=j, roots=r)
         manifest["splits"][name] = {
             "rows": int(x.shape[0]),
+            "roots": int(np.unique(r).size),
             "ev_mean": float(y.mean()) if y.size else None,
             "ev_std": float(y.std()) if y.size else None,
         }

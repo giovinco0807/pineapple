@@ -1764,6 +1764,7 @@ fn main() {
         let mut roots = 1000usize;
         let mut opponents = 240usize;
         let mut seed = 0xD00D_0001u64;
+        let mut stream_offset = 0u64;
         let mut t4_per_root = 2usize;
         let mut out_dir = String::from(".");
         let mut index = 2;
@@ -1775,6 +1776,14 @@ fn main() {
                 "--seed" => { index += 1; seed = args[index].parse().expect("seed"); }
                 "--t4-per-root" => { index += 1; t4_per_root = args[index].parse().expect("t4"); }
                 "--out-dir" => { index += 1; out_dir = args[index].clone(); }
+                // Shifts the opponent-draw stream WITHOUT shifting the deal,
+                // so a second pass labels the same positions against a fresh
+                // set of opponents.  The opponent draw is the only sampled
+                // quantity left in this teacher, so the spread between two
+                // such passes is the floor a trained model is measured
+                // against -- a model cannot be asked to beat the teacher's
+                // own disagreement with itself.
+                "--stream-offset" => { index += 1; stream_offset = args[index].parse().expect("stream-offset"); }
                 _ => {}
             }
             index += 1;
@@ -1802,7 +1811,8 @@ fn main() {
                 };
                 let mut t3_line = String::new();
                 let mut t4_lines = String::new();
-                match t3_labels::solve_harvesting(&request, &loaded, &table, root, t4_per_root) {
+                let stream = root.wrapping_add(stream_offset);
+                match t3_labels::solve_harvesting(&request, &loaded, &table, stream, t4_per_root) {
                     Ok((values, decisions)) => {
                         let actions: Vec<String> = values
                             .iter()
@@ -1815,9 +1825,9 @@ fn main() {
                         // stream-function change away from being silently
                         // mislabelled.
                         t3_line = format!(
-                            "{{\"id\":\"{}\",\"root\":{},\"opponents\":{},\"board\":\"{}\",                             \"dead\":\"{}\",\"draw\":\"{}\",\"actions\":[{}]}}
+                            "{{\"id\":\"{}\",\"root\":{},\"stream\":{},\"opponents\":{},\"board\":\"{}\",                             \"dead\":\"{}\",\"draw\":\"{}\",\"actions\":[{}]}}
 ",
-                            request.id, root, opponents,
+                            request.id, root, stream, opponents,
                             t3_labels::rows_key(&request.rows),
                             t3_labels::cards_key(&request.dead),
                             t3_labels::cards_key(&request.draw),

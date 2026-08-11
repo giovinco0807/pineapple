@@ -54,6 +54,36 @@ def load_split(data_dir: Path, name: str, device: torch.device):
     return x, y, jokers
 
 
+def root_groups(data_dir: Path, name: str) -> list[np.ndarray] | None:
+    """Row indices grouped by the root they came from, if the split says so."""
+    payload = np.load(data_dir / f"{name}.npz")
+    if "roots" not in payload:
+        return None
+    roots = payload["roots"]
+    order = np.argsort(roots, kind="stable")
+    boundaries = np.flatnonzero(np.diff(roots[order])) + 1
+    return [group for group in np.split(order, boundaries) if group.size > 1]
+
+
+def charged_regret(
+    prediction: torch.Tensor, target: torch.Tensor, groups: list[np.ndarray]
+) -> float:
+    """What the model's pick costs against the best action, per root.
+
+    This is the quantity the gate reports, so it is also the quantity worth
+    selecting a checkpoint on.  Dev MAE has twice picked a checkpoint that
+    tracked the level and misranked the actions -- the level is shared by
+    every action at a root and cancels in exactly the comparison that
+    decides the play.
+    """
+    total = 0.0
+    for group in groups:
+        truth = target[group]
+        pick = group[int(torch.argmax(prediction[group]).item())]
+        total += float(truth.max().item() - target[pick].item())
+    return total / max(len(groups), 1)
+
+
 def metrics(prediction: torch.Tensor, target: torch.Tensor) -> dict[str, float]:
     error = prediction - target
     mae = error.abs().mean().item()
@@ -74,6 +104,7 @@ def run(
     batch_size: int,
     learning_rate: float,
     device_name: str,
+    select_on: str = "mae",
 ) -> dict:
     device = torch.device(device_name)
     fit_x, fit_y, _ = load_split(data_dir, "fit", device)
@@ -91,8 +122,12 @@ def run(
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
     loss_fn = nn.SmoothL1Loss()
 
+    dev_groups = root_groups(data_dir, "dev")
+    if select_on == "regret" and not dev_groups:
+        raise SystemExit("--select-on regret needs a `roots` array in dev.npz")
+
     out_dir.mkdir(parents=True, exist_ok=True)
-    best = {"dev_mae": float("inf"), "epoch": -1}
+    best = {"dev_mae": float("inf"), "epoch": -1, "score": float("inf")}
     history = []
     rows = fit_x.shape[0]
     started = time.time()
@@ -112,12 +147,17 @@ def run(
 
         model.eval()
         with torch.no_grad():
-            dev_metrics = metrics(model(dev_x), dev_y)
+            dev_prediction = model(dev_x)
+            dev_metrics = metrics(dev_prediction, dev_y)
+            if dev_groups:
+                dev_metrics["regret"] = charged_regret(dev_prediction, dev_y, dev_groups)
         history.append(
             {"epoch": epoch, "fit_loss": total / rows, **{f"dev_{k}": v for k, v in dev_metrics.items()}}
         )
-        if dev_metrics["mae"] < best["dev_mae"]:
-            best = {"dev_mae": dev_metrics["mae"], "epoch": epoch, **dev_metrics}
+        score = dev_metrics[select_on]
+        if score < best["score"]:
+            best = {"score": score, "dev_mae": dev_metrics["mae"], "epoch": epoch,
+                    **dev_metrics}
             torch.save(
                 {
                     "schema": MODEL_SCHEMA,
@@ -126,13 +166,15 @@ def run(
                     "input_std": std.cpu(),
                     "input_dim": int(fit_x.shape[1]),
                     "hidden": list(HIDDEN),
+                    "selected_on": select_on,
                 },
                 out_dir / "evaluator_best.pt",
             )
         if epoch % 5 == 0 or epoch == epochs - 1:
             print(
                 f"epoch {epoch:3d}  fit_loss {total / rows:.4f}  "
-                f"dev MAE {dev_metrics['mae']:.4f}  corr {dev_metrics['correlation']:.4f}",
+                f"dev MAE {dev_metrics['mae']:.4f}  corr {dev_metrics['correlation']:.4f}"
+                + (f"  regret {dev_metrics['regret']:.4f}" if "regret" in dev_metrics else ""),
                 flush=True,
             )
 
@@ -187,6 +229,10 @@ def main() -> None:
     parser.add_argument("--batch-size", type=int, default=4096)
     parser.add_argument("--learning-rate", type=float, default=1e-3)
     parser.add_argument(
+        "--select-on", choices=["mae", "regret"], default="mae",
+        help="dev metric the checkpoint is chosen by; regret needs `roots` in the npz",
+    )
+    parser.add_argument(
         "--device",
         default="cuda" if torch.cuda.is_available() else "cpu",
     )
@@ -198,6 +244,7 @@ def main() -> None:
         batch_size=args.batch_size,
         learning_rate=args.learning_rate,
         device_name=args.device,
+        select_on=args.select_on,
     )
     print(
         json.dumps(
