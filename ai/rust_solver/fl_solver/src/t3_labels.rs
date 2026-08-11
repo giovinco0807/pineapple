@@ -306,11 +306,18 @@ pub struct T4Decision {
 /// wants.  These are not re-solved -- they are read out of the table the T3
 /// expectation already used, so a harvested T4 label and the T3 label above it
 /// cannot disagree.
+///
+/// `stream` draws the opponents; `harvest_stream` chooses which decisions to
+/// write out.  They are separate arguments so a second labeling pass can face
+/// a fresh set of opponents while harvesting the **same** decisions -- without
+/// that, two passes share almost no `(draw, placement)` keys and the T4 half
+/// of the teacher has no measurable noise floor.
 pub fn solve_harvesting(
     request: &T3Request,
     pool: &Pool,
     fl_ev: &[f64; 4],
     stream: u64,
+    harvest_stream: u64,
     t4_per_root: usize,
 ) -> Result<(Vec<T3ActionValue>, Vec<T4Decision>), ShortDraw> {
     let (values, leaves) = solve_with_t4(request, pool, fl_ev, stream, t4_per_root > 0)?;
@@ -328,7 +335,7 @@ pub fn solve_harvesting(
     }
     let action_keys: Vec<&str> = by_action.keys().copied().collect();
     let mut out = Vec::new();
-    let mut tick = stream.wrapping_mul(0x9E37_79B9_7F4A_7C15);
+    let mut tick = harvest_stream.wrapping_mul(0x9E37_79B9_7F4A_7C15);
     for slot in 0..t4_per_root {
         if action_keys.is_empty() {
             break;
@@ -538,7 +545,7 @@ mod tests {
                 continue;
             }
             jokerless += 1;
-            let Ok((_, decisions)) = solve_harvesting(&request, &pool, &TABLE, 7, 6) else {
+            let Ok((_, decisions)) = solve_harvesting(&request, &pool, &TABLE, 7, 7, 6) else {
                 continue;
             };
             solved += 1;

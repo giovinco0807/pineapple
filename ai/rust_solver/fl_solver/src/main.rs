@@ -1812,7 +1812,7 @@ fn main() {
                 let mut t3_line = String::new();
                 let mut t4_lines = String::new();
                 let stream = root.wrapping_add(stream_offset);
-                match t3_labels::solve_harvesting(&request, &loaded, &table, stream, t4_per_root) {
+                match t3_labels::solve_harvesting(&request, &loaded, &table, stream, root, t4_per_root) {
                     Ok((values, decisions)) => {
                         let actions: Vec<String> = values
                             .iter()
