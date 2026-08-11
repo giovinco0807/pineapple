@@ -65,6 +65,15 @@ pub struct T3ActionValue {
 pub struct T4Leaf {
     pub action_key: String,
     pub cards: [Card; 2],
+    /// Which two of the root's `unseen` cards these are.
+    ///
+    /// Identity, not value: the two jokers are both `Card { rank: 0, suit: 4 }`,
+    /// so a rank-and-suit comparison cannot tell hero's drawn joker from the
+    /// one still in the deck, and reassembling a decision by value lets a draw
+    /// holding one joker acquire a two-joker placement.  `unseen` is built once
+    /// per root and shared by every action, so these indices compare across
+    /// actions.
+    pub slots: [usize; 2],
     pub rows: [usize; 2],
     pub value: f64,
 }
@@ -222,6 +231,7 @@ pub fn solve_with_t4(
                             leaves.push(T4Leaf {
                                 action_key: action_key.clone(),
                                 cards: [unseen[first], unseen[second]],
+                                slots: [first, second],
                                 rows: *pattern,
                                 value,
                             });
@@ -334,24 +344,23 @@ pub fn solve_harvesting(
             continue;
         }
         let anchor = mine[((tick >> 17) as usize).wrapping_add(slot) % mine.len()];
+        // A third card, found by slot so a joker cannot stand in for its twin.
         let third = mine
             .iter()
             .find(|leaf| {
-                let (a, b) = (leaf.cards[0], leaf.cards[1]);
-                let (p, q) = (anchor.cards[0], anchor.cards[1]);
-                let same = |x: Card, y: Card| x.rank == y.rank && x.suit == y.suit;
-                (same(a, p) && !same(b, q)) || (same(a, q) && !same(b, p))
+                let (a, b) = (leaf.slots[0], leaf.slots[1]);
+                let (p, q) = (anchor.slots[0], anchor.slots[1]);
+                (a == p && b != q) || (a == q && b != p)
             })
-            .map(|leaf| leaf.cards[1]);
-        let Some(third) = third else { continue };
+            .map(|leaf| (leaf.slots[1], leaf.cards[1]));
+        let Some((third_slot, third)) = third else { continue };
+        let draw_slots = [anchor.slots[0], anchor.slots[1], third_slot];
         let draw = [anchor.cards[0], anchor.cards[1], third];
         // Every placement of two of these three, valued from the same table.
         let mut actions = Vec::new();
         for leaf in mine.iter() {
-            let in_draw = |card: Card| {
-                draw.iter().any(|d| d.rank == card.rank && d.suit == card.suit)
-            };
-            if in_draw(leaf.cards[0]) && in_draw(leaf.cards[1]) {
+            let in_draw = |slot: usize| draw_slots.contains(&slot);
+            if in_draw(leaf.slots[0]) && in_draw(leaf.slots[1]) {
                 actions.push((
                     format!(
                         "{}+{}@{},{}",
@@ -505,5 +514,62 @@ mod tests {
                 value.value
             );
         }
+    }
+
+    /// A harvested decision may only place cards its own draw contains.
+    ///
+    /// This is the joker trap: both jokers are `Card { rank: 0, suit: 4 }`, so
+    /// a harvest that reassembles decisions by comparing card values lets a
+    /// draw holding one joker pick up the two-joker placement.  Measured on
+    /// the first 100 harvested roots that was 2.6% of actions and, worse, the
+    /// illegal action was the best one in 7 of the 10 roots it touched -- so
+    /// this asserts the draw-membership property directly rather than trusting
+    /// the comparison to stay identity-based.
+    #[test]
+    fn harvested_actions_only_place_cards_from_their_draw() {
+        let pool = tiny_pool(3000);
+        // Hero holding no joker is the case that matters: both jokers are then
+        // unseen, so a two-joker placement is a real leaf under every action.
+        let mut harvested = 0usize;
+        let (mut jokerless, mut solved) = (0usize, 0usize);
+        for attempt in 0..8u64 {
+            let request = request_from(0x7311_5000 + attempt, 4);
+            if request.rows.iter().flatten().chain(request.draw.iter()).any(|c| c.rank == 0) {
+                continue;
+            }
+            jokerless += 1;
+            let Ok((_, decisions)) = solve_harvesting(&request, &pool, &TABLE, 7, 6) else {
+                continue;
+            };
+            solved += 1;
+            for decision in &decisions {
+                for (key, _) in &decision.actions {
+                    let placed = key.split('@').next().unwrap();
+                    let mut left: Vec<String> =
+                        decision.draw.iter().map(card_name).collect();
+                    for name in placed.split('+') {
+                        let found = left.iter().position(|held| held == name);
+                        let index = found.unwrap_or_else(|| {
+                            panic!(
+                                "action {key} places {name}, but the draw is {:?}",
+                                decision.draw.iter().map(card_name).collect::<Vec<_>>()
+                            )
+                        });
+                        left.remove(index);
+                    }
+                    assert_eq!(left.len(), 1, "action {key} did not discard exactly one");
+                    harvested += 1;
+                }
+            }
+            // One jokerless root is ~90 decisions' worth of the property and
+            // a full minute of solve; more attempts buy little.
+            if harvested > 0 {
+                break;
+            }
+        }
+        assert!(
+            harvested > 0,
+            "no harvest to check: {jokerless} jokerless roots, {solved} solved"
+        );
     }
 }

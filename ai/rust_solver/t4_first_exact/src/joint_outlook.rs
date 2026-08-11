@@ -49,6 +49,10 @@ pub struct JointOutlookResponse {
     pub id: String,
     pub schema: &'static str,
     pub joint_block: [f64; 8],
+    /// Per-row completion outlook (41 dims) over the same pool.  Emitted here
+    /// so an encoder needs one solver call, not two over the same position --
+    /// two calls is two chances for the board and the pool to drift apart.
+    pub rowwise_block: Vec<f32>,
     pub samples: usize,
 }
 
@@ -284,10 +288,20 @@ pub fn solve(request: &JointOutlookRequest, fl_ev: &FlEv) -> Result<JointOutlook
         &format!("joint/{}", request.id),
         fl_ev,
     )?;
+    let mut rowwise: Vec<f32> = Vec::with_capacity(super::evaluator::OPPONENT_SIZE);
+    let fl_table: super::evaluator::FlTable = [
+        fl_ev.value(14) as f32,
+        fl_ev.value(15) as f32,
+        fl_ev.value(16) as f32,
+        fl_ev.value(17) as f32,
+    ];
+    let _categories =
+        super::evaluator::opponent_rowwise_block(&board.rows, &pool, &fl_table, &mut rowwise);
     Ok(JointOutlookResponse {
         id: request.id.clone(),
-        schema: "ofc_sampled_joint_outlook/v1",
+        schema: "ofc_sampled_joint_outlook/v2",
         joint_block: block,
+        rowwise_block: rowwise,
         samples: request.samples,
     })
 }
