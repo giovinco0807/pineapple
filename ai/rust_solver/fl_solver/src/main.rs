@@ -1758,6 +1758,103 @@ fn build_pool(entries: usize, width: usize, seed: u64, table: [f64; 4], out_path
 fn main() {
     let args: Vec<String> = std::env::args().collect();
 
+    if args.len() > 1 && args[1] == "teach" {
+        use rayon::prelude::*;
+        let mut pool_path = String::from("D:/ofc_data/fl_pools/fl14_v1.jfl1");
+        let mut roots = 1000usize;
+        let mut opponents = 240usize;
+        let mut seed = 0xD00D_0001u64;
+        let mut t4_per_root = 2usize;
+        let mut out_dir = String::from(".");
+        let mut index = 2;
+        while index < args.len() {
+            match args[index].as_str() {
+                "--pool" => { index += 1; pool_path = args[index].clone(); }
+                "--roots" => { index += 1; roots = args[index].parse().expect("roots"); }
+                "--opponents" => { index += 1; opponents = args[index].parse().expect("opponents"); }
+                "--seed" => { index += 1; seed = args[index].parse().expect("seed"); }
+                "--t4-per-root" => { index += 1; t4_per_root = args[index].parse().expect("t4"); }
+                "--out-dir" => { index += 1; out_dir = args[index].clone(); }
+                _ => {}
+            }
+            index += 1;
+        }
+        let table = [0.0f64, 10.7, 29.9, 63.5];
+        let bytes = std::fs::read(&pool_path).expect("read pool");
+        let loaded = pool::deserialize(&bytes, 14, table).expect("load pool");
+        eprintln!("pool: {} entries, width {}", loaded.entries.len(), loaded.width);
+        std::fs::create_dir_all(&out_dir).expect("out dir");
+        let started = std::time::Instant::now();
+        let done = std::sync::atomic::AtomicUsize::new(0);
+        let short = std::sync::atomic::AtomicUsize::new(0);
+
+        let produced: Vec<(String, String)> = (0..roots as u64)
+            .into_par_iter()
+            .map(|root| {
+                let cards = pool::deal(seed, root, 14);
+                let request = t3_labels::T3Request {
+                    id: format!("{}", seed.wrapping_add(root)),
+                    rows: [cards[0..2].to_vec(), cards[2..6].to_vec(), cards[6..9].to_vec()],
+                    dead: cards[9..11].to_vec(),
+                    draw: [cards[11], cards[12], cards[13]],
+                    opponents,
+                    t4_draws: 0,
+                };
+                let mut t3_line = String::new();
+                let mut t4_lines = String::new();
+                match t3_labels::solve_harvesting(&request, &loaded, &table, root, t4_per_root) {
+                    Ok((values, decisions)) => {
+                        let actions: Vec<String> = values
+                            .iter()
+                            .map(|v| format!(
+                                "{{\"action_key\":\"{}\",\"value\":{},\"t4_draws\":{}}}",
+                                v.action_key, v.value, v.t4_draws))
+                            .collect();
+                        t3_line = format!(
+                            "{{\"id\":\"{}\",\"seed\":{},\"opponents\":{},\"actions\":[{}]}}
+",
+                            request.id, seed.wrapping_add(root), opponents, actions.join(","));
+                        for decision in &decisions {
+                            let acts: Vec<String> = decision.actions.iter()
+                                .map(|(key, value)| format!("{{\"a\":\"{key}\",\"v\":{value}}}"))
+                                .collect();
+                            t4_lines.push_str(&format!(
+                                "{{\"id\":\"{}\",\"board\":\"{}\",\"actions\":[{}]}}
+",
+                                request.id, decision.board_key, acts.join(",")));
+                        }
+                    }
+                    Err(_) => { short.fetch_add(1, std::sync::atomic::Ordering::Relaxed); }
+                }
+                let count = done.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
+                if count % 500 == 0 {
+                    let elapsed = started.elapsed().as_secs_f64();
+                    eprintln!("[{count}/{roots}] {:.2} s/root, eta {:.0} min",
+                        elapsed / count as f64,
+                        (roots - count) as f64 * elapsed / count as f64 / 60.0);
+                }
+                (t3_line, t4_lines)
+            })
+            .collect();
+
+        let mut t3_out = String::new();
+        let mut t4_out = String::new();
+        for (t3, t4) in &produced {
+            t3_out.push_str(t3);
+            t4_out.push_str(t4);
+        }
+        std::fs::write(format!("{out_dir}/t3_labels.jsonl"), &t3_out).expect("write t3");
+        std::fs::write(format!("{out_dir}/t4_labels.jsonl"), &t4_out).expect("write t4");
+        eprintln!(
+            "teach: {} T3 roots, {} T4 decisions, {} short draws, {:.1} min total",
+            t3_out.lines().count(),
+            t4_out.lines().count(),
+            short.load(std::sync::atomic::Ordering::Relaxed),
+            started.elapsed().as_secs_f64() / 60.0,
+        );
+        return;
+    }
+
     if args.len() > 1 && args[1] == "t3-bench" {
         let mut pool_path = String::from("D:/ofc_data/fl_pools/fl14_v1.jfl1");
         let mut roots = 5usize;

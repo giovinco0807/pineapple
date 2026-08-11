@@ -259,6 +259,104 @@ pub fn solve(
     solve_with_t4(request, pool, fl_ev, stream, false).map(|(values, _)| values)
 }
 
+/// One T4 decision harvested from a T3 root: hero's eleven-card board, the
+/// three cards drawn, and what each placement is worth.
+pub struct T4Decision {
+    /// The T3 action that produced this board.
+    pub board_key: String,
+    pub draw: [Card; 3],
+    /// `(placement key, value)`, the T4 teacher's rows.
+    pub actions: Vec<(String, f64)>,
+}
+
+/// T3 action values plus a sample of the T4 decisions they contain.
+///
+/// A T3 root passes through 9,880 T4 decisions per action; writing them all
+/// out is 280 million rows at teacher scale, so a caller says how many it
+/// wants.  These are not re-solved -- they are read out of the table the T3
+/// expectation already used, so a harvested T4 label and the T3 label above it
+/// cannot disagree.
+pub fn solve_harvesting(
+    request: &T3Request,
+    pool: &Pool,
+    fl_ev: &[f64; 4],
+    stream: u64,
+    t4_per_root: usize,
+) -> Result<(Vec<T3ActionValue>, Vec<T4Decision>), ShortDraw> {
+    let (values, leaves) = solve_with_t4(request, pool, fl_ev, stream, t4_per_root > 0)?;
+    if t4_per_root == 0 || leaves.is_empty() {
+        return Ok((values, Vec::new()));
+    }
+    // Group the harvested leaves by the T3 action that produced them, then
+    // reassemble whole T4 decisions: a draw of three, and every placement of
+    // two of them.  Deterministic in `stream`, so a rerun harvests the same
+    // decisions.
+    let mut by_action: std::collections::BTreeMap<&str, Vec<&T4Leaf>> =
+        std::collections::BTreeMap::new();
+    for leaf in &leaves {
+        by_action.entry(leaf.action_key.as_str()).or_default().push(leaf);
+    }
+    let action_keys: Vec<&str> = by_action.keys().copied().collect();
+    let mut out = Vec::new();
+    let mut tick = stream.wrapping_mul(0x9E37_79B9_7F4A_7C15);
+    for slot in 0..t4_per_root {
+        if action_keys.is_empty() {
+            break;
+        }
+        tick = tick
+            .wrapping_mul(6364136223846793005)
+            .wrapping_add(1442695040888963407);
+        let action = action_keys[(tick >> 33) as usize % action_keys.len()];
+        let mine = &by_action[action];
+        // A decision needs three cards; take one leaf's pair and a third card
+        // from another leaf under the same action.
+        if mine.len() < 2 {
+            continue;
+        }
+        let anchor = mine[((tick >> 17) as usize).wrapping_add(slot) % mine.len()];
+        let third = mine
+            .iter()
+            .find(|leaf| {
+                let (a, b) = (leaf.cards[0], leaf.cards[1]);
+                let (p, q) = (anchor.cards[0], anchor.cards[1]);
+                let same = |x: Card, y: Card| x.rank == y.rank && x.suit == y.suit;
+                (same(a, p) && !same(b, q)) || (same(a, q) && !same(b, p))
+            })
+            .map(|leaf| leaf.cards[1]);
+        let Some(third) = third else { continue };
+        let draw = [anchor.cards[0], anchor.cards[1], third];
+        // Every placement of two of these three, valued from the same table.
+        let mut actions = Vec::new();
+        for leaf in mine.iter() {
+            let in_draw = |card: Card| {
+                draw.iter().any(|d| d.rank == card.rank && d.suit == card.suit)
+            };
+            if in_draw(leaf.cards[0]) && in_draw(leaf.cards[1]) {
+                actions.push((
+                    format!(
+                        "{}+{}@{},{}",
+                        card_name(&leaf.cards[0]),
+                        card_name(&leaf.cards[1]),
+                        leaf.rows[0],
+                        leaf.rows[1]
+                    ),
+                    leaf.value,
+                ));
+            }
+        }
+        if actions.len() < 2 {
+            continue;
+        }
+        actions.sort_by(|a, b| a.0.cmp(&b.0));
+        out.push(T4Decision {
+            board_key: action.to_string(),
+            draw,
+            actions,
+        });
+    }
+    Ok((values, out))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
