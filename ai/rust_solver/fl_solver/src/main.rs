@@ -4,6 +4,7 @@
 
 mod frontier;
 mod pool;
+mod t3_labels;
 mod t4_labels;
 mod vs_fl;
 
@@ -1756,6 +1757,66 @@ fn build_pool(entries: usize, width: usize, seed: u64, table: [f64; 4], out_path
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
+
+    if args.len() > 1 && args[1] == "t3-bench" {
+        let mut pool_path = String::from("D:/ofc_data/fl_pools/fl14_v1.jfl1");
+        let mut roots = 5usize;
+        let mut opponents = 64usize;
+        let mut index = 2;
+        while index < args.len() {
+            match args[index].as_str() {
+                "--pool" => { index += 1; pool_path = args[index].clone(); }
+                "--roots" => { index += 1; roots = args[index].parse().expect("roots"); }
+                "--opponents" => { index += 1; opponents = args[index].parse().expect("opponents"); }
+                _ => {}
+            }
+            index += 1;
+        }
+        let table = [0.0f64, 10.7, 29.9, 63.5];
+        let bytes = std::fs::read(&pool_path).expect("read pool");
+        let loaded = pool::deserialize(&bytes, 14, table).expect("load pool");
+        eprintln!("pool: {} entries", loaded.entries.len());
+        let started = std::time::Instant::now();
+        let mut actions = 0usize;
+        let mut leaves_total = 0usize;
+        let mut spreads = Vec::new();
+        for root in 0..roots as u64 {
+            let cards = pool::deal(0xC0C0_0000 + root, 0, 14);
+            let request = t3_labels::T3Request {
+                id: root.to_string(),
+                rows: [cards[0..2].to_vec(), cards[2..6].to_vec(), cards[6..9].to_vec()],
+                dead: cards[9..11].to_vec(),
+                draw: [cards[11], cards[12], cards[13]],
+                opponents,
+                t4_draws: 0,
+            };
+            match t3_labels::solve_with_t4(&request, &loaded, &table, root, true) {
+                Ok((values, leaves)) => {
+                    actions += values.len();
+                    leaves_total += leaves.len();
+                    let best = values.iter().map(|v| v.value).fold(f64::MIN, f64::max);
+                    let worst = values.iter().map(|v| v.value).fold(f64::MAX, f64::min);
+                    spreads.push(best - worst);
+                    if root == 0 {
+                        eprintln!("root 0: {} actions, {} T4 leaves harvested, {} draws/action",
+                            values.len(), leaves.len(), values[0].t4_draws);
+                    }
+                }
+                Err(e) => eprintln!("root {root}: short draw {}/{}", e.found, e.wanted),
+            }
+        }
+        let elapsed = started.elapsed().as_secs_f64();
+        spreads.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        eprintln!(
+            "t3: {roots} roots, {actions} actions, {leaves_total} T4 leaves, {:.2} s/root",
+            elapsed / roots as f64,
+        );
+        if !spreads.is_empty() {
+            eprintln!("best-worst spread: median {:.3}, max {:.3}",
+                spreads[spreads.len() / 2], spreads[spreads.len() - 1]);
+        }
+        return;
+    }
 
     if args.len() > 1 && args[1] == "t4-bench" {
         let mut pool_path = String::from("D:/ofc_data/fl_pools/fl14_v1.jfl1");
