@@ -29,10 +29,12 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--games", type=int, default=100)
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--seed-stride", type=int, default=1)
     parser.add_argument("--name-a", default="candidate")
     parser.add_argument("--name-b", default="baseline")
     parser.add_argument("--opening-a", type=Path, default=DEFAULT_OPENING_MODEL)
     parser.add_argument("--turn1-a", type=Path, default=DEFAULT_TURN1_MODEL)
+    parser.add_argument("--hu-turn1-a", type=Path)
     parser.add_argument("--turn2-a", type=Path, default=DEFAULT_TURN2_MODEL)
     parser.add_argument("--turn3-a", type=Path, default=DEFAULT_TURN3_MODEL)
     parser.add_argument("--hu-turn3-a", type=Path)
@@ -42,11 +44,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--hu-turn3-min-margin-a", type=float, default=0.0)
     parser.add_argument("--hu-turn3-reference-min-margin-a", type=float, default=0.0)
     parser.add_argument("--hu-turn3-min-support-margin-a", type=float, default=0.0)
+    parser.add_argument("--hu-turn3-min-model-score-a", type=float)
+    parser.add_argument("--hu-turn3-allowed-seats-a", default="")
     parser.add_argument("--hu-turn3-min-gate-probability-a", type=float, default=0.0)
     parser.add_argument("--hu-turn3-max-self-regret-a", type=float)
+    parser.add_argument("--hu-turn3-decision-log-a", type=Path)
     parser.add_argument("--disable-hu-turn3-stage7-a", action="store_true")
     parser.add_argument("--opening-b", type=Path, default=DEFAULT_OPENING_MODEL)
     parser.add_argument("--turn1-b", type=Path, default=DEFAULT_TURN1_MODEL)
+    parser.add_argument("--hu-turn1-b", type=Path)
     parser.add_argument("--turn2-b", type=Path, default=DEFAULT_TURN2_MODEL)
     parser.add_argument("--turn3-b", type=Path, default=DEFAULT_TURN3_MODEL)
     parser.add_argument("--hu-turn3-b", type=Path)
@@ -56,8 +62,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--hu-turn3-min-margin-b", type=float, default=0.0)
     parser.add_argument("--hu-turn3-reference-min-margin-b", type=float, default=0.0)
     parser.add_argument("--hu-turn3-min-support-margin-b", type=float, default=0.0)
+    parser.add_argument("--hu-turn3-min-model-score-b", type=float)
+    parser.add_argument("--hu-turn3-allowed-seats-b", default="")
     parser.add_argument("--hu-turn3-min-gate-probability-b", type=float, default=0.0)
     parser.add_argument("--hu-turn3-max-self-regret-b", type=float)
+    parser.add_argument("--hu-turn3-decision-log-b", type=Path)
     parser.add_argument("--disable-hu-turn3-stage7-b", action="store_true")
     parser.add_argument("--opening-lookahead-samples", type=int, default=64)
     parser.add_argument("--prediction-threads", type=int, default=1)
@@ -70,6 +79,7 @@ def parse_args() -> argparse.Namespace:
 
 def load_policy_parts(args: argparse.Namespace, suffix: str) -> dict[str, Any]:
     hu_path = getattr(args, f"hu_turn3_{suffix}")
+    hu_turn1_path = getattr(args, f"hu_turn1_{suffix}", None)
     hu_reference_path = getattr(args, f"hu_turn3_reference_{suffix}")
     hu_support_path = getattr(args, f"hu_turn3_support_{suffix}")
     hu_gate_path = getattr(args, f"hu_turn3_gate_{suffix}")
@@ -89,6 +99,9 @@ def load_policy_parts(args: argparse.Namespace, suffix: str) -> dict[str, Any]:
     return {
         "opening_model": load_action_value_model(getattr(args, f"opening_{suffix}")),
         "turn1_model": load_action_value_model(getattr(args, f"turn1_{suffix}")),
+        "hu_turn1_model": _safe_load_hu_action_value_model(hu_turn1_path)
+        if hu_turn1_path
+        else None,
         "turn2_model": load_action_value_model(getattr(args, f"turn2_{suffix}")),
         "turn3_model": load_action_value_model(getattr(args, f"turn3_{suffix}")),
         "hu_turn3_model": hu_model,
@@ -100,11 +113,16 @@ def load_policy_parts(args: argparse.Namespace, suffix: str) -> dict[str, Any]:
         "hu_turn3_min_margin": hu_min_margin,
         "hu_turn3_reference_min_margin": hu_reference_min_margin,
         "hu_turn3_min_support_margin": getattr(args, f"hu_turn3_min_support_margin_{suffix}"),
+        "hu_turn3_min_model_score": getattr(args, f"hu_turn3_min_model_score_{suffix}"),
+        "hu_turn3_allowed_seats": _parse_allowed_seats(
+            getattr(args, f"hu_turn3_allowed_seats_{suffix}", "")
+        ),
         "hu_turn3_min_gate_probability": getattr(
             args,
             f"hu_turn3_min_gate_probability_{suffix}",
         ),
         "hu_turn3_max_self_regret": getattr(args, f"hu_turn3_max_self_regret_{suffix}"),
+        "hu_turn3_decision_log_path": getattr(args, f"hu_turn3_decision_log_{suffix}", None),
         "hu_turn3_stage7_enabled": not getattr(args, f"disable_hu_turn3_stage7_{suffix}"),
         "opening_lookahead_samples": args.opening_lookahead_samples,
     }
@@ -150,6 +168,8 @@ def summarize(scores: list[float]) -> dict[str, float]:
 def evaluate_matchup(args: argparse.Namespace) -> dict[str, Any]:
     if args.games <= 0:
         raise SystemExit("--games must be positive")
+    if args.seed_stride <= 0:
+        raise SystemExit("--seed-stride must be positive")
     if args.prediction_threads > 0:
         os.environ.setdefault("OMP_NUM_THREADS", str(args.prediction_threads))
         os.environ.setdefault("MKL_NUM_THREADS", str(args.prediction_threads))
@@ -171,7 +191,7 @@ def evaluate_matchup(args: argparse.Namespace) -> dict[str, Any]:
     )
     with _prediction_thread_context(args.prediction_threads), trace_context as trace_handle:
         for index in range(args.games):
-            hand_seed = args.seed + index
+            hand_seed = args.seed + index * args.seed_stride
             hand_ab = trace_hand(
                 seed=hand_seed,
                 profile_p0=args.name_a,
@@ -223,6 +243,7 @@ def evaluate_matchup(args: argparse.Namespace) -> dict[str, Any]:
         "paired_seeds": args.games,
         "hands": args.games * 2,
         "seed": args.seed,
+        "seed_stride": args.seed_stride,
         **summarize(paired_scores),
         "paired_seed_wins": wins,
         "paired_seed_losses": losses,
@@ -233,6 +254,7 @@ def evaluate_matchup(args: argparse.Namespace) -> dict[str, Any]:
         "models_a": {
             "opening": str(args.opening_a),
             "turn1": str(args.turn1_a),
+            "hu_turn1": str(args.hu_turn1_a) if args.hu_turn1_a else None,
             "turn2": str(args.turn2_a),
             "turn3": str(args.turn3_a),
             "hu_turn3": str(args.hu_turn3_a) if args.hu_turn3_a else None,
@@ -246,13 +268,19 @@ def evaluate_matchup(args: argparse.Namespace) -> dict[str, Any]:
             "hu_turn3_min_margin": args.hu_turn3_min_margin_a,
             "hu_turn3_reference_min_margin": args.hu_turn3_reference_min_margin_a,
             "hu_turn3_min_support_margin": args.hu_turn3_min_support_margin_a,
+            "hu_turn3_min_model_score": args.hu_turn3_min_model_score_a,
+            "hu_turn3_allowed_seats": args.hu_turn3_allowed_seats_a,
             "hu_turn3_min_gate_probability": args.hu_turn3_min_gate_probability_a,
             "hu_turn3_max_self_regret": args.hu_turn3_max_self_regret_a,
+            "hu_turn3_decision_log": str(args.hu_turn3_decision_log_a)
+            if args.hu_turn3_decision_log_a
+            else None,
             "hu_turn3_stage7_enabled": not args.disable_hu_turn3_stage7_a,
         },
         "models_b": {
             "opening": str(args.opening_b),
             "turn1": str(args.turn1_b),
+            "hu_turn1": str(args.hu_turn1_b) if args.hu_turn1_b else None,
             "turn2": str(args.turn2_b),
             "turn3": str(args.turn3_b),
             "hu_turn3": str(args.hu_turn3_b) if args.hu_turn3_b else None,
@@ -266,12 +294,27 @@ def evaluate_matchup(args: argparse.Namespace) -> dict[str, Any]:
             "hu_turn3_min_margin": args.hu_turn3_min_margin_b,
             "hu_turn3_reference_min_margin": args.hu_turn3_reference_min_margin_b,
             "hu_turn3_min_support_margin": args.hu_turn3_min_support_margin_b,
+            "hu_turn3_min_model_score": args.hu_turn3_min_model_score_b,
+            "hu_turn3_allowed_seats": args.hu_turn3_allowed_seats_b,
             "hu_turn3_min_gate_probability": args.hu_turn3_min_gate_probability_b,
             "hu_turn3_max_self_regret": args.hu_turn3_max_self_regret_b,
+            "hu_turn3_decision_log": str(args.hu_turn3_decision_log_b)
+            if args.hu_turn3_decision_log_b
+            else None,
             "hu_turn3_stage7_enabled": not args.disable_hu_turn3_stage7_b,
         },
     }
     return summary
+
+
+def _parse_allowed_seats(value: str | None) -> tuple[str, ...] | None:
+    if value is None or not str(value).strip():
+        return None
+    seats = tuple(part.strip() for part in str(value).split(",") if part.strip())
+    invalid = [seat for seat in seats if seat not in {"first", "second"}]
+    if invalid:
+        raise SystemExit(f"invalid HU T3 allowed seat(s): {', '.join(invalid)}")
+    return seats or None
 
 
 def main() -> None:

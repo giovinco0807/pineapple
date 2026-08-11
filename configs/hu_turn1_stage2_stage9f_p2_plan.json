@@ -1,0 +1,1236 @@
+{
+  "name": "hu_turn1_stage2_stage9f_p2_plan",
+  "status": "balanced2k_complete_6model_candidate_pool_next_t1_runtime_no_go",
+  "rule_set": "regular",
+  "schema": "hu_turn1_stage2_plan_v1",
+  "phase": "hu_turn1_5card",
+  "objective": "restart_turn1_training_with_stage9f_p2_fixed_t2_continuation",
+  "fixed_continuation": {
+    "t2_profile": "stage9f_p2",
+    "t2_runtime": "k3/mc16/d0/se0/confirm32/cse2/csemax2/fcd0/scd0/pd0/seat=first+second/bygate_delta",
+    "t2_selective_override_only": true,
+    "t3_profile": "stage7_m5_r10",
+    "t3_selective_override_only": true,
+    "fl_ev_source": "configs/fl_ev_regular_2k.json"
+  },
+  "do_not_extend": {
+    "leaf31_topk_gate": {
+      "model": "models/hu_turn1_stage1j_mc16_broad500_plus_mc32_timeout_hgb_leaf31_lr005_l2_1.pkl",
+      "fire_count_diagnostic": "outputs/evals/hu_turn1_stage1j_mc32_timeout_leaf31_topk_fire500/",
+      "valid_overrides": 71,
+      "ev_per_hand": -0.010091917541266184,
+      "realized_per_fire_delta": -0.18439320480656599,
+      "decision": "No-Go; do not spend more on this exact gate"
+    }
+  },
+  "teacher_design": {
+    "primary_teacher": "hu_turn1_teacher_pilot",
+    "profile": "stage9f_p2",
+    "opponent_profile": "stage9f_p2",
+    "score_target": "full HU terminal_score with fixed Stage9f P2 continuation",
+    "common_future_samples": true,
+    "save_all_legal_actions": true,
+    "primary_metric": "holdout avg_regret and TopK candidate regret, not top1 accuracy",
+    "initial_broad_dataset": {
+      "records": 1000,
+      "future_samples": 16,
+      "max_actions": 0,
+      "source_bucket": "stage2_stage9f_p2_natural_mc16"
+    },
+    "selected_refinement": {
+      "records": 300,
+      "future_samples": 32,
+      "target_sources": [
+        "high_best_action_se",
+        "low_margin",
+        "baseline_miss",
+        "topk_candidate_miss",
+        "first_second_balance"
+      ]
+    }
+  },
+  "model_design": {
+    "candidate_generator_first": true,
+    "direct_policy_adoption": "No-Go until holdout top1 regret beats baseline and seat-swap confirms",
+    "candidate_model_families": [
+      "hgb",
+      "extra_trees",
+      "pairwise_logistic",
+      "listwise_torch"
+    ],
+    "acceptance_metrics": [
+      "holdout_top1_avg_regret",
+      "holdout_top3_best_avg_regret",
+      "holdout_top5_best_avg_regret",
+      "candidate_fire_count_in_runtime",
+      "realized_per_fire_delta",
+      "non_fired_final_mismatch_count"
+    ]
+  },
+  "runtime_eval_design": {
+    "topk_confirm_required": true,
+    "confirm_delta_role": "gate_diagnostic_only",
+    "performance_metric": "realized_fired_whole_game_delta",
+    "minimum_diagnostic_overrides": 50,
+    "go_conditions": [
+      "non_fired_final_mismatch_count == 0",
+      "realized_per_fire_delta_ci95_low > 0 on a non-overlapping diagnostic",
+      "aggregate EV/hand >= 0",
+      "first/second split is not one-sided negative",
+      "p95 fired loss remains acceptable"
+    ],
+    "no_go_conditions": [
+      "top1 holdout regret worse and TopK regret not improved",
+      "runtime fire-count diagnostic has negative realized per-fire delta",
+      "non-fired cancellation breaks",
+      "tail loss worsens without compensation"
+    ]
+  },
+  "runtime_6model_topk_confirm": {
+    "status": "implementation_smoke_pass_quality_not_yet_evaluated",
+    "implementation": {
+      "candidate_pool_cli": "--hu-turn1-stage1-models",
+      "candidate_union_mode": "max_z_score",
+      "candidate_topk": 20,
+      "candidate_union_cap": 25,
+      "single_model_backwards_compatible": true,
+      "union_pd_filter_applied": false,
+      "reason_union_pd_filter_disabled": "The teacher candidate pool is model Top20 union/cap25 and does not compare union z-scores to the baseline action score."
+    },
+    "active_candidate_models": [
+      "models/hu_turn1_stage2_candidate1000_union_b_e_broad1k_top20_cap25_mc32_hgb_regressor.pkl",
+      "models/hu_turn1_stage2_candidate1200_union_top20_mc16_mc32_hgb_regressor.pkl",
+      "models/hu_turn1_stage2_top20cap25_mc32_1k_hgb_regressor.pkl",
+      "models/hu_turn1_stage2_top20cap25_mc32_1k_listwise_torch.pt",
+      "models/hu_turn1_stage2_union4_maxz_top20cap25_mc32_balanced2k_hgb_regressor.pkl",
+      "models/hu_turn1_stage2_union4_maxz_top20cap25_mc32_balanced2k_listwise_torch.pt"
+    ],
+    "smoke": {
+      "command_profile": "stage9f_p2_hu_t1_topk_confirm vs stage9f_p2",
+      "config": "k25/mc1/d0/confirm1/cse0/pd0/seat=first+second/ctopk20/cap25/union=max_z_score",
+      "summary": "outputs/evals/hu_turn1_stage2_stage9f_p2_topk_confirm_6model_smoke/summary.json",
+      "decision_log": "outputs/evals/hu_turn1_stage2_stage9f_p2_topk_confirm_6model_smoke/decision_log.jsonl",
+      "paired_seeds": 1,
+      "hands": 2,
+      "hu_turn1_decisions": 2,
+      "candidate_model_count": 6,
+      "observed_union_sizes": [
+        24,
+        26
+      ],
+      "observed_evaluated_action_counts": [
+        24,
+        26
+      ],
+      "non_fired_delta_max_abs": 0.0,
+      "result": "6-model max_z_score union loaded, selected candidates, and passed them into Stage A MC. This is wiring evidence only."
+    },
+    "small_local_validation": {
+      "status": "execution_pass_underpowered_too_slow_for_local_scale",
+      "config": "k25/mc4/d0/confirm8/cse1/pd0/seat=first+second/ctopk20/cap25/union=max_z_score",
+      "summary": "outputs/evals/hu_turn1_stage2_stage9f_p2_topk_confirm_6model_small5/summary.json",
+      "decision_log": "outputs/evals/hu_turn1_stage2_stage9f_p2_topk_confirm_6model_small5/decision_log.jsonl",
+      "paired_seeds": 5,
+      "hands": 10,
+      "hu_turn1_decisions": 10,
+      "hu_turn1_overrides": 1,
+      "non_fired_delta_max_abs": 0.0,
+      "no_override_reason_counts": {
+        "below_confirm_delta": 6,
+        "below_confirm_se": 2,
+        "mc_best_is_baseline": 1,
+        "override_fired": 1
+      },
+      "average_runtime_latency_ms_per_t1_decision": 29067.9249699926,
+      "max_runtime_latency_ms_per_t1_decision": 41865.6488000415,
+      "elapsed_seconds": 294.2252049446106,
+      "decision": "Non-fired cancellation remains exact and one override fired, but the run is far too small for quality and too slow to scale locally."
+    },
+    "gcp_runtime_eval_support": {
+      "status": "dry_run_pass",
+      "script": "scripts/Start-GcpHuTurn2Stage9fProfileCanaryRun.ps1",
+      "new_argument": "-HuTurn1Stage1Models",
+      "receive_script": "scripts/Receive-GcpHuTurn2Stage9fProfileCanaryRun.ps1",
+      "dry_run": "regular-hu-t1-stage2-6model-runtime-dryrun",
+      "phase": "hu_t1_stage2_6model_runtime_seatswap",
+      "dry_run_total_games": 10,
+      "dry_run_shard_games": 5,
+      "dry_run_vm_count": 2,
+      "decision": "Use Spot VM for the next T1 6-model seat-swap; local runtime is about 29s per T1 decision with mc4/confirm8."
+    },
+    "next_gate": "Run Spot VM seat-swap with the 6-model pool. Start with k25/mc4/confirm8 for fire-rate/latency, then k25/mc8/confirm16 only if fire count and non-fired cancellation remain healthy."
+  },
+  "next_smoke": {
+    "command": "python -m ofc_regular.hu_turn1_teacher_pilot --samples 2 --future-samples 1 --max-actions 2 --seed 2026062511 --profile stage9f_p2 --opponent-profile stage9f_p2 --opening-lookahead-samples 1 --source-bucket stage2_stage9f_p2_smoke --collect-topk-log --output outputs/hu_turn1_stage2_stage9f_p2/smoke2_mc1_max2/hu_turn1_stage2_smoke.jsonl --summary-output outputs/hu_turn1_stage2_stage9f_p2/smoke2_mc1_max2/summary.json",
+    "expected": [
+      "command completes",
+      "profile == stage9f_p2",
+      "opponent_profile == stage9f_p2",
+      "t2_continuation_profile == stage9f_p2",
+      "t3_continuation == stage7_m5_r10",
+      "records == 2",
+      "no invalid action rows",
+      "visible_dead_cards and private discard fields are present"
+    ]
+  },
+  "observed_smoke": {
+    "status": "pass",
+    "output": "outputs/hu_turn1_stage2_stage9f_p2/smoke2_mc1_max2/hu_turn1_stage2_smoke.jsonl",
+    "summary": "outputs/hu_turn1_stage2_stage9f_p2/smoke2_mc1_max2/summary.json",
+    "analysis_summary": "outputs/hu_turn1_stage2_stage9f_p2/smoke2_mc1_max2/analysis/summary.json",
+    "records": 2,
+    "future_samples": 1,
+    "max_actions": 2,
+    "profile": "stage9f_p2",
+    "opponent_profile": "stage9f_p2",
+    "t2_continuation_profile_counts": {
+      "stage9f_p2": 2
+    },
+    "t3_continuation_counts": {
+      "stage7_m5_r10": 2
+    },
+    "invalid_action_rows": 0,
+    "invalid_state_rows": 0,
+    "best_action_not_legal": 0,
+    "action_count_mismatches": 0,
+    "seat_counts": {
+      "first": 1,
+      "second": 1
+    },
+    "seconds_per_sample": 2.3473160499706864,
+    "topk_decisions": 8,
+    "topk_overrides": 0,
+    "decision": "Execution path is valid. This is wiring evidence only; not quality evidence."
+  },
+  "observed_speed_smoke": {
+    "status": "pass",
+    "output": "outputs/hu_turn1_stage2_stage9f_p2/speed1_mc1_allactions/hu_turn1_stage2_speed.jsonl",
+    "summary": "outputs/hu_turn1_stage2_stage9f_p2/speed1_mc1_allactions/summary.json",
+    "analysis_summary": "outputs/hu_turn1_stage2_stage9f_p2/speed1_mc1_allactions/analysis/summary.json",
+    "records": 1,
+    "future_samples": 1,
+    "max_actions": 0,
+    "action_count": 27,
+    "seconds_per_sample": 13.711,
+    "choose_action_t2_seconds": 12.718,
+    "choose_action_t2_count": 54,
+    "topk_decisions": 54,
+    "topk_overrides": 2,
+    "decision": "All-action local smoke is valid but too slow for broad local generation."
+  },
+  "gcp_pilot100_mc16": {
+    "status": "partial_aborted_speed_no_go",
+    "run_name": "regular-hu-t1-stage2-stage9f-p2-pilot100-mc16-dryrun",
+    "total_samples": 100,
+    "shard_samples": 5,
+    "total_shards": 20,
+    "vm_count": 10,
+    "future_samples": 16,
+    "max_actions": 0,
+    "profile": "stage9f_p2",
+    "opponent_profile": "stage9f_p2",
+    "source_bucket": "stage2_stage9f_p2_pilot100_mc16",
+    "expected_waves": 2,
+    "rough_local_equivalent_hours": 6.1,
+    "purpose": "Validate distributed speed, schema, all-action coverage, T2/T3 continuation wiring, and invalid-row rate before broad 1k.",
+    "observed_partial": {
+      "run_name": "regular-hu-t1-stage2-stage9f-p2-pilot100-mc16-20260625-001",
+      "output_dir": "outputs/hu_turn1_stage2_stage9f_p2/gcp_pilot100_mc16_partial",
+      "completed_shards": 2,
+      "expected_shards": 20,
+      "records": 10,
+      "missing_shards": 18,
+      "running_instances_after_abort": 0,
+      "mean_seconds_per_sample": 117.22359840179999,
+      "max_seconds_per_sample": 129.0721048004,
+      "mean_action_count": 26.1,
+      "invalid_action_rows": 0,
+      "invalid_state_rows": 0,
+      "t2_continuation_profile": "stage9f_p2",
+      "t3_continuation": "stage7_m5_r10",
+      "decision": "All-action Stage9f P2 MC16 teacher is too slow to broaden directly."
+    }
+  },
+  "gcp_broad1k_mc16": {
+    "status": "dry_run_pass_but_wait_for_pilot100",
+    "run_name": "regular-hu-t1-stage2-stage9f-p2-broad1k-mc16-dryrun",
+    "total_samples": 1000,
+    "shard_samples": 20,
+    "total_shards": 50,
+    "vm_count": 10,
+    "future_samples": 16,
+    "max_actions": 0,
+    "profile": "stage9f_p2",
+    "opponent_profile": "stage9f_p2",
+    "source_bucket": "stage2_stage9f_p2_natural_mc16",
+    "decision": "Do not start broad 1k until pilot100 MC16 passes."
+  },
+  "candidate_subset_teacher": {
+    "status": "execution_pass_quality_needs_topk_or_model_fix",
+    "implementation": "hu_turn1_teacher_pilot supports --candidate-model and --candidate-topk",
+    "candidate_model": "models/hu_turn1_stage1_stage9f_p2_full2k_hgb_leaf3_lr01_l2_1.pkl",
+    "candidate_topk_smoke": {
+      "output": "outputs/hu_turn1_stage2_stage9f_p2/candidate_top5_smoke_mc1/hu_turn1_stage2_candidate_top5.jsonl",
+      "summary": "outputs/hu_turn1_stage2_stage9f_p2/candidate_top5_smoke_mc1/summary.json",
+      "records": 1,
+      "future_samples": 1,
+      "candidate_topk": 5,
+      "mean_action_count": 5,
+      "seconds_per_sample": 4.997674700105563,
+      "invalid_action_rows": 0
+    },
+    "candidate20_top5_mc16": {
+      "run_name": "regular-hu-t1-stage2-stage9f-p2-top5-candidate20-mc16-20260625-001",
+      "output_dir": "outputs/hu_turn1_stage2_stage9f_p2/gcp_candidate20_top5_mc16",
+      "records": 20,
+      "expected_shards": 10,
+      "completed_shards": 10,
+      "missing_shards": 0,
+      "running_instances_after_completion": 0,
+      "future_samples": 16,
+      "candidate_topk": 5,
+      "mean_seconds_per_sample": 28.157990617000006,
+      "max_seconds_per_sample": 46.05830599149999,
+      "mean_action_count": 5.0,
+      "invalid_action_rows": 0,
+      "invalid_state_rows": 0,
+      "seat_counts": {
+        "first": 10,
+        "second": 10
+      },
+      "t2_continuation_profile": "stage9f_p2",
+      "t3_continuation": "stage7_m5_r10"
+    },
+    "candidate20_top10_mc16": {
+      "run_name": "regular-hu-t1-stage2-stage9f-p2-top10-candidate20-mc16-20260625-001",
+      "output_dir": "outputs/hu_turn1_stage2_stage9f_p2/gcp_candidate20_top10_mc16",
+      "records": 20,
+      "expected_shards": 10,
+      "completed_shards": 10,
+      "missing_shards": 0,
+      "running_instances_after_completion": 0,
+      "future_samples": 16,
+      "candidate_topk": 10,
+      "mean_seconds_per_sample": 38.0123911795,
+      "max_seconds_per_sample": 82.5805155065,
+      "mean_action_count": 10.0,
+      "invalid_action_rows": 0,
+      "invalid_state_rows": 0,
+      "seat_counts": {
+        "first": 10,
+        "second": 10
+      },
+      "topk_decisions": 6400,
+      "topk_overrides": 55,
+      "t2_choose_action_seconds_sum": 672.7994085989983,
+      "t2_continuation_profile": "stage9f_p2",
+      "t3_continuation": "stage7_m5_r10",
+      "decision": "Top10 candidate-subset path is execution-clean and much faster than all-action, but existing all-action coverage audit still has one large miss; do not treat Top10 labels as complete all-action teacher labels yet."
+    },
+    "coverage_audit_on_all_action_partial10": {
+      "source": "outputs/hu_turn1_stage2_stage9f_p2/gcp_pilot100_mc16_partial/hu_turn1_stage1_pilot.jsonl",
+      "top1_best_recall": 0.3,
+      "top3_best_recall": 0.4,
+      "top5_best_recall": 0.6,
+      "top8_best_recall": 0.8,
+      "top10_best_recall": 0.9,
+      "top10_avg_topk_regret": 0.532094394208858,
+      "top10_max_topk_regret": 5.320943942088579,
+      "decision": "Top5 is too narrow. Top10 execution is valid, but this 10-state audit still has one large miss even at Top10/Top15/Top20, so broad candidate-subset training needs either improved candidate coverage or explicit incomplete-label treatment."
+    },
+    "coverage_audit_all_action40_mc4": {
+      "run_name": "regular-hu-t1-stage2-stage9f-p2-allaction-audit40-mc4-20260625-001",
+      "output_dir": "outputs/hu_turn1_stage2_stage9f_p2/gcp_allaction_audit40_mc4",
+      "coverage_dir": "outputs/hu_turn1_stage2_stage9f_p2/gcp_allaction_audit40_mc4/coverage",
+      "records": 40,
+      "expected_shards": 20,
+      "completed_shards": 20,
+      "missing_shards": 0,
+      "future_samples": 4,
+      "mean_seconds_per_sample": 35.58945260765,
+      "max_seconds_per_sample": 64.0553584875,
+      "mean_action_count": 26.1,
+      "invalid_action_rows": 0,
+      "invalid_state_rows": 0,
+      "seat_counts": {
+        "first": 20,
+        "second": 20
+      },
+      "candidate_model": "models/hu_turn1_stage1_stage9f_p2_full2k_hgb_leaf3_lr01_l2_1.pkl",
+      "top5_best_recall": 0.525,
+      "top5_avg_topk_regret": 1.9198643037848022,
+      "top5_max_topk_regret": 10.363510307341727,
+      "top10_best_recall": 0.725,
+      "top10_avg_topk_regret": 0.7585132730506295,
+      "top10_max_topk_regret": 7.0567551536708635,
+      "top15_best_recall": 0.825,
+      "top15_avg_topk_regret": 0.3605066365253148,
+      "top15_max_topk_regret": 7.0567551536708635,
+      "top20_best_recall": 0.875,
+      "top20_avg_topk_regret": 0.14033775768354317,
+      "top20_max_topk_regret": 3.0567551536708635,
+      "decision": "Current T1 candidate model coverage is No-Go for broad candidate-subset teacher generation. Even Top15 misses 7/40 teacher-best actions and can lose 7.06 EV on this MC4 audit."
+    },
+    "candidate_model_comparison_on_all_action40_mc4": {
+      "source": "outputs/hu_turn1_stage2_stage9f_p2/gcp_allaction_audit40_mc4/hu_turn1_stage1_pilot.jsonl",
+      "decision": "The current full2k candidate model is No-Go. Among existing small candidate models, stage1b accept2 gray5 is the best practical speed/coverage candidate on this audit, but it needs a fresh heldout all-action audit before broad generation.",
+      "stage1b_accept2_gray5": {
+        "model": "models/hu_turn1_stage1b_candidate_hgb_accept2_gray5_weighted.pkl",
+        "coverage_dir": "outputs/hu_turn1_stage2_stage9f_p2/gcp_allaction_audit40_mc4/coverage_stage1b_accept2",
+        "top15_best_recall": 0.875,
+        "top15_avg_topk_regret": 0.09375,
+        "top15_max_topk_regret": 1.4432448463291365,
+        "top18_best_recall": 0.9,
+        "top18_avg_topk_regret": 0.0375,
+        "top18_max_topk_regret": 1.25,
+        "top25_best_recall": 1.0,
+        "top25_avg_topk_regret": 0.0,
+        "top25_max_topk_regret": 0.0
+      },
+      "stage1e_accept2_runtime313": {
+        "model": "models/hu_turn1_stage1e_candidate_hgb_accept2_gray5_runtime313_weighted.pkl",
+        "coverage_dir": "outputs/hu_turn1_stage2_stage9f_p2/gcp_allaction_audit40_mc4/coverage_stage1e_accept2_runtime313",
+        "top15_best_recall": 0.775,
+        "top15_avg_topk_regret": 0.37925663652531477,
+        "top15_max_topk_regret": 5.8067551536708635,
+        "top20_best_recall": 0.975,
+        "top20_avg_topk_regret": 0.0,
+        "top20_max_topk_regret": 0.0
+      },
+      "union_top10": {
+        "implementation": "hu_turn1_teacher_pilot and analyze_hu_turn1_candidate_coverage now support multi-model union candidate selection.",
+        "best_observed": "current + stage1j top10, cap20",
+        "top20_best_recall": 0.9,
+        "top20_avg_topk_regret": 0.13408775768354317,
+        "top20_max_topk_regret": 2.0,
+        "decision": "Union Top10 did not beat stage1b single-model Top15/18 on this audit."
+      },
+      "union_top15": {
+        "best_observed": "current + stage1j + stage1b top15, cap20",
+        "top20_best_recall": 0.95,
+        "top20_avg_topk_regret": 0.03125,
+        "top20_max_topk_regret": 1.25,
+        "decision": "Better than current model, but evaluates more actions and still misses 2/40; stage1b Top15/18 remains the simpler next probe."
+      }
+    },
+    "candidate20_stage1b_top15_mc16": {
+      "status": "execution_pass_unbalanced_first_only",
+      "run_name": "regular-hu-t1-stage2-stage9f-p2-stage1b-top15-mc16-20260625-001",
+      "output_dir": "outputs/hu_turn1_stage2_stage9f_p2/gcp_candidate20_stage1b_top15_mc16",
+      "records": 20,
+      "expected_shards": 20,
+      "completed_shards": 20,
+      "missing_shards": 0,
+      "future_samples": 16,
+      "candidate_model": "models/hu_turn1_stage1b_candidate_hgb_accept2_gray5_weighted.pkl",
+      "candidate_topk": 15,
+      "mean_seconds_per_sample": 81.17486355220001,
+      "max_seconds_per_sample": 159.48653135700002,
+      "mean_action_count": 15.0,
+      "invalid_action_rows": 0,
+      "invalid_state_rows": 0,
+      "seat_counts": {
+        "first": 20
+      },
+      "decision": "Execution-clean, but ShardSamples=1 produced only first-seat records. Use the balanced rerun for quality/speed judgment."
+    },
+    "candidate20_stage1b_top15_mc16_balanced": {
+      "status": "execution_pass",
+      "run_name": "regular-hu-t1-stage2-stage9f-p2-stage1b-top15-mc16-balanced20-20260625-001",
+      "output_dir": "outputs/hu_turn1_stage2_stage9f_p2/gcp_candidate20_stage1b_top15_mc16_balanced",
+      "records": 20,
+      "expected_shards": 10,
+      "completed_shards": 10,
+      "missing_shards": 0,
+      "future_samples": 16,
+      "candidate_model": "models/hu_turn1_stage1b_candidate_hgb_accept2_gray5_weighted.pkl",
+      "candidate_topk": 15,
+      "mean_seconds_per_sample": 75.70980744885,
+      "max_seconds_per_sample": 140.111540822,
+      "mean_action_count": 15.0,
+      "invalid_action_rows": 0,
+      "invalid_state_rows": 0,
+      "seat_counts": {
+        "first": 10,
+        "second": 10
+      },
+      "decision": "Stage1b Top15 candidate-subset teacher path is execution-clean and balanced. This is not enough for broad generation; it needs a fresh heldout all-action audit because stage1b was selected after seeing audit40."
+    },
+    "fresh_all_action_audit40_mc4": {
+      "status": "completed",
+      "run_name": "regular-hu-t1-stage2-stage9f-p2-allaction-fresh-audit40-mc4-20260625-001",
+      "output_dir": "outputs/hu_turn1_stage2_stage9f_p2/gcp_allaction_fresh_audit40_mc4",
+      "records": 40,
+      "expected_shards": 20,
+      "completed_shards": 20,
+      "missing_shards": 0,
+      "future_samples": 4,
+      "mean_seconds_per_sample": 30.619832984325,
+      "max_seconds_per_sample": 55.670034398,
+      "mean_action_count": 26.625,
+      "invalid_action_rows": 0,
+      "invalid_state_rows": 0,
+      "seat_counts": {
+        "first": 20,
+        "second": 20
+      },
+      "coverage_stage1b_top15": {
+        "best_recall": 0.9,
+        "avg_topk_regret": 0.21875,
+        "max_topk_regret": 5.1932448463291365
+      },
+      "coverage_stage1b_top18": {
+        "best_recall": 0.925,
+        "avg_topk_regret": 0.1423311211582284,
+        "max_topk_regret": 5.1932448463291365
+      },
+      "coverage_stage1b_top25": {
+        "best_recall": 1.0,
+        "avg_topk_regret": 0.0,
+        "max_topk_regret": 0.0
+      },
+      "coverage_stage1e_top20": {
+        "best_recall": 0.975,
+        "avg_topk_regret": 0.0,
+        "max_topk_regret": 0.0
+      },
+      "coverage_union_stage1b_stage1e_top15_cap18": {
+        "best_recall": 1.0,
+        "avg_topk_regret": 0.0,
+        "max_topk_regret": 0.0
+      },
+      "decision": "Fresh heldout audit keeps current full2k and stage1b Top15/18 as undercovered. Stage1e Top20 and stage1b+stage1e union Top18 look strongest on this fresh audit, but union Top18 was not equally clean on the earlier audit; use another heldout or incomplete-label training before broad generation."
+    },
+    "candidate20_union_stage1b_stage1e_top18_mc16": {
+      "status": "execution_pass_speed_heavy",
+      "run_name": "regular-hu-t1-stage2-stage9f-p2-union-b-e-top18-mc16-20260625-001",
+      "output_dir": "outputs/hu_turn1_stage2_stage9f_p2/gcp_candidate20_union_stage1b_stage1e_top18_mc16",
+      "records": 20,
+      "expected_shards": 10,
+      "completed_shards": 10,
+      "missing_shards": 0,
+      "future_samples": 16,
+      "candidate_models": [
+        "models/hu_turn1_stage1b_candidate_hgb_accept2_gray5_weighted.pkl",
+        "models/hu_turn1_stage1e_candidate_hgb_accept2_gray5_runtime313_weighted.pkl"
+      ],
+      "candidate_topk_per_model": 15,
+      "candidate_union_cap": 18,
+      "mean_seconds_per_sample": 99.97806160155,
+      "max_seconds_per_sample": 168.5078902435,
+      "mean_action_count": 17.2,
+      "invalid_action_rows": 0,
+      "invalid_state_rows": 0,
+      "seat_counts": {
+        "first": 10,
+        "second": 10
+      },
+      "t2_continuation_profile": "stage9f_p2",
+      "t3_continuation": "stage7_m5_r10",
+      "decision": "Union Top18 is execution-clean but slower than stage1b Top15. It is not yet broad-teacher Go because coverage is not robust across both all-action audits."
+    },
+    "candidate20_stage1e_top20_mc16": {
+      "status": "execution_pass_speed_heavy",
+      "run_name": "regular-hu-t1-stage2-stage9f-p2-stage1e-top20-mc16-20260625-001",
+      "output_dir": "outputs/hu_turn1_stage2_stage9f_p2/gcp_candidate20_stage1e_top20_mc16",
+      "records": 20,
+      "expected_shards": 10,
+      "completed_shards": 10,
+      "missing_shards": 0,
+      "future_samples": 16,
+      "candidate_model": "models/hu_turn1_stage1e_candidate_hgb_accept2_gray5_runtime313_weighted.pkl",
+      "candidate_topk": 20,
+      "mean_seconds_per_sample": 108.97802194425,
+      "max_seconds_per_sample": 257.363948612,
+      "mean_action_count": 20.0,
+      "invalid_action_rows": 0,
+      "invalid_state_rows": 0,
+      "seat_counts": {
+        "first": 10,
+        "second": 10
+      },
+      "t2_continuation_profile": "stage9f_p2",
+      "t3_continuation": "stage7_m5_r10",
+      "decision": "Stage1e Top20 is execution-clean and has the strongest fresh-audit coverage among single models, but it is slower than union Top18 and far slower than stage1b Top15. Do not broaden as complete labels without another heldout or an incomplete-label training design."
+    },
+    "candidate100_union_stage1b_stage1e_top20_cap22_mc16": {
+      "status": "complete_candidate_subset_pilot",
+      "run_name": "regular-hu-t1-stage2-stage9f-p2-union-b-e-top20-cap22-pilot100-mc16-20260625-001",
+      "output_dir": "outputs/hu_turn1_stage2_stage9f_p2/gcp_candidate100_union_stage1b_stage1e_top20_cap22_mc16",
+      "merged_output": "outputs/hu_turn1_stage2_stage9f_p2/gcp_candidate100_union_stage1b_stage1e_top20_cap22_mc16/hu_turn1_stage1_pilot.jsonl",
+      "analysis_summary": "outputs/hu_turn1_stage2_stage9f_p2/gcp_candidate100_union_stage1b_stage1e_top20_cap22_mc16/analysis_summary.json",
+      "records": 100,
+      "future_samples": 16,
+      "candidate_models": [
+        "models/hu_turn1_stage1b_candidate_hgb_accept2_gray5_weighted.pkl",
+        "models/hu_turn1_stage1e_candidate_hgb_accept2_gray5_runtime313_weighted.pkl"
+      ],
+      "candidate_topk_per_model": 20,
+      "candidate_union_cap": 22,
+      "mean_action_count": 21.63,
+      "action_count_min": 20,
+      "action_count_max": 22,
+      "invalid_action_rows": 0,
+      "invalid_state_rows": 0,
+      "actions_truncated": 100,
+      "seat_counts": {
+        "first": 60,
+        "second": 40
+      },
+      "future_sample_counts": {
+        "16": 100
+      },
+      "rescue_notes": [
+        "Original Spot run completed 13/20 shards.",
+        "rescue2 supplied 27 exact-skip partial rows.",
+        "rescue4 supplied the final 8 missing rows with fast-skip state replay and fresh MC futures.",
+        "Old rescue_sXXX outputs are excluded because they generated only the first row for each seed and skewed the seat distribution."
+      ],
+      "decision": "Pilot100 is schema-clean and usable as candidate-subset teacher data. It is not complete all-action teacher data because every row is truncated to the union candidate set. Training may proceed only with an incomplete-label/candidate-set objective; production/runtime adoption remains No-Go."
+    },
+    "candidate100_commonseed_training_smoke": {
+      "status": "completed_candidate_subset_training_smoke",
+      "input": "outputs/hu_turn1_stage2_stage9f_p2/gcp_candidate100_union_stage1b_stage1e_top20_cap22_mc16/hu_turn1_stage1_pilot.jsonl",
+      "comparison": "outputs/training/hu_turn1_stage2_candidate100_commonseed_model_comparison.json",
+      "split_seed": 2026062699,
+      "train_samples": 80,
+      "holdout_samples": 20,
+      "models": {
+        "hgb_regressor": {
+          "model": "models/hu_turn1_stage2_candidate100_commonseed_hgb_regressor.pkl",
+          "metrics": "outputs/training/hu_turn1_stage2_candidate100_commonseed_hgb_regressor/metrics.json",
+          "holdout_top1_avg_regret": 1.75410434899683,
+          "holdout_top3_best_avg_regret": 0.8174660759462006,
+          "holdout_top5_best_avg_regret": 0.653547197104429,
+          "holdout_top10_best_avg_regret": 0.07159439420885788,
+          "holdout_top3_accepted_action_recall": 0.5,
+          "holdout_top5_accepted_action_recall": 0.55,
+          "decision": "Best current pilot100 training smoke candidate. Continue only as candidate-set generator; not production."
+        },
+        "pairwise_logistic": {
+          "model": "models/hu_turn1_stage2_candidate100_commonseed_pairwise_logistic.pkl",
+          "metrics": "outputs/training/hu_turn1_stage2_candidate100_commonseed_pairwise_logistic/metrics.json",
+          "holdout_top1_avg_regret": 3.7661648191518893,
+          "holdout_top3_best_avg_regret": 1.613766591313287,
+          "holdout_top5_best_avg_regret": 0.5833783182626574,
+          "holdout_top10_best_avg_regret": 0.311547197104429,
+          "holdout_top3_accepted_action_recall": 0.25,
+          "holdout_top5_accepted_action_recall": 0.65,
+          "decision": "Do not broaden from pilot100; useful only as a comparison."
+        },
+        "listwise_torch": {
+          "model": "models/hu_turn1_stage2_candidate100_commonseed_listwise_torch.pt",
+          "metrics": "outputs/training/hu_turn1_stage2_candidate100_commonseed_listwise_torch/metrics.json",
+          "holdout_top1_avg_regret": 2.5541043489968303,
+          "holdout_top3_best_avg_regret": 1.6387665913132872,
+          "holdout_top5_best_avg_regret": 1.069594394208858,
+          "holdout_top10_best_avg_regret": 0.2655943942088579,
+          "holdout_top3_accepted_action_recall": 0.35,
+          "holdout_top5_accepted_action_recall": 0.5,
+          "decision": "Overfits the 80-sample train split and underperforms on common holdout; do not broaden as-is."
+        }
+      },
+      "baseline_stage1e_holdout": {
+        "top1_avg_regret": 2.9334959403101175,
+        "top3_best_avg_regret": 1.3793915913132868,
+        "top5_best_avg_regret": 0.7022632730506295,
+        "top10_best_avg_regret": 0.08509439420885788,
+        "top3_accepted_action_recall": 0.35,
+        "top5_accepted_action_recall": 0.6
+      },
+      "implementation_fix": "Moved pairwise DecisionFunctionAsScoreEstimator into hu_turn3_model so pairwise models trained via python -m are loadable in fresh processes.",
+      "decision": "Training smoke is Go for the HGB score-regressor candidate only. Next gate is heldout all-action coverage/regret audit for this model before any broad 1k generation."
+    },
+    "coverage_refresh_union_stage1b_stage1e_top20_after_training_smoke": {
+      "status": "completed",
+      "candidate_models": [
+        "models/hu_turn1_stage1b_candidate_hgb_accept2_gray5_weighted.pkl",
+        "models/hu_turn1_stage1e_candidate_hgb_accept2_gray5_runtime313_weighted.pkl"
+      ],
+      "candidate_topk_per_model": 20,
+      "candidate_union_cap": 22,
+      "audit40": {
+        "summary": "outputs/hu_turn1_stage2_stage9f_p2/coverage_union_stage1b_stage1e_top20_on_audit40_refresh/summary.json",
+        "cap22_recall": 0.95,
+        "cap22_avg_topk_regret": 0.0,
+        "cap22_max_topk_regret": 0.0
+      },
+      "fresh_audit40": {
+        "summary": "outputs/hu_turn1_stage2_stage9f_p2/coverage_union_stage1b_stage1e_top20_on_fresh_audit40_refresh/summary.json",
+        "cap22_recall": 1.0,
+        "cap22_avg_topk_regret": 0.0,
+        "cap22_max_topk_regret": 0.0
+      },
+      "heldout2_audit40": {
+        "summary": "outputs/hu_turn1_stage2_stage9f_p2/coverage_union_stage1b_stage1e_top20_on_heldout2_audit40_refresh/summary.json",
+        "cap22_recall": 0.975,
+        "cap22_avg_topk_regret": 0.0,
+        "cap22_max_topk_regret": 0.0
+      },
+      "stage2_hgb_direct_candidate_audit": {
+        "decision": "Do not use the pilot100 HGB regressor directly as the broad candidate selector. Single-model Top20 misses all-action best with nonzero regret; Top25 is needed to become clean on the checked audits."
+      },
+      "decision": "Stage1b+Stage1e union Top20 cap22 is acceptable as a broad candidate-set teacher source because cap22 has zero EV regret on the three checked all-action audits. Use it only for incomplete-label training data; production/runtime remains No-Go."
+    },
+    "candidate1000_union_stage1b_stage1e_top20_cap22_mc16": {
+      "status": "completed_after_rescue",
+      "run_name": "regular-hu-t1-stage2-stage9f-p2-union-b-e-top20-cap22-broad1000-mc16-20260625-001",
+      "output_dir": "outputs/hu_turn1_stage2_stage9f_p2/gcp_candidate1000_union_stage1b_stage1e_top20_cap22_mc16",
+      "merged_output": "outputs/hu_turn1_stage2_stage9f_p2/gcp_candidate1000_union_stage1b_stage1e_top20_cap22_mc16/hu_turn1_stage1_pilot.jsonl",
+      "analysis_summary": "outputs/hu_turn1_stage2_stage9f_p2/gcp_candidate1000_union_stage1b_stage1e_top20_cap22_mc16/analysis_summary.json",
+      "records": 1000,
+      "completed_shards": 200,
+      "missing_shards": 0,
+      "future_samples": 16,
+      "candidate_models": [
+        "models/hu_turn1_stage1b_candidate_hgb_accept2_gray5_weighted.pkl",
+        "models/hu_turn1_stage1e_candidate_hgb_accept2_gray5_runtime313_weighted.pkl"
+      ],
+      "candidate_topk_per_model": 20,
+      "candidate_union_cap": 22,
+      "mean_action_count": 21.559,
+      "actions_truncated": 999,
+      "invalid_action_rows": 0,
+      "invalid_state_rows": 0,
+      "seat_counts": {
+        "first": 600,
+        "second": 400
+      },
+      "t2_continuation_profile": "stage9f_p2",
+      "t3_continuation": "stage7_m5_r10",
+      "generation_notes": [
+        "Initial e2-highcpu-4 Spot run stalled after 59/200 shards with memory pressure symptoms.",
+        "Stalled instances were deleted; completed GCS shard outputs were retained.",
+        "Rescue used e2-standard-4 Spot VMs and single-shard rescue for the final missing shard."
+      ],
+      "decision": "Broad 1k candidate-set teacher generation is complete and clean for incomplete-label training. It is not all-action teacher evidence and does not justify T1 runtime or production adoption."
+    },
+    "candidate1000_hgb_regressor_training": {
+      "status": "completed_candidate_subset_training",
+      "input": "outputs/hu_turn1_stage2_stage9f_p2/gcp_candidate1000_union_stage1b_stage1e_top20_cap22_mc16/hu_turn1_stage1_pilot.jsonl",
+      "model": "models/hu_turn1_stage2_candidate1000_union_top20_cap22_hgb_regressor.pkl",
+      "metrics": "outputs/training/hu_turn1_stage2_candidate1000_union_top20_cap22_hgb_regressor/metrics.json",
+      "split_seed": 2026062701,
+      "train_samples": 800,
+      "holdout_samples": 200,
+      "holdout": {
+        "top1_avg_regret": 1.963437129286387,
+        "top3_best_avg_regret": 0.7851924032512637,
+        "top5_best_avg_regret": 0.44090530922025173,
+        "top3_accepted_action_recall": 0.635,
+        "top5_accepted_action_recall": 0.775
+      },
+      "baseline_stage1e_same_holdout": {
+        "top1_avg_regret": 3.823636094920247,
+        "top3_best_avg_regret": 2.1082665171705646,
+        "top5_best_avg_regret": 1.364140006324681,
+        "top3_accepted_action_recall": 0.415,
+        "top5_accepted_action_recall": 0.545
+      },
+      "all_action_coverage_single_model": {
+        "audit40_top25": {
+          "recall": 1.0,
+          "avg_topk_regret": 0.0,
+          "max_topk_regret": 0.0
+        },
+        "fresh_audit40_top22": {
+          "recall": 1.0,
+          "avg_topk_regret": 0.0,
+          "max_topk_regret": 0.0
+        },
+        "heldout2_audit40_top27": {
+          "recall": 1.0,
+          "avg_topk_regret": 0.0,
+          "max_topk_regret": 0.0
+        }
+      },
+      "all_action_coverage_union_with_stage1b_stage1e": {
+        "candidate_models": [
+          "models/hu_turn1_stage1b_candidate_hgb_accept2_gray5_weighted.pkl",
+          "models/hu_turn1_stage1e_candidate_hgb_accept2_gray5_runtime313_weighted.pkl",
+          "models/hu_turn1_stage2_candidate1000_union_top20_cap22_hgb_regressor.pkl"
+        ],
+        "candidate_topk_per_model": 20,
+        "audit40_top22": {
+          "recall": 0.975,
+          "avg_topk_regret": 0.0,
+          "max_topk_regret": 0.0
+        },
+        "fresh_audit40_top20": {
+          "recall": 1.0,
+          "avg_topk_regret": 0.0,
+          "max_topk_regret": 0.0
+        },
+        "heldout2_audit40_top25": {
+          "recall": 1.0,
+          "avg_topk_regret": 0.0,
+          "max_topk_regret": 0.0
+        }
+      },
+      "decision": "The 1k HGB regressor is a real improvement over Stage1e on candidate-set holdout and is useful as a candidate-set model. It is not yet a T1 runtime policy; next gate is a larger all-action audit and/or T1 candidate-set reranking design."
+    },
+    "allaction200_mc4_candidate_coverage": {
+      "status": "completed_candidate_coverage_guardrail",
+      "run_name": "regular-hu-t1-stage2-allaction200-mc4-20260626-001",
+      "output_dir": "outputs/hu_turn1_stage2_stage9f_p2/gcp_allaction200_mc4",
+      "merged_output": "outputs/hu_turn1_stage2_stage9f_p2/gcp_allaction200_mc4/hu_turn1_stage1_pilot.jsonl",
+      "analysis_summary": "outputs/hu_turn1_stage2_stage9f_p2/gcp_allaction200_mc4/analysis_summary.json",
+      "records": 200,
+      "completed_shards": 100,
+      "missing_shards": 0,
+      "future_samples": 4,
+      "max_actions": 0,
+      "profile": "stage9f_p2",
+      "opponent_profile": "stage9f_p2",
+      "t3_continuation": "stage7_m5_r10",
+      "seat_counts": {
+        "first": 100,
+        "second": 100
+      },
+      "invalid_action_rows": 0,
+      "invalid_state_rows": 0,
+      "mean_seconds_per_sample": 35.28388833713,
+      "mean_action_count": 26.385,
+      "coverage": {
+        "existing2_min_rank": {
+          "summary": "outputs/hu_turn1_stage2_stage9f_p2/gcp_allaction200_mc4/coverage/existing2_min_rank/summary.json",
+          "k10_recall": 0.77,
+          "k10_avg_topk_regret": 0.7389119457455666,
+          "k20_recall": 0.97,
+          "k20_avg_topk_regret": 0.07931755153670864,
+          "k20_max_topk_regret": 11.863510307341727,
+          "k25_recall": 1.0,
+          "k25_avg_topk_regret": 0.0
+        },
+        "existing2_plus_hgb_listwise_max_z_score": {
+          "summary": "outputs/hu_turn1_stage2_stage9f_p2/gcp_allaction200_mc4/coverage/existing2_plus_hgb_listwise_max_z_score/summary.json",
+          "candidate_models": [
+            "models/hu_turn1_stage2_candidate1000_union_b_e_broad1k_top20_cap25_mc32_hgb_regressor.pkl",
+            "models/hu_turn1_stage2_candidate1200_union_top20_mc16_mc32_hgb_regressor.pkl",
+            "models/hu_turn1_stage2_top20cap25_mc32_1k_hgb_regressor.pkl",
+            "models/hu_turn1_stage2_top20cap25_mc32_1k_listwise_torch.pt"
+          ],
+          "union_mode": "max_z_score",
+          "k10_recall": 0.81,
+          "k10_avg_topk_regret": 0.4672978092202518,
+          "k20_recall": 0.97,
+          "k20_avg_topk_regret": 0.03960132691771591,
+          "k20_max_topk_regret": 3.5567551536708635,
+          "k25_recall": 1.0,
+          "k25_avg_topk_regret": 0.0
+        }
+      },
+      "decision": "The all-action200 sentinel confirms that k25 inclusion is clean for the active existing 2-model union, while adding the 1k HGB/listwise models with max_z_score ordering materially reduces k10/k20 average regret and k20 tail loss. T1 remains runtime/production No-Go; next work is calibrated candidate ordering plus larger candidate-subset MC32/MC64 relabeling."
+    }
+  },
+  "gates": {
+    "teacher_smoke": "pass",
+    "all_action_speed_smoke": "pass",
+    "all_action_pilot100_mc16_gcp": "No-Go_speed",
+    "candidate_top5_mc16_gcp": "execution_pass_undercoverage",
+    "candidate_top10_mc16_gcp": "execution_pass_coverage_unresolved",
+    "candidate_coverage_audit40_mc4": "No-Go_current_candidate_model",
+    "stage1b_candidate_top15_mc16_gcp": "execution_pass_needs_fresh_heldout_coverage",
+    "fresh_all_action_audit40_mc4": "completed_candidate_coverage_still_mixed",
+    "stage1b_stage1e_union_top18_mc16_gcp": "execution_pass_speed_heavy_needs_more_coverage_evidence",
+    "stage1e_top20_mc16_gcp": "execution_pass_speed_heavy_needs_more_coverage_or_incomplete_label_training",
+    "union_top20_cap22_candidate100_mc16": "complete_candidate_subset_pilot_training_go_as_incomplete_labels_only",
+    "candidate100_commonseed_training_smoke": "Go_hgb_regressor_only_candidate_subset_model_not_runtime",
+    "union_top20_cap22_broad_1k_mc16": "Go_candidate_set_teacher_generation_only",
+    "candidate1000_hgb_regressor_training": "Go_candidate_subset_model_only_not_runtime",
+    "candidate_top10_or_top15_probe": "Superseded_by_stage1e_top20_or_union_top18_probe",
+    "broad_1k_mc16": "Go_as_candidate_set_training_data_only_not_runtime",
+    "selected_mc32_refinement": "pending",
+    "allaction200_mc4_candidate_coverage": "completed_candidate_ordering_next",
+    "training_smoke": "Go_candidate_subset_objective_only",
+    "runtime_topk_confirm": "pending",
+    "production_or_p2": "No-Go",
+    "union4_maxz_top20cap25_mc32_pilot400_balanced": "completed_clean_balanced_candidate_subset_pilot",
+    "pilot400_candidate_model_training": "diagnostic_only_more_data_needed",
+    "union4_maxz_top20cap25_mc32_balanced2k": "completed_clean_balanced_candidate_subset_relabel",
+    "balanced2k_candidate_model_training": "Go_HGB_and_listwise_as_candidate_union_members",
+    "t1_completion": "No-Go_more_high_mc_sentinel_relabel_and_runtime_eval_needed"
+  },
+  "experiments": {
+    "stage2": {
+      "union4_maxz_top20cap25_mc32_pilot400_balanced": {
+        "status": "completed_balanced_candidate_subset_pilot",
+        "first_run_name": "regular-hu-t1-stage2-union4-maxz-top20cap25-mc32-pilot200-20260626-001",
+        "second_run_name": "regular-hu-t1-stage2-union4-maxz-top20cap25-mc32-pilot200-second-20260626-001",
+        "output_dir": "outputs/hu_turn1_stage2_stage9f_p2/gcp_union4_maxz_top20cap25_mc32_pilot200_balanced",
+        "merged_output": "outputs/hu_turn1_stage2_stage9f_p2/gcp_union4_maxz_top20cap25_mc32_pilot200_balanced/hu_turn1_stage1_pilot.jsonl",
+        "analysis_summary": "outputs/hu_turn1_stage2_stage9f_p2/gcp_union4_maxz_top20cap25_mc32_pilot200_balanced/analysis_summary.json",
+        "records": 400,
+        "future_samples": 32,
+        "candidate_topk": 20,
+        "candidate_union_cap": 25,
+        "candidate_union_mode": "max_z_score",
+        "seat_counts": {
+          "first": 200,
+          "second": 200
+        },
+        "seat_balance_ratio": 1.0,
+        "invalid_action_rows": 0,
+        "invalid_state_rows": 0,
+        "best_action_not_legal": 0,
+        "duplicate_sample_ids": 0,
+        "actions_truncated": 377,
+        "mean_action_count": 23.2175,
+        "score_gap_mean": 1.4059595390971469,
+        "best_action_se_mean": 2.668813751804946,
+        "aggregate_seconds_per_sample": {
+          "first_only": 208.4238,
+          "second_only": 238.9869
+        },
+        "trained_candidate_models": {
+          "hgb_regressor": {
+            "model": "models/hu_turn1_stage2_union4_maxz_top20cap25_mc32_pilot400_hgb_regressor.pkl",
+            "metrics": "outputs/training/hu_turn1_stage2_union4_maxz_top20cap25_mc32_pilot400_hgb_regressor/metrics.json",
+            "holdout_top10_best_avg_regret": 0.046342920434335654,
+            "holdout_top15_best_avg_regret": 0.0,
+            "decision": "do_not_use_standalone_yet_overfits_low_k_but_useful_as_diagnostic_union_member"
+          },
+          "listwise_torch": {
+            "model": "models/hu_turn1_stage2_union4_maxz_top20cap25_mc32_pilot400_listwise_torch.pt",
+            "metrics": "outputs/training/hu_turn1_stage2_union4_maxz_top20cap25_mc32_pilot400_listwise_torch/metrics.json",
+            "holdout_top20_best_avg_regret": 0.0,
+            "decision": "do_not_use_standalone_yet_overfits_low_k"
+          },
+          "pairwise_logistic": {
+            "model": "models/hu_turn1_stage2_union4_maxz_top20cap25_mc32_pilot400_pairwise_logistic.pkl",
+            "metrics": "outputs/training/hu_turn1_stage2_union4_maxz_top20cap25_mc32_pilot400_pairwise_logistic/metrics.json",
+            "holdout_top20_best_avg_regret": 0.0,
+            "decision": "candidate_union_diagnostic_only"
+          }
+        },
+        "external_allaction200_coverage": {
+          "existing4_maxz": {
+            "summary": "outputs/hu_turn1_stage2_stage9f_p2/gcp_allaction200_mc4/coverage_external_pilot400/existing4_maxz/summary.json",
+            "k10_recall": 0.81,
+            "k10_avg_regret": 0.4673241880620234,
+            "k20_recall": 0.97,
+            "k20_avg_regret": 0.03960132730506295,
+            "k20_max_regret": 3.5567551536708635
+          },
+          "existing4_plus_pilot400_hgb_maxz": {
+            "summary": "outputs/hu_turn1_stage2_stage9f_p2/gcp_allaction200_mc4/coverage_external_pilot400/existing4_plus_pilot400_hgb_maxz/summary.json",
+            "k10_recall": 0.79,
+            "k10_avg_regret": 0.5685741880620234,
+            "k20_recall": 0.955,
+            "k20_avg_regret": 0.03960132730506295,
+            "k20_max_regret": 3.5567551536708635
+          },
+          "existing4_plus_pilot400_listwise_maxz": {
+            "summary": "outputs/hu_turn1_stage2_stage9f_p2/gcp_allaction200_mc4/coverage_external_pilot400/existing4_plus_pilot400_listwise_maxz/summary.json",
+            "k10_recall": 0.785,
+            "k10_avg_regret": 0.47243908498860615,
+            "k15_avg_regret": 0.11016887884177158,
+            "k20_recall": 0.97,
+            "k20_avg_regret": 0.03960132730506295,
+            "k20_max_regret": 3.5567551536708635
+          },
+          "existing4_plus_pilot400_pairwise_maxz": {
+            "summary": "outputs/hu_turn1_stage2_stage9f_p2/gcp_allaction200_mc4/coverage_external_pilot400/existing4_plus_pilot400_pairwise_maxz/summary.json",
+            "k10_recall": 0.78,
+            "k10_avg_regret": 0.5032904122936691,
+            "k20_recall": 0.96,
+            "k20_avg_regret": 0.021817551536708633,
+            "k20_max_regret": 3.363510307341727
+          }
+        },
+        "decision": "Balanced MC32 pilot is clean and confirms the 4-model max_z Top20/cap25 path is viable for candidate-subset labeling. The new pilot400 models should not replace the existing generator standalone; next step is larger balanced candidate-subset MC32/MC64 relabeling, then retrain with more data."
+      },
+      "union4_maxz_top20cap25_mc32_balanced2k": {
+        "status": "completed_clean_balanced_candidate_subset_relabel",
+        "run_name": "regular-hu-t1-stage2-union4-maxz-top20cap25-mc32-balanced2k-20260626-001",
+        "output_dir": "outputs/hu_turn1_stage2_stage9f_p2/gcp_union4_maxz_top20cap25_mc32_balanced2k",
+        "merged_output": "outputs/hu_turn1_stage2_stage9f_p2/gcp_union4_maxz_top20cap25_mc32_balanced2k/hu_turn1_stage1_pilot.jsonl",
+        "analysis_summary": "outputs/hu_turn1_stage2_stage9f_p2/gcp_union4_maxz_top20cap25_mc32_balanced2k/analysis_summary.json",
+        "records": 2000,
+        "expected_shards": 1000,
+        "completed_shards": 1000,
+        "future_samples": 32,
+        "candidate_topk": 20,
+        "candidate_union_cap": 25,
+        "candidate_union_mode": "max_z_score",
+        "seat_counts": {
+          "first": 1000,
+          "second": 1000
+        },
+        "seat_balance_ratio": 1.0,
+        "invalid_action_rows": 0,
+        "invalid_state_rows": 0,
+        "best_action_not_legal": 0,
+        "duplicate_sample_ids": 0,
+        "duplicate_state_keys": 0,
+        "actions_truncated": 1874,
+        "mean_action_count": 23.2355,
+        "score_gap_mean": 1.3781831362497898,
+        "best_action_se_mean": 2.698043383936817,
+        "mean_seconds_per_sample": 239.2603163868395,
+        "trained_candidate_models": {
+          "hgb_regressor": {
+            "model": "models/hu_turn1_stage2_union4_maxz_top20cap25_mc32_balanced2k_hgb_regressor.pkl",
+            "metrics": "outputs/training/hu_turn1_stage2_union4_maxz_top20cap25_mc32_balanced2k_hgb_regressor/metrics.json",
+            "holdout_top1_best_avg_regret": 1.288710876124047,
+            "holdout_top10_best_avg_regret": 0.05342988562357578,
+            "holdout_top20_best_avg_regret": 0.007538845840743593,
+            "decision": "useful_candidate_union_member"
+          },
+          "listwise_torch": {
+            "model": "models/hu_turn1_stage2_union4_maxz_top20cap25_mc32_balanced2k_listwise_torch.pt",
+            "metrics": "outputs/training/hu_turn1_stage2_union4_maxz_top20cap25_mc32_balanced2k_listwise_torch/metrics.json",
+            "holdout_top1_best_avg_regret": 1.39432912838465,
+            "holdout_top10_best_avg_regret": 0.054843316681487175,
+            "holdout_top20_best_avg_regret": 0.005486485985522145,
+            "decision": "useful_candidate_union_member"
+          },
+          "pairwise_logistic": {
+            "model": "models/hu_turn1_stage2_union4_maxz_top20cap25_mc32_balanced2k_pairwise_logistic.pkl",
+            "metrics": "outputs/training/hu_turn1_stage2_union4_maxz_top20cap25_mc32_balanced2k_pairwise_logistic/metrics.json",
+            "holdout_top10_best_avg_regret": 0.050514343580142194,
+            "holdout_top20_best_avg_regret": 0.002265625,
+            "decision": "do_not_add_to_active_pool_external_k20_recall_worse"
+          },
+          "extra_trees_regressor": {
+            "model": "models/hu_turn1_stage2_union4_maxz_top20cap25_mc32_balanced2k_extra_trees_regressor.pkl",
+            "metrics": "outputs/training/hu_turn1_stage2_union4_maxz_top20cap25_mc32_balanced2k_extra_trees_regressor/metrics.json",
+            "holdout_top10_best_avg_regret": 0.08940242427610723,
+            "holdout_top20_best_avg_regret": 0.016981415913132868,
+            "decision": "no_adopt"
+          }
+        },
+        "external_allaction200_coverage": {
+          "existing4_maxz": {
+            "summary": "outputs/hu_turn1_stage2_stage9f_p2/coverage_allaction200_existing4_maxz_top20/summary.json",
+            "k10_recall": 0.81,
+            "k10_avg_regret": 0.4673241880620234,
+            "k15_recall": 0.89,
+            "k15_avg_regret": 0.19130398191518885,
+            "k20_recall": 0.97,
+            "k20_avg_regret": 0.03960132730506295,
+            "k20_max_regret": 3.5567551536708635
+          },
+          "existing4_plus_balanced2k_hgb_listwise_maxz": {
+            "summary": "outputs/hu_turn1_stage2_stage9f_p2/coverage_allaction200_existing4_plus_balanced2k_hgb_listwise_maxz_top20/summary.json",
+            "k10_recall": 0.815,
+            "k10_avg_regret": 0.46522286075696045,
+            "k15_recall": 0.91,
+            "k15_avg_regret": 0.14852020614683453,
+            "k20_recall": 0.98,
+            "k20_avg_regret": 0.021817551536708633,
+            "k20_max_regret": 3.363510307341727
+          },
+          "existing4_plus_all_balanced2k_models_maxz": {
+            "summary": "outputs/hu_turn1_stage2_stage9f_p2/coverage_allaction200_existing4_plus_balanced2k_hgb_listwise_pairwise_maxz_top20/summary.json",
+            "k10_recall": 0.815,
+            "k10_avg_regret": 0.46522286075696045,
+            "k15_recall": 0.91,
+            "k15_avg_regret": 0.1217026546101259,
+            "k20_recall": 0.965,
+            "k20_avg_regret": 0.03210132730506295,
+            "k20_max_regret": 3.363510307341727
+          }
+        },
+        "six_model_union_ordering_allaction200": {
+          "recommended_mode": "max_z_score",
+          "modes": {
+            "max_z_score": {
+              "summary": "outputs/hu_turn1_stage2_stage9f_p2/coverage_allaction200_6model_max_z_score_top20/summary.json",
+              "k10_recall": 0.815,
+              "k10_avg_regret": 0.46522286075696045,
+              "k15_recall": 0.91,
+              "k15_avg_regret": 0.14852020614683453,
+              "k20_recall": 0.98,
+              "k20_avg_regret": 0.021817551536708633,
+              "k20_max_regret": 3.363510307341727
+            },
+            "min_rank": {
+              "summary": "outputs/hu_turn1_stage2_stage9f_p2/coverage_allaction200_6model_min_rank_top20/summary.json",
+              "k10_recall": 0.825,
+              "k10_avg_regret": 0.49550663652531473,
+              "k15_recall": 0.905,
+              "k15_avg_regret": 0.15255398191518886,
+              "k20_recall": 0.965,
+              "k20_avg_regret": 0.030567551536708636,
+              "k20_max_regret": 3.363510307341727
+            },
+            "rank_sum": {
+              "summary": "outputs/hu_turn1_stage2_stage9f_p2/coverage_allaction200_6model_rank_sum_top20/summary.json",
+              "k20_recall": 0.975,
+              "k20_avg_regret": 0.033351327305062956,
+              "k20_max_regret": 3.363510307341727
+            },
+            "reciprocal_rank_sum": {
+              "summary": "outputs/hu_turn1_stage2_stage9f_p2/coverage_allaction200_6model_reciprocal_rank_sum_top20/summary.json",
+              "k20_recall": 0.97,
+              "k20_avg_regret": 0.033351327305062956,
+              "k20_max_regret": 3.363510307341727
+            },
+            "max_score": {
+              "summary": "outputs/hu_turn1_stage2_stage9f_p2/coverage_allaction200_6model_max_score_top20/summary.json",
+              "k15_recall": 0.91,
+              "k15_avg_regret": 0.12141887884177158,
+              "k20_recall": 0.975,
+              "k20_avg_regret": 0.03960132730506295,
+              "k20_max_regret": 3.363510307341727
+            },
+            "mean_z_score": {
+              "summary": "outputs/hu_turn1_stage2_stage9f_p2/coverage_allaction200_6model_mean_z_score_top20/summary.json",
+              "k20_recall": 0.97,
+              "k20_avg_regret": 0.03613510276718872,
+              "k20_max_regret": 3.363510307341727
+            },
+            "mean_score": {
+              "summary": "outputs/hu_turn1_stage2_stage9f_p2/coverage_allaction200_6model_mean_score_top20/summary.json",
+              "k20_recall": 0.965,
+              "k20_avg_regret": 0.04613510276718872,
+              "k20_max_regret": 3.363510307341727
+            }
+          },
+          "decision": "max_z_score remains the best guardrail mode because it has the lowest k20 average regret and best k20 recall among tested 6-model orderings."
+        },
+        "recommended_next_candidate_pool": {
+          "candidate_models": [
+            "models/hu_turn1_stage2_candidate1000_union_b_e_broad1k_top20_cap25_mc32_hgb_regressor.pkl",
+            "models/hu_turn1_stage2_candidate1200_union_top20_mc16_mc32_hgb_regressor.pkl",
+            "models/hu_turn1_stage2_top20cap25_mc32_1k_hgb_regressor.pkl",
+            "models/hu_turn1_stage2_top20cap25_mc32_1k_listwise_torch.pt",
+            "models/hu_turn1_stage2_union4_maxz_top20cap25_mc32_balanced2k_hgb_regressor.pkl",
+            "models/hu_turn1_stage2_union4_maxz_top20cap25_mc32_balanced2k_listwise_torch.pt"
+          ],
+          "candidate_topk": 20,
+          "candidate_union_cap": 25,
+          "candidate_union_mode": "max_z_score",
+          "excluded_models": [
+            "models/hu_turn1_stage2_union4_maxz_top20cap25_mc32_balanced2k_pairwise_logistic.pkl",
+            "models/hu_turn1_stage2_union4_maxz_top20cap25_mc32_balanced2k_extra_trees_regressor.pkl"
+          ]
+        },
+        "six_model_teacher_path_smoke": {
+          "status": "pass",
+          "output": "outputs/hu_turn1_stage2_stage9f_p2/smoke_6model_maxz_top20cap25_mc1/hu_turn1_stage1_pilot.jsonl",
+          "summary": "outputs/hu_turn1_stage2_stage9f_p2/smoke_6model_maxz_top20cap25_mc1/summary.json",
+          "analysis_summary": "outputs/hu_turn1_stage2_stage9f_p2/smoke_6model_maxz_top20cap25_mc1/analysis_summary.json",
+          "records": 2,
+          "seat_counts": {
+            "first": 1,
+            "second": 1
+          },
+          "invalid_action_rows": 0,
+          "invalid_state_rows": 0,
+          "best_action_not_legal": 0,
+          "t2_continuation_profile": "stage9f_p2",
+          "t3_continuation": "stage7_m5_r10",
+          "decision": "6-model max_z_score Top20/cap25 pool loads and executes cleanly."
+        },
+        "six_model_mc64_balanced1k_relabel": {
+          "run_name": "regular-hu-t1-stage2-6model-maxz-top20cap25-mc64-balanced1k-20260627-001",
+          "output_dir": "outputs/hu_turn1_stage2_stage9f_p2/gcp_6model_maxz_top20cap25_mc64_balanced1k",
+          "merged_output": "outputs/hu_turn1_stage2_stage9f_p2/gcp_6model_maxz_top20cap25_mc64_balanced1k/hu_turn1_stage1_pilot.jsonl",
+          "analysis_summary": "outputs/hu_turn1_stage2_stage9f_p2/gcp_6model_maxz_top20cap25_mc64_balanced1k/analysis_summary.json",
+          "records": 1000,
+          "seat_counts": {
+            "first": 500,
+            "second": 500
+          },
+          "future_samples": 64,
+          "invalid_action_rows": 0,
+          "invalid_state_rows": 0,
+          "best_action_not_legal": 0,
+          "mean_seconds_per_sample": 473.109572701995,
+          "mean_action_count": 23.778,
+          "trained_models": {
+            "hgb_regressor": {
+              "model": "models/hu_turn1_stage2_6model_maxz_top20cap25_mc64_balanced1k_hgb_regressor.pkl",
+              "metrics": "outputs/training/hu_turn1_stage2_6model_maxz_top20cap25_mc64_balanced1k_hgb_regressor/metrics.json",
+              "holdout_top1_regret": 0.9419799306007881,
+              "holdout_top10_regret": 0.030702258362974372,
+              "holdout_top15_regret": 0.005252110985522145,
+              "holdout_top20_regret": 0.0030291390144778552
+            },
+            "listwise_torch": {
+              "model": "models/hu_turn1_stage2_6model_maxz_top20cap25_mc64_balanced1k_listwise_torch.pt",
+              "metrics": "outputs/training/hu_turn1_stage2_6model_maxz_top20cap25_mc64_balanced1k_listwise_torch/metrics.json",
+              "holdout_top1_regret": 1.2442459889193014,
+              "holdout_top10_regret": 0.03989652463805362,
+              "holdout_top15_regret": 0.004907512884177159,
+              "holdout_top20_regret": 0.00425422197104429
+            }
+          },
+          "external_allaction200_coverage": {
+            "baseline_6model_max_z_score": {
+              "summary": "outputs/hu_turn1_stage2_stage9f_p2/coverage_allaction200_6model_max_z_score_top20/summary.json",
+              "k20_recall": 0.98,
+              "k20_avg_regret": 0.021817551536708633,
+              "k20_max_regret": 3.363510307341727
+            },
+            "plus_mc64_hgb": {
+              "summary": "outputs/hu_turn1_stage2_stage9f_p2/coverage_allaction200_7model_plus_mc64_hgb_maxz_top20/summary.json",
+              "k20_recall": 0.98,
+              "k20_avg_regret": 0.021817551536708633,
+              "k20_max_regret": 3.363510307341727
+            },
+            "plus_mc64_listwise": {
+              "summary": "outputs/hu_turn1_stage2_stage9f_p2/coverage_allaction200_7model_plus_mc64_listwise_maxz_top20/summary.json",
+              "k20_recall": 0.98,
+              "k20_avg_regret": 0.021817551536708633,
+              "k20_max_regret": 3.363510307341727
+            },
+            "plus_mc64_hgb_listwise": {
+              "summary": "outputs/hu_turn1_stage2_stage9f_p2/coverage_allaction200_8model_plus_mc64_hgb_listwise_maxz_top20/summary.json",
+              "k20_recall": 0.98,
+              "k20_avg_regret": 0.021817551536708633,
+              "k20_max_regret": 3.363510307341727
+            },
+            "k20_miss_samples": [
+              {
+                "sample_id": 21000001,
+                "seat": "second",
+                "top20_regret": 1.0
+              },
+              {
+                "sample_id": 49000000,
+                "seat": "first",
+                "top20_regret": 0.0
+              },
+              {
+                "sample_id": 63000001,
+                "seat": "second",
+                "top20_regret": 0.0
+              },
+              {
+                "sample_id": 66000000,
+                "seat": "first",
+                "top20_regret": 3.363510307341727
+              }
+            ]
+          },
+          "k20_miss4_mc64_allaction_relabel": {
+            "run_name": "regular-hu-t1-stage2-k20-miss4-mc64-relabel-20260627-001",
+            "output_dir": "outputs/hu_turn1_stage2_stage9f_p2/k20_miss4_relabel_mc64_allactions_gcp",
+            "merged_output": "outputs/hu_turn1_stage2_stage9f_p2/k20_miss4_relabel_mc64_allactions_gcp/hu_turn1_refinement_relabel.jsonl",
+            "summary": "outputs/hu_turn1_stage2_stage9f_p2/k20_miss4_relabel_mc64_allactions_gcp/summary.json",
+            "analysis_summary": "outputs/hu_turn1_stage2_stage9f_p2/k20_miss4_relabel_mc64_allactions_gcp/analysis_summary.json",
+            "records": 4,
+            "future_samples": 64,
+            "skipped_targets": 0,
+            "best_action_changed": 4,
+            "score_gap_mean": 0.2911951514477855,
+            "score_gap_max": 0.65625,
+            "existing_6model_coverage_after_relabel": {
+              "summary": "outputs/hu_turn1_stage2_stage9f_p2/k20_miss4_relabel_mc64_allactions_gcp/coverage_6model_maxz_top20/summary.json",
+              "k5_recall": 1.0,
+              "k20_recall": 1.0,
+              "k20_avg_regret": 0.0,
+              "k20_max_regret": 0.0
+            },
+            "decision": "The four external all-action200 MC4 k20 misses are not structural candidate-pool omissions after MC64 relabeling. All four source best actions changed, relabeled score gaps are under 1.0, and the existing 6-model max_z_score Top20 pool covers the relabeled best actions by k5."
+          },
+          "decision": "MC64 balanced1k is clean and useful diagnostic data, but the new HGB/listwise models do not improve external all-action200 k20 coverage over the existing 6-model max_z_score Top20/cap25 pool. Keep the 6-model pool active; the apparent four external k20 misses were MC4/near-tie artifacts after MC64 all-action relabel."
+        },
+        "decision": "Balanced2k improves the active candidate pool on external all-action200 when adding HGB+listwise. T1 remains runtime/production No-Go; proceed to larger or higher-MC sentinel/relabel using the 6-model pool."
+      }
+    }
+  }
+}

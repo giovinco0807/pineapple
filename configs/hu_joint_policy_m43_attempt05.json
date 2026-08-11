@@ -1,0 +1,248 @@
+{
+  "schema": "hu_m43_attempt05_plan_v1",
+  "milestone": "M4.3-attempt05",
+  "status_date": "2026-07-14",
+  "status": "frozen_pre_pilot_generation",
+  "purpose": "top4_search_teacher_development_with_independent_audits_and_attempt04_acceptance_holdouts_preserved",
+  "rule_set": "heads_up_regular_ofc_pineapple_hidden_opponent_discards",
+  "fixed_baseline_profile": "stage18_p1",
+  "fixed_continuation": {
+    "t2_profile": "stage9f_p2",
+    "t3_selector": "m3_rust_evaluate_t3",
+    "t4_selector": "m3_rust_evaluate_t4"
+  },
+  "profiles": [
+    "stage19_p0",
+    "stage9f_p2",
+    "stage7_m5_r10",
+    "stage3_baseline",
+    "random_exact_final"
+  ],
+  "prior_attempt04_development": {
+    "classification": "development_only_already_consumed_not_a_fresh_gate",
+    "roots": 900,
+    "eligible_count": 0,
+    "artifact": "outputs/hu_joint_policy/m43_attempt04_dev900/meta_all_gain_conformal_final_pilot.json",
+    "allowed_use": "freeze_attempt05_family_before_new_pilot_only",
+    "acceptance_or_generalization_claim_allowed": false,
+    "threshold_reselection_allowed": false
+  },
+  "budget": {
+    "kind": "sequential_bounded_development_before_sealed_acceptance",
+    "fresh_development_roots": 1000,
+    "fresh_development_shards": 100,
+    "roots_per_shard": 10,
+    "profiles": 5,
+    "roots_per_profile": 200,
+    "pilot_roots_before_expand": 250,
+    "expand_roots_after_pilot_go_only": 750,
+    "inherited_sealed_acceptance_roots": 700,
+    "spot_script_overhaul_authorized": false,
+    "large_scale_authorized": false
+  },
+  "development_roles": {
+    "pilot_train": {
+      "roots": 200,
+      "shards": 20,
+      "roots_per_profile": 40,
+      "seed_start": 17106071901,
+      "candidate_seed_start": 23106071901,
+      "evaluation_seed_start": 24106071901,
+      "child_policy_seed_start": 25106071901,
+      "allowed_use": "fit_search_setting_candidates_only",
+      "audit_or_threshold_fit_allowed": false
+    },
+    "pilot_audit": {
+      "roots": 50,
+      "shards": 5,
+      "roots_per_profile": 10,
+      "seed_start": 17306071901,
+      "candidate_seed_start": 23306071901,
+      "evaluation_seed_start": 24306071901,
+      "child_policy_seed_start": 25306071901,
+      "allowed_use": "one_shot_pilot_go_no_go_and_e4_e8_choice_only",
+      "fit_allowed": false,
+      "threshold_reselection_allowed": false
+    },
+    "expand_train": {
+      "roots": 600,
+      "shards": 60,
+      "roots_per_profile": 120,
+      "seed_start": 17506071901,
+      "candidate_seed_start": 23506071901,
+      "evaluation_seed_start": 24506071901,
+      "child_policy_seed_start": 25506071901,
+      "allowed_use": "fit_frozen_pilot_winner_after_pilot_audit_go_only",
+      "audit_or_threshold_fit_allowed": false
+    },
+    "final_audit": {
+      "roots": 150,
+      "shards": 15,
+      "roots_per_profile": 30,
+      "seed_start": 17706071901,
+      "candidate_seed_start": 23706071901,
+      "evaluation_seed_start": 24706071901,
+      "child_policy_seed_start": 25706071901,
+      "allowed_use": "one_shot_final_development_go_no_go_only",
+      "fit_allowed": false,
+      "threshold_reselection_allowed": false
+    }
+  },
+  "teacher_search": {
+    "candidate_top_k": 4,
+    "search_evaluation_samples_candidates": [4, 8],
+    "final_teacher_label_evaluation_samples": 128,
+    "common_random_futures": true,
+    "candidate_selection_and_final_evaluation_rng_disjoint": true,
+    "candidate_seed_namespace": "hu-m43-attempt05-candidate-v1",
+    "evaluation_seed_namespace": "hu-m43-attempt05-evaluation-v1",
+    "child_policy_seed_namespace": "hu-m43-attempt05-child-v1",
+    "namespace_domain_separation": "role_shard",
+    "action_mapping_must_match_exactly": true,
+    "illegal_action_masking_required": true
+  },
+  "development_lifecycle": {
+    "role_order": ["pilot_train", "pilot_audit", "expand_train", "final_audit"],
+    "pilot_train_fit_only": true,
+    "pilot_audit_one_shot_only": true,
+    "expand_requires_pilot_audit_go": true,
+    "search_evaluation_setting_frozen_before_expand": true,
+    "final_audit_one_shot_only": true,
+    "final_audit_fit_allowed": false,
+    "attempt04_acceptance_roles_open_only_after_final_audit_go": true,
+    "fresh_data_required_after_model_feature_search_or_gate_change": true
+  },
+  "threshold_contract": {
+    "grid": [0.50, 0.55, 0.60, 0.65, 0.70, 0.75, 0.80, 0.85, 0.90, 0.925, 0.95, 0.975, 0.99],
+    "source": "hu_m43_attempt04_training.M43_ATTEMPT04_CONFIDENCE_THRESHOLDS",
+    "fixed_before_fresh_attempt05_generation": true,
+    "audit_or_locked_threshold_research_allowed": false,
+    "teacher_lcb_as_runtime_gate_allowed": false
+  },
+  "inherited_attempt04_acceptance_roles": {
+    "precal_holdout": {
+      "classification": "inherited_unopened",
+      "roots": 300,
+      "shards": 30,
+      "roots_per_profile": 60,
+      "seed_start": 13106071901,
+      "candidate_seed_start": 20106071901,
+      "evaluation_seed_start": 21106071901,
+      "child_policy_seed_start": 22106071901,
+      "open_after": "attempt05_final_audit_go"
+    },
+    "calibration_safety_fit": {
+      "classification": "inherited_unopened",
+      "roots": 100,
+      "shards": 10,
+      "roots_per_profile": 20,
+      "seed_start": 13506071901,
+      "candidate_seed_start": 20506071901,
+      "evaluation_seed_start": 21506071901,
+      "child_policy_seed_start": 22506071901,
+      "open_after": "attempt05_precal_go"
+    },
+    "calibration_threshold_lock": {
+      "classification": "inherited_unopened",
+      "roots": 100,
+      "shards": 10,
+      "roots_per_profile": 20,
+      "seed_start": 13606071901,
+      "candidate_seed_start": 20606071901,
+      "evaluation_seed_start": 21606071901,
+      "child_policy_seed_start": 22606071901,
+      "open_after": "attempt05_safety_fit_complete"
+    },
+    "locked_holdout": {
+      "classification": "inherited_unopened",
+      "roots": 200,
+      "shards": 20,
+      "roots_per_profile": 40,
+      "seed_start": 13806071901,
+      "candidate_seed_start": 20806071901,
+      "evaluation_seed_start": 21806071901,
+      "child_policy_seed_start": 22806071901,
+      "open_after": "attempt05_model_and_threshold_freeze"
+    }
+  },
+  "population_acceptance": {
+    "classification": "inherited_unopened",
+    "paired_seat_swap": true,
+    "opponents": 4,
+    "paired_seeds_per_opponent": 1000,
+    "shards": 20,
+    "paired_seeds_per_shard": 50,
+    "seed_start": 14106071901,
+    "seed_stride": 1000003,
+    "open_after": "attempt05_locked_holdout_go",
+    "threshold_reselection_allowed": false
+  },
+  "freshness": {
+    "seed_stride": 1000003,
+    "planned_schedule_overlap_count_at_freeze": 0,
+    "reject_hand_seed_or_fingerprint_overlap": true,
+    "audit_all_hand_candidate_evaluation_child_and_population_namespaces": true,
+    "prior_manifest_source": {
+      "path": "configs/hu_joint_policy_m43_attempt03_population.json",
+      "file_sha256_at_attempt05_freeze": "c7374c3b13381b35cdcc9e8a1997f58d622d9d49d3c3936dbc1cd7036e6cf44e"
+    },
+    "excluded_hand_schedules": [
+      {"name": "m4.correctness_smoke", "seed_start": 2026071401, "count": 1},
+      {"name": "m4.train_a", "seed_start": 3026072001, "count": 32},
+      {"name": "m4.train_b", "seed_start": 4026072001, "count": 32},
+      {"name": "m4.calibration", "seed_start": 5026072001, "count": 24},
+      {"name": "m4.locked_holdout", "seed_start": 6026072001, "count": 24},
+      {"name": "m41.correctness_smoke", "seed_start": 9026072001, "count": 1},
+      {"name": "m41.train_a", "seed_start": 10026072001, "count": 25},
+      {"name": "m41.train_b", "seed_start": 20026072001, "count": 25},
+      {"name": "m41.calibration", "seed_start": 30026072001, "count": 30},
+      {"name": "m41.locked_holdout", "seed_start": 40026072001, "count": 20},
+      {"name": "m42.correctness_smoke", "seed_start": 50026072001, "count": 1},
+      {"name": "m42.train", "seed_start": 1706071901, "count": 20},
+      {"name": "m42.calibration", "seed_start": 1806071901, "count": 10},
+      {"name": "m42.locked_holdout", "seed_start": 1906071901, "count": 10},
+      {"name": "m43_attempt01.train", "seed_start": 2306071901, "count": 100},
+      {"name": "m43_attempt01.calibration", "seed_start": 2506071901, "count": 60},
+      {"name": "m43_attempt01.locked_holdout", "seed_start": 2706071901, "count": 40},
+      {"name": "m43_attempt02.train", "seed_start": 7106071901, "count": 200},
+      {"name": "m43_attempt02.calibration", "seed_start": 7506071901, "count": 100},
+      {"name": "m43_attempt03.train_fit", "seed_start": 9106071901, "count": 500},
+      {"name": "m43_attempt03.precal_holdout", "seed_start": 9506071901, "count": 200}
+    ],
+    "excluded_rng_schedules": [
+      {"name": "m43_attempt02.train.candidate", "seed_start": 7906071901, "count": 20},
+      {"name": "m43_attempt02.train.evaluation", "seed_start": 8306071901, "count": 20},
+      {"name": "m43_attempt02.train.child", "seed_start": 8706071901, "count": 20},
+      {"name": "m43_attempt02.calibration.candidate", "seed_start": 8106071901, "count": 10},
+      {"name": "m43_attempt02.calibration.evaluation", "seed_start": 8506071901, "count": 10},
+      {"name": "m43_attempt02.calibration.child", "seed_start": 8906071901, "count": 10},
+      {"name": "m43_attempt03.train_fit.candidate", "seed_start": 9906071901, "count": 50},
+      {"name": "m43_attempt03.train_fit.evaluation", "seed_start": 10706071901, "count": 50},
+      {"name": "m43_attempt03.train_fit.child", "seed_start": 11506071901, "count": 50},
+      {"name": "m43_attempt03.precal.candidate", "seed_start": 10306071901, "count": 20},
+      {"name": "m43_attempt03.precal.evaluation", "seed_start": 11106071901, "count": 20},
+      {"name": "m43_attempt03.precal.child", "seed_start": 11906071901, "count": 20}
+    ],
+    "excluded_population_schedules": [
+      {"name": "m4.population", "seed_start": 7026072001, "count": 2},
+      {"name": "m41.population", "seed_start": 50026072001, "count": 2},
+      {"name": "m42.population", "seed_start": 2126071901, "count": 2},
+      {"name": "m43_attempt02.population", "seed_start": 6106071901, "count": 1000},
+      {"name": "m43_attempt03.population", "seed_start": 12106071901, "count": 1000}
+    ]
+  },
+  "baseline_hash_audit": {
+    "policy_registry_path": "src/ofc_regular/ai_profiles.py",
+    "policy_registry_expected_sha256": "d2eb02669e27426623c70af21f1af4d7002db2a7eab77efd3319f8fb65b868d3",
+    "current_mapping_changed": false
+  },
+  "activation_guards": {
+    "current_profile_changed": false,
+    "runtime_policy_activated": false,
+    "full_replacement_enabled": false,
+    "teacher_lcb_runtime_gate_enabled": false,
+    "spot_script_overhauled": false,
+    "spot_run_started": false,
+    "large_scale_authorized": false
+  }
+}

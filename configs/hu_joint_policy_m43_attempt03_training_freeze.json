@@ -1,0 +1,71 @@
+{
+  "decision_boundary": {
+    "attempt03_fit_jsonl_content_parse_count": 1,
+    "attempt03_fit_row_valued_labels_or_metrics_used_for_design": 0,
+    "attempt03_fit_rows_received_locally": 1,
+    "attempt03_fit_rows_structurally_inspected": 1,
+    "cloud_teacher_rows_may_exist": true,
+    "inherited_locked_rows_opened": 0,
+    "precalibration_rows_opened": 0,
+    "sealed_calibration_rows_opened": 0,
+    "source_or_config_selected_from_row_values": false
+  },
+  "executable_sources": {
+    "files": {
+      "configs/hu_joint_policy_m43_attempt03_training_science_correction.json": "186debcf54d55a2ca0a1fc847779fe02b14c1af3aebb9423ae8ebbc560d66a82",
+      "scripts/Get-GcpHuM43Attempt03ModelRunStatus.ps1": "3b169c0dd171c151f75703cb15c1c251d842e07ad52fa36a0c225c60a0af304b",
+      "scripts/HuM43Attempt03ModelSpot.Common.ps1": "649d1b7192b9bfd4f300502f52ceba05ac0535610199249c9a79a0d19220fe08",
+      "scripts/Receive-GcpHuM43Attempt03ModelRun.ps1": "82099cf2e8615ca82549fb8bbe9a9877e0825ab857d20c5425ddcefa1628b75a",
+      "scripts/Run-HuM43Attempt03ModelJobShard.ps1": "0b9ccff068e971b8dde71a3d11b2ab22688676a70f3d41eeb933eb5bcf155428",
+      "scripts/Start-GcpHuM43Attempt03ModelRun.ps1": "f84d981eb1fbb0f75cc8a98bb9b06c190afd6c6f674be43d31ffa1a325b22b87",
+      "src/ofc_regular/action_key.py": "ff777a084fa1044d22f4f05ee6fa24a6a877e11f7cd2cd217e5f18e89e00ebf0",
+      "src/ofc_regular/assemble_hu_m43_attempt03_model.py": "b34e325dc506fc831adf9c8162caafcb0922be950c925c795e3118c68aab9e11",
+      "src/ofc_regular/build_hu_m43_attempt03_model_job_schedule.py": "a574d32d2e8401a2cff552d9df8f3801ac5a7dee01676b483a35e62531b7c16b",
+      "src/ofc_regular/build_hu_m43_attempt03_model_spot_package.py": "518fc5359b47eb03a5ea8931bbfecbac2c218dd52a7cc1222839a315a78e0ce8",
+      "src/ofc_regular/hu_m43_attempt03_training.py": "d6918cd5c6cdf636d12f29e6115d91182f78bc8176defc15177b2585452de870",
+      "src/ofc_regular/hu_m43_fold_training.py": "9f200c27ccebada037a16b445077e97e5f68393f16ce5707f20a4add0e1e50e1",
+      "src/ofc_regular/hu_m43_joint_model_v4.py": "1e358c076adfe586b7bd4261010301929011fc2015086654d25df59957dd27d0",
+      "src/ofc_regular/hu_m43_joint_model_v5.py": "64c5da4b694796dd0804c8e3fcc3578e6ceca9d99ff9453d162facd2c3940695",
+      "src/ofc_regular/hu_m43_pilot_contract.py": "f6c2e310ce44c728699f65eb4c0ba63ac09b88c4edd1f57446920f0344ca9d20",
+      "src/ofc_regular/hu_m4_joint_model.py": "0f47e363cb80e8c2061bf0baebb72fd521bc35753830d89e7632a50a26542c88",
+      "src/ofc_regular/hu_turn3_model.py": "ac6c246faf3ba2d806fa43afb6b871ef0e3a4e92808be5c48f867442d4064a57",
+      "src/ofc_regular/prepare_hu_m43_attempt03_fold_training.py": "c9ca3744f5789c7ac0dd65e299ffa5f59ad1e014ad4ebc501ef215ebecd461e5",
+      "src/ofc_regular/train_hu_m43_attempt03_fold_job.py": "be8aded7682d1375f80738c3758c2eae40ce047de1015ad31da80f4c9fb0fe24",
+      "src/ofc_regular/train_hu_m4_joint_model.py": "62a169f6e32d098cfcd63f60287343be8dc66d354d92368df279f429500621f0"
+    },
+    "files_sha256": "c9c4fcbee9c662b2ebe5400e4b521640ffde36401c49c69199bd61c29b7beb50",
+    "worker_files_sha256": "d504aec1aa6a97da2dc64748364cd28c8fd531e866d9a26414a14fbb2f5b4c37",
+    "worker_paths": [
+      "src/ofc_regular/action_key.py",
+      "src/ofc_regular/hu_m43_attempt03_training.py",
+      "src/ofc_regular/hu_m43_fold_training.py",
+      "src/ofc_regular/hu_m43_joint_model_v4.py",
+      "src/ofc_regular/hu_m43_joint_model_v5.py",
+      "src/ofc_regular/hu_m43_pilot_contract.py",
+      "src/ofc_regular/hu_m4_joint_model.py",
+      "src/ofc_regular/hu_turn3_model.py",
+      "src/ofc_regular/train_hu_m43_attempt03_fold_job.py",
+      "src/ofc_regular/train_hu_m4_joint_model.py"
+    ]
+  },
+  "freeze_sha256": "9b458811a11e4cfe08dc7953a17cdd17c80dda0849a5912f850d13ed82c28723",
+  "frozen_at": "2026-07-14T03:42:35+09:00",
+  "lifecycle": {
+    "current_profile_mutated": false,
+    "full_replacement": false,
+    "holdout_path_in_freeze": false,
+    "runtime_policy_activated": false,
+    "teacher_row_values_in_freeze": false
+  },
+  "milestone": "M4.3-attempt03",
+  "parent_model_freeze": {
+    "file_sha256": "8aed10b143172c9d3b2a98fca199e4fbe4324f5956406fea51c2d17fcb614b9d",
+    "path": "configs/hu_joint_policy_m43_attempt03_model_freeze.json"
+  },
+  "schema": "hu_m43_attempt03_training_pipeline_freeze_v1",
+  "status": "frozen_after_one_structural_train_fit_canary_before_row_valued_design_or_any_holdout_open",
+  "training_config": {
+    "canonical_sha256": "cbcf06c328173ba8222abc25d850f51f53960b516f94bdc207d61a0aaee82310",
+    "schema": "hu_m43_attempt03_v5_training_config_v1"
+  }
+}

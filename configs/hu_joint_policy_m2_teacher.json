@@ -1,0 +1,51 @@
+{
+  "schema": "hu_joint_policy_m2_teacher_config_v1",
+  "status_date": "2026-07-13",
+  "rule_set": "heads_up_regular_ofc_pineapple_hidden_opponent_discards",
+  "solver_scope": "python_correctness_reference",
+  "current_profile_changed": false,
+  "policy_promotion_allowed": false,
+  "large_scale_generation_allowed": false,
+  "t4": {
+    "first": {
+      "mode": "exact_uniform_exchangeable_marginal",
+      "future_deals": 2024,
+      "opponent_response": "terminal_exhaustive",
+      "value_equation": "max_a E_deal[min_response hero_terminal_score]"
+    },
+    "second": {
+      "mode": "terminal_exhaustive"
+    }
+  },
+  "t3_correctness_pilot": {
+    "candidate_samples": 2,
+    "evaluation_samples": 4,
+    "downstream_t3_samples": 1,
+    "downstream_t4_samples": 2,
+    "candidate_seed": 2026071301,
+    "evaluation_seed": 2026071302,
+    "continuation_seed": 2026071303,
+    "run_id": "hu-m2-correctness-pilot-v1",
+    "hand_count": 4,
+    "roots_per_hand": 2,
+    "source_seed_start": 202607130000,
+    "source_seed_stride": 1009
+  },
+  "required_gates": {
+    "first_t4_full_bruteforce_mismatch_count": 0,
+    "second_t4_terminal_mismatch_count": 0,
+    "t3_reduced_tree_mismatch_count": 0,
+    "scalar_batch_mismatch_count": 0,
+    "candidate_evaluation_rng_overlap_count": 0,
+    "hidden_truth_invariance_mismatch_count": 0,
+    "nonfire_trajectory_mismatch_count": 0,
+    "current_profile_changed": false
+  },
+  "interpretation": {
+    "teacher_value_is_match_ev": false,
+    "t3_is_full_game_exact": false,
+    "t4_first_is_exact_only_under_stated_uniform_belief": true,
+    "opponent_action_posterior_reweighting": "not_implemented_uniform_restart_abstraction",
+    "large_scale_next_step": "M3_Rust_only_after_python_reference_and_profile_gates"
+  }
+}

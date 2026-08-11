@@ -23,6 +23,8 @@ param(
     [int]$SeedStride = 1000000,
     [int]$PredictionThreads = 1,
     [int]$OpeningLookaheadSamples = 64,
+    [ValidateSet("stage3_reference_default", "stage7_m5_r10")]
+    [string]$T3Continuation = "stage3_reference_default",
     [int]$BootDiskGb = 50,
     [string[]]$StartShards = @(),
     [switch]$CreateInstances,
@@ -230,6 +232,7 @@ PREDICTION_THREADS="$(meta PREDICTION_THREADS)"
 SEED_STRIDE="$(meta SEED_STRIDE)"
 OPENING_LOOKAHEAD_SAMPLES="$(meta OPENING_LOOKAHEAD_SAMPLES)"
 HU_TURN2_STAGE8_MODEL="$(meta HU_TURN2_STAGE8_MODEL)"
+T3_CONTINUATION="$(meta T3_CONTINUATION)"
 INSTANCE_NAME="$(instance_meta name)"
 ZONE_PATH="$(instance_meta zone)"
 ZONE="${ZONE_PATH##*/}"
@@ -325,6 +328,7 @@ for (( shard=START_SHARD; shard<TOTAL_SHARDS; shard+=VM_COUNT )); do
     --device cpu \
     --prediction-threads "$PREDICTION_THREADS" \
     --opening-lookahead-samples "$OPENING_LOOKAHEAD_SAMPLES" \
+    --t3-continuation "$T3_CONTINUATION" \
     --progress-every 0 \
     --write-decision-log > "$log_path" 2>&1
   exit_code=$?
@@ -339,14 +343,14 @@ for (( shard=START_SHARD; shard<TOTAL_SHARDS; shard+=VM_COUNT )); do
     printf 'complete\n' > "${local_out}/DONE"
     gcloud storage cp "${local_out}/DONE" "$remote_marker" >/dev/null
     cat > "$status_path" <<EOF
-{"run_name":"$RUN_NAME","phase":"hu_t2_stage8_c3_seat_swap","shard":$shard,"config":"$config","seed":$seed,"games_per_seed":$games_per_seed,"status":"complete","instance":"$INSTANCE_NAME","zone":"$ZONE","elapsed_seconds":$elapsed,"started_at":"$started_at","finished_at":"$finished_at","output":"gs://${BUCKET}/runs/${RUN_NAME}/results/${output_prefix}"}
+{"run_name":"$RUN_NAME","phase":"hu_t2_stage8_c3_seat_swap","shard":$shard,"config":"$config","seed":$seed,"games_per_seed":$games_per_seed,"t3_continuation":"$T3_CONTINUATION","status":"complete","instance":"$INSTANCE_NAME","zone":"$ZONE","elapsed_seconds":$elapsed,"started_at":"$started_at","finished_at":"$finished_at","output":"gs://${BUCKET}/runs/${RUN_NAME}/results/${output_prefix}"}
 EOF
     gcloud storage cp "$status_path" "$status_remote" >/dev/null || true
   else
     log "failed shard=$shard exit=$exit_code elapsed=${elapsed}s"
     gcloud storage cp "$log_path" "gs://${BUCKET}/runs/${RUN_NAME}/logs/${output_prefix}.log" >/dev/null || true
     cat > "$status_path" <<EOF
-{"run_name":"$RUN_NAME","phase":"hu_t2_stage8_c3_seat_swap","shard":$shard,"config":"$config","seed":$seed,"games_per_seed":$games_per_seed,"status":"failed","instance":"$INSTANCE_NAME","zone":"$ZONE","exit_code":$exit_code,"elapsed_seconds":$elapsed,"started_at":"$started_at","finished_at":"$finished_at","log":"gs://${BUCKET}/runs/${RUN_NAME}/logs/${output_prefix}.log"}
+{"run_name":"$RUN_NAME","phase":"hu_t2_stage8_c3_seat_swap","shard":$shard,"config":"$config","seed":$seed,"games_per_seed":$games_per_seed,"t3_continuation":"$T3_CONTINUATION","status":"failed","instance":"$INSTANCE_NAME","zone":"$ZONE","exit_code":$exit_code,"elapsed_seconds":$elapsed,"started_at":"$started_at","finished_at":"$finished_at","log":"gs://${BUCKET}/runs/${RUN_NAME}/logs/${output_prefix}.log"}
 EOF
     gcloud storage cp "$status_path" "$status_remote" >/dev/null || true
     exit "$exit_code"
@@ -379,6 +383,7 @@ $manifest = [ordered]@{
     seed_stride = $SeedStride
     prediction_threads = $PredictionThreads
     opening_lookahead_samples = $OpeningLookaheadSamples
+    t3_continuation = $T3Continuation
     hu_turn2_stage8_model = $huTurn2Stage8ModelRepoPath
     source_uri = $sourceUri
     startup_uri = $startupUri
@@ -412,6 +417,7 @@ foreach ($i in $workerIndices) {
         "SEED_STRIDE=$SeedStride",
         "OPENING_LOOKAHEAD_SAMPLES=$OpeningLookaheadSamples",
         "HU_TURN2_STAGE8_MODEL=$huTurn2Stage8ModelRepoPath",
+        "T3_CONTINUATION=$T3Continuation",
         ("SELF_DELETE=" + ($(if ($NoSelfDelete) { "0" } else { "1" })))
     ) -join ","
 
@@ -456,6 +462,7 @@ foreach ($i in $workerIndices) {
     bucket = $Bucket
     phase = "hu_t2_stage8_c3_seat_swap"
     games_per_seed = $GamesPerSeed
+    t3_continuation = $T3Continuation
     configs = $configList
     seeds = $seedList
     total_shards = $totalShards

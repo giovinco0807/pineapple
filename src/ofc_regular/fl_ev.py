@@ -1,4 +1,10 @@
-"""Monte Carlo Fantasyland EV calculator for regular mode."""
+"""Legacy chain Fantasyland EV calculator for regular mode.
+
+The current default FL EV is produced by the direct HU fixed-point estimator in
+``estimate_hu_fl_ev_direct`` and loaded from ``configs/fl_ev_regular_2k.json``.
+This module remains useful for royalty/stay-rate smoke checks, but its chain
+formula is not the production calibration path.
+"""
 
 from __future__ import annotations
 
@@ -83,14 +89,28 @@ def estimate_fl_ev(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Estimate regular-mode 14-card FL EV")
+    parser = argparse.ArgumentParser(description="Legacy chain estimate for regular-mode 14-card FL EV")
     parser.add_argument("--trials", type=int, default=100, help="number of random FL hands")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--stay-bonus", type=float, default=100.0)
     parser.add_argument("--opponent-avg-royalty", type=float, default=5.0)
     parser.add_argument("--line-scoop-advantage", type=float, default=4.0)
     parser.add_argument("--output", type=Path)
+    parser.add_argument(
+        "--allow-legacy-chain-output",
+        action="store_true",
+        help=(
+            "Allow writing a legacy chain-estimate JSON config. Do not use this "
+            "for the current default FL EV; use estimate_hu_fl_ev_direct instead."
+        ),
+    )
     args = parser.parse_args()
+    if args.output and not args.allow_legacy_chain_output:
+        raise SystemExit(
+            "--output is disabled for the legacy chain estimator unless "
+            "--allow-legacy-chain-output is provided. Current default FL EV "
+            "comes from configs/fl_ev_regular_2k.json / estimate_hu_fl_ev_direct."
+        )
 
     summary = estimate_fl_ev(
         trials=args.trials,
@@ -101,7 +121,7 @@ def main() -> None:
     )
     config = summary.as_config(args.opponent_avg_royalty, args.line_scoop_advantage)
 
-    print("Regular FL EV")
+    print("Regular FL EV legacy chain smoke")
     print(f"  trials:       {summary.trials}")
     print(f"  solved:       {summary.solved}")
     print(f"  avg royalty:  {summary.avg_royalty:.3f}")

@@ -110,7 +110,7 @@ def build_action_source_weights(
         return None
     weights: list[float] = []
     for sample in samples:
-        weight = source_weights.get(str(sample.get("source", "unknown")), 1.0)
+        weight = source_weights.get(sample_source(sample), 1.0)
         weights.extend([weight] * len(sample.get("actions", ())))
     if not weights:
         raise ValueError("no action rows to weight")
@@ -120,8 +120,12 @@ def build_action_source_weights(
     return action_weights
 
 
+def sample_source(sample: dict) -> str:
+    return str(sample.get("source") or sample.get("label_source") or sample.get("profile") or "unknown")
+
+
 def source_counts(samples: Sequence[dict]) -> dict[str, int]:
-    return dict(Counter(str(sample.get("source", "unknown")) for sample in samples))
+    return dict(Counter(sample_source(sample) for sample in samples))
 
 
 def weighted_action_summary(weights: np.ndarray | None) -> dict[str, float]:

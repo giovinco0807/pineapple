@@ -143,10 +143,20 @@ def test_only_exact_fresh_output_root_is_accepted(tmp_path: Path) -> None:
         subject.exact_output_root(step12l_identity.EXPECTED_OUTPUT_ROOT)
 
 
-def test_step12m_expected_root_is_new_and_absent() -> None:
+def test_step12m_expected_root_is_distinct_terminal_identity() -> None:
     assert subject.EXPECTED_OUTPUT_ROOT.name == "step12m_pair_v1_actual"
     assert subject.EXPECTED_OUTPUT_ROOT != step12l_identity.EXPECTED_OUTPUT_ROOT
-    assert not subject.EXPECTED_OUTPUT_ROOT.exists()
+
+
+def test_prelaunch_freshness_is_checked_on_an_unconsumed_root(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = tmp_path / "step12m_pair_v1_actual"
+    monkeypatch.setattr(subject, "EXPECTED_OUTPUT_ROOT", root)
+    assert subject.exact_output_root(root) == root.resolve()
+    root.mkdir()
+    with pytest.raises(FileExistsError, match="not fresh"):
+        subject.exact_output_root(root)
 
 
 def test_terminal_trees_and_closeouts_are_frozen() -> None:

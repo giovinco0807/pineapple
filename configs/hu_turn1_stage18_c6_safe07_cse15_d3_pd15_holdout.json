@@ -1,0 +1,88 @@
+{
+  "name": "hu_turn1_stage18_c6_safe07_cse15_d3_pd15_holdout",
+  "status": "fresh_holdout_preregistered_not_production",
+  "rule_set": "regular",
+  "schema": "hu_turn1_stage18_c6_holdout_v1",
+  "phase": "hu_turn1_7card",
+  "objective": "independent_validation_of_first_seat_t1_selective_override_after_c5_narrow_no_go",
+  "production_default": false,
+  "t1_p1_fixed": false,
+  "full_replacement_enabled": false,
+  "selection_data": [
+    "outputs/evals/hu_turn1_stage18_c4_safe03_30k_final/",
+    "outputs/evals/hu_turn1_stage18_c5_safe065_50k_final/"
+  ],
+  "candidate": {
+    "ai_profile": "stage9f_p2_hu_t1_topk_confirm",
+    "candidate_model": "models/hu_turn1_stage18_first1801_mc32_hgb_abs_aug3.pkl",
+    "safe_selector_model": "models/hu_turn1_stage18_highmc_safe_selector_a_meta_only.pkl",
+    "runtime_config": "k5/mc8/d3/confirm32/cse1.5/pd1.5/seat=first/safe0.7",
+    "selective_override_only": true,
+    "allowed_seats": [
+      "first"
+    ],
+    "fallback_policy": "stage9f_p2",
+    "t2_continuation": "stage9f_p2",
+    "t3_continuation": "stage7_m5_r10"
+  },
+  "development_evidence": {
+    "c4": {
+      "decisions": 60000,
+      "fires": 36,
+      "fire_rate": 0.0006,
+      "realized_per_fire_delta_mean": 4.098498854739808,
+      "realized_per_fire_ci95_low": 0.02479979389649145,
+      "estimated_ev_per_decision": 0.0024590993128438847,
+      "p95_loss": 23.477020614683454,
+      "max_loss": 25.227020614683454
+    },
+    "c5": {
+      "decisions": 100000,
+      "fires": 60,
+      "fire_rate": 0.0006,
+      "realized_per_fire_delta_mean": 4.948468040978897,
+      "realized_per_fire_ci95_low": 1.5464866994283741,
+      "estimated_ev_per_decision": 0.0029690808245873383,
+      "p95_loss": 22.277020614683448,
+      "max_loss": 27.227020614683454
+    },
+    "metric_source": "realized_seat_swap_counterfactual",
+    "confirm_delta_role": "gate_diagnostic_only"
+  },
+  "holdout": {
+    "run_name": "regular-hu-t1-stage18-c6-safe07-cse15-d3-pd15-250k-20260711-001",
+    "paired_seeds": 250000,
+    "decisions": 500000,
+    "shard_games": 50,
+    "total_shards": 5000,
+    "base_seed": 2026091001,
+    "seed_stride": 1000003,
+    "base_vm_count": 200,
+    "machine_type": "e2-standard-4",
+    "non_overlapping_with": [
+      "C4 base seed 2026079001",
+      "C5 base seed 2026083001"
+    ],
+    "threshold_adaptation_during_run": false
+  },
+  "acceptance": {
+    "minimum_fires": 250,
+    "realized_per_fire_delta_mean_gt": 0.0,
+    "realized_per_fire_ci95_low_gt": 0.0,
+    "estimated_ev_per_decision_ci95_low_gt": 0.0,
+    "whole_hand_ev_gt": 0.0,
+    "non_fired_counterfactual_nonzero_count": 0,
+    "non_fired_final_mismatch_count": 0,
+    "non_fired_final_unknown_count": 0,
+    "invalid_override_count": 0,
+    "p95_loss_max": 25.0,
+    "p99_loss_max": 40.0,
+    "max_loss_max": 50.0
+  },
+  "decision": {
+    "c6_holdout": "Go",
+    "production": "No-Go until C6 passes",
+    "t1_p1_fixed": "No-Go until C6 passes",
+    "t0": "No-Go until T1 is fixed"
+  }
+}

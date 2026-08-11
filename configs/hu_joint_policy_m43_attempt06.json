@@ -1,0 +1,313 @@
+{
+  "schema": "hu_m43_attempt06_corrected_pre_fresh_plan_v3",
+  "milestone": "M4.3-attempt06",
+  "status_date": "2026-07-14",
+  "status": "frozen_preflight",
+  "purpose": "lambda_rank8_c8_e128_one_shot_search_quality_audit_before_any_runtime_or_larger_generation",
+  "rule_set": "heads_up_regular_ofc_pineapple_hidden_opponent_discards",
+  "scope": {
+    "street": "T1",
+    "seat": "second",
+    "first_seat_behavior": "unchanged_stage18_p1_baseline",
+    "fixed_baseline_profile": "stage18_p1",
+    "current_profile_mutated": false,
+    "runtime_policy_activated": false,
+    "full_replacement_enabled": false
+  },
+  "attempt05_boundary": {
+    "status_path": "configs/hu_joint_policy_m43_attempt05_status.json",
+    "status": "complete_no_go_architecture_one_shot",
+    "attempt05_promotion_allowed": false,
+    "attempt05_candidate_artifact_runtime_authorized": false,
+    "old_dev900_classification": "multiple_use_development_only_not_fresh",
+    "teacher_values_are_realized_match_ev": false
+  },
+  "design_evidence": {
+    "architecture_report": {
+      "path": "outputs/hu_joint_policy/m43_attempt05_old_dev900_architecture_once/architecture_comparison.json",
+      "sha256": "c8c8f364632ec85c600572239a387bedcc0ccbf82d3ef1f87147233ac765553f",
+      "selected_family": null,
+      "allowed_use": "attempt06_design_only"
+    },
+    "candidate_set_diagnostic": {
+      "path": "outputs/hu_joint_policy/m43_attempt05_old_dev900_architecture_once/attempt06_candidate_set_diagnostic.json",
+      "sha256": "37c612600c5cf33424e487adf2bdff5db785f893fad92da096c39a294420360f",
+      "schema": "hu_m43_attempt06_lambda_strict_oof_candidate_sets_dev900_v1",
+      "original_status": "development_no_go_no_candidate_set_meets_coverage_gate",
+      "original_absolute_gate_invalidated_by_metric_correction": true,
+      "fresh_generalization_claim_allowed": false
+    },
+    "candidate_generator": {
+      "family": "lambda_rank",
+      "artifact_path": "outputs/hu_joint_policy/m43_attempt05_old_dev900_architecture_once/lambda_rank_candidate.pkl",
+      "artifact_sha256": "e7fa728308c8973e2e202baf79309e30b9b6f58c37431d8ea55850390abc28c3",
+      "strict_oof_design_evidence": true,
+      "frozen_for_attempt06_candidate_generation": true,
+      "runtime_model_frozen": false,
+      "runtime_enabled": false
+    }
+  },
+  "coverage_metric_correction": {
+    "classification": "pre_fresh_denominator_correction_not_threshold_retune",
+    "invalid_absolute_gate": {
+      "metric": "rank_set_positive_coverage_per_all_states",
+      "overall_min": 0.7,
+      "each_profile_min": 0.6,
+      "all_legal_opportunity_states": 565,
+      "all_states": 900,
+      "overall_mathematical_ceiling": 0.6277777777777778,
+      "minimum_profile_mathematical_ceiling": 0.5944444444444444,
+      "overall_gate_reachable": false,
+      "each_profile_gate_reachable": false,
+      "reason": "states with no positive legal nonbaseline action were counted as rank-set misses"
+    },
+    "corrected_metric": {
+      "name": "rank8_conditional_positive_recall",
+      "opportunity_definition": "state_has_at_least_one_legal_nonbaseline_action_with_independent_e64_paired_delta_gt_zero",
+      "coverage_definition": "rank8_contains_at_least_one_legal_nonbaseline_action_with_independent_e64_paired_delta_gt_zero",
+      "formula": "covered_opportunity_states / all_legal_opportunity_states",
+      "overall_min": 0.95,
+      "each_profile_min": 0.93,
+      "used_to_freeze_candidate_set_only": true,
+      "fresh_search_quality_audit_gate": false
+    },
+    "observed_multiple_use_dev900": {
+      "overall": {
+        "states": 900,
+        "opportunity_states": 565,
+        "rank8_covered_opportunity_states": 541,
+        "absolute_coverage": 0.6011111111111112,
+        "conditional_recall": 0.9575221238938053
+      },
+      "profile": {
+        "stage19_p0": {
+          "states": 180,
+          "opportunity_states": 109,
+          "rank8_covered_opportunity_states": 103,
+          "conditional_recall": 0.944954128440367
+        },
+        "stage9f_p2": {
+          "states": 180,
+          "opportunity_states": 111,
+          "rank8_covered_opportunity_states": 107,
+          "conditional_recall": 0.963963963963964
+        },
+        "stage7_m5_r10": {
+          "states": 180,
+          "opportunity_states": 107,
+          "rank8_covered_opportunity_states": 105,
+          "conditional_recall": 0.9813084112149533
+        },
+        "stage3_baseline": {
+          "states": 180,
+          "opportunity_states": 115,
+          "rank8_covered_opportunity_states": 108,
+          "conditional_recall": 0.9391304347826087
+        },
+        "random_exact_final": {
+          "states": 180,
+          "opportunity_states": 123,
+          "rank8_covered_opportunity_states": 118,
+          "conditional_recall": 0.959349593495935
+        }
+      },
+      "overall_gate_pass": true,
+      "each_profile_gate_pass": true,
+      "minimum_profile": "stage3_baseline",
+      "minimum_profile_conditional_recall": 0.9391304347826087,
+      "acceptance_or_runtime_claim_allowed": false
+    }
+  },
+  "search_contract": {
+    "teacher_schema": "hu_m43_attempt06_t1_second_top8_c8_e128_teacher_v3",
+    "action_key_schema": "regular_ofc_action_key_v1",
+    "candidate_generator": "lambda_rank_strict_action_scores",
+    "learned_nonbaseline_top_k": 8,
+    "baseline_added_exactly_once": true,
+    "complete_legal_action_set_required": true,
+    "illegal_action_masking_required": true,
+    "candidate_selection_samples": 8,
+    "independent_evaluation_samples": 128,
+    "independent_evaluation_raw_paired_deltas_retained": true,
+    "independent_evaluation_raw_count": 128,
+    "raw_summary_recomputed_with": "numpy_linear",
+    "independent_evaluation_action_scope": "locked_action_plus_explicit_baseline_only",
+    "unselected_candidate_evaluation_fields": "null",
+    "evaluation_pair_best_is_diagnostic_only": true,
+    "candidate_selected_before_evaluation_opened": true,
+    "evaluation_may_rerank": false,
+    "common_random_futures_across_actions": true,
+    "candidate_evaluation_rng_disjoint": true,
+    "candidate_ties": "ActionKey",
+    "search_ties": "ActionKey",
+    "profile_runtime_feature_allowed": false,
+    "opponent_private_discard_input_allowed": false,
+    "teacher_ev_or_lcb_runtime_gate_allowed": false
+  },
+  "fixed_continuation": {
+    "t2_policy_id": "stage9f_p2",
+    "t2_resolution": "explicit_profile_never_current",
+    "t3_selector": "m3_rust_evaluate_t3",
+    "t3_candidate_samples": 1,
+    "t3_evaluation_samples": 1,
+    "t3_downstream_t3_samples": 1,
+    "hypothetical_t1_search_direct_t4_mode": "counter_mc_1",
+    "hypothetical_t1_search_direct_t4_candidate_samples": 1,
+    "hypothetical_t1_search_direct_t4_evaluation_samples": 1,
+    "hypothetical_nested_t4_mode": "counter_mc_1",
+    "hypothetical_nested_t4_samples": 1,
+    "real_live_t4_selector": "exact_solver",
+    "real_live_t4_exact_unchanged": true
+  },
+  "audit_schedule_transfer": {
+    "source_plan": "configs/hu_joint_policy_m43_attempt05.json",
+    "source_role": "development_roles.pilot_audit",
+    "source_role_started": false,
+    "source_role_consumed": false,
+    "exclusive_owner_after_freeze": "M4.3-attempt06.search_quality_audit",
+    "attempt05_reuse_after_transfer_allowed": false,
+    "roots": 50,
+    "shards": 50,
+    "roots_per_shard": 1,
+    "shard_assignment": "one_root_per_shard_for_checkpoint_heartbeat_and_preemption_resume",
+    "profiles": [
+      "stage19_p0",
+      "stage9f_p2",
+      "stage7_m5_r10",
+      "stage3_baseline",
+      "random_exact_final"
+    ],
+    "roots_per_profile": 10,
+    "profile_assignment": "root_index_mod_5_in_frozen_profile_order",
+    "seed_stride": 1000003,
+    "hand_seed_start": 17306071901,
+    "candidate_seed_start": 23306071901,
+    "evaluation_seed_start": 24306071901,
+    "child_policy_seed_start": 25306071901,
+    "seed_granularity": "one_hand_candidate_evaluation_child_tuple_per_root",
+    "candidate_evaluation_child_seed_count": 50,
+    "per_root_seed_formula": "namespace_seed_start + seed_stride * root_index for root_index 0..49",
+    "candidate_seed_namespace": "hu-m43-attempt06-candidate-v1",
+    "evaluation_seed_namespace": "hu-m43-attempt06-evaluation-v1",
+    "child_policy_seed_namespace": "hu-m43-attempt06-child-v1",
+    "numeric_seed_sets_pairwise_disjoint": true
+  },
+  "one_shot_search_quality_audit": {
+    "classification": "fresh_one_shot_search_quality_only",
+    "fit_allowed": false,
+    "model_change_allowed": false,
+    "threshold_selection_allowed": false,
+    "gate_reselection_allowed": false,
+    "retry_same_seeds_after_open_allowed": false,
+    "one_shot_consumption_marker_required_before_content_read": true,
+    "teacher_values_reported_as_realized_match_ev": false,
+    "larger_generation_or_acceptance_authorized_by_go": false,
+    "go_authorizes_only": "create_a_separate_freeze_for_fresh_200_root_fit_and_distillation",
+    "fresh_200_root_fit_or_distillation_authorized_by_this_plan": false,
+    "no_go_action": "close_attempt06_without_fit_threshold_retry_or_spot_expansion"
+  },
+  "search_quality_go_no_go": {
+    "all_gates_required": true,
+    "fires_total_min": 10,
+    "fires_each_profile_min": 1,
+    "mean_delta_per_state_strictly_greater_than": 0.0,
+    "mean_delta_per_fire_strictly_greater_than": 0.0,
+    "false_positive_definition": "fired_action_independent_e128_paired_delta_vs_baseline_lte_zero",
+    "false_positive_rate_per_fire_max": 0.5,
+    "tail_gate_semantics": {
+      "variant": "B_per_fired_root_independent_e128_paired_future_tail_then_max_across_fires",
+      "paired_future_count_per_fired_root": 128,
+      "within_root_quantile_method": "numpy_linear",
+      "per_fired_root_metrics": {
+        "p95_loss": "max(0,-p05(independent_e128_paired_future_deltas))",
+        "p99_loss": "max(0,-p01(independent_e128_paired_future_deltas))",
+        "max_loss": "max(0,-min(independent_e128_paired_future_deltas))"
+      },
+      "audit_gate_aggregation": {
+        "p95_loss": "maximum_per_fired_root_p95_loss",
+        "p99_loss": "maximum_per_fired_root_p99_loss",
+        "max_loss": "maximum_per_fired_root_max_loss"
+      },
+      "paired_mean_cross_fire_tail": {
+        "per_fired_root_loss": "max(0,-independent_e128_paired_delta_mean)",
+        "aggregation": "numpy_quantile_across_fired_roots",
+        "classification": "diagnostic_only_not_gate"
+      },
+      "aligned_with": "Attempt04_locked_selected_action_paired_p05_p01_min_maxima"
+    },
+    "override_loss_p95_max": 25.0,
+    "override_loss_p99_max": 40.0,
+    "override_loss_max": 50.0,
+    "action_mapping_violation_count_max": 0,
+    "rng_domain_violation_count_max": 0,
+    "hidden_information_violation_count_max": 0,
+    "go_action": "create_separate_freeze_before_authorizing_fresh_200_root_fit_or_distillation",
+    "go_directly_authorizes_fresh_200_root_fit_or_distillation": false,
+    "no_go_action": "close_attempt06_without_fit_threshold_retry_or_spot_expansion"
+  },
+  "pre_spot_requirements": {
+    "required_order": [
+      "local_correctness",
+      "determinism",
+      "scalar_batch_exact_parity",
+      "latency_profile"
+    ],
+    "local_correctness": "focused contract infoset mapping and fail_closed tests pass",
+    "determinism": "repeat run digests identical for fixed inputs and seeds",
+    "scalar_batch_exact_parity": "scalar_batch_same_budget_parity_and_bounded_exact_reference_mapping_parity; mc1_value_need_not_equal_exact_value",
+    "latency_profile": "record top8_c8_e128 and bounded exact reference timings before Spot decision",
+    "native_batch_threads": 4,
+    "batch_child_selectors_required": true,
+    "config_sha256_contract": "sha256_of_canonical_attempt06_fixed_contract",
+    "config_sha256_cross_bind_required": [
+      "teacher_row_provenance",
+      "checkpoint",
+      "heartbeat",
+      "generator_summary",
+      "done"
+    ],
+    "spot_may_start_only_after_all_pass": true,
+    "spot_authorized_at_freeze": false,
+    "spot_preemption_recovery": {
+      "classification": "claim_preserving_deterministic_rematerialization_not_fresh_audit_retry",
+      "allowed_only_when_root_claim_is_byte_identical": true,
+      "allowed_only_when_immutable_root_object_is_absent": true,
+      "same_run_root_hand_seed_profile_required": true,
+      "same_deterministic_seed_path_required": true,
+      "same_frozen_source_startup_config_closure_required": true,
+      "claim_bound_hashes": [
+        "source_sha256",
+        "startup_sha256",
+        "source_closure_sha256",
+        "manifest_sha256",
+        "schedule_sha256",
+        "plan_sha256",
+        "status_sha256",
+        "model_sha256",
+        "source_model_manifest_sha256",
+        "source_native_manifest_sha256"
+      ],
+      "alternate_sample_allowed": false,
+      "fresh_audit_retry_allowed": false,
+      "post_result_retry_allowed": false,
+      "mismatch_action": "fail_closed_without_materializing_root"
+    }
+  },
+  "baseline_hash_audit": {
+    "policy_registry_path": "src/ofc_regular/ai_profiles.py",
+    "policy_registry_expected_sha256": "d2eb02669e27426623c70af21f1af4d7002db2a7eab77efd3319f8fb65b868d3",
+    "current_mapping_changed": false
+  },
+  "activation_guards": {
+    "current_profile_changed": false,
+    "runtime_policy_activated": false,
+    "full_replacement_enabled": false,
+    "fresh_audit_started": false,
+    "spot_run_started": false,
+    "fit_started": false,
+    "threshold_selection_started": false,
+    "acceptance_holdout_opened": false,
+    "population_evaluation_started": false,
+    "large_scale_authorized": false
+  }
+}

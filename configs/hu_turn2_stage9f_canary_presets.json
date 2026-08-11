@@ -1,0 +1,173 @@
+{
+  "name": "hu_turn2_stage9f_canary_presets",
+  "status": "preflight_canary_matrix",
+  "rule_set": "regular",
+  "schema": "hu_stage9f_topk_confirm_canary_v1",
+  "phase": "hu_turn2_8card",
+  "model": {
+    "path": "models/hu_turn2_stage8b_safe_lcb196_20k_reference_override_cached_rank_wide.pt"
+  },
+  "t3_continuation": {
+    "profile": "stage7_m5_r10",
+    "hu_turn3_min_margin": 5.0,
+    "hu_turn3_reference_min_margin": 10.0
+  },
+  "presets": [
+    {
+      "name": "stage9f_off",
+      "production_default": false,
+      "validation_default": false,
+      "experiment_only": false,
+      "runtime": {
+        "enabled": false,
+        "config_string": "",
+        "fallback_policy": "baseline_turn2"
+      }
+    },
+    {
+      "name": "stage9f_cse1p5_firstseat",
+      "ai_profile": "stage9f_cse1p5_firstseat",
+      "production_default": false,
+      "validation_default": false,
+      "experiment_only": false,
+      "runtime": {
+        "enabled": true,
+        "config_string": "k3/mc16/d0/se0/confirm32/cse1.5/pd0/seat=first/bygate_delta",
+        "allowed_seats": [
+          "first"
+        ],
+        "full_replacement_enabled": false
+      }
+    },
+    {
+      "name": "stage9f_cse1_firstseat",
+      "ai_profile": null,
+      "production_default": false,
+      "validation_default": false,
+      "experiment_only": true,
+      "runtime": {
+        "enabled": true,
+        "config_string": "k3/mc16/d0/se0/confirm32/cse1/pd0/seat=first/bygate_delta",
+        "allowed_seats": [
+          "first"
+        ],
+        "full_replacement_enabled": false
+      }
+    },
+    {
+      "name": "stage9f_cse1p5_csemax3_firstseat",
+      "ai_profile": null,
+      "production_default": false,
+      "validation_default": false,
+      "experiment_only": true,
+      "runtime": {
+        "enabled": true,
+        "config_string": "k3/mc16/d0/se0/confirm32/cse1.5/csemax3/pd0/seat=first/bygate_delta",
+        "allowed_seats": [
+          "first"
+        ],
+        "full_replacement_enabled": false
+      },
+      "status": "rejected_guard"
+    },
+    {
+      "name": "stage9f_cse1p5_csemax2p5_firstseat",
+      "ai_profile": "stage9f_cse1p5_csemax2p5_firstseat",
+      "production_default": false,
+      "validation_default": false,
+      "experiment_only": true,
+      "runtime": {
+        "enabled": true,
+        "config_string": "k3/mc16/d0/se0/confirm32/cse1.5/csemax2.5/pd0/seat=first/bygate_delta",
+        "allowed_seats": [
+          "first"
+        ],
+        "full_replacement_enabled": false
+      },
+      "status": "tail_guard_candidate_from_profile_canary3500"
+    },
+    {
+      "name": "stage9f_cse2_csemax2p5_firstseat",
+      "ai_profile": "stage9f_cse2_csemax2p5_firstseat",
+      "production_default": false,
+      "validation_default": false,
+      "experiment_only": true,
+      "runtime": {
+        "enabled": true,
+        "config_string": "k3/mc16/d0/se0/confirm32/cse2/csemax2.5/pd0/seat=first/bygate_delta",
+        "allowed_seats": [
+          "first"
+        ],
+        "full_replacement_enabled": false
+      },
+      "status": "tail_guard_candidate_from_csemax2p5_retrospective_sweep"
+    },
+    {
+      "name": "stage9f_cse2_csemax2_firstseat",
+      "ai_profile": "stage9f_cse2_csemax2_firstseat",
+      "production_default": false,
+      "validation_default": false,
+      "experiment_only": true,
+      "runtime": {
+        "enabled": true,
+        "config_string": "k3/mc16/d0/se0/confirm32/cse2/csemax2/pd0/seat=first/bygate_delta",
+        "allowed_seats": [
+          "first"
+        ],
+        "full_replacement_enabled": false
+      },
+      "status": "independent_profile_canary10000_positive_tail_risk_validation_only"
+    },
+    {
+      "name": "stage9f_cse2_csemax2_bothseat",
+      "ai_profile": "stage9f_cse2_csemax2_bothseat",
+      "production_default": false,
+      "validation_default": true,
+      "experiment_only": false,
+      "runtime": {
+        "enabled": true,
+        "config_string": "k3/mc16/d0/se0/confirm32/cse2/csemax2/fcd0/scd0/pd0/seat=first+second/bygate_delta",
+        "allowed_seats": [
+          "first",
+          "second"
+        ],
+        "full_replacement_enabled": false
+      },
+      "status": "bothseat_production_like_canary30000_positive_promotion_review_ready"
+    },
+    {
+      "name": "stage9f_cse2_csemax2_rank1_firstseat",
+      "ai_profile": "stage9f_cse2_csemax2_rank1_firstseat",
+      "production_default": false,
+      "validation_default": false,
+      "experiment_only": true,
+      "runtime": {
+        "enabled": true,
+        "config_string": "k3/mc16/d0/se0/confirm32/cse2/csemax2/pd0/rank1/seat=first/bygate_delta",
+        "allowed_seats": [
+          "first"
+        ],
+        "full_replacement_enabled": false
+      },
+      "status": "rejected_after_partial_independent_validation_tail_loss"
+    }
+  ],
+  "production_excluded": [
+    {
+      "name": "stage9f_cse1p5_csemax3_firstseat",
+      "reason": "non-overlapping C4 validation lowered EV and worsened max loss"
+    },
+    {
+      "name": "stage9f_cse2_csemax2_rank1_firstseat",
+      "reason": "partial independent validation produced negative per-fire delta and max loss 24.2270"
+    },
+    {
+      "name": "production_runtime",
+      "reason": "both-seat Stage9f passed production-like canary, but production default still requires explicit promotion review"
+    },
+    {
+      "name": "full_replacement",
+      "reason": "Stage9f is selective override only"
+    }
+  ]
+}

@@ -1,10 +1,12 @@
 from ofc_regular.audit_hu_turn2_stage8_high_mc import (
+    build_batched_config,
     parse_configs,
     runtime_fired_rows,
     select_audit_states,
     stratified_for_replay,
     threshold_sweep_rows,
 )
+from types import SimpleNamespace
 
 
 def _row(**overrides):
@@ -35,7 +37,10 @@ def test_runtime_fired_rows_marks_missing_dead_cards_replay_ineligible(tmp_path)
     path = tmp_path / "runtime.jsonl"
     path.write_text(
         '{"override_fired":true,"config_id":"m2.5_r0_g0.9","hand_id":1}\n'
-        '{"override_fired":true,"config_id":"m2.5_r0_g0.9","hand_id":2,"dead_cards":["2c"]}\n',
+        '{"override_fired":true,"config_id":"m2.5_r0_g0.9","hand_id":2,"dead_cards":["2c"]}\n'
+        '{"override_fired":true,"config_id":"m2.5_r0_g0.9","hand_id":3,'
+        '"dead_cards":["2c","3c"],"visible_dead_cards":["Ah","2c"],'
+        '"hero_private_discards":["2c"],"opponent_private_discards":["3c"]}\n',
         encoding="utf-8",
     )
 
@@ -46,9 +51,14 @@ def test_runtime_fired_rows_marks_missing_dead_cards_replay_ineligible(tmp_path)
     assert rows[0]["exclude_from_exact_replay"] is True
     assert rows[0]["legacy_runtime_log"] is True
     assert rows[0]["missing_dead_cards"] is True
-    assert rows[0]["replay_blocker"] == "missing_dead_cards_in_legacy_runtime_log"
-    assert rows[1]["replay_ready"] is True
-    assert rows[1]["replay_ineligible"] is False
+    assert rows[0]["missing_hidden_discard_replay_metadata"] is True
+    assert rows[0]["replay_blocker"].startswith("missing_replay_fields:")
+    assert rows[1]["replay_ready"] is False
+    assert rows[1]["replay_ineligible"] is True
+    assert "visible_dead_cards" in rows[1]["replay_blocker"]
+    assert rows[2]["replay_ready"] is True
+    assert rows[2]["replay_ineligible"] is False
+    assert rows[2]["visible_dead_cards"] == ["Ah", "2c"]
 
 
 def test_select_audit_states_covers_fired_near_missed_and_suspected_fp():
@@ -176,3 +186,24 @@ def test_stratified_for_replay_honors_origin_buckets_without_duplicates():
         "near_fired",
     ]
     assert len({row["state_index"] for row in replay}) == len(replay)
+
+
+def test_high_mc_audit_batched_config_uses_stage3_default_and_stage7_opt_in():
+    base = {
+        "mc_samples": 4096,
+        "stage3_feature_encoder_mode": "rust_direct",
+        "batched_continuation_batch_size": 8192,
+        "hu_turn3_stage7_reference_model": "stage3-reference.pt",
+        "hu_turn3_stage7_model": "stage7.pt",
+    }
+
+    stage3 = build_batched_config(SimpleNamespace(**base, t3_continuation="stage3_reference_default"))
+    stage7 = build_batched_config(SimpleNamespace(**base, t3_continuation="stage7_m5_r10"))
+
+    assert stage3.stage7_enabled is False
+    assert stage3.hu_turn3_min_margin == 0.0
+    assert stage3.hu_turn3_reference_min_margin == 0.0
+
+    assert stage7.stage7_enabled is True
+    assert stage7.hu_turn3_min_margin == 5.0
+    assert stage7.hu_turn3_reference_min_margin == 10.0

@@ -1,0 +1,178 @@
+{
+  "name": "hu_turn2_stage9g_tail_guard_training_plan",
+  "status": "smoke_completed_more_labels_required",
+  "schema": "hu_turn2_stage9g_tail_guard_training_plan_v1",
+  "production_default": false,
+  "production_p2_fixed": false,
+  "full_replacement_enabled": false,
+  "teacher_50k": "No-Go",
+  "t1_training": "No-Go",
+  "objective": "learn a deployable tail-risk guard for Stage9f first-seat T2 fires",
+  "base_policy": {
+    "stage9f_validation_profile": "stage9f_cse2_csemax2_firstseat",
+    "runtime_config_string": "k3/mc16/d0/se0/confirm32/cse2/csemax2/pd0/seat=first/bygate_delta",
+    "role": "validation_only_candidate_generating_tail_guard_targets"
+  },
+  "t3_continuation": {
+    "profile": "stage7_m5_r10",
+    "model": "models/hu_turn3_stage7_reference_override_cached_rank_wide.pt",
+    "hu_turn3_min_margin": 5.0,
+    "hu_turn3_reference_min_margin": 10.0,
+    "full_replacement_enabled": false
+  },
+  "artifacts": {
+    "targets": "outputs/training/hu_turn2_stage9f_cse2_csemax2_tail_guard_targets_10000/stage9f_tail_guard_targets.jsonl",
+    "gcp_replay": "outputs/evals/hu_turn2_stage9f_tail_guard_replay_all_mc512_gcp/",
+    "dedup_labels": "outputs/evals/hu_turn2_stage9f_tail_guard_replay_all_mc512_gcp/labels/stage9f_tail_guard_labels_dedup.csv",
+    "training_rows": "outputs/training/hu_turn2_stage9g_tail_guard_training/stage9g_tail_guard_training_rows.jsonl",
+    "training_manifest": "outputs/training/hu_turn2_stage9g_tail_guard_training/stage9g_tail_guard_training_manifest.json",
+    "smoke_comparison": "outputs/training/hu_turn2_stage9g_tail_guard_smoke_comparison/",
+    "preconfirm_meta_model": "models/hu_turn2_stage9g_tail_guard_preconfirm_meta_smoke.pt",
+    "opportunity_preconfirm_model": "models/hu_turn2_stage9g_tail_guard_opportunity_preconfirm_smoke.pt",
+    "hu_delta_preconfirm_model": "models/hu_turn2_stage9g_tail_guard_hu_delta_preconfirm_smoke.pt"
+  },
+  "expanded_artifacts": {
+    "mixed_stage9f_targets": "outputs/training/hu_turn2_stage9g_more_tail_guard_targets_stage9f_mixed/stage9g_more_tail_guard_targets.jsonl",
+    "mixed_stage9f_readiness": "outputs/evals/hu_turn2_stage9g_more_tail_guard_replay_readiness_stage9f_mixed/",
+    "mixed_stage9f_gcp_replay": "outputs/evals/hu_turn2_stage9g_more_tail_guard_replay_stage9f_mixed_gcp/",
+    "mixed_stage9f_dedup_labels": "outputs/evals/hu_turn2_stage9g_more_tail_guard_replay_stage9f_mixed_gcp/labels/stage9f_tail_guard_labels_dedup.csv",
+    "mixed_stage9f_training_rows": "outputs/training/hu_turn2_stage9g_tail_guard_training_stage9f_mixed_mc512/stage9g_tail_guard_training_rows.jsonl",
+    "mixed_stage9f_hu_delta_model": "models/hu_turn2_stage9g_tail_guard_hu_delta_preconfirm_stage9f_mixed_mc512_smoke.pt",
+    "mixed_stage9f_preconfirm_model": "models/hu_turn2_stage9g_tail_guard_preconfirm_meta_stage9f_mixed_mc512_smoke.pt",
+    "mixed_stage9f_smoke_comparison": "outputs/training/hu_turn2_stage9g_tail_guard_stage9f_mixed_mc512_smoke_comparison/"
+  },
+  "data": {
+    "raw_replay_rows": 114,
+    "raw_hard_negative": 8,
+    "raw_safe_positive": 72,
+    "raw_gray": 34,
+    "dedup_label_rows": 89,
+    "duplicate_source_rows": 25,
+    "dedup_hard_negative": 5,
+    "dedup_safe_positive": 57,
+    "dedup_gray": 27,
+    "training_rows_excluding_gray": 62,
+    "training_hard_negative": 5,
+    "training_safe_control": 57
+  },
+  "expanded_stage9f_mixed_data": {
+    "source_runtime_rows": 50500,
+    "source_fired_realized": 386,
+    "target_rows": 317,
+    "target_replay_ready": 317,
+    "duplicate_source_rows_removed_before_replay": 118,
+    "target_tail_loss": 44,
+    "target_severe_tail_loss": 26,
+    "target_positive_control": 62,
+    "target_zero_control": 112,
+    "target_confirm_z_boundary": 99,
+    "gcp_run_name": "regular-hu-t2-stage9g-more-tailguard-replay-20260623-001",
+    "gcp_shards": 40,
+    "gcp_replay_rows": 317,
+    "gcp_replay_failures": 0,
+    "dedup_label_rows": 317,
+    "dedup_hard_negative": 21,
+    "dedup_safe_positive": 195,
+    "dedup_gray": 101,
+    "training_rows_excluding_gray": 216,
+    "training_hard_negative": 21,
+    "training_safe_control": 195
+  },
+  "smoke_results": {
+    "preconfirm_meta_only": {
+      "rows": 62,
+      "hard_negative": 5,
+      "all_average_precision": 0.4137104072,
+      "all_roc_auc": 0.698245614,
+      "test_average_precision": 1.0,
+      "test_roc_auc": 1.0,
+      "all_top1_precision": 1.0,
+      "all_top3_precision": 0.6666666667,
+      "threshold_0p7_selected_rows": 0,
+      "runtime_gate_decision": "No-Go"
+    },
+    "opportunity_proxy_plus_preconfirm_meta": {
+      "rows": 62,
+      "hard_negative": 5,
+      "all_average_precision": 0.3883952255,
+      "all_roc_auc": 0.6736842105,
+      "test_average_precision": 0.1111111111,
+      "test_roc_auc": 0.1111111111,
+      "all_top1_precision": 1.0,
+      "all_top3_precision": 0.3333333333,
+      "threshold_0p7_selected_rows": 0,
+      "runtime_gate_decision": "No-Go"
+    },
+    "hu_delta_plus_preconfirm_meta": {
+      "rows": 62,
+      "hard_negative": 5,
+      "all_average_precision": 0.5966666667,
+      "all_roc_auc": 0.9403508772,
+      "test_average_precision": 0.3333333333,
+      "test_roc_auc": 0.7777777778,
+      "all_top1_precision": 1.0,
+      "all_top3_precision": 0.6666666667,
+      "all_top5_precision": 0.4,
+      "threshold_0p5_selected_rows": 34,
+      "threshold_0p5_precision": 0.1470588235,
+      "threshold_0p7_selected_rows": 0,
+      "runtime_gate_decision": "No-Go"
+    }
+  },
+  "candidate_for_next_offline_ranking": {
+    "feature_mode": "hu_delta_plus_preconfirm_meta",
+    "reason": "best all-row AP/AUC and top-ranked hard-negative ordering in both the initial and expanded smokes, but probabilities are not calibrated for production runtime thresholds"
+  },
+  "expanded_smoke_results": {
+    "hu_delta_plus_preconfirm_meta": {
+      "rows": 216,
+      "hard_negative": 21,
+      "all_average_precision": 0.8389257015,
+      "all_roc_auc": 0.9516483516,
+      "val_average_precision": 0.2101449275,
+      "val_roc_auc": 0.6666666667,
+      "test_average_precision": 0.5111111111,
+      "test_roc_auc": 0.816091954,
+      "all_top1_precision": 1.0,
+      "all_top3_precision": 1.0,
+      "all_top5_precision": 1.0,
+      "threshold_0p5_selected_rows": 26,
+      "threshold_0p5_precision": 0.6538461538,
+      "threshold_0p6_selected_rows": 10,
+      "threshold_0p6_precision": 0.9,
+      "threshold_0p7_selected_rows": 0,
+      "runtime_gate_decision": "No-Go"
+    },
+    "preconfirm_meta_only": {
+      "rows": 216,
+      "hard_negative": 21,
+      "all_average_precision": 0.2508344843,
+      "all_roc_auc": 0.7282051282,
+      "test_average_precision": 0.2577639752,
+      "test_roc_auc": 0.6206896552,
+      "threshold_0p5_selected_rows": 101,
+      "threshold_0p5_precision": 0.1485148515,
+      "threshold_0p6_selected_rows": 0,
+      "runtime_gate_decision": "No-Go"
+    }
+  },
+  "hard_blocks_for_large_training": {
+    "hard_negative_count_too_small": 21,
+    "minimum_dedup_hard_negatives_before_large_training": 50,
+    "preferred_dedup_hard_negatives_before_large_training": 100,
+    "threshold_guard_not_usable": "expanded smoke improves threshold 0.6 precision, but validation split is still weak and hard-negative count remains below the minimum large-training gate"
+  },
+  "next_step": {
+    "name": "stage9g_more_high_mc_labels",
+    "decision": "Go",
+    "goal": "collect more deduped hard negatives and safe controls before large tail-guard training",
+    "sources": [
+      "Stage9f cse2/csemax2 fired losses",
+      "near-confirm-boundary fires",
+      "rank / confirm disagreement rows",
+      "positive controls from large confirmed gains",
+      "zero controls from non-firing comparable states"
+    ],
+    "compute": "Use GCP Spot VM when selected replay exceeds local interactive time."
+  }
+}

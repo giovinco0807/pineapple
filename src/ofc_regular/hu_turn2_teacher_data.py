@@ -1,4 +1,4 @@
-"""HU-aware Turn2 teacher data with fixed Stage7 Turn3 continuation."""
+"""HU-aware Turn2 teacher data with explicit Turn3 continuation selection."""
 
 from __future__ import annotations
 
@@ -18,7 +18,23 @@ from typing import Any, Iterable, Literal
 import numpy as np
 
 from .action_space import Action, generate_turn_actions
+from .action_key import (
+    ACTION_KEY_SCHEMA,
+    action_key,
+    canonical_argmax_index,
+    canonical_descending_indices,
+    legal_action_set_digest,
+    ordered_action_mapping_digest,
+)
 from .ai_profiles import (
+    DEFAULT_HU_TURN3_STAGE9D_GATE_MODEL,
+    DEFAULT_HU_TURN3_STAGE9D_MIN_GATE_PROBABILITY,
+    DEFAULT_HU_TURN3_STAGE9D_MIN_MARGIN,
+    DEFAULT_HU_TURN3_STAGE9D_MIN_MODEL_SCORE,
+    DEFAULT_HU_TURN3_STAGE9D_MIN_SUPPORT_MARGIN,
+    DEFAULT_HU_TURN3_STAGE9D_MODEL,
+    DEFAULT_HU_TURN3_STAGE9D_REFERENCE_MIN_MARGIN,
+    DEFAULT_HU_TURN3_STAGE9D_SUPPORT_MODEL,
     DEFAULT_HU_TURN3_STAGE7_MODEL,
     DEFAULT_HU_TURN3_STAGE7_REFERENCE_MIN_MARGIN,
     DEFAULT_HU_TURN3_STAGE7_REFERENCE_MODEL,
@@ -31,12 +47,22 @@ from .ai_profiles import (
     load_model_bundle,
 )
 from .cards import ALL_CARDS, create_deck, validate_cards
+from .counter_rng import COUNTER_RNG_SCHEMA, policy_decision_seed
 from .final_turn_decision_cache import (
     FinalTurnDecisionCache,
     decide_final_turn_exact,
     final_turn_slow_state_record,
 )
 from .hu_self_play_teacher_data import to_act_order_for
+from .hu_belief import HiddenCardParticleBatch, sample_hidden_card_particles
+from .hu_infoset import (
+    ActorObservation,
+    ReplayTruth,
+    ScoringContext,
+    actor_observation_from_record,
+    replay_truth_from_record,
+)
+from .hu_late_street_teacher import T4SearchConfig, select_t4_action
 from .hu_turn3_batch_continuation import (
     HuTurn3BatchModels,
     HuTurn3ActionCache,
@@ -49,10 +75,11 @@ from .hu_turn3_batch_continuation import (
     decide_hu_turn3_stage7_batch,
 )
 from .hu_turn3_model import hu_policy_sample
-from .play_ai import _prediction_thread_context
+from .play_ai import _prediction_thread_context, _visible_dead_cards_for
 from .policy import RegularAiPolicy, action_to_json, board_to_json, policy_sample
 from .state import Board
 from .teacher import DEFAULT_FL_EV, terminal_score
+from .evaluator import score_board
 from .turn3_model import load_action_value_model, sample_to_matrix as self_sample_to_matrix
 
 SourceBucket = Literal[
@@ -65,23 +92,28 @@ SourceBucket = Literal[
     "from_pool",
 ]
 
+T3ContinuationMode = Literal["stage3_reference_default", "stage7_m5_r10", "stage9d_p07_relaxed_both"]
+
+STAGE3_REFERENCE_CONTINUATION_NAME = "Stage3_HU_reference_default"
 STAGE7_CONTINUATION_NAME = "Stage7_candidate_A_m5_r10"
+STAGE9D_CONTINUATION_NAME = "Stage9d_second3seed_gate_p07_relaxed_both"
+DEFAULT_T3_CONTINUATION: T3ContinuationMode = "stage3_reference_default"
 BUCKET_PREFILTER_VERSION = "cheap_mc_v1"
 NO_ROLLOUT_PREFILTER_VERSION = "cheap_no_rollout_v1"
 
 
-def remaining_for_hu_turn2_teacher(
-    board: Board,
-    dealt_cards: Iterable[str],
+def _visible_dead_cards_for_turn2_state(
+    *,
     opponent_board: Board,
-    dead_cards: Iterable[str] = (),
+    dead_cards: Iterable[str],
+    visible_dead_cards: Iterable[str] | None = None,
+    hero_private_discards: Iterable[str] = (),
 ) -> tuple[str, ...]:
-    dealt = tuple(dealt_cards)
-    dead = tuple(dead_cards)
-    used_cards = (*board.all_cards(), *dealt, *opponent_board.all_cards(), *dead)
-    validate_cards(used_cards)
-    used = set(used_cards)
-    return tuple(card for card in ALL_CARDS if card not in used)
+    if visible_dead_cards is not None:
+        return tuple(visible_dead_cards)
+    hero_private = tuple(hero_private_discards)
+    fallback_dead = hero_private if hero_private else tuple(dead_cards)
+    return (*opponent_board.all_cards(), *fallback_dead)
 
 
 def hu_turn2_policy_sample(
@@ -114,10 +146,11 @@ def evaluate_hu_turn2_actions(
     board: Board,
     dealt_cards: Iterable[str],
     opponent_board: Board,
-    dead_cards: Iterable[str] = (),
     hero_seat: str,
     continuation_policy: RegularAiPolicy,
     opponent_policy: RegularAiPolicy,
+    continuation_policy_name: str = STAGE3_REFERENCE_CONTINUATION_NAME,
+    continuation_metadata: dict[str, Any] | None = None,
     baseline_turn2_model: object,
     future_samples: int,
     future_rollout_seed: int,
@@ -131,11 +164,31 @@ def evaluate_hu_turn2_actions(
     batched_continuation_batch_size: int = 8192,
     final_turn_cache: FinalTurnDecisionCache | None = None,
     use_final_turn_cache: bool = True,
+    t4_search_config: T4SearchConfig | None = None,
+    observation: ActorObservation | None = None,
+    belief_batch: HiddenCardParticleBatch | None = None,
 ) -> dict[str, Any] | None:
     if board.card_count() != 7:
         raise ValueError("HU Turn2 teacher requires a 7-card hero board")
     dealt = tuple(dealt_cards)
-    dead = tuple(dead_cards)
+    if observation is None or belief_batch is None:
+        raise ValueError(
+            "T2 teacher requires ActorObservation and HiddenCardParticleBatch"
+        )
+    if (
+        observation.hero_board != board
+        or observation.opponent_public_board != opponent_board
+        or observation.dealt_cards != dealt
+        or observation.seat != hero_seat
+        or observation.street != "T2"
+    ):
+        raise ValueError("belief root disagrees with the Turn2 decision state")
+    belief_batch.validate_against(observation)
+    if len(belief_batch.particles) != future_samples:
+        raise ValueError("belief particle count must equal future_samples")
+    hero_private = observation.hero_private_discards
+    visible_dead = observation.legacy_dead_cards()
+    rollout_dead_root = visible_dead
     sample_started_at = time.perf_counter()
     profile: dict[str, float] = {
         "state_collection_seconds": 0.0,
@@ -279,13 +332,11 @@ def evaluate_hu_turn2_actions(
         if not action_index_set:
             return None
     profile["evaluated_action_count"] = float(len(action_index_set))
-    remaining = remaining_for_hu_turn2_teacher(board, dealt, opponent_board, dead)
     future_started_at = time.perf_counter()
-    future_rollouts = _common_future_rollouts(
-        remaining,
-        future_samples=future_samples,
-        seed=future_rollout_seed,
-    )
+    future_rollouts = [particle.unseen_deck for particle in belief_batch.particles]
+    opponent_private_by_rollout = [
+        particle.opponent_private_discards for particle in belief_batch.particles
+    ]
     profile["common_future_generation_seconds"] += time.perf_counter() - future_started_at
     if not future_rollouts:
         return None
@@ -294,7 +345,7 @@ def evaluate_hu_turn2_actions(
     baseline_started_at = time.perf_counter()
     baseline_sample = policy_sample(board, dealt, actions)
     baseline_predictions = baseline_turn2_model.predict_sample(baseline_sample)
-    baseline_index = int(np.argmax(baseline_predictions))
+    baseline_index = canonical_argmax_index(baseline_predictions, actions)
     baseline_margin = _prediction_margin(baseline_predictions, baseline_index)
     profile["baseline_prediction_seconds"] += time.perf_counter() - baseline_started_at
     hero_log_start = _prepare_policy_log(continuation_policy)
@@ -305,9 +356,14 @@ def evaluate_hu_turn2_actions(
             actions=actions,
             action_indices=action_index_set,
             opponent_board=opponent_board,
-            dead_cards=dead,
+            dead_cards=rollout_dead_root,
+            hero_private_discards=hero_private,
+            opponent_private_discards=(),
+            opponent_private_discards_by_rollout=opponent_private_by_rollout,
             hero_seat=hero_seat,
             future_rollouts=future_rollouts,
+            future_rollout_seed=future_rollout_seed,
+            root_fingerprint=future_digest,
             hero_policy=continuation_policy,
             opponent_policy=opponent_policy,
             profile=profile,
@@ -319,6 +375,7 @@ def evaluate_hu_turn2_actions(
             batch_size=batched_continuation_batch_size,
             final_turn_cache=final_turn_cache,
             use_final_turn_cache=use_final_turn_cache,
+            t4_search_config=t4_search_config,
         )
     else:
         rollout_by_action: dict[int, _ActionRolloutAggregate] = {}
@@ -328,18 +385,26 @@ def evaluate_hu_turn2_actions(
             scores: list[float] = []
             hero_after_action = board.place(action.placements)
             action_rollout_started_at = time.perf_counter()
-            for future_cards in future_rollouts:
+            for future_index, (future_cards, rollout_opponent_private) in enumerate(
+                zip(future_rollouts, opponent_private_by_rollout)
+            ):
                 score = _rollout_after_hero_t2_action(
                     hero_board=hero_after_action,
                     opponent_board=opponent_board,
-                    dead_cards=(*dead, *action.discards),
+                    dead_cards=(*rollout_dead_root, *action.discards),
+                    hero_private_discards=(*hero_private, *action.discards),
+                    opponent_private_discards=rollout_opponent_private,
                     hero_seat=hero_seat,
                     future_cards=list(future_cards),
+                    future_index=future_index,
+                    future_rollout_seed=future_rollout_seed,
+                    root_fingerprint=future_digest,
                     hero_policy=continuation_policy,
                     opponent_policy=opponent_policy,
                     profile=profile,
                     final_turn_cache=final_turn_cache,
                     use_final_turn_cache=use_final_turn_cache,
+                    t4_search_config=t4_search_config,
                 )
                 if score is not None:
                     scores.append(score)
@@ -366,6 +431,7 @@ def evaluate_hu_turn2_actions(
                 "rollout_count": len(scores),
                 "future_count": len(scores),
                 "original_index": action_index,
+                "canonical_action_key": action_key(action).to_token(),
                 "baseline_model_score": float(baseline_predictions[action_index]),
                 "common_random_future_digest": future_digest,
                 "stage7_t3_eval_count": aggregate.t3_eval_count,
@@ -383,7 +449,9 @@ def evaluate_hu_turn2_actions(
 
     if not action_records:
         return None
-    action_records.sort(key=lambda item: float(item["score"]), reverse=True)
+    action_records.sort(
+        key=lambda item: (-float(item["score"]), str(item["canonical_action_key"]))
+    )
     best = action_records[0]
     second = action_records[1] if len(action_records) > 1 else None
     baseline = _find_sorted_action(action_records, baseline_index)
@@ -398,6 +466,7 @@ def evaluate_hu_turn2_actions(
     se_delta = math.sqrt(best_se * best_se + baseline_se * baseline_se)
     reference = baseline
     fallback = baseline
+    paired_delta_stats = _paired_delta_stats(rollout_by_action, baseline_index, action_index_set)
 
     for action in action_records:
         action["delta_vs_baseline"] = float(action["score"]) - baseline_ev
@@ -411,7 +480,7 @@ def evaluate_hu_turn2_actions(
         dealt,
         actions,
         opponent_board=opponent_board,
-        dead_cards=(*opponent_board.all_cards(), *dead),
+        dead_cards=visible_dead,
         seat=hero_seat,
         to_act_order=to_act_order_for(board, opponent_board),
     )
@@ -496,17 +565,41 @@ def evaluate_hu_turn2_actions(
     sample.update(
         {
             "source": "hu_turn2_self_play_rollout",
-            "continuation_policy_T3": STAGE7_CONTINUATION_NAME,
-            "continuation": {
-                "policy": STAGE7_CONTINUATION_NAME,
-                "stage7_model_path": str(DEFAULT_HU_TURN3_STAGE7_MODEL),
-                "stage7_hu_turn3_min_margin": DEFAULT_HU_TURN3_STAGE7_MIN_MARGIN,
-                "stage7_hu_turn3_reference_min_margin": DEFAULT_HU_TURN3_STAGE7_REFERENCE_MIN_MARGIN,
-                "stage3_reference_model_path": str(DEFAULT_HU_TURN3_STAGE7_REFERENCE_MODEL),
-            },
+            "continuation_policy_T3": continuation_policy_name,
+            "t4_rollout_selector": (
+                "infoset_safe_sequential"
+                if t4_search_config is not None
+                else "legacy_exact_self_board_first_seat"
+            ),
+            "t4_search_config": (
+                {
+                    "candidate_samples": t4_search_config.candidate_samples,
+                    "evaluation_samples": t4_search_config.evaluation_samples,
+                    "seed": t4_search_config.seed,
+                    "candidate_seed": (
+                        t4_search_config.seed
+                        if t4_search_config.candidate_seed is None
+                        else t4_search_config.candidate_seed
+                    ),
+                    "evaluation_seed": (
+                        t4_search_config.seed
+                        if t4_search_config.evaluation_seed is None
+                        else t4_search_config.evaluation_seed
+                    ),
+                    "run_id": t4_search_config.run_id,
+                }
+                if t4_search_config is not None
+                else None
+            ),
+            "continuation": continuation_metadata
+            or _t3_continuation_metadata(DEFAULT_T3_CONTINUATION),
             "common_random_futures": True,
             "future_rollout_seed": future_rollout_seed,
             "common_random_future_digest": future_digest,
+            "action_key_schema": ACTION_KEY_SCHEMA,
+            "rng_schema": COUNTER_RNG_SCHEMA,
+            "legal_action_set_digest": legal_action_set_digest(actions),
+            "legal_action_order_digest": ordered_action_mapping_digest(actions),
             "rollout_count": len(future_rollouts),
             "actions": action_records,
             "legal_actions": action_records,
@@ -526,9 +619,12 @@ def evaluate_hu_turn2_actions(
             "delta_best_vs_reference": best_ev - float(reference["score"]),
             "delta_candidate_vs_reference": best_ev - float(reference["score"]),
             "SE_delta_best_vs_baseline": se_delta,
-            "opponent_policy_version": "current_stage7_t3_m5_r10",
+            **paired_delta_stats,
+            "opponent_policy_version": continuation_policy_name,
             "scoring_version": "regular_ofc_v1",
             "royalty_version": "regular_ofc_v1",
+            "fl_ev_14": float(DEFAULT_FL_EV[14]),
+            "fl_ev": {str(key): float(value) for key, value in DEFAULT_FL_EV.items()},
             "missing": 0,
             "teacher_label": _gate_label(best_ev - baseline_ev, se_delta),
             "teacher_distribution_metrics": {
@@ -537,6 +633,9 @@ def evaluate_hu_turn2_actions(
                 "baseline_disagreement": int(best["original_index"]) != baseline_index,
             },
             "downstream_features": {
+                "t3_continuation_decision_count": stage7_stats["stage7_decision_count"],
+                "t3_continuation_override_count": stage7_stats["stage7_override_count"],
+                "t3_continuation_override_rate": stage7_stats["stage7_override_rate"],
                 "t3_stage7_decision_count": stage7_stats["stage7_decision_count"],
                 "t3_stage7_override_count": stage7_stats["stage7_override_count"],
                 "t3_stage7_override_rate": stage7_stats["stage7_override_rate"],
@@ -544,7 +643,132 @@ def evaluate_hu_turn2_actions(
             "profiling": profile,
         }
     )
+    sample.update(
+        {
+            "belief_conditioned": True,
+            "observation_fingerprint": observation.fingerprint(),
+            "belief_batch_digest": belief_batch.digest(),
+            "belief_schema": belief_batch.to_dict()["belief_schema"],
+            "belief_prior": belief_batch.prior,
+        }
+    )
     return sample
+
+
+def _paired_delta_stats(
+    rollout_by_action: dict[int, _ActionRolloutAggregate],
+    baseline_index: int,
+    action_indices: set[int],
+) -> dict[str, Any]:
+    """Return paired candidate-baseline delta stats for rolled-out actions."""
+    if baseline_index not in action_indices:
+        return {}
+    summaries = _paired_delta_by_action(rollout_by_action, baseline_index, action_indices)
+    if not summaries:
+        return {}
+    if len(action_indices) == 2:
+        summary = summaries[0]
+    else:
+        summary = max(summaries, key=lambda item: float(item.get("mean", 0.0)))
+    return {
+        "paired_delta_candidate_index": int(summary["candidate_index"]),
+        "paired_delta_baseline_index": int(summary["baseline_index"]),
+        "paired_delta_count": int(summary["count"]),
+        "paired_delta_mean": float(summary["mean"]),
+        "paired_delta_standard_error": float(summary["standard_error"]),
+        "paired_delta_std": float(summary["std"]),
+        "paired_delta_min": float(summary["min"]),
+        "paired_delta_p01": float(summary["p01"]),
+        "paired_delta_p05": float(summary["p05"]),
+        "paired_delta_p25": float(summary["p25"]),
+        "paired_delta_p50": float(summary["p50"]),
+        "paired_delta_p75": float(summary["p75"]),
+        "paired_delta_p95": float(summary["p95"]),
+        "paired_delta_p99": float(summary["p99"]),
+        "paired_delta_max": float(summary["max"]),
+        "paired_delta_lt0_rate": float(summary.get("lt0_rate", 0.0)),
+        "paired_delta_le_neg6_rate": float(summary.get("le_neg6_rate", 0.0)),
+        "paired_delta_le_neg12_rate": float(summary.get("le_neg12_rate", 0.0)),
+        "paired_delta_le_neg20_rate": float(summary.get("le_neg20_rate", 0.0)),
+        "paired_delta_by_action": summaries,
+    }
+
+
+def _paired_delta_by_action(
+    rollout_by_action: dict[int, _ActionRolloutAggregate],
+    baseline_index: int,
+    action_indices: set[int],
+) -> list[dict[str, Any]]:
+    candidate_indices = [index for index in action_indices if index != baseline_index]
+    baseline_aggregate = rollout_by_action.get(baseline_index, _ActionRolloutAggregate())
+    baseline_scores = baseline_aggregate.scores
+    summaries: list[dict[str, Any]] = []
+    for candidate_index in sorted(candidate_indices):
+        candidate_aggregate = rollout_by_action.get(candidate_index, _ActionRolloutAggregate())
+        candidate_scores = candidate_aggregate.scores
+        deltas = [
+            float(candidate) - float(baseline)
+            for candidate, baseline in zip(candidate_scores, baseline_scores)
+        ]
+        if deltas:
+            summary = _paired_delta_summary(deltas)
+            component_summaries = _paired_component_delta_summaries(
+                candidate_aggregate.component_values,
+                baseline_aggregate.component_values,
+            )
+            if component_summaries:
+                summary["component_delta_summaries"] = component_summaries
+            summary.update(
+                {
+                    "candidate_index": int(candidate_index),
+                    "baseline_index": int(baseline_index),
+                }
+            )
+            summaries.append(summary)
+    return summaries
+
+
+def _paired_delta_summary(deltas: list[float]) -> dict[str, Any]:
+    if not deltas:
+        return {}
+    values = np.asarray(deltas, dtype=np.float64)
+    return {
+        "count": len(deltas),
+        "mean": float(np.mean(values)),
+        "paired_delta_standard_error": _standard_error(deltas),
+        "standard_error": _standard_error(deltas),
+        "std": float(np.std(values, ddof=1)) if len(deltas) > 1 else 0.0,
+        "min": float(np.min(values)),
+        "p01": float(np.quantile(values, 0.01)),
+        "p05": float(np.quantile(values, 0.05)),
+        "p25": float(np.quantile(values, 0.25)),
+        "p50": float(np.quantile(values, 0.50)),
+        "p75": float(np.quantile(values, 0.75)),
+        "p95": float(np.quantile(values, 0.95)),
+        "p99": float(np.quantile(values, 0.99)),
+        "max": float(np.max(values)),
+        "lt0_rate": float(np.mean(values < 0.0)),
+        "le_neg6_rate": float(np.mean(values <= -6.0)),
+        "le_neg12_rate": float(np.mean(values <= -12.0)),
+        "le_neg20_rate": float(np.mean(values <= -20.0)),
+    }
+
+
+def _paired_component_delta_summaries(
+    candidate_components: dict[str, list[float]],
+    baseline_components: dict[str, list[float]],
+) -> dict[str, dict[str, Any]]:
+    summaries: dict[str, dict[str, Any]] = {}
+    for key in sorted(set(candidate_components) & set(baseline_components)):
+        candidate_values = candidate_components.get(key) or []
+        baseline_values = baseline_components.get(key) or []
+        deltas = [
+            float(candidate) - float(baseline)
+            for candidate, baseline in zip(candidate_values, baseline_values)
+        ]
+        if deltas:
+            summaries[key] = _paired_delta_summary(deltas)
+    return summaries
 
 
 def build_hu_turn2_sample(
@@ -559,9 +783,14 @@ def build_hu_turn2_sample(
     dealt_cards: Iterable[str],
     opponent_board: Board,
     dead_cards: Iterable[str],
+    visible_dead_cards: Iterable[str] | None = None,
+    hero_private_discards: Iterable[str] = (),
+    opponent_private_discards: Iterable[str] = (),
     hero_seat: str,
     continuation_policy: RegularAiPolicy,
     opponent_policy: RegularAiPolicy,
+    continuation_policy_name: str = STAGE3_REFERENCE_CONTINUATION_NAME,
+    continuation_metadata: dict[str, Any] | None = None,
     baseline_turn2_model: object,
     future_samples: int,
     future_rollout_seed: int,
@@ -575,15 +804,65 @@ def build_hu_turn2_sample(
     batched_continuation_batch_size: int = 8192,
     final_turn_cache: FinalTurnDecisionCache | None = None,
     use_final_turn_cache: bool = True,
+    t4_search_config: T4SearchConfig | None = None,
 ) -> dict[str, Any] | None:
-    sample = evaluate_hu_turn2_actions(
-        board=board,
-        dealt_cards=dealt_cards,
+    dealt_tuple = tuple(dealt_cards)
+    if visible_dead_cards is None and not tuple(hero_private_discards):
+        raise ValueError(
+            "T2 teacher samples require explicit hero_private_discards or "
+            "visible_dead_cards; ambiguous dead_cards are replay truth only"
+        )
+    visible_dead = _visible_dead_cards_for_turn2_state(
         opponent_board=opponent_board,
         dead_cards=dead_cards,
+        visible_dead_cards=visible_dead_cards,
+        hero_private_discards=hero_private_discards,
+    )
+    opponent_public_cards = set(opponent_board.all_cards())
+    policy_hero_private = tuple(
+        card for card in visible_dead if card not in opponent_public_cards
+    )
+    supplied_hero_private = tuple(hero_private_discards)
+    if supplied_hero_private and set(supplied_hero_private) != set(
+        policy_hero_private
+    ):
+        raise ValueError(
+            "T2 visible dead cards disagree with explicit hero private discards"
+        )
+    truth_hero_private = supplied_hero_private or policy_hero_private
+    replay_truth = ReplayTruth(
+        true_dead_cards=tuple(dead_cards),
+        visible_dead_cards=visible_dead,
+        hero_private_discards=truth_hero_private,
+        opponent_private_discards=tuple(opponent_private_discards),
+    )
+    policy_observation = ActorObservation(
+        hero_board=board,
+        opponent_public_board=opponent_board,
+        dealt_cards=dealt_tuple,
+        hero_private_discards=policy_hero_private,
+        seat=hero_seat,  # type: ignore[arg-type]
+        street="T2",
+        to_act_order=to_act_order_for(board, opponent_board),
+        scoring=ScoringContext(),
+    )
+    if set(policy_observation.legacy_dead_cards()) != set(visible_dead):
+        raise ValueError("T2 policy observation disagrees with visible dead cards")
+    belief_batch = sample_hidden_card_particles(
+        policy_observation,
+        base_seed=future_rollout_seed,
+        run_id=f"hu_turn2_teacher|state={state_id}|sample={sample_id}",
+        sample_count=future_samples,
+    )
+    sample = evaluate_hu_turn2_actions(
+        board=board,
+        dealt_cards=dealt_tuple,
+        opponent_board=opponent_board,
         hero_seat=hero_seat,
         continuation_policy=continuation_policy,
         opponent_policy=opponent_policy,
+        continuation_policy_name=continuation_policy_name,
+        continuation_metadata=continuation_metadata,
         baseline_turn2_model=baseline_turn2_model,
         future_samples=future_samples,
         future_rollout_seed=future_rollout_seed,
@@ -596,6 +875,9 @@ def build_hu_turn2_sample(
         batched_continuation_batch_size=batched_continuation_batch_size,
         final_turn_cache=final_turn_cache,
         use_final_turn_cache=use_final_turn_cache,
+        t4_search_config=t4_search_config,
+        observation=policy_observation,
+        belief_batch=belief_batch,
     )
     if sample is None:
         return None
@@ -612,9 +894,19 @@ def build_hu_turn2_sample(
             "source_bucket_requested": source_bucket,
             "source_bucket_actual": source_bucket,
             "turn": "T2",
-            "cards_to_place": list(dealt_cards),
-            "dead_cards": list(dead_cards),
-            "visible_dead_cards": [*opponent_board.all_cards(), *tuple(dead_cards)],
+            "cards_to_place": list(dealt_tuple),
+            "dead_cards": list(visible_dead),
+            "visible_dead_cards": list(visible_dead),
+            "hero_private_discards": list(policy_hero_private),
+            "true_dead_cards": list(dead_cards),
+            "true_hero_private_discards": list(replay_truth.hero_private_discards),
+            "true_opponent_private_discards": list(
+                replay_truth.opponent_private_discards
+            ),
+            "policy_observation": policy_observation.to_dict(),
+            "artifact_visibility_schema": "actor_observation_plus_replay_truth_v1",
+            "replay_truth": replay_truth.to_dict(),
+            "replay_ready": True,
         }
     )
     return sample
@@ -650,6 +942,8 @@ def collect_hu_turn2_dataset(
     candidate_pool_max_attempts: int = 0,
     candidate_pool_balance_position: bool = False,
     candidate_pool_balance_source: bool = False,
+    t3_continuation: T3ContinuationMode = DEFAULT_T3_CONTINUATION,
+    t4_search_config: T4SearchConfig | None = None,
 ) -> dict[str, Any]:
     if samples <= 0:
         raise ValueError("samples must be positive")
@@ -670,6 +964,8 @@ def collect_hu_turn2_dataset(
     candidate_pool_position_counts = {"first": 0, "second": 0}
     state_profile = "random_exact_final" if source_bucket == "random_off_policy" else "current"
     replay_source = _stage3_feature_replay_source(future_samples, samples)
+    continuation_name = _t3_continuation_policy_name(t3_continuation)
+    continuation_metadata = _t3_continuation_metadata(t3_continuation)
     teacher_run_hash = _stage3_feature_teacher_run_hash(
         seed=seed,
         samples=samples,
@@ -677,11 +973,15 @@ def collect_hu_turn2_dataset(
         source_bucket=source_bucket,
         stage3_feature_encoder_mode=stage3_feature_encoder_mode,
         disable_stage3_feature_fast_path=disable_stage3_feature_fast_path,
+        t3_continuation=t3_continuation,
     )
     batched_config = HuTurn3Stage7BatchConfig(
-        stage7_enabled=True,
-        hu_turn3_min_margin=DEFAULT_HU_TURN3_STAGE7_MIN_MARGIN,
-        hu_turn3_reference_min_margin=DEFAULT_HU_TURN3_STAGE7_REFERENCE_MIN_MARGIN,
+        stage7_enabled=t3_continuation != "stage3_reference_default",
+        hu_turn3_min_margin=_t3_continuation_min_margin(t3_continuation),
+        hu_turn3_reference_min_margin=_t3_continuation_reference_min_margin(t3_continuation),
+        hu_turn3_min_support_margin=_t3_continuation_min_support_margin(t3_continuation),
+        hu_turn3_min_model_score=_t3_continuation_min_model_score(t3_continuation),
+        hu_turn3_min_gate_probability=_t3_continuation_min_gate_probability(t3_continuation),
         batch_size=batched_continuation_batch_size,
         use_cache=not disable_continuation_cache,
         use_stage3_feature_fast_path=not disable_stage3_feature_fast_path,
@@ -689,7 +989,7 @@ def collect_hu_turn2_dataset(
         dump_stage3_feature_replay=str(dump_stage3_feature_replay) if dump_stage3_feature_replay else None,
         stage3_feature_replay_sample_limit=0,
         stage3_feature_replay_model_path=str(DEFAULT_HU_TURN3_STAGE7_REFERENCE_MODEL),
-        stage3_feature_replay_stage7_model_path=str(DEFAULT_HU_TURN3_STAGE7_MODEL),
+        stage3_feature_replay_stage7_model_path=_t3_continuation_model_path(t3_continuation),
         stage3_feature_replay_source=replay_source,
         stage3_feature_replay_teacher_run_hash=teacher_run_hash,
     )
@@ -736,6 +1036,7 @@ def collect_hu_turn2_dataset(
                 cursor = 0
                 boards = [Board.from_rows(), Board.from_rows()]
                 dead_cards: list[str] = []
+                private_discards: list[list[str]] = [[], []]
                 state_policies = [
                     _build_policy_for_profile(
                         state_profile,
@@ -753,13 +1054,15 @@ def collect_hu_turn2_dataset(
                     ),
                 ]
                 continuation_policies = [
-                    _build_stage7_continuation_policy(
+                    _build_t3_continuation_policy(
+                        t3_continuation,
                         policy_bundle,
                         seed=hand_seed * 4 + 2,
                         seat="first",
                         opening_lookahead_samples=opening_lookahead_samples,
                     ),
-                    _build_stage7_continuation_policy(
+                    _build_t3_continuation_policy(
+                        t3_continuation,
                         policy_bundle,
                         seed=hand_seed * 4 + 3,
                         seat="second",
@@ -773,11 +1076,12 @@ def collect_hu_turn2_dataset(
                     action = state_policies[player].choose_action(
                         boards[player],
                         dealt,
-                        dead_cards=(*boards[1 - player].all_cards(), *dead_cards),
+                        dead_cards=_visible_dead_cards_for(player, boards, private_discards),
                         opponent_board=boards[1 - player],
                     )
                     boards[player] = boards[player].place(action.placements)
                     dead_cards.extend(action.discards)
+                    private_discards[player].extend(action.discards)
 
                 for _round in range(1, 5):
                     for player in (0, 1):
@@ -798,7 +1102,9 @@ def collect_hu_turn2_dataset(
                                     board=boards[player],
                                     dealt_cards=dealt,
                                     opponent_board=boards[1 - player],
-                                    dead_cards=dead_cards,
+                                    dead_cards=private_discards[player],
+                                    visible_dead_cards=_visible_dead_cards_for(player, boards, private_discards),
+                                    hero_private_discards=private_discards[player],
                                     hero_seat="first" if player == 0 else "second",
                                     baseline_turn2_model=policy_bundle.turn2,
                                 )
@@ -841,6 +1147,9 @@ def collect_hu_turn2_dataset(
                                         dealt_cards=dealt,
                                         opponent_board=boards[1 - player],
                                         dead_cards=dead_cards,
+                                        visible_dead_cards=_visible_dead_cards_for(player, boards, private_discards),
+                                        hero_private_discards=private_discards[player],
+                                        opponent_private_discards=private_discards[1 - player],
                                         hero_seat=hero_seat,
                                         source_bucket=_actual_bucket_for_predicted(target_bucket),
                                         cheap_sample=proxy,
@@ -903,9 +1212,14 @@ def collect_hu_turn2_dataset(
                                     dealt_cards=dealt,
                                     opponent_board=boards[1 - player],
                                     dead_cards=dead_cards,
+                                    visible_dead_cards=_visible_dead_cards_for(player, boards, private_discards),
+                                    hero_private_discards=private_discards[player],
+                                    opponent_private_discards=private_discards[1 - player],
                                     hero_seat="first" if player == 0 else "second",
                                     continuation_policy=continuation_policies[player],
                                     opponent_policy=continuation_policies[1 - player],
+                                    continuation_policy_name=continuation_name,
+                                    continuation_metadata=continuation_metadata,
                                     baseline_turn2_model=policy_bundle.turn2,
                                     future_samples=prefilter_future_samples,
                                     future_rollout_seed=_cheap_future_seed(seed, hand_seed, attempts, player),
@@ -919,6 +1233,7 @@ def collect_hu_turn2_dataset(
                                     batched_continuation_batch_size=batched_continuation_batch_size,
                                     final_turn_cache=final_turn_cache,
                                     use_final_turn_cache=not disable_final_turn_cache,
+                                    t4_search_config=t4_search_config,
                                 )
                                 cheap_elapsed = time.perf_counter() - cheap_started_at
                                 _attempt_profile_add(attempt_profile, "cheap_score_time", cheap_elapsed)
@@ -979,6 +1294,9 @@ def collect_hu_turn2_dataset(
                                     dealt_cards=dealt,
                                     opponent_board=boards[1 - player],
                                     dead_cards=dead_cards,
+                                    visible_dead_cards=_visible_dead_cards_for(player, boards, private_discards),
+                                    hero_private_discards=private_discards[player],
+                                    opponent_private_discards=private_discards[1 - player],
                                     hero_seat=hero_seat,
                                     source_bucket=source_bucket,
                                     cheap_sample=cheap_sample,
@@ -1015,9 +1333,14 @@ def collect_hu_turn2_dataset(
                                 dealt_cards=dealt,
                                 opponent_board=boards[1 - player],
                                 dead_cards=dead_cards,
+                                visible_dead_cards=_visible_dead_cards_for(player, boards, private_discards),
+                                hero_private_discards=private_discards[player],
+                                opponent_private_discards=private_discards[1 - player],
                                 hero_seat="first" if player == 0 else "second",
                                 continuation_policy=continuation_policies[player],
                                 opponent_policy=continuation_policies[1 - player],
+                                continuation_policy_name=continuation_name,
+                                continuation_metadata=continuation_metadata,
                                 baseline_turn2_model=policy_bundle.turn2,
                                 future_samples=future_samples,
                                 future_rollout_seed=future_rollout_seed,
@@ -1031,6 +1354,7 @@ def collect_hu_turn2_dataset(
                                 batched_continuation_batch_size=batched_continuation_batch_size,
                                 final_turn_cache=final_turn_cache,
                                 use_final_turn_cache=not disable_final_turn_cache,
+                                t4_search_config=t4_search_config,
                             )
                             full_elapsed = time.perf_counter() - full_started_at
                             _attempt_profile_add(attempt_profile, "full_teacher_rollout_time", full_elapsed)
@@ -1082,11 +1406,12 @@ def collect_hu_turn2_dataset(
                         action = state_policies[player].choose_action(
                             boards[player],
                             dealt,
-                            dead_cards=(*boards[1 - player].all_cards(), *dead_cards),
+                            dead_cards=_visible_dead_cards_for(player, boards, private_discards),
                             opponent_board=boards[1 - player],
                         )
                         boards[player] = boards[player].place(action.placements)
                         dead_cards.extend(action.discards)
+                        private_discards[player].extend(action.discards)
 
                 if progress_every > 0 and hands % progress_every == 0:
                     print(
@@ -1161,7 +1486,13 @@ def collect_hu_turn2_dataset(
         "source_bucket": source_bucket,
         "source_bucket_requested": source_bucket,
         "source_bucket_actual": source_bucket,
-        "continuation_policy_T3": STAGE7_CONTINUATION_NAME,
+        "t3_continuation": t3_continuation,
+        "continuation_policy_T3": continuation_name,
+        "continuation": continuation_metadata,
+        "scoring_objective": {
+            "fl_ev_14": float(DEFAULT_FL_EV[14]),
+            "fl_ev": {str(key): float(value) for key, value in DEFAULT_FL_EV.items()},
+        },
         "use_batched_continuation": use_batched_continuation,
         "batched_continuation_batch_size": batched_continuation_batch_size,
         "continuation_cache_enabled": not disable_continuation_cache,
@@ -1206,6 +1537,8 @@ def collect_hu_turn2_dataset_from_candidate_pool(
     stage3_feature_encoder_mode: str = "scalar_fast",
     disable_final_turn_cache: bool = False,
     final_turn_cache_size: int = 200_000,
+    t3_continuation: T3ContinuationMode = DEFAULT_T3_CONTINUATION,
+    t4_search_config: T4SearchConfig | None = None,
 ) -> dict[str, Any]:
     output.parent.mkdir(parents=True, exist_ok=True)
     started_at = time.time()
@@ -1215,6 +1548,8 @@ def collect_hu_turn2_dataset_from_candidate_pool(
     sample_profiles: list[dict[str, Any]] = []
     attempt_profile = _new_attempt_profile(source_bucket)
     replay_source = _stage3_feature_replay_source(future_samples, samples)
+    continuation_name = _t3_continuation_policy_name(t3_continuation)
+    continuation_metadata = _t3_continuation_metadata(t3_continuation)
     teacher_run_hash = _stage3_feature_teacher_run_hash(
         seed=seed,
         samples=samples,
@@ -1222,17 +1557,21 @@ def collect_hu_turn2_dataset_from_candidate_pool(
         source_bucket=source_bucket,
         stage3_feature_encoder_mode=stage3_feature_encoder_mode,
         disable_stage3_feature_fast_path=disable_stage3_feature_fast_path,
+        t3_continuation=t3_continuation,
     )
     batched_config = HuTurn3Stage7BatchConfig(
-        stage7_enabled=True,
-        hu_turn3_min_margin=DEFAULT_HU_TURN3_STAGE7_MIN_MARGIN,
-        hu_turn3_reference_min_margin=DEFAULT_HU_TURN3_STAGE7_REFERENCE_MIN_MARGIN,
+        stage7_enabled=t3_continuation != "stage3_reference_default",
+        hu_turn3_min_margin=_t3_continuation_min_margin(t3_continuation),
+        hu_turn3_reference_min_margin=_t3_continuation_reference_min_margin(t3_continuation),
+        hu_turn3_min_support_margin=_t3_continuation_min_support_margin(t3_continuation),
+        hu_turn3_min_model_score=_t3_continuation_min_model_score(t3_continuation),
+        hu_turn3_min_gate_probability=_t3_continuation_min_gate_probability(t3_continuation),
         batch_size=batched_continuation_batch_size,
         use_cache=not disable_continuation_cache,
         use_stage3_feature_fast_path=not disable_stage3_feature_fast_path,
         stage3_feature_encoder_mode=stage3_feature_encoder_mode,
         stage3_feature_replay_model_path=str(DEFAULT_HU_TURN3_STAGE7_REFERENCE_MODEL),
-        stage3_feature_replay_stage7_model_path=str(DEFAULT_HU_TURN3_STAGE7_MODEL),
+        stage3_feature_replay_stage7_model_path=_t3_continuation_model_path(t3_continuation),
         stage3_feature_replay_source=replay_source,
         stage3_feature_replay_teacher_run_hash=teacher_run_hash,
     )
@@ -1261,15 +1600,18 @@ def collect_hu_turn2_dataset_from_candidate_pool(
             board = _board_from_json(record["board"])
             opponent_board = _board_from_json(record["opponent_board"])
             dealt = tuple(record.get("cards_to_place") or record.get("dealt") or ())
-            dead_cards = list(record.get("dead_cards", ()))
+            pool_observation = actor_observation_from_record(record)
+            pool_truth = replay_truth_from_record(record)
             continuation_policies = [
-                _build_stage7_continuation_policy(
+                _build_t3_continuation_policy(
+                    t3_continuation,
                     policy_bundle,
                     seed=hand_seed * 4 + 2,
                     seat="first",
                     opening_lookahead_samples=opening_lookahead_samples,
                 ),
-                _build_stage7_continuation_policy(
+                _build_t3_continuation_policy(
+                    t3_continuation,
                     policy_bundle,
                     seed=hand_seed * 4 + 3,
                     seat="second",
@@ -1287,10 +1629,15 @@ def collect_hu_turn2_dataset_from_candidate_pool(
                 board=board,
                 dealt_cards=dealt,
                 opponent_board=opponent_board,
-                dead_cards=dead_cards,
+                dead_cards=pool_truth.true_dead_cards,
+                visible_dead_cards=pool_observation.legacy_dead_cards(),
+                hero_private_discards=pool_truth.hero_private_discards,
+                opponent_private_discards=pool_truth.opponent_private_discards,
                 hero_seat=hero_seat,
                 continuation_policy=continuation_policies[player],
                 opponent_policy=continuation_policies[1 - player],
+                continuation_policy_name=continuation_name,
+                continuation_metadata=continuation_metadata,
                 baseline_turn2_model=policy_bundle.turn2,
                 future_samples=future_samples,
                 future_rollout_seed=_future_seed(seed, hand_seed, attempts, player),
@@ -1304,6 +1651,7 @@ def collect_hu_turn2_dataset_from_candidate_pool(
                 batched_continuation_batch_size=batched_continuation_batch_size,
                 final_turn_cache=final_turn_cache,
                 use_final_turn_cache=not disable_final_turn_cache,
+                t4_search_config=t4_search_config,
             )
             _attempt_profile_add(attempt_profile, "full_teacher_rollout_time", time.perf_counter() - full_started_at)
             if sample is not None:
@@ -1376,7 +1724,13 @@ def collect_hu_turn2_dataset_from_candidate_pool(
         "source_bucket": source_bucket,
         "source_bucket_requested": source_bucket,
         "source_bucket_actual": source_bucket,
-        "continuation_policy_T3": STAGE7_CONTINUATION_NAME,
+        "t3_continuation": t3_continuation,
+        "continuation_policy_T3": continuation_name,
+        "continuation": continuation_metadata,
+        "scoring_objective": {
+            "fl_ev_14": float(DEFAULT_FL_EV[14]),
+            "fl_ev": {str(key): float(value) for key, value in DEFAULT_FL_EV.items()},
+        },
         "use_batched_continuation": use_batched_continuation,
         "batched_continuation_batch_size": batched_continuation_batch_size,
         "continuation_cache_enabled": not disable_continuation_cache,
@@ -1435,6 +1789,11 @@ SUMMARY_SUM_KEYS = {
     "stage7_feature_batch_seconds",
     "stage7_model_inference_seconds",
     "stage7_sample_generation_seconds",
+    "support_feature_batch_seconds",
+    "support_model_inference_seconds",
+    "gate_self_feature_batch_seconds",
+    "gate_self_model_inference_seconds",
+    "gate_probability_seconds",
     "t3_postprocess_gate_seconds",
     "opponent_policy_decision_time",
     "hero_non_t3_policy_decision_time",
@@ -1495,6 +1854,8 @@ SUMMARY_COUNT_SUM_KEYS = {
     "cache_misses",
     "skipped_by_reference_margin",
     "stage7_model_called_count",
+    "support_model_called_count",
+    "gate_model_called_count",
     "raw_non_t3_decisions",
     "unique_non_t3_decisions",
     "non_t3_decision_cache_hit",
@@ -1576,6 +1937,9 @@ STATE_PROFILE_COLUMNS = [
     "stage3_scalar_fallback_seconds",
     "stage3_non_encoder_overhead_seconds",
     "stage7_inference_seconds",
+    "support_inference_seconds",
+    "gate_self_inference_seconds",
+    "gate_probability_seconds",
     "t3_action_generation_seconds",
     "final_turn_decision_seconds",
     "final_turn_exact_enumeration_seconds",
@@ -1602,6 +1966,8 @@ STATE_PROFILE_COLUMNS = [
     "non_t3_continuation_seconds",
     "memory_peak_mb",
     "stage7_model_called",
+    "support_model_called",
+    "gate_model_called",
     "skipped_by_reference_margin",
     "fallback_recompute",
     "fallback_reuse",
@@ -1831,6 +2197,9 @@ def _state_profile_csv_row(index: int, profile: dict[str, Any]) -> dict[str, Any
         "stage3_scalar_fallback_seconds": _as_float(profile.get("stage3_scalar_fallback_seconds", 0.0)),
         "stage3_non_encoder_overhead_seconds": _as_float(profile.get("stage3_non_encoder_overhead_seconds", 0.0)),
         "stage7_inference_seconds": _as_float(profile.get("stage7_model_inference_seconds", 0.0)),
+        "support_inference_seconds": _as_float(profile.get("support_model_inference_seconds", 0.0)),
+        "gate_self_inference_seconds": _as_float(profile.get("gate_self_model_inference_seconds", 0.0)),
+        "gate_probability_seconds": _as_float(profile.get("gate_probability_seconds", 0.0)),
         "t3_action_generation_seconds": _as_float(profile.get("t3_action_generation_seconds", 0.0)),
         "final_turn_decision_seconds": _as_float(profile.get("final_turn_decision_seconds", 0.0)),
         "final_turn_exact_enumeration_seconds": _as_float(profile.get("final_turn_exact_enumeration_time", 0.0)),
@@ -1857,6 +2226,8 @@ def _state_profile_csv_row(index: int, profile: dict[str, Any]) -> dict[str, Any
         "non_t3_continuation_seconds": _as_float(profile.get("non_t3_continuation_decision_seconds", 0.0)),
         "memory_peak_mb": _as_float(profile.get("memory_peak_mb", 0.0)),
         "stage7_model_called": _as_float(profile.get("stage7_model_called_count", 0.0)),
+        "support_model_called": _as_float(profile.get("support_model_called_count", 0.0)),
+        "gate_model_called": _as_float(profile.get("gate_model_called_count", 0.0)),
         "skipped_by_reference_margin": _as_float(profile.get("skipped_by_reference_margin", 0.0)),
         "fallback_recompute": _as_float(profile.get("stage3_fallback_recomputed_count", 0.0)),
         "fallback_reuse": _as_float(profile.get("stage3_fallback_reuse_count", 0.0)),
@@ -1978,6 +2349,192 @@ def _build_stage7_continuation_policy(
     )
 
 
+def _build_stage9d_continuation_policy(
+    bundle: object,
+    *,
+    seed: int,
+    seat: str,
+    opening_lookahead_samples: int,
+) -> RegularAiPolicy:
+    return RegularAiPolicy(
+        opening_model=bundle.opening,
+        turn1_model=bundle.turn1,
+        turn2_model=bundle.turn2,
+        turn3_model=bundle.turn3,
+        hu_turn3_model=getattr(bundle, "hu_turn3_stage9d", None),
+        hu_turn3_reference_model=getattr(bundle, "hu_turn3_stage7_reference", None),
+        hu_turn3_support_model=getattr(bundle, "hu_turn3_stage9d_support", None),
+        hu_turn3_gate_model=getattr(bundle, "hu_turn3_stage9d_gate", None),
+        hu_turn3_min_margin=DEFAULT_HU_TURN3_STAGE9D_MIN_MARGIN,
+        hu_turn3_reference_min_margin=DEFAULT_HU_TURN3_STAGE9D_REFERENCE_MIN_MARGIN,
+        hu_turn3_min_support_margin=DEFAULT_HU_TURN3_STAGE9D_MIN_SUPPORT_MARGIN,
+        hu_turn3_min_model_score=DEFAULT_HU_TURN3_STAGE9D_MIN_MODEL_SCORE,
+        hu_turn3_min_gate_probability=DEFAULT_HU_TURN3_STAGE9D_MIN_GATE_PROBABILITY,
+        seed=seed,
+        seat=seat,
+        opening_lookahead_samples=opening_lookahead_samples,
+    )
+
+
+def _build_stage3_reference_continuation_policy(
+    bundle: object,
+    *,
+    seed: int,
+    seat: str,
+    opening_lookahead_samples: int,
+) -> RegularAiPolicy:
+    return RegularAiPolicy(
+        opening_model=bundle.opening,
+        turn1_model=bundle.turn1,
+        turn2_model=bundle.turn2,
+        turn3_model=bundle.turn3,
+        hu_turn3_model=None,
+        hu_turn3_reference_model=getattr(bundle, "hu_turn3_stage7_reference", None),
+        hu_turn3_min_margin=0.0,
+        hu_turn3_reference_min_margin=0.0,
+        hu_turn3_stage7_enabled=False,
+        seed=seed,
+        seat=seat,
+        opening_lookahead_samples=opening_lookahead_samples,
+    )
+
+
+def _build_t3_continuation_policy(
+    mode: T3ContinuationMode,
+    bundle: object,
+    *,
+    seed: int,
+    seat: str,
+    opening_lookahead_samples: int,
+    ) -> RegularAiPolicy:
+    if mode == "stage7_m5_r10":
+        return _build_stage7_continuation_policy(
+            bundle,
+            seed=seed,
+            seat=seat,
+            opening_lookahead_samples=opening_lookahead_samples,
+        )
+    if mode == "stage9d_p07_relaxed_both":
+        return _build_stage9d_continuation_policy(
+            bundle,
+            seed=seed,
+            seat=seat,
+            opening_lookahead_samples=opening_lookahead_samples,
+        )
+    if mode == "stage3_reference_default":
+        return _build_stage3_reference_continuation_policy(
+            bundle,
+            seed=seed,
+            seat=seat,
+            opening_lookahead_samples=opening_lookahead_samples,
+        )
+    raise ValueError(f"unknown T3 continuation mode: {mode}")
+
+
+def _t3_continuation_policy_name(mode: T3ContinuationMode) -> str:
+    if mode == "stage7_m5_r10":
+        return STAGE7_CONTINUATION_NAME
+    if mode == "stage9d_p07_relaxed_both":
+        return STAGE9D_CONTINUATION_NAME
+    if mode == "stage3_reference_default":
+        return STAGE3_REFERENCE_CONTINUATION_NAME
+    raise ValueError(f"unknown T3 continuation mode: {mode}")
+
+
+def _t3_continuation_model_path(mode: T3ContinuationMode) -> str:
+    if mode == "stage7_m5_r10":
+        return str(DEFAULT_HU_TURN3_STAGE7_MODEL)
+    if mode == "stage9d_p07_relaxed_both":
+        return str(DEFAULT_HU_TURN3_STAGE9D_MODEL)
+    if mode == "stage3_reference_default":
+        return ""
+    raise ValueError(f"unknown T3 continuation mode: {mode}")
+
+
+def _t3_continuation_min_margin(mode: T3ContinuationMode) -> float:
+    if mode == "stage7_m5_r10":
+        return DEFAULT_HU_TURN3_STAGE7_MIN_MARGIN
+    if mode == "stage9d_p07_relaxed_both":
+        return DEFAULT_HU_TURN3_STAGE9D_MIN_MARGIN
+    if mode == "stage3_reference_default":
+        return 0.0
+    raise ValueError(f"unknown T3 continuation mode: {mode}")
+
+
+def _t3_continuation_reference_min_margin(mode: T3ContinuationMode) -> float:
+    if mode == "stage7_m5_r10":
+        return DEFAULT_HU_TURN3_STAGE7_REFERENCE_MIN_MARGIN
+    if mode == "stage9d_p07_relaxed_both":
+        return DEFAULT_HU_TURN3_STAGE9D_REFERENCE_MIN_MARGIN
+    if mode == "stage3_reference_default":
+        return 0.0
+    raise ValueError(f"unknown T3 continuation mode: {mode}")
+
+
+def _t3_continuation_min_support_margin(mode: T3ContinuationMode) -> float:
+    if mode == "stage9d_p07_relaxed_both":
+        return DEFAULT_HU_TURN3_STAGE9D_MIN_SUPPORT_MARGIN
+    if mode in {"stage3_reference_default", "stage7_m5_r10"}:
+        return 0.0
+    raise ValueError(f"unknown T3 continuation mode: {mode}")
+
+
+def _t3_continuation_min_model_score(mode: T3ContinuationMode) -> float | None:
+    if mode == "stage9d_p07_relaxed_both":
+        return DEFAULT_HU_TURN3_STAGE9D_MIN_MODEL_SCORE
+    if mode in {"stage3_reference_default", "stage7_m5_r10"}:
+        return None
+    raise ValueError(f"unknown T3 continuation mode: {mode}")
+
+
+def _t3_continuation_min_gate_probability(mode: T3ContinuationMode) -> float:
+    if mode == "stage9d_p07_relaxed_both":
+        return DEFAULT_HU_TURN3_STAGE9D_MIN_GATE_PROBABILITY
+    if mode in {"stage3_reference_default", "stage7_m5_r10"}:
+        return 0.0
+    raise ValueError(f"unknown T3 continuation mode: {mode}")
+
+
+def _t3_continuation_metadata(mode: T3ContinuationMode) -> dict[str, Any]:
+    if mode == "stage7_m5_r10":
+        return {
+            "policy": STAGE7_CONTINUATION_NAME,
+            "mode": mode,
+            "stage7_enabled": True,
+            "stage7_model_path": str(DEFAULT_HU_TURN3_STAGE7_MODEL),
+            "stage7_hu_turn3_min_margin": DEFAULT_HU_TURN3_STAGE7_MIN_MARGIN,
+            "stage7_hu_turn3_reference_min_margin": DEFAULT_HU_TURN3_STAGE7_REFERENCE_MIN_MARGIN,
+            "stage3_reference_model_path": str(DEFAULT_HU_TURN3_STAGE7_REFERENCE_MODEL),
+        }
+    if mode == "stage9d_p07_relaxed_both":
+        return {
+            "policy": STAGE9D_CONTINUATION_NAME,
+            "mode": mode,
+            "stage7_enabled": True,
+            "stage7_model_path": str(DEFAULT_HU_TURN3_STAGE9D_MODEL),
+            "stage7_hu_turn3_min_margin": DEFAULT_HU_TURN3_STAGE9D_MIN_MARGIN,
+            "stage7_hu_turn3_reference_min_margin": DEFAULT_HU_TURN3_STAGE9D_REFERENCE_MIN_MARGIN,
+            "stage3_reference_model_path": str(DEFAULT_HU_TURN3_STAGE7_REFERENCE_MODEL),
+            "support_model_path": str(DEFAULT_HU_TURN3_STAGE9D_SUPPORT_MODEL),
+            "gate_model_path": str(DEFAULT_HU_TURN3_STAGE9D_GATE_MODEL),
+            "hu_turn3_min_support_margin": DEFAULT_HU_TURN3_STAGE9D_MIN_SUPPORT_MARGIN,
+            "hu_turn3_min_model_score": DEFAULT_HU_TURN3_STAGE9D_MIN_MODEL_SCORE,
+            "hu_turn3_min_gate_probability": DEFAULT_HU_TURN3_STAGE9D_MIN_GATE_PROBABILITY,
+        }
+    if mode == "stage3_reference_default":
+        return {
+            "policy": STAGE3_REFERENCE_CONTINUATION_NAME,
+            "mode": mode,
+            "stage7_enabled": False,
+            "stage7_model_path": "",
+            "stage7_hu_turn3_min_margin": 0.0,
+            "stage7_hu_turn3_reference_min_margin": 0.0,
+            "stage3_reference_model_path": str(DEFAULT_HU_TURN3_STAGE7_REFERENCE_MODEL),
+            "note": "Hidden-discard default: use the HU Stage3 reference action directly; Stage7 m5_r10 must be opted in explicitly.",
+        }
+    raise ValueError(f"unknown T3 continuation mode: {mode}")
+
+
 def _build_policy_for_profile(
     profile: str,
     bundle: object,
@@ -1988,7 +2545,7 @@ def _build_policy_for_profile(
 ) -> RegularAiPolicy:
     if profile == "random_exact_final":
         return RegularAiPolicy(seed=seed, seat=seat)
-    return _build_stage7_continuation_policy(
+    return _build_stage9d_continuation_policy(
         bundle,
         seed=seed,
         seat=seat,
@@ -1999,6 +2556,7 @@ def _build_policy_for_profile(
 @dataclass
 class _ActionRolloutAggregate:
     scores: list[float] = field(default_factory=list)
+    component_values: dict[str, list[float]] = field(default_factory=dict)
     t3_eval_count: int = 0
     t3_fired_count: int = 0
     no_override_reason_counts: Counter[str] = field(default_factory=Counter)
@@ -2010,7 +2568,12 @@ class _BatchedRollout:
     hero: Board
     opponent: Board
     dead: list[str]
+    hero_private_discards: list[str]
+    opponent_private_discards: list[str]
     future_cards: list[str]
+    future_index: int
+    future_rollout_seed: int
+    root_fingerprint: str
     cursor: int = 0
     valid: bool = True
     t3_eval_count: int = 0
@@ -2032,6 +2595,29 @@ class _PendingNonT3Decision:
     model: object
 
 
+def _item_visible_dead_cards(item: _BatchedRollout, actor: str) -> tuple[str, ...]:
+    if actor == "hero":
+        return (*item.opponent.all_cards(), *tuple(item.hero_private_discards))
+    if actor == "opponent":
+        return (*item.hero.all_cards(), *tuple(item.opponent_private_discards))
+    raise ValueError(f"unknown actor: {actor}")
+
+
+def _item_policy_decision_seed(
+    item: _BatchedRollout, actor: str, card_count: int
+) -> int:
+    street = {5: "T1", 7: "T2", 9: "T3", 11: "T4"}.get(card_count, "T4")
+    return policy_decision_seed(
+        base_seed=item.future_rollout_seed,
+        run_id="hu_turn2_teacher_rollout",
+        root_fingerprint=item.root_fingerprint,
+        future_index=item.future_index,
+        actor=actor,  # type: ignore[arg-type]
+        street=street,
+        decision_ordinal=card_count * 2 + (0 if actor == "hero" else 1),
+    )
+
+
 def _rollouts_after_hero_t2_actions_batched(
     *,
     board: Board,
@@ -2039,8 +2625,12 @@ def _rollouts_after_hero_t2_actions_batched(
     action_indices: Iterable[int] | None = None,
     opponent_board: Board,
     dead_cards: Iterable[str],
+    hero_private_discards: Iterable[str],
+    opponent_private_discards: Iterable[str],
     hero_seat: str,
     future_rollouts: list[tuple[str, ...]],
+    future_rollout_seed: int,
+    root_fingerprint: str,
     hero_policy: RegularAiPolicy,
     opponent_policy: RegularAiPolicy,
     profile: dict[str, float],
@@ -2052,6 +2642,8 @@ def _rollouts_after_hero_t2_actions_batched(
     batch_size: int,
     final_turn_cache: FinalTurnDecisionCache | None,
     use_final_turn_cache: bool,
+    t4_search_config: T4SearchConfig | None = None,
+    opponent_private_discards_by_rollout: Iterable[Iterable[str]] | None = None,
 ) -> dict[int, _ActionRolloutAggregate]:
     rollout_started_at = time.perf_counter()
     if action_indices is None:
@@ -2064,14 +2656,29 @@ def _rollouts_after_hero_t2_actions_batched(
         action = actions[action_index]
         hero_after_action = board.place(action.placements)
         initial_dead = [*tuple(dead_cards), *action.discards]
-        for future_cards in future_rollouts:
+        initial_hero_private_discards = [*tuple(hero_private_discards), *action.discards]
+        rollout_opponent_discards = (
+            [tuple(cards) for cards in opponent_private_discards_by_rollout]
+            if opponent_private_discards_by_rollout is not None
+            else [tuple(opponent_private_discards)] * len(future_rollouts)
+        )
+        if len(rollout_opponent_discards) != len(future_rollouts):
+            raise ValueError("opponent discard roots must align with future rollouts")
+        for future_index, (future_cards, opponent_discards) in enumerate(
+            zip(future_rollouts, rollout_opponent_discards)
+        ):
             items.append(
                 _BatchedRollout(
                     action_index=action_index,
                     hero=hero_after_action,
                     opponent=opponent_board,
                     dead=list(initial_dead),
+                    hero_private_discards=list(initial_hero_private_discards),
+                    opponent_private_discards=list(opponent_discards),
                     future_cards=list(future_cards),
+                    future_index=future_index,
+                    future_rollout_seed=future_rollout_seed,
+                    root_fingerprint=root_fingerprint,
                 )
             )
 
@@ -2114,7 +2721,7 @@ def _rollouts_after_hero_t2_actions_batched(
     for item in items:
         if not item.valid:
             continue
-        score = _finish_rollout_after_t3(
+        rollout_result = _finish_rollout_after_t3(
             item,
             hero_seat=hero_seat,
             hero_policy=hero_policy,
@@ -2122,11 +2729,15 @@ def _rollouts_after_hero_t2_actions_batched(
             profile=profile,
             final_turn_cache=final_turn_cache,
             use_final_turn_cache=use_final_turn_cache,
+            t4_search_config=t4_search_config,
         )
-        if score is None:
+        if rollout_result is None:
             continue
+        score, components = rollout_result
         aggregate = aggregates[item.action_index]
         aggregate.scores.append(score)
+        for key, value in components.items():
+            aggregate.component_values.setdefault(key, []).append(float(value))
         aggregate.t3_eval_count += item.t3_eval_count
         aggregate.t3_fired_count += item.t3_fired_count
         aggregate.no_override_reason_counts.update(item.no_override_reason_counts)
@@ -2271,7 +2882,7 @@ def _apply_pending_non_t3_decisions_batched(
         inference_elapsed += outputs["inference_seconds"]
         for local_index, prediction in enumerate(outputs["predictions"]):
             decision = pending[indices[local_index]]
-            action_index = _safe_prediction_index(prediction, len(decision.actions))
+            action_index = _safe_prediction_index(prediction, decision.actions)
             if action_index is None:
                 action = _apply_non_t3_scalar_fallback(decision, profile)
                 if action is not None:
@@ -2376,8 +2987,10 @@ def _apply_pending_non_t3_decisions_scalar(
         action = policy.choose_action(
             board,
             dealt,
-            dead_cards=(*opponent.all_cards(), *item.dead),
+            dead_cards=_item_visible_dead_cards(item, actor),
             opponent_board=opponent,
+            decision_seed=_item_policy_decision_seed(item, actor, board.card_count()),
+            street={5: "T1", 7: "T2", 9: "T3"}.get(board.card_count()),
         )
         _apply_non_t3_action(item, actor, action)
     elapsed = time.perf_counter() - started_at
@@ -2394,8 +3007,14 @@ def _apply_non_t3_scalar_fallback(
         action = decision.policy.choose_action(
             decision.board,
             decision.dealt,
-            dead_cards=(*decision.opponent_board.all_cards(), *decision.item.dead),
+            dead_cards=_item_visible_dead_cards(decision.item, decision.actor),
             opponent_board=decision.opponent_board,
+            decision_seed=_item_policy_decision_seed(
+                decision.item, decision.actor, decision.board.card_count()
+            ),
+            street={5: "T1", 7: "T2", 9: "T3"}.get(
+                decision.board.card_count()
+            ),
         )
     except Exception:
         decision.item.valid = False
@@ -2409,8 +3028,10 @@ def _apply_non_t3_scalar_fallback(
 def _apply_non_t3_action(item: _BatchedRollout, actor: str, action: Action) -> None:
     if actor == "hero":
         item.hero = item.hero.place(action.placements)
+        item.hero_private_discards.extend(action.discards)
     else:
         item.opponent = item.opponent.place(action.placements)
+        item.opponent_private_discards.extend(action.discards)
     item.dead.extend(action.discards)
 
 
@@ -2455,13 +3076,15 @@ def _predict_non_t3_single(model: object, sample: dict[str, Any]) -> np.ndarray 
         return None
 
 
-def _safe_prediction_index(prediction: np.ndarray | None, expected_len: int) -> int | None:
-    if prediction is None or len(prediction) != expected_len:
+def _safe_prediction_index(
+    prediction: np.ndarray | None, actions: list[Action]
+) -> int | None:
+    if prediction is None or len(prediction) != len(actions):
         return None
     values = [float(value) for value in prediction]
     if not values or any(not math.isfinite(value) for value in values):
         return None
-    return int(max(range(len(values)), key=lambda index: values[index]))
+    return canonical_argmax_index(values, actions)
 
 
 def _add_non_t3_batch_actor_turn_profile(
@@ -2538,18 +3161,28 @@ def _advance_to_turn3_pair(
             action = hero_policy.choose_action(
                 item.hero,
                 dealt,
-                dead_cards=(*item.opponent.all_cards(), *item.dead),
+                dead_cards=_item_visible_dead_cards(item, actor),
                 opponent_board=item.opponent,
+                decision_seed=_item_policy_decision_seed(
+                    item, actor, actor_card_count
+                ),
+                street={5: "T1", 7: "T2", 9: "T3"}.get(actor_card_count),
             )
             item.hero = item.hero.place(action.placements)
+            item.hero_private_discards.extend(action.discards)
         else:
             action = opponent_policy.choose_action(
                 item.opponent,
                 dealt,
-                dead_cards=(*item.hero.all_cards(), *item.dead),
+                dead_cards=_item_visible_dead_cards(item, actor),
                 opponent_board=item.hero,
+                decision_seed=_item_policy_decision_seed(
+                    item, actor, actor_card_count
+                ),
+                street={5: "T1", 7: "T2", 9: "T3"}.get(actor_card_count),
             )
             item.opponent = item.opponent.place(action.placements)
+            item.opponent_private_discards.extend(action.discards)
         elapsed = time.perf_counter() - decision_started_at
         profile["non_t3_continuation_decision_seconds"] += elapsed
         _add_non_t3_decision_profile(
@@ -2578,8 +3211,8 @@ def _apply_t3_batch_wave(
     action_cache: HuTurn3ActionCache | None,
     batch_size: int,
 ) -> None:
-    states: list[HuTurn3State] = []
-    mapping: list[tuple[_BatchedRollout, str]] = []
+    states_by_actor: dict[str, list[HuTurn3State]] = {"hero": [], "opponent": []}
+    mapping_by_actor: dict[str, list[_BatchedRollout]] = {"hero": [], "opponent": []}
     for item in items:
         if not item.valid:
             continue
@@ -2595,48 +3228,59 @@ def _apply_t3_batch_wave(
             item.valid = False
             continue
         if actor == "hero":
-            states.append(
+            states_by_actor[actor].append(
                 HuTurn3State(
                     board=item.hero,
                     dealt_cards=dealt,
                     opponent_board=item.opponent,
-                    dead_cards=(*item.opponent.all_cards(), *item.dead),
+                    dead_cards=_item_visible_dead_cards(item, actor),
                     seat=hero_policy.seat,
                     to_act_order=_t3_to_act_order(item.hero, item.opponent),
+                    decision_seed=_item_policy_decision_seed(item, actor, 9),
                 )
             )
         else:
-            states.append(
+            states_by_actor[actor].append(
                 HuTurn3State(
                     board=item.opponent,
                     dealt_cards=dealt,
                     opponent_board=item.hero,
-                    dead_cards=(*item.hero.all_cards(), *item.dead),
+                    dead_cards=_item_visible_dead_cards(item, actor),
                     seat=opponent_policy.seat,
                     to_act_order=_t3_to_act_order(item.opponent, item.hero),
+                    decision_seed=_item_policy_decision_seed(item, actor, 9),
                 )
             )
-        mapping.append((item, actor))
-    if not states:
+        mapping_by_actor[actor].append(item)
+    if not any(states_by_actor.values()):
         return
 
-    result = decide_hu_turn3_stage7_batch(
-        states,
-        config,
-        HuTurn3BatchModels(
-            fallback_turn3_model=hero_policy.turn3_model,
-            stage7_model=hero_policy.hu_turn3_model,
-            stage3_reference_model=hero_policy.hu_turn3_reference_model,
-        ),
-        batch_size,
-        cache=cache,
-        reference_cache=reference_cache,
-        state_feature_cache=state_feature_cache,
-        action_cache=action_cache,
-    )
-    _merge_t3_batch_profile(profile, result.profile)
-    for (item, actor), decision in zip(mapping, result.decisions):
-        _apply_t3_decision(item, actor, decision)
+    # A model bundle is a policy identity.  Mixing both actors in one call made
+    # opponent continuations silently use the hero's T3 models.  Keep the wave
+    # batched, but partition it at the policy boundary.
+    for actor, actor_policy in (("hero", hero_policy), ("opponent", opponent_policy)):
+        actor_states = states_by_actor[actor]
+        if not actor_states:
+            continue
+        result = decide_hu_turn3_stage7_batch(
+            actor_states,
+            config,
+            HuTurn3BatchModels(
+                fallback_turn3_model=actor_policy.turn3_model,
+                stage7_model=actor_policy.hu_turn3_model,
+                stage3_reference_model=actor_policy.hu_turn3_reference_model,
+                support_model=actor_policy.hu_turn3_support_model,
+                gate_model=actor_policy.hu_turn3_gate_model,
+            ),
+            batch_size,
+            cache=cache,
+            reference_cache=reference_cache,
+            state_feature_cache=state_feature_cache,
+            action_cache=action_cache,
+        )
+        _merge_t3_batch_profile(profile, result.profile)
+        for item, decision in zip(mapping_by_actor[actor], result.decisions):
+            _apply_t3_decision(item, actor, decision)
 
 
 def _apply_t3_decision(item: _BatchedRollout, actor: str, decision: Turn3Decision) -> None:
@@ -2650,9 +3294,118 @@ def _apply_t3_decision(item: _BatchedRollout, actor: str, decision: Turn3Decisio
         return
     if actor == "hero":
         item.hero = item.hero.place(decision.final_action.placements)
+        item.hero_private_discards.extend(decision.final_action.discards)
     else:
         item.opponent = item.opponent.place(decision.final_action.placements)
+        item.opponent_private_discards.extend(decision.final_action.discards)
     item.dead.extend(decision.final_action.discards)
+
+
+def _choose_rollout_t4_action(
+    *,
+    actor_board: Board,
+    opponent_board: Board,
+    dealt_cards: tuple[str, str, str],
+    actor_private_discards: Iterable[str],
+    actor_dead_cards: Iterable[str],
+    actor: str,
+    actor_seat: str,
+    hero_seat: str,
+    profile: dict[str, Any] | None,
+    final_turn_cache: FinalTurnDecisionCache | None,
+    use_final_turn_cache: bool,
+    t4_search_config: T4SearchConfig | None,
+) -> Action | None:
+    """Choose T4 without exposing a realized future deal to the first actor.
+
+    Supplying ``t4_search_config`` opts the rollout into the M2 sequential
+    selector.  Its first-to-act observation contains only public boards, the
+    actor's current deal, and that actor's private discards.  The second actor
+    still uses the existing exhaustive terminal solver.  ``None`` preserves
+    legacy teacher artifacts until they are regenerated and promoted.
+    """
+
+    actor_order = _final_to_act_order(actor_board, opponent_board)
+    if t4_search_config is not None and actor_order == "first":
+        observation = ActorObservation(
+            hero_board=actor_board,
+            opponent_public_board=opponent_board,
+            dealt_cards=dealt_cards,
+            hero_private_discards=tuple(actor_private_discards),
+            seat=actor_seat,  # type: ignore[arg-type]
+            street="T4",
+            to_act_order="first",
+            scoring=ScoringContext(),
+        )
+        started_at = time.perf_counter()
+        action = select_t4_action(
+            observation,
+            config=t4_search_config,
+            fl_ev=DEFAULT_FL_EV,
+        )
+        elapsed = time.perf_counter() - started_at
+        if profile is not None:
+            profile["final_turn_decision_seconds"] += elapsed
+            profile["final_turn_policy_decision_time"] += elapsed
+            profile["final_turn_infoset_safe_decision_seconds"] = float(
+                profile.get("final_turn_infoset_safe_decision_seconds", 0.0)
+            ) + elapsed
+            profile["final_turn_infoset_safe_state_count"] = float(
+                profile.get("final_turn_infoset_safe_state_count", 0.0)
+            ) + 1.0
+            if actor == "hero":
+                profile["final_turn_hero_state_count"] += 1.0
+            else:
+                profile["final_turn_opponent_state_count"] += 1.0
+            if (hero_seat == "first" and actor == "hero") or (
+                hero_seat == "second" and actor == "opponent"
+            ):
+                profile["final_turn_first_position_state_count"] += 1.0
+            else:
+                profile["final_turn_second_position_state_count"] += 1.0
+            _add_non_t3_decision_profile(
+                profile,
+                actor=actor,
+                card_count=11,
+                elapsed=elapsed,
+                hero_seat=hero_seat,
+                include_model_bucket=False,
+            )
+        return action
+
+    decision, final_profile, slow_record = decide_final_turn_exact(
+        board=actor_board,
+        dealt_cards=dealt_cards,
+        dead_cards=actor_dead_cards,
+        opponent_board=opponent_board,
+        actor=actor,
+        seat=actor_seat,
+        to_act_order=actor_order,
+        cache=final_turn_cache,
+        use_cache=use_final_turn_cache,
+    )
+    if decision is None:
+        return None
+    if profile is not None:
+        _merge_final_turn_profile(
+            profile,
+            final_profile,
+            actor=actor,
+            actor_card_count=11,
+            hero_seat=hero_seat,
+            slow_record=final_turn_slow_state_record(
+                profile=final_profile,
+                board=actor_board,
+                opponent_board=opponent_board,
+                dealt_cards=dealt_cards,
+                dead_cards=actor_dead_cards,
+                actor=actor,
+                seat=actor_seat,
+                to_act_order=actor_order,
+                metadata=slow_record,
+            ),
+        )
+    return decision.action
 
 
 def _finish_rollout_after_t3(
@@ -2664,7 +3417,8 @@ def _finish_rollout_after_t3(
     profile: dict[str, float],
     final_turn_cache: FinalTurnDecisionCache | None = None,
     use_final_turn_cache: bool = True,
-) -> float | None:
+    t4_search_config: T4SearchConfig | None = None,
+) -> tuple[float, dict[str, float]] | None:
     while item.hero.card_count() < 13 or item.opponent.card_count() < 13:
         actor = _next_actor(item.hero, item.opponent, hero_seat)
         dealt = _draw3_from_item(item)
@@ -2678,65 +3432,42 @@ def _finish_rollout_after_t3(
         actor_board = item.hero if actor == "hero" else item.opponent
         actor_opponent = item.opponent if actor == "hero" else item.hero
         actor_policy = hero_policy if actor == "hero" else opponent_policy
-        actor_dead = (*actor_opponent.all_cards(), *item.dead)
-        actor_order = _final_to_act_order(actor_board, actor_opponent)
-        if actor == "hero":
-            decision, final_profile, slow_record = decide_final_turn_exact(
-                board=actor_board,
-                dealt_cards=dealt,
-                dead_cards=actor_dead,
-                opponent_board=actor_opponent,
-                actor=actor,
-                seat=actor_policy.seat,
-                to_act_order=actor_order,
-                cache=final_turn_cache,
-                use_cache=use_final_turn_cache,
-            )
-        else:
-            decision, final_profile, slow_record = decide_final_turn_exact(
-                board=actor_board,
-                dealt_cards=dealt,
-                dead_cards=actor_dead,
-                opponent_board=actor_opponent,
-                actor=actor,
-                seat=actor_policy.seat,
-                to_act_order=actor_order,
-                cache=final_turn_cache,
-                use_cache=use_final_turn_cache,
-            )
-        if decision is None:
+        actor_dead = _item_visible_dead_cards(item, actor)
+        actor_private = (
+            item.hero_private_discards
+            if actor == "hero"
+            else item.opponent_private_discards
+        )
+        action = _choose_rollout_t4_action(
+            actor_board=actor_board,
+            opponent_board=actor_opponent,
+            dealt_cards=dealt,
+            actor_private_discards=actor_private,
+            actor_dead_cards=actor_dead,
+            actor=actor,
+            actor_seat=actor_policy.seat,
+            hero_seat=hero_seat,
+            profile=profile,
+            final_turn_cache=final_turn_cache,
+            use_final_turn_cache=use_final_turn_cache,
+            t4_search_config=t4_search_config,
+        )
+        if action is None:
             item.valid = False
             return None
-        action = decision.action
         if actor == "hero":
             item.hero = item.hero.place(action.placements)
+            item.hero_private_discards.extend(action.discards)
         else:
             item.opponent = item.opponent.place(action.placements)
-        _merge_final_turn_profile(
-            profile,
-            final_profile,
-            actor=actor,
-            actor_card_count=actor_card_count,
-            hero_seat=hero_seat,
-            slow_record=final_turn_slow_state_record(
-                profile=final_profile,
-                board=actor_board,
-                opponent_board=actor_opponent,
-                dealt_cards=dealt,
-                dead_cards=actor_dead,
-                actor=actor,
-                seat=actor_policy.seat,
-                to_act_order=actor_order,
-                metadata=slow_record,
-            ),
-        )
+            item.opponent_private_discards.extend(action.discards)
         profile["final_turn_state_count"] += 1.0
         item.dead.extend(action.discards)
 
     scoring_started_at = time.perf_counter()
     score, _board_score = terminal_score(item.hero, item.opponent, fl_ev=DEFAULT_FL_EV)
     profile["hand_evaluation_seconds"] += time.perf_counter() - scoring_started_at
-    return float(score)
+    return float(score), _terminal_component_breakdown(item.hero, item.opponent)
 
 
 def _final_to_act_order(board: Board, opponent_board: Board) -> str:
@@ -2840,7 +3571,7 @@ def _turn_profile_key(card_count: int) -> str:
     return "non_t3_turn_T4plus_seconds"
 
 
-def _merge_t3_batch_profile(profile: dict[str, float], batch_profile: dict[str, float | int]) -> None:
+def _merge_t3_batch_profile(profile: dict[str, Any], batch_profile: dict[str, Any]) -> None:
     derived_keys = {
         "unique_raw_ratio",
         "ms_per_raw_t3_decision",
@@ -2861,13 +3592,35 @@ def _merge_t3_batch_profile(profile: dict[str, float], batch_profile: dict[str, 
         "direct_column_coverage_ratio",
         "memory_peak_mb",
     }
+    feature_metadata_keys = {
+        "feature_dtype",
+        "stage3_feature_mode",
+        "stage3_feature_encoder_mode",
+        "feature_schema_version",
+    }
+    constant_keys = {
+        *feature_metadata_keys,
+        "summary_aggregation_version",
+    }
     for key, value in batch_profile.items():
         if key in derived_keys:
             continue
         if isinstance(value, (int, float)):
-            profile[key] = profile.get(key, 0.0) + float(value)
-        elif key in {"stage3_feature_mode", "feature_dtype"}:
-            profile[key] = value  # type: ignore[assignment]
+            current = profile.get(key, 0.0)
+            if isinstance(current, (int, float)):
+                profile[key] = current + float(value)
+            elif current in (None, ""):
+                profile[key] = float(value)
+            elif key not in constant_keys:
+                profile.setdefault(f"{key}_numeric_sum", float(value))
+        elif key in feature_metadata_keys:
+            if value not in (None, ""):
+                profile[key] = value
+        elif key in constant_keys:
+            if profile.get(key) in (None, "", 0, 0.0):
+                profile[key] = value
+        elif isinstance(value, str) and key not in profile:
+            profile[key] = value
     if "feature_column_count" in batch_profile:
         profile["feature_column_count"] = float(batch_profile["feature_column_count"])  # type: ignore[arg-type]
     for key in ("direct_column_count", "scalar_fallback_column_count", "direct_column_coverage_ratio"):
@@ -2899,6 +3652,8 @@ def _rollout_after_hero_t2_action(
     hero_board: Board,
     opponent_board: Board,
     dead_cards: Iterable[str],
+    hero_private_discards: Iterable[str] | None = None,
+    opponent_private_discards: Iterable[str] | None = None,
     hero_seat: str,
     future_cards: list[str],
     hero_policy: RegularAiPolicy,
@@ -2906,11 +3661,38 @@ def _rollout_after_hero_t2_action(
     profile: dict[str, float] | None = None,
     final_turn_cache: FinalTurnDecisionCache | None = None,
     use_final_turn_cache: bool = True,
+    t4_search_config: T4SearchConfig | None = None,
+    future_index: int = 0,
+    future_rollout_seed: int = 0,
+    root_fingerprint: str = "legacy_t2_rollout",
 ) -> float | None:
     cursor = 0
     hero = hero_board
     opponent = opponent_board
     dead = list(dead_cards)
+    hero_private = list(() if hero_private_discards is None else hero_private_discards)
+    opponent_private = list(() if opponent_private_discards is None else opponent_private_discards)
+
+    def decision_seed(actor: str, card_count: int) -> int:
+        street = {5: "T1", 7: "T2", 9: "T3", 11: "T4"}.get(
+            card_count, "T4"
+        )
+        return policy_decision_seed(
+            base_seed=future_rollout_seed,
+            run_id="hu_turn2_teacher_rollout",
+            root_fingerprint=root_fingerprint,
+            future_index=future_index,
+            actor=actor,  # type: ignore[arg-type]
+            street=street,
+            decision_ordinal=card_count * 2 + (0 if actor == "hero" else 1),
+        )
+
+    def visible_dead_for(actor: str) -> tuple[str, ...]:
+        if actor == "hero":
+            return (*opponent.all_cards(), *tuple(hero_private))
+        if actor == "opponent":
+            return (*hero.all_cards(), *tuple(opponent_private))
+        raise ValueError(f"unknown actor: {actor}")
 
     def draw3() -> tuple[str, str, str] | None:
         nonlocal cursor
@@ -2930,47 +3712,33 @@ def _rollout_after_hero_t2_action(
                 return None
             actor_card_count = hero.card_count()
             if actor_card_count == 11:
-                decision, final_profile, slow_record = decide_final_turn_exact(
-                    board=hero,
-                    dealt_cards=dealt,
-                    dead_cards=(*opponent.all_cards(), *dead),
+                action = _choose_rollout_t4_action(
+                    actor_board=hero,
                     opponent_board=opponent,
+                    dealt_cards=dealt,
+                    actor_private_discards=hero_private,
+                    actor_dead_cards=visible_dead_for("hero"),
                     actor="hero",
-                    seat=hero_policy.seat,
-                    to_act_order=_final_to_act_order(hero, opponent),
-                    cache=final_turn_cache,
-                    use_cache=use_final_turn_cache,
+                    actor_seat=hero_policy.seat,
+                    hero_seat=hero_seat,
+                    profile=profile,
+                    final_turn_cache=final_turn_cache,
+                    use_final_turn_cache=use_final_turn_cache,
+                    t4_search_config=t4_search_config,
                 )
-                if decision is None:
+                if action is None:
                     return None
-                action = decision.action
                 if profile is not None:
-                    _merge_final_turn_profile(
-                        profile,
-                        final_profile,
-                        actor="hero",
-                        actor_card_count=actor_card_count,
-                        hero_seat=hero_seat,
-                        slow_record=final_turn_slow_state_record(
-                            profile=final_profile,
-                            board=hero,
-                            opponent_board=opponent,
-                            dealt_cards=dealt,
-                            dead_cards=(*opponent.all_cards(), *dead),
-                            actor="hero",
-                            seat=hero_policy.seat,
-                            to_act_order=_final_to_act_order(hero, opponent),
-                            metadata=slow_record,
-                        ),
-                    )
                     profile["final_turn_state_count"] += 1.0
             else:
                 decision_started_at = time.perf_counter()
                 action = hero_policy.choose_action(
                     hero,
                     dealt,
-                    dead_cards=(*opponent.all_cards(), *dead),
+                    dead_cards=visible_dead_for("hero"),
                     opponent_board=opponent,
+                    decision_seed=decision_seed("hero", actor_card_count),
+                    street={5: "T1", 7: "T2", 9: "T3"}.get(actor_card_count),
                 )
                 if profile is not None:
                     elapsed = time.perf_counter() - decision_started_at
@@ -2985,6 +3753,7 @@ def _rollout_after_hero_t2_action(
                         include_model_bucket=True,
                     )
             hero = hero.place(action.placements)
+            hero_private.extend(action.discards)
             dead.extend(action.discards)
         else:
             if opponent.card_count() >= 13:
@@ -2994,47 +3763,33 @@ def _rollout_after_hero_t2_action(
                 return None
             actor_card_count = opponent.card_count()
             if actor_card_count == 11:
-                decision, final_profile, slow_record = decide_final_turn_exact(
-                    board=opponent,
-                    dealt_cards=dealt,
-                    dead_cards=(*hero.all_cards(), *dead),
+                action = _choose_rollout_t4_action(
+                    actor_board=opponent,
                     opponent_board=hero,
+                    dealt_cards=dealt,
+                    actor_private_discards=opponent_private,
+                    actor_dead_cards=visible_dead_for("opponent"),
                     actor="opponent",
-                    seat=opponent_policy.seat,
-                    to_act_order=_final_to_act_order(opponent, hero),
-                    cache=final_turn_cache,
-                    use_cache=use_final_turn_cache,
+                    actor_seat=opponent_policy.seat,
+                    hero_seat=hero_seat,
+                    profile=profile,
+                    final_turn_cache=final_turn_cache,
+                    use_final_turn_cache=use_final_turn_cache,
+                    t4_search_config=t4_search_config,
                 )
-                if decision is None:
+                if action is None:
                     return None
-                action = decision.action
                 if profile is not None:
-                    _merge_final_turn_profile(
-                        profile,
-                        final_profile,
-                        actor="opponent",
-                        actor_card_count=actor_card_count,
-                        hero_seat=hero_seat,
-                        slow_record=final_turn_slow_state_record(
-                            profile=final_profile,
-                            board=opponent,
-                            opponent_board=hero,
-                            dealt_cards=dealt,
-                            dead_cards=(*hero.all_cards(), *dead),
-                            actor="opponent",
-                            seat=opponent_policy.seat,
-                            to_act_order=_final_to_act_order(opponent, hero),
-                            metadata=slow_record,
-                        ),
-                    )
                     profile["final_turn_state_count"] += 1.0
             else:
                 decision_started_at = time.perf_counter()
                 action = opponent_policy.choose_action(
                     opponent,
                     dealt,
-                    dead_cards=(*hero.all_cards(), *dead),
+                    dead_cards=visible_dead_for("opponent"),
                     opponent_board=hero,
+                    decision_seed=decision_seed("opponent", actor_card_count),
+                    street={5: "T1", 7: "T2", 9: "T3"}.get(actor_card_count),
                 )
                 if profile is not None:
                     elapsed = time.perf_counter() - decision_started_at
@@ -3049,6 +3804,7 @@ def _rollout_after_hero_t2_action(
                         include_model_bucket=True,
                     )
             opponent = opponent.place(action.placements)
+            opponent_private.extend(action.discards)
             dead.extend(action.discards)
 
     scoring_started_at = time.perf_counter()
@@ -3066,22 +3822,51 @@ def _next_actor(hero: Board, opponent: Board, hero_seat: str) -> str:
     return "hero" if hero_seat == "first" else "opponent"
 
 
-def _common_future_rollouts(
-    remaining_cards: Iterable[str],
-    *,
-    future_samples: int,
-    seed: int,
-) -> list[tuple[str, ...]]:
-    remaining = tuple(remaining_cards)
-    if future_samples <= 0:
-        raise ValueError("future_samples must be positive")
-    rng = random.Random(seed)
-    rollouts = []
-    for _ in range(future_samples):
-        shuffled = list(remaining)
-        rng.shuffle(shuffled)
-        rollouts.append(tuple(shuffled))
-    return rollouts
+def _line_score_component(own_value: tuple[int, tuple[int, ...]], opp_value: tuple[int, tuple[int, ...]]) -> int:
+    if own_value > opp_value:
+        return 1
+    if own_value < opp_value:
+        return -1
+    return 0
+
+
+def _terminal_component_breakdown(hero: Board, opponent: Board) -> dict[str, float]:
+    hero_score = score_board(hero.top, hero.middle, hero.bottom)
+    opponent_score = score_board(opponent.top, opponent.middle, opponent.bottom)
+    hero_royalty = 0 if hero_score.busted else hero_score.total_royalty
+    opponent_royalty = 0 if opponent_score.busted else opponent_score.total_royalty
+    hero_fl = 0.0 if hero_score.busted else float(DEFAULT_FL_EV.get(hero_score.fl_entry.card_count, 0.0))
+    opponent_fl = 0.0 if opponent_score.busted else float(DEFAULT_FL_EV.get(opponent_score.fl_entry.card_count, 0.0))
+    line_score_delta = 0
+    scoop_delta = 0
+    foul_delta = 0
+    if hero_score.busted and opponent_score.busted:
+        terminal = 0.0
+    elif hero_score.busted:
+        foul_delta = -6
+        terminal = float(foul_delta - opponent_royalty - opponent_fl)
+    elif opponent_score.busted:
+        foul_delta = 6
+        terminal = float(foul_delta + hero_royalty + hero_fl)
+    else:
+        line_score_delta = sum(
+            _line_score_component(own, opp)
+            for own, opp in (
+                (hero_score.top_value, opponent_score.top_value),
+                (hero_score.middle_value, opponent_score.middle_value),
+                (hero_score.bottom_value, opponent_score.bottom_value),
+            )
+        )
+        scoop_delta = 3 if line_score_delta == 3 else (-3 if line_score_delta == -3 else 0)
+        terminal = float(line_score_delta + scoop_delta + hero_royalty - opponent_royalty + hero_fl - opponent_fl)
+    return {
+        "terminal_score": float(terminal),
+        "royalty_delta": float(hero_royalty - opponent_royalty),
+        "fl_delta": float(hero_fl - opponent_fl),
+        "line_score_delta": float(line_score_delta),
+        "scoop_delta": float(scoop_delta),
+        "foul_delta": float(foul_delta),
+    }
 
 
 def _future_rollout_digest(future_rollouts: list[tuple[str, ...]]) -> str:
@@ -3284,10 +4069,23 @@ def _cheap_no_rollout_proxy(
     dealt_cards: Iterable[str],
     opponent_board: Board,
     dead_cards: Iterable[str],
+    visible_dead_cards: Iterable[str] | None = None,
+    hero_private_discards: Iterable[str] = (),
     hero_seat: str,
     baseline_turn2_model: object,
 ) -> dict[str, Any]:
     dealt = tuple(dealt_cards)
+    if visible_dead_cards is None and not tuple(hero_private_discards):
+        raise ValueError(
+            "T2 cheap proxy requires explicit hero_private_discards or "
+            "visible_dead_cards; ambiguous dead_cards are forbidden"
+        )
+    visible_dead = _visible_dead_cards_for_turn2_state(
+        opponent_board=opponent_board,
+        dead_cards=dead_cards,
+        visible_dead_cards=visible_dead_cards,
+        hero_private_discards=hero_private_discards,
+    )
     actions = generate_turn_actions(board, dealt)
     if not actions:
         return {
@@ -3297,14 +4095,17 @@ def _cheap_no_rollout_proxy(
         }
     baseline_sample = policy_sample(board, dealt, actions)
     predictions = np.asarray(baseline_turn2_model.predict_sample(baseline_sample), dtype=np.float64)
-    order = np.argsort(predictions)[::-1]
+    order = canonical_descending_indices(predictions, actions)
     top1 = int(order[0])
     top2 = int(order[1]) if len(order) > 1 else top1
     heuristic_scores = [
         _cheap_action_heuristic(board.place(action.placements), opponent_board, action)
         for action in actions
     ]
-    heuristic_order = sorted(range(len(actions)), key=lambda idx: heuristic_scores[idx], reverse=True)
+    heuristic_order = sorted(
+        range(len(actions)),
+        key=lambda idx: (-heuristic_scores[idx], action_key(actions[idx]).sort_key()),
+    )
     reference = int(heuristic_order[0])
     reference2 = int(heuristic_order[1]) if len(heuristic_order) > 1 else reference
     spread = float(np.max(predictions) - np.min(predictions)) if len(predictions) else 0.0
@@ -3317,7 +4118,7 @@ def _cheap_no_rollout_proxy(
     foul_risk = _cheap_foul_risk(best_after)
     royalty_potential = _cheap_royalty_potential(best_after)
     fl_distance = _cheap_fl_distance(best_after)
-    dead_pressure = _cheap_dead_card_pressure(best_after, (*opponent_board.all_cards(), *tuple(dead_cards)))
+    dead_pressure = _cheap_dead_card_pressure(best_after, visible_dead)
     action_payloads = []
     for index, action in enumerate(actions):
         action_payloads.append(
@@ -3327,16 +4128,22 @@ def _cheap_no_rollout_proxy(
                 "predicted_score": float(predictions[index]),
                 "heuristic_score": float(heuristic_scores[index]),
                 "original_index": index,
+                "canonical_action_key": action_key(action).to_token(),
             }
         )
     return {
         "schema": "hu_turn2_cheap_no_rollout_v1",
+        "action_key_schema": ACTION_KEY_SCHEMA,
+        "legal_action_set_digest": legal_action_set_digest(actions),
+        "legal_action_order_digest": ordered_action_mapping_digest(actions),
         "actions": action_payloads,
         "baseline_action": _cheap_action_summary(actions[top1], top1, float(predictions[top1])),
         "reference_action": _cheap_action_summary(actions[reference], reference, float(predictions[reference])),
         "baseline_reference_disagree": top1 != reference,
         "baseline_index": top1,
+        "baseline_action_key": action_key(actions[top1]).to_token(),
         "reference_index": reference,
+        "reference_action_key": action_key(actions[reference]).to_token(),
         "legal_action_count": len(actions),
         "top1_predicted_score": float(predictions[top1]),
         "top2_predicted_score": float(predictions[top2]),
@@ -3425,6 +4232,7 @@ def _actual_bucket_for_predicted(predicted_bucket: str) -> SourceBucket:
 def _cheap_action_summary(action: Action, index: int, score: float) -> dict[str, Any]:
     return {
         "original_index": index,
+        "canonical_action_key": action_key(action).to_token(),
         "predicted_score": score,
         "action": {
             "placements": [list(item) for item in action.placements],
@@ -3622,6 +4430,9 @@ def _candidate_pool_record(
     dealt_cards: Iterable[str],
     opponent_board: Board,
     dead_cards: Iterable[str],
+    visible_dead_cards: Iterable[str] | None = None,
+    hero_private_discards: Iterable[str] = (),
+    opponent_private_discards: Iterable[str] = (),
     hero_seat: str,
     source_bucket: SourceBucket,
     cheap_sample: dict[str, Any] | None,
@@ -3631,6 +4442,33 @@ def _candidate_pool_record(
 ) -> dict[str, Any]:
     dealt = tuple(dealt_cards)
     dead = tuple(dead_cards)
+    visible_dead = _visible_dead_cards_for_turn2_state(
+        opponent_board=opponent_board,
+        dead_cards=dead,
+        visible_dead_cards=visible_dead_cards,
+        hero_private_discards=hero_private_discards,
+    )
+    hero_private = tuple(hero_private_discards)
+    opponent_private = tuple(opponent_private_discards)
+    observation = ActorObservation(
+        hero_board=board,
+        opponent_public_board=opponent_board,
+        dealt_cards=dealt,
+        hero_private_discards=hero_private,
+        seat=hero_seat,  # type: ignore[arg-type]
+        street="T2",
+        to_act_order=to_act_order_for(board, opponent_board),  # type: ignore[arg-type]
+    )
+    if observation.legacy_dead_cards() != visible_dead:
+        raise ValueError(
+            "candidate-pool visible cards disagree with ActorObservation"
+        )
+    replay_truth = ReplayTruth(
+        true_dead_cards=dead,
+        visible_dead_cards=visible_dead,
+        hero_private_discards=hero_private,
+        opponent_private_discards=opponent_private,
+    )
     cheap = cheap_sample or {}
     actions = cheap.get("actions", [])
     spread = 0.0
@@ -3640,7 +4478,8 @@ def _candidate_pool_record(
             scores = [float(action.get("predicted_score", 0.0)) for action in actions]
         spread = max(scores) - min(scores) if scores else 0.0
     record = {
-        "schema": "hu_turn2_candidate_pool_v1",
+        "schema": "hu_turn2_candidate_pool_v2",
+        "turn": "T2",
         "prefilter_version": prefilter_version,
         "seed": seed,
         "hand_seed": hand_seed,
@@ -3656,8 +4495,11 @@ def _candidate_pool_record(
         "opponent_board": board_to_json(opponent_board),
         "cards_to_place": list(dealt),
         "dealt": list(dealt),
-        "dead_cards": list(dead),
-        "visible_dead_cards": [*opponent_board.all_cards(), *dead],
+        "dead_cards": list(visible_dead),
+        "visible_dead_cards": list(visible_dead),
+        "hero_private_discards": list(hero_private),
+        "policy_observation": observation.to_dict(),
+        **replay_truth.to_legacy_record_fields(),
         "baseline_action": cheap.get("baseline_action"),
         "reference_action": cheap.get("reference_action"),
         "baseline_reference_disagree": bool(cheap.get("baseline_reference_disagree", False)),
@@ -3731,7 +4573,9 @@ def _stage3_feature_teacher_run_hash(
     source_bucket: SourceBucket,
     stage3_feature_encoder_mode: str,
     disable_stage3_feature_fast_path: bool,
+    t3_continuation: T3ContinuationMode,
 ) -> str:
+    continuation_metadata = _t3_continuation_metadata(t3_continuation)
     payload = {
         "seed": seed,
         "samples": samples,
@@ -3739,11 +4583,20 @@ def _stage3_feature_teacher_run_hash(
         "source_bucket": source_bucket,
         "stage3_feature_encoder_mode": stage3_feature_encoder_mode,
         "disable_stage3_feature_fast_path": disable_stage3_feature_fast_path,
-        "continuation_policy_T3": STAGE7_CONTINUATION_NAME,
-        "stage7_model": str(DEFAULT_HU_TURN3_STAGE7_MODEL),
+        "t3_continuation": t3_continuation,
+        "continuation_policy_T3": _t3_continuation_policy_name(t3_continuation),
+        "stage7_enabled": continuation_metadata["stage7_enabled"],
+        "stage7_model": continuation_metadata["stage7_model_path"],
         "stage3_reference_model": str(DEFAULT_HU_TURN3_STAGE7_REFERENCE_MODEL),
-        "hu_turn3_min_margin": DEFAULT_HU_TURN3_STAGE7_MIN_MARGIN,
-        "hu_turn3_reference_min_margin": DEFAULT_HU_TURN3_STAGE7_REFERENCE_MIN_MARGIN,
+        "hu_turn3_min_margin": continuation_metadata["stage7_hu_turn3_min_margin"],
+        "hu_turn3_reference_min_margin": continuation_metadata[
+            "stage7_hu_turn3_reference_min_margin"
+        ],
+        "support_model": continuation_metadata.get("support_model_path", ""),
+        "gate_model": continuation_metadata.get("gate_model_path", ""),
+        "hu_turn3_min_support_margin": continuation_metadata.get("hu_turn3_min_support_margin", 0.0),
+        "hu_turn3_min_model_score": continuation_metadata.get("hu_turn3_min_model_score"),
+        "hu_turn3_min_gate_probability": continuation_metadata.get("hu_turn3_min_gate_probability", 0.0),
     }
     return hashlib.sha256(
         json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
@@ -3771,12 +4624,36 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-hands", type=int, default=1000000)
     parser.add_argument("--opening-lookahead-samples", type=int, default=64)
     parser.add_argument("--prediction-threads", type=int, default=1)
+    parser.add_argument(
+        "--t3-continuation",
+        choices=("stage3_reference_default", "stage7_m5_r10", "stage9d_p07_relaxed_both"),
+        default=DEFAULT_T3_CONTINUATION,
+        help=(
+            "T3 continuation used inside T2 teacher rollouts. "
+            "Hidden-discard default is stage3_reference_default; "
+            "stage7_m5_r10 and stage9d_p07_relaxed_both must be opted in explicitly."
+        ),
+    )
     parser.add_argument("--use-batched-continuation", action="store_true")
     parser.add_argument("--batch-continuation-size", type=int, default=8192)
     parser.add_argument("--disable-continuation-cache", action="store_true")
     parser.add_argument("--continuation-cache-size", type=int, default=200000)
     parser.add_argument("--disable-final-turn-cache", action="store_true")
     parser.add_argument("--final-turn-cache-size", type=int, default=200000)
+    parser.add_argument(
+        "--enable-m2-t4-search",
+        action="store_true",
+        help=(
+            "Use the ActorObservation-only sequential T4 selector for first-to-act "
+            "rollout decisions. Omit only to reproduce quarantined legacy artifacts."
+        ),
+    )
+    parser.add_argument("--m2-t4-candidate-samples", type=int, default=16)
+    parser.add_argument("--m2-t4-evaluation-samples", type=int, default=32)
+    parser.add_argument("--m2-t4-seed", type=int, default=2026071303)
+    parser.add_argument("--m2-t4-candidate-seed", type=int, default=2026071301)
+    parser.add_argument("--m2-t4-evaluation-seed", type=int, default=2026071302)
+    parser.add_argument("--m2-t4-run-id", default="hu-m2-t2-continuation-v1")
     parser.add_argument("--prefilter-future-samples", type=int, default=0)
     parser.add_argument("--build-candidate-pool", action="store_true")
     parser.add_argument("--candidate-pool-output", type=Path)
@@ -3815,6 +4692,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--turn3-model", type=Path, default=DEFAULT_TURN3_MODEL)
     parser.add_argument("--stage7-model", type=Path, default=DEFAULT_HU_TURN3_STAGE7_MODEL)
     parser.add_argument("--stage3-reference-model", type=Path, default=DEFAULT_HU_TURN3_STAGE7_REFERENCE_MODEL)
+    parser.add_argument("--stage9d-model", type=Path, default=DEFAULT_HU_TURN3_STAGE9D_MODEL)
+    parser.add_argument("--stage9d-support-model", type=Path, default=DEFAULT_HU_TURN3_STAGE9D_SUPPORT_MODEL)
+    parser.add_argument("--stage9d-gate-model", type=Path, default=DEFAULT_HU_TURN3_STAGE9D_GATE_MODEL)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--summary-output", type=Path)
     return parser.parse_args()
@@ -3832,6 +4712,8 @@ def main() -> None:
         raise SystemExit("--prefilter-future-samples must be non-negative")
     if args.candidate_pool_max_attempts < 0:
         raise SystemExit("--candidate-pool-max-attempts must be non-negative")
+    if args.m2_t4_candidate_samples < 0 or args.m2_t4_evaluation_samples < 0:
+        raise SystemExit("M2 T4 sample counts must be non-negative")
     if args.build_candidate_pool and args.candidate_pool_output is None:
         raise SystemExit("--build-candidate-pool requires --candidate-pool-output")
     if args.build_candidate_pool and args.candidate_pool_input is not None:
@@ -3848,10 +4730,34 @@ def main() -> None:
         turn3=args.turn3_model,
         hu_turn3_stage7=args.stage7_model,
         hu_turn3_stage7_reference=args.stage3_reference_model,
+        hu_turn3_stage9d=args.stage9d_model,
+        hu_turn3_stage9d_support=args.stage9d_support_model,
+        hu_turn3_stage9d_gate=args.stage9d_gate_model,
     )
-    bundle = load_model_bundle(paths, {"current"})
+    requested_model_profile = (
+        {
+            "stage3_reference_default": "stage3_baseline",
+            "stage7_m5_r10": "stage7_m5_r10",
+            "stage9d_p07_relaxed_both": "stage9d_p07_relaxed_both",
+        }[args.t3_continuation]
+        if args.enable_m2_t4_search
+        else "current"
+    )
+    bundle = load_model_bundle(paths, {requested_model_profile})
     if bundle.turn2 is None:
         bundle.turn2 = load_action_value_model(args.turn2_model)
+    t4_search_config = (
+        T4SearchConfig(
+            candidate_samples=args.m2_t4_candidate_samples,
+            evaluation_samples=args.m2_t4_evaluation_samples,
+            seed=args.m2_t4_seed,
+            candidate_seed=args.m2_t4_candidate_seed,
+            evaluation_seed=args.m2_t4_evaluation_seed,
+            run_id=args.m2_t4_run_id,
+        )
+        if args.enable_m2_t4_search
+        else None
+    )
     with _prediction_thread_context(args.prediction_threads):
         if args.candidate_pool_input is not None:
             summary = collect_hu_turn2_dataset_from_candidate_pool(
@@ -3871,6 +4777,8 @@ def main() -> None:
                 stage3_feature_encoder_mode=args.stage3_feature_encoder_mode,
                 disable_final_turn_cache=args.disable_final_turn_cache,
                 final_turn_cache_size=args.final_turn_cache_size,
+                t3_continuation=args.t3_continuation,
+                t4_search_config=t4_search_config,
             )
         else:
             summary = collect_hu_turn2_dataset(
@@ -3902,6 +4810,8 @@ def main() -> None:
                 candidate_pool_max_attempts=args.candidate_pool_max_attempts,
                 candidate_pool_balance_position=args.candidate_pool_balance_position,
                 candidate_pool_balance_source=args.candidate_pool_balance_source,
+                t3_continuation=args.t3_continuation,
+                t4_search_config=t4_search_config,
             )
     print(json.dumps(summary, ensure_ascii=False, indent=2))
     if args.summary_output is not None:

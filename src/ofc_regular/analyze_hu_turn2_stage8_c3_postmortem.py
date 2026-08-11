@@ -557,7 +557,7 @@ def write_training_plan(path: Path) -> None:
         "",
         "1. Holdout teacher cache: low FP, positive avg gain, p95/p99 loss controlled.",
         "2. Proxy-vs-oracle overlap: safe head improves recall without losing precision.",
-        "3. C3-style seat-swap: non-overlapping seeds, `--seed-stride`, T3 Stage7 m5_r10 fixed.",
+        "3. C3-style seat-swap: non-overlapping seeds, `--seed-stride`, and explicit matching T3 continuation.",
         "4. Only after a positive larger seat-swap should selected MC4096/8192 and C4 be used for promotion evidence.",
         "",
         "50k teacher, T1, and production remain No-Go until Stage8b passes these gates.",
@@ -607,6 +607,20 @@ def write_recommended_next_step(path: Path, *, overlap_rows: list[dict[str, Any]
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
+def t3_continuation_label(decisions: list[dict[str, Any]]) -> tuple[str, str]:
+    modes = sorted({str(row.get("t3_continuation", "") or "") for row in decisions if row.get("t3_continuation")})
+    policies = sorted(
+        {
+            str(row.get("t3_continuation_policy", "") or "")
+            for row in decisions
+            if row.get("t3_continuation_policy")
+        }
+    )
+    mode = ",".join(modes) if modes else "legacy_unspecified"
+    policy = ",".join(policies) if policies else "legacy_unspecified"
+    return mode, policy
+
+
 def write_summary(path: Path, *, decisions: list[dict[str, Any]], seat_swap: dict[str, dict[str, str]], output_dir: Path) -> None:
     rows = [
         "| config | EV/hand | CI low | CI high | overrides | override rate | teacher avg gain | FP |",
@@ -625,12 +639,14 @@ def write_summary(path: Path, *, decisions: list[dict[str, Any]], seat_swap: dic
                 fp=safe_float(row.get("false_positive_override_rate")),
             )
         )
+    t3_mode, t3_policy = t3_continuation_label(decisions)
     lines = [
         "# HU Turn2 Stage8 C3 No-Go Postmortem",
         "",
         "C3 is a decision No-Go. This postmortem is diagnostic only and does not authorize production, 50k teacher, T1, or P2 fixation.",
         "",
-        "- T3 continuation: `Stage7_candidate_A_m5_r10` fixed",
+        f"- T3 continuation: `{t3_policy}`",
+        f"- t3_continuation: `{t3_mode}`",
         "- Stage8 mode: `HU T2 selective override`, not full replacement",
         f"- runtime decisions read: `{len(decisions)}`",
         f"- output directory: `{output_dir}`",

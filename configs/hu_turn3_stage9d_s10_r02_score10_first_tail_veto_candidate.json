@@ -1,0 +1,143 @@
+{
+  "name": "hu_turn3_stage9d_s10_r02_score10_first_tail_veto_candidate",
+  "status": "evaluation_only_balanced_tail_veto_candidate",
+  "rule_set": "regular",
+  "schema": "hu_stage1",
+  "phase": "hu_turn3_9card",
+  "objective": "hu_t3_selective_override_over_stage3_with_stage9d_support_score_floor_reference_floor_and_seat_gate",
+  "primary_model": {
+    "path": "models/hu_turn3_joint_exact_stage9_mixed1200_mc128_extra_trees.pkl",
+    "type": "extra_trees_joint_exact_stage9"
+  },
+  "support_model": {
+    "path": "models/hu_turn3_stage9d_mixed_runtime_hn245_mc128_extra_trees.pkl",
+    "type": "extra_trees_stage9d_support"
+  },
+  "reference_model": {
+    "path": "models/hu_turn3_stage3_mc32_500k_plus_m8_12_f128_100k_w2_cached_rank_wide.pt"
+  },
+  "baseline_models": {
+    "opening": "models/opening_stage7_torch_wide.pt",
+    "turn1": "models/turn1_stage6_torch_wide.pt",
+    "turn2": "models/turn2_stage8.pkl",
+    "turn3": "models/turn3_stage6.pkl"
+  },
+  "runtime": {
+    "hu_turn3_stage7_enabled": true,
+    "hu_turn3_min_margin": 1.0,
+    "hu_turn3_reference_min_margin": 0.2,
+    "hu_turn3_min_support_margin": 1.0,
+    "hu_turn3_min_model_score": 10.0,
+    "hu_turn3_allowed_seats": [
+      "first"
+    ],
+    "stage9_full_replacement_enabled": false
+  },
+  "diagnostic_basis": {
+    "previous_candidate": "configs/hu_turn3_stage9d_s10_r05_score10_first_tail_veto_candidate.json",
+    "reason": "The reference0.5 variant was clean but extremely low-volume. Lowering the T3 reference-margin floor to 0.2 recovered one additional fire in the 1,500-paired validation without reintroducing an MC128 hard negative."
+  },
+  "evaluation": {
+    "seat_swap_1500": {
+      "summary": "outputs/evals/hu_turn3_stage9d_s10_r02_score10_first_1500/summary.md",
+      "paired_seeds": 1500,
+      "hands": 3000,
+      "seed": 2026063401,
+      "seed_stride": 17,
+      "ev_per_hand": 0.015484680409788969,
+      "ci95_low": -0.00596883221000667,
+      "ci95_high": 0.03693819302958461,
+      "candidate_fires": 4,
+      "candidate_fire_rate": 0.0013333333333333333,
+      "stage7_baseline_fires": 0,
+      "fired_mc128": {
+        "samples": 4,
+        "mean_delta": 7.258950022543468,
+        "materially_positive": 2,
+        "materially_negative": 0,
+        "near_tie": 2,
+        "worst_delta": 0.13458609855221582
+      },
+      "status": "best_current_research_candidate_not_production"
+    },
+    "seat_swap_1500_seed3601": {
+      "summary": "outputs/evals/hu_turn3_stage9d_s10_r02_score10_first_1500_seed3601/summary.md",
+      "paired_seeds": 1500,
+      "hands": 3000,
+      "seed": 2026063601,
+      "seed_stride": 17,
+      "ev_per_hand": 0.02989368728135012,
+      "ci95_low": -0.0012421271603038977,
+      "ci95_high": 0.061029501723004136,
+      "candidate_fires": 7,
+      "candidate_fire_rate": 0.0023333333333333335,
+      "stage7_baseline_fires": 0,
+      "fired_mc128": {
+        "samples": 7,
+        "mean_delta": 8.743101940655475,
+        "materially_positive": 7,
+        "materially_negative": 0,
+        "near_tie": 0,
+        "worst_delta": 3.378971247776928
+      },
+      "status": "second_non_overlapping_seed_positive_not_production"
+    },
+    "combined_3000_paired": {
+      "paired_seeds": 3000,
+      "hands": 6000,
+      "ev_per_hand_weighted_mean": 0.022689183845569545,
+      "candidate_fires": 11,
+      "candidate_fire_rate": 0.0018333333333333333,
+      "stage7_baseline_fires": 0,
+      "fired_mc128": {
+        "samples": 11,
+        "mean_delta_weighted": 8.2034099602512,
+        "materially_positive": 9,
+        "materially_negative": 0,
+        "near_tie": 2,
+        "worst_delta": 0.13458609855221582
+      },
+      "status": "best_current_research_candidate_needs_larger_validation"
+    },
+    "stage7_active_seed2702_1000": {
+      "summary": "outputs/evals/hu_turn3_stage9d_s10_r02_score10_first_seed2702_stage7active/summary.md",
+      "paired_seeds": 1000,
+      "hands": 2000,
+      "seed": 2026062702,
+      "seed_stride": 17,
+      "ev_per_hand": 0.05006755153670864,
+      "ci95_low": -0.01587079181314187,
+      "ci95_high": 0.11600589488655914,
+      "candidate_fires": 9,
+      "candidate_fire_rate": 0.0045,
+      "stage7_baseline_fires": 1,
+      "fired_mc128": {
+        "samples": 9,
+        "mean_delta": 6.201724216338742,
+        "materially_positive": 7,
+        "materially_negative": 1,
+        "near_tie": 1,
+        "worst_delta": -1.8235223101344982
+      },
+      "status": "positive_stage7_active_seed_range_but_tail_not_clean"
+    },
+    "combined_4000_paired": {
+      "summary": "outputs/evals/hu_turn3_stage9d_s10_r02_score10_first_combined/summary.md",
+      "paired_seeds": 4000,
+      "hands": 8000,
+      "ev_per_hand_weighted_mean": 0.029533775768354317,
+      "candidate_fires": 20,
+      "candidate_fire_rate": 0.0025,
+      "stage7_baseline_fires": 1,
+      "fired_mc128": {
+        "samples": 20,
+        "mean_delta_weighted": 7.302651375490594,
+        "materially_positive": 16,
+        "materially_negative": 1,
+        "near_tie": 3,
+        "worst_delta": -1.8235223101344982
+      },
+      "status": "best_current_research_candidate_not_production_tail_not_clean"
+    }
+  }
+}

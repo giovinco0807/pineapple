@@ -40,6 +40,30 @@ def discarded_cards_from_state(state: dict[str, Any], opponent_board: Board) -> 
     return tuple(card for card in state.get("dead_cards", ()) if card not in opponent_cards)
 
 
+def visible_dead_cards_from_state(
+    state: dict[str, Any],
+    *,
+    opponent_board: Board,
+    discarded_cards: tuple[str, ...],
+) -> tuple[str, ...]:
+    if "visible_dead_cards" in state:
+        return tuple(state["visible_dead_cards"])
+    if "hero_private_discards" in state:
+        return (*opponent_board.all_cards(), *tuple(state["hero_private_discards"]))
+    return (*opponent_board.all_cards(), *discarded_cards)
+
+
+def private_discards_from_state(
+    state: dict[str, Any],
+    key: str,
+    *,
+    fallback: tuple[str, ...],
+) -> tuple[str, ...]:
+    if key in state:
+        return tuple(state[key])
+    return fallback
+
+
 def opponent_seat(hero_seat: str) -> str:
     return "second" if hero_seat == "first" else "first"
 
@@ -60,6 +84,21 @@ def label_hu_turn3_state(
     board = board_from_json(state["board"])
     opponent_board = board_from_json(state["opponent_board"])
     discarded_cards = discarded_cards_from_state(state, opponent_board)
+    visible_dead_cards = visible_dead_cards_from_state(
+        state,
+        opponent_board=opponent_board,
+        discarded_cards=discarded_cards,
+    )
+    hero_private_discards = private_discards_from_state(
+        state,
+        "hero_private_discards",
+        fallback=discarded_cards,
+    )
+    opponent_private_discards = private_discards_from_state(
+        state,
+        "opponent_private_discards",
+        fallback=discarded_cards,
+    )
     hero_policy = build_policy(
         "current",
         policy_bundle,
@@ -80,6 +119,9 @@ def label_hu_turn3_state(
         dealt_cards=state["dealt"],
         opponent_board=opponent_board,
         dead_cards=discarded_cards,
+        visible_dead_cards=visible_dead_cards,
+        hero_private_discards=hero_private_discards,
+        opponent_private_discards=opponent_private_discards,
         hero_seat=hero_seat,
         hero_policy=hero_policy,
         opponent_policy=villain_policy,
@@ -98,6 +140,8 @@ def label_hu_turn3_state(
         "hand_seed": state.get("hand_seed"),
         "hand_index": state.get("hand_index"),
         "player": state.get("player"),
+        "visibility_model": state.get("visibility_model", "legacy_unspecified"),
+        "discard_visibility": state.get("discard_visibility", "legacy_unspecified"),
     }
     if "selection" in state:
         sample["selection"] = state["selection"]

@@ -1,0 +1,401 @@
+{
+  "schema": "hu_joint_policy_m31_t3_step5_contract_v1",
+  "status_date": "2026-07-16",
+  "status": "frozen_before_spot_canary_or_teacher_generation",
+  "decision": "freeze_t3_data_quality_promotion_gates_and_disjoint_seed_namespaces",
+  "scope": "m31_t3_step5_contract_only_no_model_training_evaluation_or_activation",
+  "prerequisites": {
+    "step4_status": {
+      "path": "configs/hu_joint_policy_m31_t3_step4_status.json",
+      "sha256": "4ccfbac37def2b54bf950a99de83db7c1ce2f8e98833d04e9d5a8fb107620539"
+    },
+    "step4_summary": {
+      "path": "outputs/hu_joint_policy/m31_t3_step4/local1000_v1/summary.json",
+      "sha256": "8fc6599192a9dcc1bc15d9368eccff8bbde0b5cb3c03ee34a2b8851d4421bb71"
+    },
+    "step4_audit": {
+      "path": "docs/hu_joint_policy_m31_t3_step4_completion_audit.md",
+      "sha256": "7af6106c3732215197f605648a31c1b75e68181c7f1a91307341a2fd9ea946f6"
+    },
+    "policy_registry": {
+      "path": "src/ofc_regular/ai_profiles.py",
+      "sha256": "d2eb02669e27426623c70af21f1af4d7002db2a7eab77efd3319f8fb65b868d3"
+    },
+    "native_library": {
+      "path": "target/m31_opt_build/release/ofc_hu_m3_engine.dll",
+      "sha256": "d2d8f66ae56d978297a9228ca8b271622bb1b73cd2437237de8ef89915ea73e4",
+      "engine_version": "ofc_hu_m3_engine/0.1.0"
+    }
+  },
+  "baseline_invariants": {
+    "fixed_profiles": [
+      "stage19_p0",
+      "stage18_p1",
+      "stage9f_p2",
+      "stage7_m5_r10"
+    ],
+    "candidate_baseline": "stage7_m5_r10",
+    "current_profile_resolution_allowed": false,
+    "legacy_t3_weights_as_label_source_allowed": false,
+    "legacy_t3_weights_as_rollback_or_opponent_allowed": true
+  },
+  "information_set": {
+    "schema": "regular_ofc_actor_observation_v1",
+    "hero_board": true,
+    "opponent_public_board": true,
+    "hero_private_discards": true,
+    "dealt_cards": true,
+    "seat_and_action_order": true,
+    "turn": "T3",
+    "fantasyland_state": true,
+    "scoring_context": true,
+    "opponent_private_discards": false,
+    "realized_remaining_deck": false,
+    "world_state_or_replay_truth": false,
+    "unknown_fields_rejected": true
+  },
+  "action_contract": {
+    "enumerate_all_legal_actions": true,
+    "semantic_action_key": "regular_ofc_action_key_v1",
+    "dealt_order_independent_semantics": true,
+    "illegal_action_masking": true,
+    "state_action_values_required": true,
+    "original_index_mapping_required": true,
+    "legal_set_and_order_digests_required": true,
+    "canonical_tie_break_required": true
+  },
+  "teacher_search": {
+    "infrastructure_canary_budget": {
+      "candidate_samples": 4,
+      "evaluation_samples": 8,
+      "downstream_t3_samples": 2,
+      "downstream_t4_samples": 0
+    },
+    "production_label_budget": {
+      "candidate_samples": 8,
+      "evaluation_samples": 32,
+      "downstream_t3_samples": 4,
+      "downstream_t4_samples": 0
+    },
+    "independent_confirmation": {
+      "fraction_of_each_teacher_split": 0.1,
+      "evaluation_samples": 128,
+      "all_legal_actions": true,
+      "separate_rng_namespace": true,
+      "used_as_runtime_gate": false
+    },
+    "common_random_futures_within_action_comparison": true,
+    "candidate_evaluation_confirmation_rng_disjoint": true,
+    "candidate_selection_and_locked_evaluation_separate": true,
+    "downstream_t4": "exact_native_enumeration",
+    "root_t3": "common_random_monte_carlo_not_full_deck_exact",
+    "teacher_values_are_realized_match_ev": false
+  },
+  "behavior_population": {
+    "schedule": "equal_quota_seeded_shuffle_v1",
+    "profiles": [
+      {
+        "profile": "stage19_p0",
+        "policy_family": "historical_selective_opening_chain",
+        "weight": 0.2
+      },
+      {
+        "profile": "stage9f_p2",
+        "policy_family": "historical_selective_t2_chain",
+        "weight": 0.2
+      },
+      {
+        "profile": "stage7_m5_r10",
+        "policy_family": "conservative_t3_margin",
+        "weight": 0.2
+      },
+      {
+        "profile": "stage3_baseline",
+        "policy_family": "historical_baseline",
+        "weight": 0.2
+      },
+      {
+        "profile": "random_exact_final",
+        "policy_family": "random_off_policy_exact_final",
+        "weight": 0.2
+      }
+    ],
+    "first_second_roots_equal": true,
+    "profile_quota_exact_per_teacher_split": true,
+    "current_profile_allowed": false
+  },
+  "seed_contract": {
+    "seed_stride": 1000003,
+    "formula": "namespace_seed_base + seed_stride * index",
+    "historical_config_seed_max_at_freeze": 256108071901,
+    "planned_seed_min": 300108071901,
+    "all_namespaces_globally_disjoint": true,
+    "splits_and_namespaces_globally_disjoint": true,
+    "alternate_seed_after_results_allowed": false,
+    "optional_stopping_or_posthoc_extension_allowed": false,
+    "schedules": [
+      {
+        "name": "infrastructure_canary",
+        "role": "teacher_infrastructure_only",
+        "index_count": 250,
+        "root_count": 500,
+        "eligible_for_training": false,
+        "locked_before_content_read": false,
+        "namespace_bases": {
+          "hand_seed_base": 300108071901,
+          "behavior_policy_seed_base": 301108071901,
+          "candidate_seed_base": 302108071901,
+          "evaluation_seed_base": 303108071901,
+          "child_policy_seed_base": 304108071901,
+          "confirmation_seed_base": 305108071901
+        }
+      },
+      {
+        "name": "train",
+        "role": "teacher_training",
+        "index_count": 6000,
+        "root_count": 12000,
+        "eligible_for_training": true,
+        "locked_before_content_read": false,
+        "namespace_bases": {
+          "hand_seed_base": 310108071901,
+          "behavior_policy_seed_base": 317108071901,
+          "candidate_seed_base": 324108071901,
+          "evaluation_seed_base": 331108071901,
+          "child_policy_seed_base": 338108071901,
+          "confirmation_seed_base": 345108071901
+        }
+      },
+      {
+        "name": "safety_fit",
+        "role": "teacher_safety_estimator_fit",
+        "index_count": 1000,
+        "root_count": 2000,
+        "eligible_for_training": true,
+        "locked_before_content_read": false,
+        "namespace_bases": {
+          "hand_seed_base": 360108071901,
+          "behavior_policy_seed_base": 362108071901,
+          "candidate_seed_base": 364108071901,
+          "evaluation_seed_base": 366108071901,
+          "child_policy_seed_base": 368108071901,
+          "confirmation_seed_base": 370108071901
+        }
+      },
+      {
+        "name": "threshold_lock",
+        "role": "teacher_threshold_selection_only",
+        "index_count": 1000,
+        "root_count": 2000,
+        "eligible_for_training": false,
+        "locked_before_content_read": false,
+        "namespace_bases": {
+          "hand_seed_base": 380108071901,
+          "behavior_policy_seed_base": 382108071901,
+          "candidate_seed_base": 384108071901,
+          "evaluation_seed_base": 386108071901,
+          "child_policy_seed_base": 388108071901,
+          "confirmation_seed_base": 390108071901
+        }
+      },
+      {
+        "name": "diagnostic_teacher_holdout",
+        "role": "teacher_diagnostic_only_after_model_and_threshold_freeze",
+        "index_count": 1000,
+        "root_count": 2000,
+        "eligible_for_training": false,
+        "locked_before_content_read": true,
+        "namespace_bases": {
+          "hand_seed_base": 400108071901,
+          "behavior_policy_seed_base": 402108071901,
+          "candidate_seed_base": 404108071901,
+          "evaluation_seed_base": 406108071901,
+          "child_policy_seed_base": 408108071901,
+          "confirmation_seed_base": 410108071901
+        }
+      },
+      {
+        "name": "development_population",
+        "role": "realized_match_development_only",
+        "index_count": 250,
+        "paired_seeds_per_opponent": 250,
+        "eligible_for_training": false,
+        "locked_before_content_read": false,
+        "namespace_bases": {
+          "hand_seed_base": 420108071901,
+          "actor_policy_seed_base": 421108071901,
+          "opponent_policy_seed_base": 422108071901,
+          "evaluation_seed_base": 423108071901,
+          "child_policy_seed_base": 424108071901,
+          "confirmation_seed_base": 425108071901
+        }
+      },
+      {
+        "name": "locked_population",
+        "role": "realized_match_promotion_holdout",
+        "index_count": 1000,
+        "paired_seeds_per_opponent": 1000,
+        "eligible_for_training": false,
+        "locked_before_content_read": true,
+        "namespace_bases": {
+          "hand_seed_base": 440108071901,
+          "actor_policy_seed_base": 442108071901,
+          "opponent_policy_seed_base": 444108071901,
+          "evaluation_seed_base": 446108071901,
+          "child_policy_seed_base": 448108071901,
+          "confirmation_seed_base": 450108071901
+        }
+      },
+      {
+        "name": "locked_abr_probe",
+        "role": "approximate_best_response_holdout",
+        "index_count": 500,
+        "paired_seeds_per_response": 500,
+        "eligible_for_training": false,
+        "locked_before_content_read": true,
+        "namespace_bases": {
+          "hand_seed_base": 460108071901,
+          "actor_policy_seed_base": 462108071901,
+          "opponent_policy_seed_base": 464108071901,
+          "evaluation_seed_base": 466108071901,
+          "child_policy_seed_base": 468108071901,
+          "confirmation_seed_base": 470108071901
+        }
+      }
+    ]
+  },
+  "data_quality_gates": {
+    "forbidden_hidden_truth_rows_max": 0,
+    "unknown_field_rows_max": 0,
+    "invalid_action_mapping_rows_max": 0,
+    "nonfinite_action_value_rows_max": 0,
+    "duplicate_observation_fingerprints_max": 0,
+    "candidate_evaluation_rng_overlap_max": 0,
+    "candidate_confirmation_rng_overlap_max": 0,
+    "evaluation_confirmation_rng_overlap_max": 0,
+    "exact_t4_decision_fraction_min": 1.0,
+    "complete_legal_action_value_fraction_min": 1.0,
+    "first_second_root_ratio_exact": 1.0,
+    "minimum_each_action_geometry_fraction_train": 0.05,
+    "confirmation_fraction_each_teacher_split_min": 0.1,
+    "confirmation_selected_regret_mean_max": 0.75,
+    "confirmation_selected_regret_p95_max": 3.0,
+    "confirmation_selected_regret_p99_max": 6.0,
+    "confirmation_selected_regret_max": 15.0,
+    "ambiguous_rows_dropped_max": 0,
+    "uncertainty_weight_floor": 0.1,
+    "top1_action_agreement_is_diagnostic_only": true,
+    "failed_gate_decision": "complete_no_go_no_same_data_threshold_reselection"
+  },
+  "model_candidate_gates": {
+    "shared_seat_aware_model_is_default": true,
+    "seat_specific_calibration_required": true,
+    "all_legal_action_q_coverage_min": 1.0,
+    "teacher_regret_mean_max": 0.75,
+    "teacher_regret_p95_max": 3.0,
+    "teacher_regret_p99_max": 6.0,
+    "each_seat_teacher_regret_p95_max": 4.0,
+    "safe_head_ece_each_seat_max": 0.05,
+    "safe_head_brier_each_seat_max": 0.2,
+    "separate_seat_model_min_relative_p95_regret_improvement": 0.1,
+    "separate_seat_model_min_absolute_p95_regret_improvement": 0.5,
+    "other_seat_regret_degradation_max": 0.25,
+    "placement_top1_accuracy_is_promotion_gate": false,
+    "teacher_ev_lcb_is_runtime_gate": false
+  },
+  "promotion_evaluation": {
+    "baseline_profile": "stage7_m5_r10",
+    "opponents": [
+      "stage19_p0",
+      "stage9f_p2",
+      "stage7_m5_r10",
+      "stage3_baseline",
+      "random_exact_final"
+    ],
+    "paired_seeds_per_opponent": 1000,
+    "paired_seat_swap": true,
+    "candidate_and_baseline_common_randomness": true,
+    "confidence_interval_unit": "hand_seed_cluster_after_opponent_average",
+    "invalid_counterfactuals_max": 0,
+    "nonfire_cancellation_mismatches_max": 0,
+    "nonfire_nonzero_deltas_max": 0,
+    "nonfire_cancellation_unknown_max": 0,
+    "valid_overrides_min": 300,
+    "valid_overrides_each_seat_min": 100,
+    "minimum_population_fire_rate_needed": 0.03,
+    "realized_gain_per_override_ci95_low_min_exclusive": 0.0,
+    "paired_delta_ev_per_hand_ci95_low_min_exclusive": 0.0,
+    "first_seat_delta_ev_per_hand_ci95_low_min_exclusive": 0.0,
+    "second_seat_delta_ev_per_hand_ci95_low_min_exclusive": 0.0,
+    "false_positive_override_rate_max": 0.3,
+    "false_positive_override_rate_each_seat_max": 0.35,
+    "override_loss_p95_max": 25.0,
+    "override_loss_p99_max": 40.0,
+    "override_loss_max": 50.0,
+    "each_opponent_delta_ev_per_hand_min": -0.005,
+    "each_opponent_delta_ev_per_hand_ci95_low_min": -0.02,
+    "threshold_reselection_allowed": false,
+    "posthoc_seed_extension_allowed": false,
+    "teacher_values_reported_as_match_ev": false,
+    "nonfire_full_trajectory_identity_required": true
+  },
+  "exploitability_proxy": {
+    "method": "frozen_local_approximate_best_response_population_v1",
+    "response_policies": [
+      "greedy_search_response",
+      "foul_pressure_response",
+      "royalty_denial_response"
+    ],
+    "paired_seeds_per_response": 500,
+    "response_training_uses_locked_probe_seeds": false,
+    "response_policy_frozen_before_locked_probe": true,
+    "candidate_minus_baseline_ev_per_hand_min": -0.005,
+    "candidate_minus_baseline_ci95_low_min": -0.02,
+    "worst_response_ev_per_hand_min": -0.01,
+    "nash_or_mathematical_optimality_claimed": false
+  },
+  "spot_execution": {
+    "provisioning_model": "SPOT",
+    "machine_type": "c4-standard-16",
+    "infrastructure_canary_shards": 10,
+    "paired_hands_per_shard": 25,
+    "roots_per_shard": 50,
+    "initial_authorization": "shard_0_only",
+    "shard_0_linux_semantic_parity_required": true,
+    "shard_0_preemption_resume_drill_required": true,
+    "remaining_canary_fanout_requires_verified_shard_0_done": true,
+    "canary_rows_eligible_for_training": false,
+    "production_quality_pilot_roots": 100,
+    "production_quality_pilot_required_before_fanout": true,
+    "production_fanout_authorized": false,
+    "first_seat_p95_seconds_max": 180.0,
+    "second_seat_p95_seconds_max": 6.0,
+    "peak_process_rss_bytes_max": 1073741824,
+    "checkpoint_unit": "completed_paired_hand",
+    "atomic_write_once_tasks": true,
+    "heartbeat_interval_seconds": 60,
+    "heartbeat_upload_required": true,
+    "resume_missing_or_incomplete_tasks_only": true,
+    "immutable_source_and_native_hashes_required": true,
+    "done_marker_committed_last": true
+  },
+  "activation_guards": {
+    "current_profile_changed": false,
+    "named_profile_added": false,
+    "runtime_policy_activated": false,
+    "full_replacement_enabled": false,
+    "spot_vm_started": false
+  },
+  "forbidden": [
+    "opponent private discards in any model teacher or runtime input",
+    "teacher EV or teacher LCB as a runtime gate",
+    "model placement top1 accuracy as a promotion decision",
+    "threshold selection on diagnostic or locked holdout",
+    "alternate holdout seeds after results",
+    "production Spot fanout before canary and label quality gates",
+    "named profile or current activation before locked realized evaluation",
+    "full replacement before locked promotion Go",
+    "Nash or mathematical complete optimality claim without proof"
+  ],
+  "next_step": "run immutable Linux Spot shard 0 canary only, verify semantic parity restart heartbeat and frozen latency gates, then complete the 500-root infrastructure canary before the 100-root production-label quality pilot"
+}

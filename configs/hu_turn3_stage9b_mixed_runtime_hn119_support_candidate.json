@@ -1,0 +1,103 @@
+{
+  "name": "hu_turn3_stage9b_mixed_runtime_hn119_support_candidate",
+  "description": "Stage9b support/veto candidate for old Stage9 m1 selective override. Evaluation-only; not production.",
+  "status": "larger_eval_positive_ci_crosses_zero",
+  "visibility_model": "hidden_discard",
+  "fl_ev": 10.227020614683454,
+  "models": {
+    "opening": "models/opening_stage7_torch_wide.pt",
+    "turn1": "models/turn1_stage6_torch_wide.pt",
+    "turn2": "models/turn2_stage8.pkl",
+    "turn3": "models/turn3_stage6.pkl",
+    "hu_turn3_candidate": "models/hu_turn3_joint_exact_stage9_mixed1200_mc128_extra_trees.pkl",
+    "hu_turn3_support": "models/hu_turn3_stage9b_mixed_runtime_hn119_mc128_extra_trees.pkl",
+    "hu_turn3_reference": "models/hu_turn3_stage3_mc32_500k_plus_m8_12_f128_100k_w2_cached_rank_wide.pt",
+    "current_baseline": "models/hu_turn3_stage7_reference_override_cached_rank_wide.pt"
+  },
+  "runtime": {
+    "hu_turn3_stage7_enabled": true,
+    "hu_turn3_min_margin": 1.0,
+    "hu_turn3_reference_min_margin": 0.0,
+    "hu_turn3_min_support_margin": 1.0,
+    "mode": "stage9_candidate_with_stage9b_support_veto_over_stage3_reference"
+  },
+  "training": {
+    "input": "outputs/hu_turn3_stage9b_train_mixed1200_plus_runtime_mc128.jsonl",
+    "hard_negative_input": "outputs/hu_turn3_stage9b_train_hard_negatives_mc128.jsonl",
+    "model_output": "models/hu_turn3_stage9b_mixed_runtime_hn119_mc128_extra_trees.pkl",
+    "metrics_output": "outputs/training/hu_turn3_stage9b_mixed_runtime_hn119_mc128_extra_trees_metrics.json",
+    "model_type": "extra_trees",
+    "n_estimators": 300,
+    "min_samples_leaf": 5,
+    "source_weights": {
+      "stage9b_runtime_hard_negative": 4.0,
+      "stage9b_runtime_fire_non_negative": 1.0,
+      "self_play_state_mining": 1.0
+    }
+  },
+  "teacher_eval": {
+    "stage9_on_hard_negatives_avg_regret": 3.8227,
+    "stage9b_on_hard_negatives_avg_regret": 0.0750684708689232,
+    "stage9_on_stage5_holdout200_avg_regret": 0.06801771744984142,
+    "stage9b_on_stage5_holdout200_avg_regret": 0.06801771744984142,
+    "stage9b_hard_negative_top1": 0.8487394957983193,
+    "stage9b_stage5_holdout200_top1": 0.855
+  },
+  "seat_swap_smoke": {
+    "stage9b_m1_vs_stage7_m5_r10_100_paired_seed2026062602": {
+      "ev_per_hand": -0.25613510307341725,
+      "ci95_low": -1.0683852024428386,
+      "ci95_high": 0.5561149962960042
+    },
+    "stage9b_m2_vs_stage7_m5_r10_100_paired_seed2026062602": {
+      "ev_per_hand": -0.5434053092202518,
+      "ci95_low": -1.1767928238837495,
+      "ci95_high": 0.08998220544324609
+    },
+    "stage9_old_m1_support_stage9b_s1_vs_stage7_m5_r10_100_paired_seed2026062603": {
+      "ev_per_hand": 0.2884053092202518,
+      "ci95_low": -0.07595327099907417,
+      "ci95_high": 0.6527638894395777
+    },
+    "stage9_old_m1_support_stage9b_s2_vs_stage7_m5_r10_100_paired_seed2026062603": {
+      "ev_per_hand": 0.19727020614683455,
+      "ci95_low": -0.12248847134034369,
+      "ci95_high": 0.5170288836340128
+    },
+    "stage9_old_m1_support_stage9b_s1_vs_stage7_m5_r10_500_paired_seed2026062604": {
+      "ev_per_hand": 0.03168106184405036,
+      "ci95_low": -0.10906770959649906,
+      "ci95_high": 0.1724298332845998,
+      "candidate_override_rate": 0.037,
+      "candidate_support_veto_count": 99,
+      "baseline_override_rate_in_this_seed_range": 0.0
+    },
+    "stage9_old_m1_support_stage9b_s1_vs_stage7_m5_r10_3x1000_paired_seed2026062701_2703": {
+      "paired_seeds": 3000,
+      "hands": 6000,
+      "ev_per_hand": 0.032423402048944845,
+      "ci95_low": -0.035738669657432685,
+      "ci95_high": 0.10058547375532237,
+      "seed_ev_per_hand": {
+        "2026062701": 0.054794572151392086,
+        "2026062702": 0.02418106184405036,
+        "2026062703": 0.01829457215139209
+      },
+      "candidate_override_rate": 0.041166666666666664,
+      "candidate_support_veto_count": 618,
+      "baseline_override_rate_in_this_seed_range": 0.00016666666666666666
+    }
+  },
+  "warnings": [
+    "Stage9b standalone m1/m2 did not beat Stage7 m5_r10 in 100 paired smoke.",
+    "The support/veto candidate is positive across 3x1000 paired seeds, but CI still crosses zero.",
+    "The larger comparison had almost no Stage7 baseline overrides in the sampled seed range, so it is still not proof of superiority over actively firing Stage7 distributions.",
+    "Do not promote to production; run non-overlapping larger seat-swap and fired-state replay before adoption."
+  ],
+  "recommended_next_step": {
+    "action": "larger_eval_only_if_budget_allows",
+    "candidate": "stage9_old_m1_support_stage9b_s1",
+    "minimum": "per-fire realized delta and fired-state replay analysis from the 3x1000 run; then 5x2000 if clean",
+    "production_status": "No-Go"
+  }
+}

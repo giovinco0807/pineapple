@@ -1,0 +1,229 @@
+{
+  "schema": "hu_m43_attempt03_plan_v1",
+  "milestone": "M4.3-attempt03",
+  "status_date": "2026-07-14",
+  "status": "frozen_pre_generation",
+  "purpose": "group_aware_ranker_with_fresh_one_shot_precalibration_confirmation",
+  "rule_set": "heads_up_regular_ofc_pineapple_hidden_opponent_discards",
+  "fixed_baseline_profile": "stage18_p1",
+  "fixed_continuation": {
+    "t2_profile": "stage9f_p2",
+    "t3_selector": "m3_rust_evaluate_t3",
+    "t4_selector": "m3_rust_evaluate_t4"
+  },
+  "budget": {
+    "kind": "bounded_pre_go_pilot",
+    "fresh_roots": 700,
+    "max_fresh_roots": 1000,
+    "roots_per_shard": 10,
+    "fresh_shards": 70,
+    "inherited_train_fit_roots": 200,
+    "sealed_calibration_roots": 100,
+    "inherited_locked_roots": 40,
+    "spot_allowed_after_preflight": true,
+    "large_scale_allowed": false
+  },
+  "fresh_splits": {
+    "train.fit": {
+      "record_split": "train",
+      "roots": 500,
+      "seed_start": 9106071901,
+      "seed_stride": 1000003,
+      "candidate_seed_start": 9906071901,
+      "evaluation_seed_start": 10706071901,
+      "child_policy_seed_start": 11506071901,
+      "phase_seed_stride_scope": "split_shard",
+      "allowed_use": "ranker_fit_and_grouped_crossfit_only"
+    },
+    "train.precal_holdout": {
+      "record_split": "train",
+      "roots": 200,
+      "seed_start": 9506071901,
+      "seed_stride": 1000003,
+      "candidate_seed_start": 10306071901,
+      "evaluation_seed_start": 11106071901,
+      "child_policy_seed_start": 11906071901,
+      "phase_seed_stride_scope": "split_shard",
+      "allowed_use": "one_shot_precalibration_go_no_go_only"
+    }
+  },
+  "teacher_search": {
+    "candidate_samples": 2,
+    "evaluation_samples": 64,
+    "common_random_futures": true,
+    "candidate_evaluation_rng_disjoint": true,
+    "candidate_seed_namespace": "hu-m43-attempt03-candidate-v1",
+    "evaluation_seed_namespace": "hu-m43-attempt03-evaluation-v1",
+    "child_policy_seed_namespace": "hu-m43-attempt03-child-v1",
+    "namespace_domain_separation": "split_shard",
+    "batch_child_selectors": true,
+    "native_batch_threads": 4
+  },
+  "root_population": [
+    {
+      "profile": "stage19_p0",
+      "policy_family": "selective_opening_fixed_chain",
+      "roots": {"inherited_train_fit": 40, "train.fit": 100, "train.precal_holdout": 40, "sealed_calibration": 20, "inherited_locked": 8}
+    },
+    {
+      "profile": "stage9f_p2",
+      "policy_family": "selective_t2_fixed_chain",
+      "roots": {"inherited_train_fit": 40, "train.fit": 100, "train.precal_holdout": 40, "sealed_calibration": 20, "inherited_locked": 8}
+    },
+    {
+      "profile": "stage7_m5_r10",
+      "policy_family": "conservative_t3_margin",
+      "roots": {"inherited_train_fit": 40, "train.fit": 100, "train.precal_holdout": 40, "sealed_calibration": 20, "inherited_locked": 8}
+    },
+    {
+      "profile": "stage3_baseline",
+      "policy_family": "baseline",
+      "roots": {"inherited_train_fit": 40, "train.fit": 100, "train.precal_holdout": 40, "sealed_calibration": 20, "inherited_locked": 8}
+    },
+    {
+      "profile": "random_exact_final",
+      "policy_family": "random_off_policy_exact_final",
+      "roots": {"inherited_train_fit": 40, "train.fit": 100, "train.precal_holdout": 40, "sealed_calibration": 20, "inherited_locked": 8}
+    }
+  ],
+  "attempt02_provenance": {
+    "plan": {
+      "path": "configs/hu_joint_policy_m43_attempt02.json",
+      "file_sha256": "7b321604b14bc4c448a8140a772c5365f44e94172153524a42c1bcb91f78e025"
+    },
+    "data_contract": {
+      "path": "outputs/hu_joint_policy/m43_attempt02_teacher/regular-hu-m43-attempt02-c2e64-pilot300-20260713-2201/data_contract.json",
+      "file_sha256": "bcff8d6b0616dbc395d6c897488c01631353aec4e3fd6be5e6e5f617d0601664",
+      "canonical_sha256": "6d6ad3a6c8c0940732debf113654d49664974c3ec6c42a19d1326dcc697e3193"
+    },
+    "teacher_receipt": {
+      "path": "outputs/hu_joint_policy/m43_attempt02_teacher/regular-hu-m43-attempt02-c2e64-pilot300-20260713-2201/receipt.json",
+      "file_sha256": "c2025e4cf8ec2919156f96f2d716b2ab28dde5d6bc7d2455bc3207793ac27415",
+      "required_status": "verified_fresh_train_calibration_only"
+    },
+    "model_receipt": {
+      "path": "outputs/hu_joint_policy/m43_attempt02_model_runs/regular-hu-m43-attempt02-v4-model-r2-20260714-0117/receipt.json",
+      "file_sha256": "6d04af784850fe7c8fa38087e93d96c584bc1091132eae41eee4d13083d22654",
+      "required_status": "no_go_precalibration"
+    },
+    "training_manifest": {
+      "path": "outputs/hu_joint_policy/m43_attempt02_model_runs/regular-hu-m43-attempt02-v4-model-r2-20260714-0117/training_manifest.json",
+      "file_sha256": "6b061a690006ec21d4f52305bc21a2fd7c8ec0cd374fe47ad22dced1d7ce84ae",
+      "required_status": "no_go_precalibration"
+    },
+    "train_fit": {
+      "path": "outputs/hu_joint_policy/m43_attempt02_teacher/regular-hu-m43-attempt02-c2e64-pilot300-20260713-2201/train.jsonl",
+      "records": 200,
+      "bytes": 6474349,
+      "file_sha256": "0a55541b26305c5dfe50b9122263bb92ca1ee60a5f085d2020b38b31a4cdb996",
+      "identity_sha256": "623112de0b7a8af1357782f6f80a09de8dfc370bcf8faadb3e5c23ec03d80372",
+      "canonical_rows_sha256": "ce8d41f383d1c591c3f8ae5c2fdc218bdfaa1a55e40f49b87ab9361ad067943d",
+      "ordered_shards_sha256": "28784143a257afab0bd39c593a8f8957566cf25f9bf9f0257ac5aad0fbcd1b4a",
+      "allowed_use": "ranker_fit_and_grouped_crossfit_only"
+    },
+    "sealed_calibration": {
+      "classification": "inherited_unopened",
+      "path": "outputs/hu_joint_policy/m43_attempt02_teacher/regular-hu-m43-attempt02-c2e64-pilot300-20260713-2201/calibration.jsonl",
+      "records": 100,
+      "bytes": 3308076,
+      "file_sha256": "907df8ae301a2c8d4e791cf8d4529ee6017f4085e587b8a18d884d418eaab2f6",
+      "identity_sha256": "d037408b7cdc1ccc70832dd50914edcb0d8b2596caa02e9f79824c1ce29f9c2d",
+      "canonical_rows_sha256": "e4a63daa428104a0c2fd82765b0bf2b93068bfd6166da030d638dab3e63cecf8",
+      "ordered_shards_sha256": "8cbad463009d7e15dbf620f166095423f39254342385a4dcc06d89b9019ccdc2",
+      "content_open_before_precalibration_go_allowed": false,
+      "structural_byte_hash_audit_only": true,
+      "roles": {
+        "safety_fit": {"records": 50, "identity_sha256": "b468dd1079cbbf5e958ee03a539309bb0d65b236e8a68fdcf17b586bfeeff696"},
+        "threshold_lock": {"records": 50, "identity_sha256": "8874b690a757a946c2c2f87db9407b5292b1e186f3130848aa84cb15bb8e18c0"}
+      }
+    },
+    "prior_exclusion_union": {
+      "records": 412,
+      "unique_identities": 412,
+      "identity_sha256": "c7598ba0f74528562b79966e53dd843fe2225f23033b791377327f6ea6ab3b3e"
+    }
+  },
+  "inherited_locked": {
+    "classification": "inherited_unopened",
+    "path": "outputs/hu_joint_policy/m43_spot/regular-hu-m43-c2e16-pilot200-20260713-1810/locked_holdout.jsonl",
+    "records": 40,
+    "bytes": 1144214,
+    "file_sha256": "0a88e1cc8b079906e0ca14ddf4a8c3df7b108a09d0f363c7cb665cab89b40a1e",
+    "canonical_rows_sha256": "fa99408bc4be031a7b4f2a8dfe05f4af07d90ebb7450e1eb03ba1fa596a87890",
+    "identity_sha256": "3946c110de49831359316439fa230d9096fc41046b0cb07a92506eb931e0e629",
+    "ordered_shards_sha256": "6c351acd69cf0ce546fa3ff74e397d0091f4e0cd2ffc5b2ce95fc22a418bcaf2",
+    "content_open_before_frozen_model_and_threshold_allowed": false,
+    "structural_byte_hash_audit_only": true,
+    "global_consumption_marker": "outputs/hu_joint_policy/m43_locked_consumption/3946c110de49831359316439fa230d9096fc41046b0cb07a92506eb931e0e629/M43_LOCKED_CONSUMED.json"
+  },
+  "model_contract": {
+    "name": "hu_m43_t1_joint_model_v5",
+    "state_grouped_folds": 5,
+    "base_heads": ["delta_huber", "positive", "downside_p95_huber", "downside_p99_huber", "downside_max_huber", "disagreement"],
+    "proposal_head": {
+      "features": "stage18_aware_22",
+      "implementation": "lightgbm",
+      "objective": "huber",
+      "trees": 180,
+      "learning_rate": 0.035,
+      "num_leaves": 7,
+      "min_child_samples": 50,
+      "l2": 8.0,
+      "l1": 0.5,
+      "state_balanced": true
+    },
+    "hard_eligibility": "base_centered_delta_positive_vote_at_least_3_of_5",
+    "safety_calibrator": {"kind": "l2_logistic", "c": 0.25, "fit_after_hard_eligibility_only": true},
+    "fit_sources": ["attempt02.train", "train.fit"],
+    "model_selection_sources": ["attempt02.train", "train.fit"],
+    "precalibration_source": "train.precal_holdout",
+    "calibration_sources_after_precalibration_go_only": ["calibration.safety_fit", "calibration.threshold_lock"],
+    "locked_holdout_access_before_model_and_threshold_freeze_allowed": false,
+    "algorithm_change_after_precalibration_allowed": false
+  },
+  "precalibration_gate": {
+    "one_shot": true,
+    "roots": 200,
+    "roots_per_profile": 40,
+    "raw_proposal_positive_rate_min": 0.40,
+    "eligible_fires_min": 30,
+    "eligible_mean_delta_per_fire_strictly_positive": true,
+    "eligible_delta_per_state_strictly_positive": true,
+    "false_positive_delta_le_zero_max": 0.35,
+    "cluster_lcb_confidence": 0.90,
+    "cluster_lcb_mean_delta_per_fire_strictly_positive": true,
+    "selected_action_downside_max": {"p95": 25.0, "p99": 40.0, "max": 50.0},
+    "mapping_baseline_tie_overlap_gates_required": true,
+    "sealed_calibration_opened": false,
+    "failure_decision": "no_go_no_algorithm_or_gate_change"
+  },
+  "calibration_gate": {
+    "open_only_after_precalibration_go": true,
+    "safety_fit_records": 50,
+    "threshold_lock_records": 50,
+    "threshold_grid": [0.50, 0.55, 0.60, 0.65, 0.70, 0.75, 0.80, 0.85, 0.90, 0.95],
+    "threshold_lock_fires_min": 10,
+    "false_positive_delta_le_zero_max": 0.35,
+    "delta_per_state_strictly_positive": true,
+    "selected_action_downside_max": {"p95": 25.0, "p99": 40.0, "max": 50.0},
+    "threshold_research_on_holdout_allowed": false
+  },
+  "freshness": {
+    "reject_hand_seed_or_fingerprint_overlap": true,
+    "require_disjoint_fit_precal_attempt02_calibration_locked_prior_union": true
+  },
+  "holdout_lifecycle": {
+    "precalibration_one_shot_only": true,
+    "calibration_roles_immutable": true,
+    "locked_one_shot_only": true,
+    "claim_marker_before_locked_content_open": true,
+    "fresh_data_required_after_any_post_precal_model_threshold_feature_or_gate_change": true
+  },
+  "activation_guards": {
+    "current_profile_changed": false,
+    "runtime_policy_activated": false,
+    "full_replacement_enabled": false,
+    "large_scale_authorized": false,
+    "m5_authorized": false
+  }
+}

@@ -1,0 +1,64 @@
+{
+  "name": "hu_turn3_stage9d_s10_r05_score10_first_tail_veto_candidate",
+  "status": "evaluation_only_conservative_tail_veto_candidate",
+  "rule_set": "regular",
+  "schema": "hu_stage1",
+  "phase": "hu_turn3_9card",
+  "objective": "hu_t3_selective_override_over_stage3_with_stage9d_support_score_floor_reference_floor_and_seat_gate",
+  "primary_model": {
+    "path": "models/hu_turn3_joint_exact_stage9_mixed1200_mc128_extra_trees.pkl",
+    "type": "extra_trees_joint_exact_stage9"
+  },
+  "support_model": {
+    "path": "models/hu_turn3_stage9d_mixed_runtime_hn245_mc128_extra_trees.pkl",
+    "type": "extra_trees_stage9d_support"
+  },
+  "reference_model": {
+    "path": "models/hu_turn3_stage3_mc32_500k_plus_m8_12_f128_100k_w2_cached_rank_wide.pt"
+  },
+  "baseline_models": {
+    "opening": "models/opening_stage7_torch_wide.pt",
+    "turn1": "models/turn1_stage6_torch_wide.pt",
+    "turn2": "models/turn2_stage8.pkl",
+    "turn3": "models/turn3_stage6.pkl"
+  },
+  "runtime": {
+    "hu_turn3_stage7_enabled": true,
+    "hu_turn3_min_margin": 1.0,
+    "hu_turn3_reference_min_margin": 0.5,
+    "hu_turn3_min_support_margin": 1.0,
+    "hu_turn3_min_model_score": 10.0,
+    "hu_turn3_allowed_seats": [
+      "first"
+    ],
+    "stage9_full_replacement_enabled": false
+  },
+  "diagnostic_basis": {
+    "previous_candidate": "configs/hu_turn3_stage9d_s10_score10_first_tail_veto_candidate.json",
+    "reason": "The score10 first-only candidate had positive EV and fired replay mean but retained one MC128 tail loss. Adding a small T3 reference-margin floor is a conservative runtime tail guard."
+  },
+  "evaluation": {
+    "seat_swap_1500": {
+      "summary": "outputs/evals/hu_turn3_stage9d_s10_r05_score10_first_1500/summary.md",
+      "paired_seeds": 1500,
+      "hands": 3000,
+      "seed": 2026063401,
+      "seed_stride": 17,
+      "ev_per_hand": 0.015484680409788969,
+      "ci95_low": -0.00596883221000667,
+      "ci95_high": 0.03693819302958461,
+      "candidate_fires": 3,
+      "candidate_fire_rate": 0.001,
+      "stage7_baseline_fires": 0,
+      "fired_mc128": {
+        "samples": 3,
+        "mean_delta": 10.856611949878621,
+        "materially_positive": 3,
+        "materially_negative": 0,
+        "near_tie": 0,
+        "worst_delta": 1.2112748869699423
+      },
+      "status": "too_conservative_research_candidate_not_production"
+    }
+  }
+}

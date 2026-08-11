@@ -6,14 +6,21 @@ import json
 import math
 import random
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from itertools import combinations
 from pathlib import Path
 from typing import Any, Iterable
 
+from .action_key import (
+    ACTION_KEY_SCHEMA,
+    action_key,
+    legal_action_set_digest,
+    ordered_action_mapping_digest,
+)
 from .action_space import Action, generate_actions, generate_turn_actions
 from .cards import ALL_CARDS, validate_cards
 from .hu_turn3_gate_model import HuTurn3GateModel
+from .hu_infoset import ActorObservation, card_free_metadata
 from .hu_turn3_model import hu_policy_sample
 from .state import Board
 from .teacher import DEFAULT_FL_EV, evaluate_turn_actions
@@ -36,9 +43,25 @@ class RegularAiPolicy:
     """
 
     opening_model: Turn3RidgeModel | None = None
+    hu_turn0_model: object | None = None
+    hu_turn0_candidate_topk: int = 60
+    hu_turn0_min_margin: float = 0.0
+    hu_turn0_min_margin_by_seat: dict[str, float] | None = None
+    hu_turn0_allowed_seats: tuple[str, ...] | None = None
+    hu_turn0_safe_selector_model: object | None = None
+    hu_turn0_safe_selector_enabled: bool = False
+    hu_turn0_safe_selector_threshold: float = 0.0
+    hu_turn0_safe_selector_threshold_by_seat: dict[str, float] | None = None
+    hu_turn0_decision_log_path: str | Path | None = None
+    hu_turn0_decision_log: list[dict[str, Any]] | None = None
     turn1_model: Turn3RidgeModel | None = None
     turn2_model: Turn3RidgeModel | None = None
     turn3_model: Turn3RidgeModel | None = None
+    hu_turn1_model: object | None = None
+    hu_turn1_min_margin: float | None = None
+    hu_turn1_decision_log_path: str | Path | None = None
+    hu_turn1_decision_log: list[dict[str, Any]] | None = None
+    decision_context: dict[str, Any] = field(default_factory=dict)
     hu_turn3_model: object | None = None
     hu_turn3_reference_model: object | None = None
     hu_turn3_support_model: object | None = None
@@ -46,6 +69,8 @@ class RegularAiPolicy:
     hu_turn3_min_margin: float = 0.0
     hu_turn3_reference_min_margin: float = 0.0
     hu_turn3_min_support_margin: float = 0.0
+    hu_turn3_min_model_score: float | None = None
+    hu_turn3_allowed_seats: tuple[str, ...] | None = None
     hu_turn3_min_gate_probability: float = 0.0
     hu_turn3_max_self_regret: float | None = None
     hu_turn3_stage7_enabled: bool = True
@@ -56,12 +81,60 @@ class RegularAiPolicy:
     fl_ev: dict[int, float] | None = None
     opening_lookahead_samples: int = 64
 
+    _CARD_FREE_CONTEXT_ATTRIBUTES = frozenset(
+        {"decision_context", "hu_turn2_context", "topk_context"}
+    )
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        # Subclasses add T1/T2 context attributes after the dataclass
+        # constructor.  Guard assignment itself so a later plain-dict
+        # replacement cannot bypass the information-set boundary.
+        if name in self._CARD_FREE_CONTEXT_ATTRIBUTES:
+            value = card_free_metadata(value)
+        super().__setattr__(name, value)
+
     def __post_init__(self) -> None:
+        self.decision_context = card_free_metadata(self.decision_context)
         self.rng = random.Random(self.seed)
         if self.fl_ev is None:
             self.fl_ev = dict(DEFAULT_FL_EV)
         if self.opening_lookahead_samples < 0:
             raise ValueError("opening_lookahead_samples must be non-negative")
+        if self.hu_turn0_candidate_topk <= 0:
+            raise ValueError("hu_turn0_candidate_topk must be positive")
+        selector_thresholds = [self.hu_turn0_safe_selector_threshold]
+        if self.hu_turn0_safe_selector_threshold_by_seat is not None:
+            selector_thresholds.extend(self.hu_turn0_safe_selector_threshold_by_seat.values())
+        if any(not 0.0 <= float(value) <= 1.0 for value in selector_thresholds):
+            raise ValueError("hu_turn0_safe_selector_threshold must be in [0, 1]")
+
+    def choose_action_observation(
+        self,
+        observation: ActorObservation,
+        *,
+        hand_id: str | int | None = None,
+        game_id: str | int | None = None,
+        decision_seed: int | None = None,
+    ) -> Action:
+        """Choose through the policy-safe observation boundary.
+
+        The legacy ``dead_cards`` adapter contains only the opponent's public
+        board and this actor's own private discards.
+        """
+        if observation.seat != self.seat:
+            raise ValueError(
+                f"observation seat {observation.seat!r} does not match policy seat {self.seat!r}"
+            )
+        return self.choose_action(
+            observation.hero_board,
+            observation.dealt_cards,
+            dead_cards=observation.legacy_dead_cards(),
+            opponent_board=observation.opponent_public_board,
+            hand_id=hand_id,
+            game_id=game_id,
+            decision_seed=decision_seed,
+            street=observation.street,
+        )
 
     def choose_action(
         self,
@@ -77,12 +150,37 @@ class RegularAiPolicy:
     ) -> Action:
         dealt = tuple(dealt_cards)
         dead = tuple(dead_cards)
+        decision_rng = (
+            random.Random(decision_seed) if decision_seed is not None else self.rng
+        )
         if board.card_count() == 0:
             actions = generate_actions(board, dealt)
+            if (
+                actions
+                and self.hu_turn0_model is not None
+                and self.opening_model is not None
+                and opponent_board is not None
+            ):
+                action = self._choose_hu_turn0_action(
+                    board,
+                    dealt,
+                    actions=actions,
+                    dead_cards=dead,
+                    opponent_board=opponent_board,
+                    hand_id=hand_id,
+                    game_id=game_id,
+                    decision_seed=decision_seed,
+                    street=street,
+                )
+                if action is not None:
+                    return action
             if actions and self.opening_model is not None:
                 sample = policy_sample(board, dealt, actions)
-                action_index = self.opening_model.choose_action_index(sample)
-                return actions[action_index]
+                action_index = self._safe_choose_index(
+                    self.opening_model, sample, actions
+                )
+                if action_index is not None:
+                    return actions[action_index]
             if actions and self.turn1_model is not None:
                 return choose_opening_action_by_turn1_lookahead(
                     board,
@@ -91,10 +189,10 @@ class RegularAiPolicy:
                     downstream_model=self.turn1_model,
                     dead_cards=dead,
                     future_samples=self.opening_lookahead_samples,
-                    rng=self.rng,
+                    rng=decision_rng,
                 )
             if actions:
-                return self.rng.choice(actions)
+                return decision_rng.choice(actions)
 
         if board.card_count() == 11:
             terminal_opponent = (
@@ -129,27 +227,349 @@ class RegularAiPolicy:
             actions = generate_turn_actions(board, dealt)
             if actions:
                 sample = policy_sample(board, dealt, actions)
-                action_index = self.turn3_model.choose_action_index(sample)
-                return actions[action_index]
+                action_index = self._safe_choose_index(
+                    self.turn3_model, sample, actions
+                )
+                if action_index is not None:
+                    return actions[action_index]
 
         if board.card_count() == 7 and self.turn2_model is not None:
             actions = generate_turn_actions(board, dealt)
             if actions:
                 sample = policy_sample(board, dealt, actions)
-                action_index = self.turn2_model.choose_action_index(sample)
-                return actions[action_index]
+                action_index = self._safe_choose_index(
+                    self.turn2_model, sample, actions
+                )
+                if action_index is not None:
+                    return actions[action_index]
+
+        if board.card_count() == 5 and self.hu_turn1_model is not None and opponent_board is not None:
+            action = self._choose_hu_turn1_action(
+                board,
+                dealt,
+                dead_cards=dead,
+                opponent_board=opponent_board,
+                hand_id=hand_id,
+                game_id=game_id,
+                decision_seed=decision_seed,
+                street=street,
+            )
+            if action is not None:
+                return action
 
         if board.card_count() == 5 and self.turn1_model is not None:
             actions = generate_turn_actions(board, dealt)
             if actions:
                 sample = policy_sample(board, dealt, actions)
-                action_index = self.turn1_model.choose_action_index(sample)
-                return actions[action_index]
+                action_index = self._safe_choose_index(
+                    self.turn1_model, sample, actions
+                )
+                if action_index is not None:
+                    return actions[action_index]
 
         actions = generate_actions(board, dealt)
         if not actions:
             raise ValueError("no legal actions")
-        return self.rng.choice(actions)
+        return decision_rng.choice(actions)
+
+    def _choose_hu_turn0_action(
+        self,
+        board: Board,
+        dealt: tuple[str, ...],
+        *,
+        actions: list[Action],
+        dead_cards: tuple[str, ...],
+        opponent_board: Board,
+        hand_id: str | int | None,
+        game_id: str | int | None,
+        decision_seed: int | None,
+        street: str | None,
+    ) -> Action | None:
+        started_at = time.perf_counter()
+        fallback_sample = policy_sample(board, dealt, actions)
+        fallback_predictions, fallback_reason = self._safe_predict(
+            self.opening_model,
+            fallback_sample,
+            len(actions),
+        )
+        if fallback_predictions is None:
+            return None
+        fallback_index = self._argmax_index(fallback_predictions, actions)
+        candidate_indices = sorted(
+            range(len(actions)),
+            key=lambda index: (
+                -fallback_predictions[index],
+                action_key(actions[index]).sort_key(),
+            ),
+        )[: min(self.hu_turn0_candidate_topk, len(actions))]
+        if fallback_index not in candidate_indices:
+            candidate_indices.append(fallback_index)
+        candidate_actions = [actions[index] for index in candidate_indices]
+        fallback_candidate_index = candidate_indices.index(fallback_index)
+
+        candidate_index: int | None = None
+        final_index = fallback_index
+        predicted_margin: float | None = None
+        candidate_score: float | None = None
+        fallback_score: float | None = None
+        safe_selector_score: float | None = None
+        legality_check_result = "not_evaluated"
+        no_override_reason = ""
+        threshold = (
+            float(self.hu_turn0_min_margin_by_seat.get(self.seat, self.hu_turn0_min_margin))
+            if self.hu_turn0_min_margin_by_seat is not None
+            else float(self.hu_turn0_min_margin)
+        )
+        safe_selector_threshold = (
+            float(
+                self.hu_turn0_safe_selector_threshold_by_seat.get(
+                    self.seat,
+                    self.hu_turn0_safe_selector_threshold,
+                )
+            )
+            if self.hu_turn0_safe_selector_threshold_by_seat is not None
+            else float(self.hu_turn0_safe_selector_threshold)
+        )
+
+        if self.hu_turn0_allowed_seats is not None and self.seat not in self.hu_turn0_allowed_seats:
+            no_override_reason = "seat_disabled"
+        else:
+            try:
+                sample = hu_policy_sample(
+                    board,
+                    dealt,
+                    candidate_actions,
+                    opponent_board=opponent_board,
+                    dead_cards=dead_cards,
+                    seat=self.seat,
+                    to_act_order=self.seat,
+                )
+            except Exception:
+                sample = None
+                no_override_reason = "feature_failed"
+            if sample is not None:
+                predictions, predict_reason = self._safe_predict(
+                    self.hu_turn0_model,
+                    sample,
+                    len(candidate_actions),
+                )
+                if predictions is None:
+                    no_override_reason = (
+                        "prediction_failed"
+                        if predict_reason == "fallback_to_stage3"
+                        else predict_reason
+                    )
+                else:
+                    candidate_local_index = self._argmax_index(predictions, candidate_actions)
+                    candidate_index = candidate_indices[candidate_local_index]
+                    candidate_score = predictions[candidate_local_index]
+                    fallback_score = predictions[fallback_candidate_index]
+                    predicted_margin = candidate_score - fallback_score
+                    if candidate_index == fallback_index:
+                        no_override_reason = "same_as_baseline"
+                    elif predicted_margin < threshold:
+                        no_override_reason = "below_hu_turn0_margin"
+                    else:
+                        if self.hu_turn0_safe_selector_enabled:
+                            if self.hu_turn0_safe_selector_model is None:
+                                no_override_reason = "safe_selector_unavailable"
+                            else:
+                                try:
+                                    from .hu_turn0_safe_selector import (
+                                        score_hu_turn0_safe_selector,
+                                    )
+
+                                    safe_selector_score = score_hu_turn0_safe_selector(
+                                        self.hu_turn0_safe_selector_model,
+                                        {
+                                            "seat": self.seat,
+                                            "hero_board": board_to_json(board),
+                                            "opponent_board": board_to_json(opponent_board),
+                                            "cards_to_place": list(dealt),
+                                            "dead_cards": list(dead_cards),
+                                            "candidate_action": action_to_json(
+                                                board,
+                                                actions[candidate_index],
+                                            ),
+                                            "baseline_action": action_to_json(
+                                                board,
+                                                actions[fallback_index],
+                                            ),
+                                            "candidate_action_index": candidate_index,
+                                            "baseline_action_index": fallback_index,
+                                            "candidate_topk": self.hu_turn0_candidate_topk,
+                                            "candidate_pool_count": len(candidate_indices),
+                                            "action_count": len(actions),
+                                            "predicted_margin": predicted_margin,
+                                            "candidate_score": candidate_score,
+                                            "baseline_score": fallback_score,
+                                        },
+                                    )
+                                except Exception:
+                                    no_override_reason = "safe_selector_failed"
+                                else:
+                                    if safe_selector_score < safe_selector_threshold:
+                                        no_override_reason = "below_hu_turn0_safe_selector"
+                        if not no_override_reason:
+                            legality_check_result = self._candidate_legality_result(
+                                board,
+                                actions,
+                                candidate_index,
+                            )
+                            if legality_check_result == "legal":
+                                final_index = candidate_index
+                            else:
+                                no_override_reason = "illegal_candidate"
+
+        override_fired = final_index != fallback_index
+        self._log_hu_turn0_decision(
+            self._hu_turn0_decision_record(
+                board=board,
+                opponent_board=opponent_board,
+                dealt=dealt,
+                dead_cards=dead_cards,
+                actions=actions,
+                candidate_indices=candidate_indices,
+                hand_id=hand_id,
+                game_id=game_id,
+                decision_seed=decision_seed,
+                street=street,
+                fallback_index=fallback_index,
+                candidate_index=candidate_index,
+                final_index=final_index,
+                override_fired=override_fired,
+                no_override_reason=no_override_reason or fallback_reason,
+                threshold=threshold,
+                predicted_margin=predicted_margin,
+                candidate_score=candidate_score,
+                fallback_score=fallback_score,
+                safe_selector_score=safe_selector_score,
+                safe_selector_threshold=safe_selector_threshold,
+                legality_check_result=legality_check_result,
+                latency_ms=self._elapsed_ms(started_at),
+            )
+        )
+        return actions[final_index]
+
+    def _choose_hu_turn1_action(
+        self,
+        board: Board,
+        dealt: tuple[str, ...],
+        *,
+        dead_cards: tuple[str, ...],
+        opponent_board: Board,
+        hand_id: str | int | None,
+        game_id: str | int | None,
+        decision_seed: int | None,
+        street: str | None,
+    ) -> Action | None:
+        actions = generate_turn_actions(board, dealt)
+        if not actions:
+            return None
+
+        started_at = time.perf_counter()
+        to_act_order = "second" if opponent_board.card_count() > board.card_count() else "first"
+        fallback_sample = policy_sample(board, dealt, actions)
+        fallback_index = self._safe_choose_index(
+            self.turn1_model, fallback_sample, actions
+        )
+        sample = hu_policy_sample(
+            board,
+            dealt,
+            actions,
+            opponent_board=opponent_board,
+            dead_cards=dead_cards,
+            seat=self.seat,
+            to_act_order=to_act_order,
+        )
+
+        candidate_index: int | None = None
+        final_index: int | None = None
+        no_override_reason = ""
+        predicted_margin: float | None = None
+        candidate_score: float | None = None
+        fallback_score: float | None = None
+        legality_check_result = "legal"
+
+        if self.hu_turn1_min_margin is None:
+            candidate_index = self._safe_choose_index(
+                self.hu_turn1_model, sample, actions
+            )
+            if candidate_index is None:
+                final_index = fallback_index
+                no_override_reason = "fallback_to_self_board"
+            else:
+                final_index = candidate_index
+                no_override_reason = (
+                    "same_as_baseline" if candidate_index == fallback_index else "full_replacement"
+                )
+        else:
+            predictions, predict_reason = self._safe_predict(
+                self.hu_turn1_model,
+                sample,
+                len(actions),
+            )
+            if predictions is None:
+                final_index = fallback_index
+                no_override_reason = predict_reason
+                legality_check_result = predict_reason
+            else:
+                candidate_index = self._argmax_index(predictions, actions)
+                candidate_score = predictions[candidate_index]
+                fallback_score = (
+                    predictions[fallback_index] if fallback_index is not None else None
+                )
+                if fallback_index is None:
+                    predicted_margin = self._prediction_margin(predictions, candidate_index)
+                else:
+                    predicted_margin = candidate_score - fallback_score
+
+                if fallback_index is not None and candidate_index == fallback_index:
+                    final_index = fallback_index
+                    no_override_reason = "same_as_baseline"
+                elif predicted_margin >= self.hu_turn1_min_margin:
+                    legality_check_result = self._candidate_legality_result(
+                        board,
+                        actions,
+                        candidate_index,
+                    )
+                    if legality_check_result == "legal":
+                        final_index = candidate_index
+                    else:
+                        final_index = fallback_index
+                        no_override_reason = "illegal_candidate"
+                else:
+                    final_index = fallback_index
+                    no_override_reason = "below_hu_turn1_margin"
+
+        if final_index is None:
+            return None
+
+        override_fired = fallback_index is not None and final_index != fallback_index
+        self._log_hu_turn1_decision(
+            self._hu_turn1_decision_record(
+                board=board,
+                opponent_board=opponent_board,
+                dealt=dealt,
+                dead_cards=dead_cards,
+                actions=actions,
+                hand_id=hand_id,
+                game_id=game_id,
+                decision_seed=decision_seed,
+                street=street,
+                fallback_index=fallback_index,
+                candidate_index=candidate_index,
+                final_index=final_index,
+                override_fired=override_fired,
+                no_override_reason=no_override_reason,
+                predicted_margin=predicted_margin,
+                candidate_score=candidate_score,
+                fallback_score=fallback_score,
+                legality_check_result=legality_check_result,
+                latency_ms=self._elapsed_ms(started_at),
+            )
+        )
+        return actions[final_index]
 
     def _choose_hu_turn3_action(
         self,
@@ -171,7 +591,9 @@ class RegularAiPolicy:
         to_act_order = "second" if opponent_board.card_count() > board.card_count() else "first"
 
         fallback_sample = policy_sample(board, dealt, actions)
-        fallback_index = self._safe_choose_index(self.turn3_model, fallback_sample, len(actions))
+        fallback_index = self._safe_choose_index(
+            self.turn3_model, fallback_sample, actions
+        )
         if fallback_index is None:
             if self.hu_turn3_stage7_enabled and self._can_use_legacy_hu_turn3_direct():
                 try:
@@ -184,7 +606,9 @@ class RegularAiPolicy:
                         seat=self.seat,
                         to_act_order=to_act_order,
                     )
-                    action_index = self._safe_choose_index(self.hu_turn3_model, sample, len(actions))
+                    action_index = self._safe_choose_index(
+                        self.hu_turn3_model, sample, actions
+                    )
                     return actions[action_index] if action_index is not None else None
                 except Exception:
                     return None
@@ -216,7 +640,7 @@ class RegularAiPolicy:
                 if reference_predictions is None:
                     no_override_reason = reference_reason
                 else:
-                    reference_index = self._argmax_index(reference_predictions)
+                    reference_index = self._argmax_index(reference_predictions, actions)
                     reference_margin = self._prediction_margin(reference_predictions, reference_index)
                     stage3_index = reference_index
             self._log_hu_turn3_decision(
@@ -224,6 +648,7 @@ class RegularAiPolicy:
                     board=board,
                     opponent_board=opponent_board,
                     dealt=dealt,
+                    dead_cards=dead_cards,
                     actions=actions,
                     hand_id=hand_id,
                     game_id=game_id,
@@ -260,6 +685,7 @@ class RegularAiPolicy:
                     board=board,
                     opponent_board=opponent_board,
                     dealt=dealt,
+                    dead_cards=dead_cards,
                     actions=actions,
                     hand_id=hand_id,
                     game_id=game_id,
@@ -293,7 +719,7 @@ class RegularAiPolicy:
             if reference_predictions is None:
                 reference_gate_available = False
             else:
-                reference_index = self._argmax_index(reference_predictions)
+                reference_index = self._argmax_index(reference_predictions, actions)
                 reference_margin = self._prediction_margin(reference_predictions, reference_index)
                 stage3_index = reference_index
 
@@ -303,6 +729,7 @@ class RegularAiPolicy:
                     board=board,
                     opponent_board=opponent_board,
                     dealt=dealt,
+                    dead_cards=dead_cards,
                     actions=actions,
                     hand_id=hand_id,
                     game_id=game_id,
@@ -329,6 +756,7 @@ class RegularAiPolicy:
                     board=board,
                     opponent_board=opponent_board,
                     dealt=dealt,
+                    dead_cards=dead_cards,
                     actions=actions,
                     hand_id=hand_id,
                     game_id=game_id,
@@ -349,6 +777,33 @@ class RegularAiPolicy:
             )
             return actions[stage3_index]
 
+        if self.hu_turn3_allowed_seats is not None and self.seat not in self.hu_turn3_allowed_seats:
+            self._log_hu_turn3_decision(
+                self._stage7_decision_record(
+                    board=board,
+                    opponent_board=opponent_board,
+                    dealt=dealt,
+                    dead_cards=dead_cards,
+                    actions=actions,
+                    hand_id=hand_id,
+                    game_id=game_id,
+                    decision_seed=decision_seed,
+                    street=street,
+                    fallback_index=fallback_index,
+                    stage3_index=stage3_index,
+                    stage7_index=None,
+                    final_index=stage3_index,
+                    override_fired=False,
+                    no_override_reason="seat_not_allowed",
+                    reference_margin=reference_margin,
+                    stage7_predicted_margin=None,
+                    model_score=None,
+                    legality_check_result="not_evaluated",
+                    latency_ms=self._elapsed_ms(started_at),
+                )
+            )
+            return actions[stage3_index]
+
         predictions, prediction_reason = self._safe_predict(self.hu_turn3_model, sample, len(actions))
         if predictions is None:
             self._log_hu_turn3_decision(
@@ -356,6 +811,7 @@ class RegularAiPolicy:
                     board=board,
                     opponent_board=opponent_board,
                     dealt=dealt,
+                    dead_cards=dead_cards,
                     actions=actions,
                     hand_id=hand_id,
                     game_id=game_id,
@@ -376,7 +832,7 @@ class RegularAiPolicy:
             )
             return actions[stage3_index]
 
-        action_index = self._argmax_index(predictions)
+        action_index = self._argmax_index(predictions, actions)
         legality_check_result = self._candidate_legality_result(board, actions, action_index)
         stage7_predicted_margin = float(predictions[action_index]) - float(predictions[stage3_index])
         model_score = float(predictions[action_index])
@@ -388,6 +844,11 @@ class RegularAiPolicy:
             no_override_reason = "same_as_stage3"
         elif stage7_predicted_margin < self.hu_turn3_min_margin:
             no_override_reason = "below_stage7_margin"
+        elif (
+            self.hu_turn3_min_model_score is not None
+            and model_score < self.hu_turn3_min_model_score
+        ):
+            no_override_reason = "below_model_score"
 
         self_predictions = None
         if not no_override_reason and self.hu_turn3_support_model is not None and self.hu_turn3_min_support_margin > 0.0:
@@ -451,6 +912,7 @@ class RegularAiPolicy:
                 board=board,
                 opponent_board=opponent_board,
                 dealt=dealt,
+                dead_cards=dead_cards,
                 actions=actions,
                 hand_id=hand_id,
                 game_id=game_id,
@@ -475,15 +937,18 @@ class RegularAiPolicy:
         self,
         model: object | None,
         sample: dict,
-        expected_len: int,
+        actions: list[Action],
     ) -> int | None:
         if model is None:
             return None
+        predictions, _reason = self._safe_predict(model, sample, len(actions))
+        if predictions is not None:
+            return self._argmax_index(predictions, actions)
         try:
             index = int(model.choose_action_index(sample))
         except Exception:
             return None
-        if index < 0 or index >= expected_len:
+        if index < 0 or index >= len(actions):
             return None
         return index
 
@@ -494,6 +959,8 @@ class RegularAiPolicy:
             and self.hu_turn3_reference_min_margin <= 0.0
             and self.hu_turn3_support_model is None
             and self.hu_turn3_min_support_margin <= 0.0
+            and self.hu_turn3_min_model_score is None
+            and self.hu_turn3_allowed_seats is None
             and self.hu_turn3_gate_model is None
             and self.hu_turn3_min_gate_probability <= 0.0
             and self.hu_turn3_max_self_regret is None
@@ -518,8 +985,16 @@ class RegularAiPolicy:
             return None, "nan_prediction"
         return predictions, ""
 
-    def _argmax_index(self, predictions: list[float]) -> int:
-        return max(range(len(predictions)), key=lambda index: predictions[index])
+    def _argmax_index(
+        self,
+        predictions: list[float],
+        actions: list[Action] | None = None,
+    ) -> int:
+        best = max(predictions)
+        tied = [index for index, value in enumerate(predictions) if value == best]
+        if actions is None:
+            return tied[0]
+        return min(tied, key=lambda index: action_key(actions[index]).sort_key())
 
     def _prediction_margin(self, predictions: list[float], best_index: int) -> float:
         if len(predictions) <= 1:
@@ -537,12 +1012,223 @@ class RegularAiPolicy:
             return "illegal_candidate"
         return "legal"
 
+    def _hu_turn0_decision_record(
+        self,
+        *,
+        board: Board,
+        opponent_board: Board,
+        dealt: tuple[str, ...],
+        dead_cards: tuple[str, ...],
+        actions: list[Action],
+        candidate_indices: list[int],
+        hand_id: str | int | None,
+        game_id: str | int | None,
+        decision_seed: int | None,
+        street: str | None,
+        fallback_index: int,
+        candidate_index: int | None,
+        final_index: int,
+        override_fired: bool,
+        no_override_reason: str,
+        threshold: float,
+        predicted_margin: float | None,
+        candidate_score: float | None,
+        fallback_score: float | None,
+        safe_selector_score: float | None,
+        safe_selector_threshold: float,
+        legality_check_result: str,
+        latency_ms: float,
+    ) -> dict[str, Any]:
+        context = self.decision_context or {}
+        visible_dead_cards = list(dead_cards)
+        opponent_public = set(opponent_board.all_cards())
+        hero_private_discards = [
+            card for card in dead_cards if card not in opponent_public
+        ]
+        return {
+            "hand_id": hand_id,
+            "game_id": game_id,
+            "seed": decision_seed if decision_seed is not None else self.seed,
+            "street": street or "T0",
+            "turn": street or "T0",
+            "seat": self.seat,
+            "hero_board": board_to_json(board),
+            "opponent_board": board_to_json(opponent_board),
+            "cards_to_place": list(dealt),
+            "dead_cards": list(dead_cards),
+            "visibility_model": "actor_observation_v1",
+            "discard_visibility": "own_private_only",
+            "true_dead_cards": [],
+            "visible_dead_cards": visible_dead_cards,
+            "hero_private_discards": hero_private_discards,
+            "replay_ready": False,
+            "action_count": len(actions),
+            "candidate_pool_count": len(candidate_indices),
+            "candidate_original_indices": list(candidate_indices),
+            "candidate_action_keys": [
+                action_key(actions[index]).to_token() for index in candidate_indices
+            ],
+            "action_key_schema": ACTION_KEY_SCHEMA,
+            "legal_action_set_digest": legal_action_set_digest(actions),
+            "legal_action_order_digest": ordered_action_mapping_digest(actions),
+            "fallback_action_index": fallback_index,
+            "candidate_action_index": candidate_index,
+            "final_action_index": final_index,
+            "fallback_action_key": action_key(actions[fallback_index]).to_token(),
+            "candidate_action_key": (
+                action_key(actions[candidate_index]).to_token()
+                if candidate_index is not None
+                else None
+            ),
+            "final_action_key": action_key(actions[final_index]).to_token(),
+            "baseline_action": action_to_json(board, actions[fallback_index]),
+            "hu_turn0_action": (
+                action_to_json(board, actions[candidate_index])
+                if candidate_index is not None
+                else None
+            ),
+            "fallback_action": action_to_json(board, actions[fallback_index]),
+            "final_action": action_to_json(board, actions[final_index]),
+            "override_fired": override_fired,
+            "no_override_reason": no_override_reason,
+            "hu_turn0_candidate_topk": self.hu_turn0_candidate_topk,
+            "hu_turn0_min_margin": threshold,
+            "hu_turn0_predicted_margin": predicted_margin,
+            "candidate_score": candidate_score,
+            "fallback_score": fallback_score,
+            "hu_turn0_safe_selector_enabled": self.hu_turn0_safe_selector_enabled,
+            "hu_turn0_safe_selector_score": safe_selector_score,
+            "hu_turn0_safe_selector_threshold": safe_selector_threshold,
+            "legality_check_result": legality_check_result,
+            "runtime_latency_ms": latency_ms,
+            "runtime_profile": context.get("runtime_profile"),
+            "runtime_status": context.get("runtime_status"),
+            "selective_override_only": context.get("selective_override_only"),
+            "full_replacement_enabled": context.get("full_replacement_enabled"),
+            "fallback_policy": context.get("fallback_policy"),
+            "t1_continuation": context.get("t1_continuation"),
+            "t2_continuation": context.get("t2_continuation"),
+            "t3_continuation": context.get("t3_continuation"),
+        }
+
+    def _log_hu_turn0_decision(self, record: dict[str, Any]) -> None:
+        if self.hu_turn0_decision_log is not None:
+            self.hu_turn0_decision_log.append(record)
+        if self.hu_turn0_decision_log_path is None:
+            return
+        path = Path(self.hu_turn0_decision_log_path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(record, ensure_ascii=True) + "\n")
+
+    def _hu_turn1_decision_record(
+        self,
+        *,
+        board: Board,
+        opponent_board: Board,
+        dealt: tuple[str, ...],
+        dead_cards: tuple[str, ...],
+        actions: list[Action],
+        hand_id: str | int | None,
+        game_id: str | int | None,
+        decision_seed: int | None,
+        street: str | None,
+        fallback_index: int | None,
+        candidate_index: int | None,
+        final_index: int,
+        override_fired: bool,
+        no_override_reason: str,
+        predicted_margin: float | None,
+        candidate_score: float | None,
+        fallback_score: float | None,
+        legality_check_result: str,
+        latency_ms: float,
+    ) -> dict[str, Any]:
+        context = self.decision_context or {}
+        visible_dead_cards = list(dead_cards)
+        opponent_public = set(opponent_board.all_cards())
+        hero_private_discards = [
+            card for card in dead_cards if card not in opponent_public
+        ]
+        return {
+            "hand_id": hand_id,
+            "game_id": game_id,
+            "seed": decision_seed if decision_seed is not None else self.seed,
+            "street": street or "T1",
+            "turn": street or "T1",
+            "seat": self.seat,
+            "hero_board": board_to_json(board),
+            "opponent_board": board_to_json(opponent_board),
+            "cards_to_place": list(dealt),
+            "dead_cards": list(dead_cards),
+            "visibility_model": "actor_observation_v1",
+            "discard_visibility": "own_private_only",
+            "true_dead_cards": [],
+            "visible_dead_cards": visible_dead_cards,
+            "hero_private_discards": hero_private_discards,
+            "replay_ready": False,
+            "action_count": len(actions),
+            "action_key_schema": ACTION_KEY_SCHEMA,
+            "legal_action_set_digest": legal_action_set_digest(actions),
+            "legal_action_order_digest": ordered_action_mapping_digest(actions),
+            "fallback_action_index": fallback_index,
+            "candidate_action_index": candidate_index,
+            "final_action_index": final_index,
+            "fallback_action_key": (
+                action_key(actions[fallback_index]).to_token()
+                if fallback_index is not None
+                else None
+            ),
+            "candidate_action_key": (
+                action_key(actions[candidate_index]).to_token()
+                if candidate_index is not None
+                else None
+            ),
+            "final_action_key": action_key(actions[final_index]).to_token(),
+            "baseline_action": (
+                action_to_json(board, actions[fallback_index])
+                if fallback_index is not None
+                else None
+            ),
+            "hu_turn1_action": (
+                action_to_json(board, actions[candidate_index])
+                if candidate_index is not None
+                else None
+            ),
+            "fallback_action": (
+                action_to_json(board, actions[fallback_index])
+                if fallback_index is not None
+                else None
+            ),
+            "final_action": action_to_json(board, actions[final_index]),
+            "override_fired": override_fired,
+            "no_override_reason": no_override_reason or "",
+            "hu_turn1_min_margin": self.hu_turn1_min_margin,
+            "hu_turn1_predicted_margin": predicted_margin,
+            "candidate_score": candidate_score,
+            "fallback_score": fallback_score,
+            "model_score": candidate_score,
+            "legality_check_result": legality_check_result,
+            "runtime_latency_ms": latency_ms,
+        }
+
+    def _log_hu_turn1_decision(self, record: dict[str, Any]) -> None:
+        if self.hu_turn1_decision_log is not None:
+            self.hu_turn1_decision_log.append(record)
+        if self.hu_turn1_decision_log_path is None:
+            return
+        path = Path(self.hu_turn1_decision_log_path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(record, ensure_ascii=True) + "\n")
+
     def _stage7_decision_record(
         self,
         *,
         board: Board,
         opponent_board: Board,
         dealt: tuple[str, ...],
+        dead_cards: tuple[str, ...],
         actions: list[Action],
         hand_id: str | int | None,
         game_id: str | int | None,
@@ -560,6 +1246,10 @@ class RegularAiPolicy:
         legality_check_result: str,
         latency_ms: float,
     ) -> dict[str, Any]:
+        opponent_public = set(opponent_board.all_cards())
+        hero_private_discards = [
+            card for card in dead_cards if card not in opponent_public
+        ]
         return {
             "hand_id": hand_id,
             "game_id": game_id,
@@ -570,6 +1260,29 @@ class RegularAiPolicy:
             "hero_board": board_to_json(board),
             "opponent_board": board_to_json(opponent_board),
             "cards_to_place": list(dealt),
+            "dead_cards": list(dead_cards),
+            "visibility_model": "actor_observation_v1",
+            "discard_visibility": "own_private_only",
+            "true_dead_cards": [],
+            "visible_dead_cards": list(dead_cards),
+            "hero_private_discards": hero_private_discards,
+            "replay_ready": False,
+            "action_count": len(actions),
+            "action_key_schema": ACTION_KEY_SCHEMA,
+            "legal_action_set_digest": legal_action_set_digest(actions),
+            "legal_action_order_digest": ordered_action_mapping_digest(actions),
+            "fallback_action_index": fallback_index,
+            "stage3_action_index": stage3_index,
+            "stage7_action_index": stage7_index,
+            "final_action_index": final_index,
+            "fallback_action_key": action_key(actions[fallback_index]).to_token(),
+            "stage3_action_key": action_key(actions[stage3_index]).to_token(),
+            "stage7_action_key": (
+                action_key(actions[stage7_index]).to_token()
+                if stage7_index is not None
+                else None
+            ),
+            "final_action_key": action_key(actions[final_index]).to_token(),
             "stage3_action": action_to_json(board, actions[stage3_index]),
             "stage7_action": (
                 action_to_json(board, actions[stage7_index])
@@ -582,6 +1295,12 @@ class RegularAiPolicy:
             "no_override_reason": no_override_reason or "",
             "hu_turn3_min_margin": self.hu_turn3_min_margin,
             "hu_turn3_reference_min_margin": self.hu_turn3_reference_min_margin,
+            "hu_turn3_min_model_score": self.hu_turn3_min_model_score,
+            "hu_turn3_allowed_seats": (
+                list(self.hu_turn3_allowed_seats)
+                if self.hu_turn3_allowed_seats is not None
+                else None
+            ),
             "stage7_predicted_margin": stage7_predicted_margin,
             "reference_margin": reference_margin,
             "model_score": model_score,

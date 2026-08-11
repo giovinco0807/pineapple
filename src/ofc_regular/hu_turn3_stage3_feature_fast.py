@@ -9,6 +9,11 @@ from typing import Any, Sequence
 import numpy as np
 
 from .action_space import Action
+from .action_key import (
+    ACTION_KEY_SCHEMA,
+    legal_action_set_digest,
+    ordered_action_mapping_digest,
+)
 from .hu_turn3_model import (
     DISCARD_OFFSET,
     GLOBAL_OFFSET,
@@ -40,6 +45,7 @@ from .hu_turn3_model import (
 )
 
 FEATURE_SCHEMA_VERSION = "hu_turn3_stage3_fast_v1"
+STATE_FEATURE_CACHE_SCHEMA = "hu_turn3_stage3_state_feature_cache_v2"
 
 
 @dataclass
@@ -75,6 +81,21 @@ class Stage3StateFeatureCache:
         if len(self._items) >= self.max_size:
             self._items.clear()
         self._items[key] = value
+
+
+def stage3_state_feature_cache_key(
+    state_key: tuple[Any, ...],
+    actions: Sequence[Action],
+    feature_schema: str,
+) -> tuple[Any, ...]:
+    return (
+        STATE_FEATURE_CACHE_SCHEMA,
+        feature_schema,
+        ACTION_KEY_SCHEMA,
+        legal_action_set_digest(actions),
+        ordered_action_mapping_digest(actions),
+        state_key,
+    )
 
 
 def build_hu_turn3_stage3_feature_matrix_batch(
@@ -143,7 +164,12 @@ def build_hu_turn3_stage3_feature_matrix_batch(
     context_seconds = 0.0
     prepared: list[tuple[dict[str, Any] | None, dict[str, Any] | None]] = []
     for state_index, (state, actions) in enumerate(zip(t3_states, legal_actions_by_state)):
-        key = state_keys[state_index] if state_keys is not None else None
+        raw_key = state_keys[state_index] if state_keys is not None else None
+        key = (
+            stage3_state_feature_cache_key(raw_key, actions, feature_schema)
+            if raw_key is not None
+            else None
+        )
         cached = state_feature_cache.get(key) if key is not None and state_feature_cache is not None else None
         if cached is None:
             try:

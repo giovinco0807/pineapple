@@ -1,11 +1,16 @@
 import hashlib
 import json
+from dataclasses import replace
+from itertools import permutations
 
 import numpy as np
 import pytest
 
+from ofc_regular.action_key import action_key, action_key_from_payload, resolve_action_key
 from ofc_regular.action_space import generate_turn_actions
 from ofc_regular.hu_turn2_teacher_data import evaluate_hu_turn2_actions
+from ofc_regular.hu_belief import sample_hidden_card_particles
+from ofc_regular.hu_infoset import ActorObservation
 from ofc_regular.hu_turn2_teacher_data import (
     STATE_PROFILE_COLUMNS,
     aggregate_hu_turn2_profiles,
@@ -19,6 +24,7 @@ from ofc_regular.hu_turn3_batch_continuation import (
     HuTurn3Stage7BatchConfig,
     Stage3ReferenceDecision,
     HuTurn3State,
+    canonical_t3_state_key,
     decide_hu_turn3_stage7_batch,
     decide_hu_turn3_stage3_reference_batch,
 )
@@ -26,6 +32,7 @@ from ofc_regular.benchmark_hu_turn3_stage3_features import benchmark_replay
 from ofc_regular.hu_turn3_model import hu_policy_sample, sample_to_matrix as hu_sample_to_matrix
 from ofc_regular.hu_turn3_stage3_feature_fast import (
     FEATURE_SCHEMA_VERSION,
+    Stage3StateFeatureCache,
     build_hu_turn3_stage3_feature_matrix_batch,
 )
 from ofc_regular.hu_turn3_stage3_feature_manifest import (
@@ -69,6 +76,37 @@ class FixedIndexModel:
         return values
 
 
+class SemanticAhTopModel:
+    def predict_sample(self, sample):
+        return np.asarray(
+            [
+                100.0
+                if any(
+                    card == "Ah" and row == "top"
+                    for card, row in action["placements"]
+                )
+                else 0.0
+                for action in sample["actions"]
+            ],
+            dtype=np.float64,
+        )
+
+
+class FixedGateModel:
+    def __init__(self, probability):
+        self.probability = probability
+        self.calls = 0
+        self.estimator = self
+        self.classes_ = np.asarray([0, 1])
+
+    def predict_proba(self, matrix):
+        self.calls += 1
+        return np.asarray(
+            [[1.0 - self.probability, self.probability] for _row in matrix],
+            dtype=np.float64,
+        )
+
+
 def _t3_board():
     return Board.from_rows(
         top=["Qh"],
@@ -96,15 +134,41 @@ def _state():
     )
 
 
-def _batch_decision(*, stage7=None, reference=None, enabled=True, cache=None, batch_size=8192):
-    fallback = FixedIndexModel(index=0, margin=1.0)
-    models = HuTurn3BatchModels(
-        fallback_turn3_model=fallback,
-        stage7_model=stage7 or FixedIndexModel(index=2, margin=40.0),
-        stage3_reference_model=reference or FixedIndexModel(index=1, margin=20.0),
+def _second_seat_state():
+    return HuTurn3State(
+        board=_t3_board(),
+        dealt_cards=("Qs", "Ah", "7d"),
+        opponent_board=Board.from_rows(
+            top=["2h", "3c"],
+            middle=["3h", "4h", "5h", "6h"],
+            bottom=["7h", "8h", "Th", "Jh", "4c"],
+        ),
+        dead_cards=("2c", "5d"),
+        seat="second",
+        to_act_order="second",
     )
+
+
+def _batch_decision(
+    *,
+    state=None,
+    stage7=None,
+    reference=None,
+    enabled=True,
+    cache=None,
+    batch_size=8192,
+    models=None,
+):
+    state = state or _state()
+    if models is None:
+        fallback = FixedIndexModel(index=0, margin=1.0)
+        models = HuTurn3BatchModels(
+            fallback_turn3_model=fallback,
+            stage7_model=stage7 or FixedIndexModel(index=2, margin=40.0),
+            stage3_reference_model=reference or FixedIndexModel(index=1, margin=20.0),
+        )
     result = decide_hu_turn3_stage7_batch(
-        [_state()],
+        [state],
         HuTurn3Stage7BatchConfig(stage7_enabled=enabled, use_cache=cache is not None),
         models,
         batch_size,
@@ -113,8 +177,12 @@ def _batch_decision(*, stage7=None, reference=None, enabled=True, cache=None, ba
     return result.decisions[0], result.profile, models
 
 
-def test_scalar_vs_batch_parity_for_stage7_override():
-    state = _state()
+@pytest.mark.parametrize(
+    "state",
+    [_state(), _second_seat_state()],
+    ids=["first-seat", "second-seat"],
+)
+def test_scalar_vs_batch_parity_for_stage7_override(state):
     fallback = FixedIndexModel(index=0, margin=1.0)
     reference = FixedIndexModel(index=1, margin=20.0)
     stage7 = FixedIndexModel(index=2, margin=40.0)
@@ -125,7 +193,7 @@ def test_scalar_vs_batch_parity_for_stage7_override():
         hu_turn3_min_margin=5.0,
         hu_turn3_reference_min_margin=10.0,
         hu_turn3_decision_log=[],
-        seat="first",
+        seat=state.seat,
     )
 
     scalar_action = scalar.choose_action(
@@ -134,7 +202,11 @@ def test_scalar_vs_batch_parity_for_stage7_override():
         dead_cards=state.dead_cards,
         opponent_board=state.opponent_board,
     )
-    batch_decision, _profile, _models = _batch_decision(stage7=stage7, reference=reference)
+    batch_decision, _profile, _models = _batch_decision(
+        state=state,
+        stage7=stage7,
+        reference=reference,
+    )
     scalar_record = scalar.hu_turn3_decision_log[-1]
 
     assert batch_decision.final_action == scalar_action
@@ -145,15 +217,205 @@ def test_scalar_vs_batch_parity_for_stage7_override():
 
 
 def test_batch_size_one_matches_large_batch_and_cache_off_matches_cache_on():
-    small_decision, _profile, _models = _batch_decision(batch_size=1)
+    small_decision, _profile, models = _batch_decision(batch_size=1)
     cache = HuTurn3DecisionCache(max_size=8)
-    cached_decision, _profile, _models = _batch_decision(cache=cache, batch_size=8192)
-    cached_again, profile_again, _models = _batch_decision(cache=cache, batch_size=8192)
+    cached_decision, _profile, _models = _batch_decision(
+        cache=cache,
+        batch_size=8192,
+        models=models,
+    )
+    cached_again, profile_again, _models = _batch_decision(
+        cache=cache,
+        batch_size=8192,
+        models=models,
+    )
 
     assert small_decision.final_action == cached_decision.final_action
     assert small_decision.override_fired == cached_decision.override_fired
     assert cached_again.final_action == cached_decision.final_action
     assert profile_again["cache_hits"] == 1
+
+
+def test_t3_decision_cache_namespace_changes_with_config_and_every_model():
+    state = _state()
+    cache = HuTurn3DecisionCache(max_size=32)
+    config = HuTurn3Stage7BatchConfig(use_cache=True)
+    models = HuTurn3BatchModels(
+        fallback_turn3_model=FixedIndexModel(index=0, margin=1.0),
+        stage7_model=FixedIndexModel(index=2, margin=40.0),
+        stage3_reference_model=FixedIndexModel(index=1, margin=20.0),
+        support_model=FixedIndexModel(index=2, margin=5.0),
+        gate_model=FixedGateModel(0.9),
+    )
+
+    first = decide_hu_turn3_stage7_batch(
+        [state],
+        config,
+        models,
+        cache=cache,
+    )
+    assert first.profile["cache_hits"] == 0
+
+    replacements = {
+        "fallback_turn3_model": FixedIndexModel(index=0, margin=1.0),
+        "stage7_model": FixedIndexModel(index=2, margin=40.0),
+        "stage3_reference_model": FixedIndexModel(index=1, margin=20.0),
+        "support_model": FixedIndexModel(index=2, margin=5.0),
+        "gate_model": FixedGateModel(0.9),
+    }
+    for field_name, replacement_model in replacements.items():
+        changed = replace(models, **{field_name: replacement_model})
+        result = decide_hu_turn3_stage7_batch(
+            [state],
+            config,
+            changed,
+            cache=cache,
+        )
+        assert result.profile["cache_hits"] == 0, field_name
+
+    disabled = decide_hu_turn3_stage7_batch(
+        [state],
+        replace(config, stage7_enabled=False),
+        models,
+        cache=cache,
+    )
+    assert disabled.profile["cache_hits"] == 0
+    assert disabled.decisions[0].override_fired is False
+    assert disabled.decisions[0].no_override_reason == "stage7_disabled"
+
+    original_again = decide_hu_turn3_stage7_batch(
+        [state],
+        config,
+        models,
+        cache=cache,
+    )
+    assert original_again.profile["cache_hits"] == 1
+
+
+def test_reference_cache_remaps_semantic_action_across_dealt_permutations():
+    first_state = _state()
+    second_state = replace(first_state, dealt_cards=("7d", "Qs", "Ah"))
+    model = SemanticAhTopModel()
+    cache = HuTurn3Stage3ReferenceCache(max_size=8)
+
+    first = decide_hu_turn3_stage3_reference_batch(
+        [first_state],
+        model,
+        cache=cache,
+    )
+    second = decide_hu_turn3_stage3_reference_batch(
+        [second_state],
+        model,
+        cache=cache,
+    )
+    fresh = decide_hu_turn3_stage3_reference_batch([second_state], model)
+
+    first_decision = first.decisions[0]
+    second_decision = second.decisions[0]
+    fresh_decision = fresh.decisions[0]
+    assert second.profile["stage3_reference_cache_hit"] == 1
+    assert first_decision.stage3_action is not None
+    assert second_decision.stage3_action is not None
+    assert fresh_decision.stage3_action is not None
+    expected_key = action_key(first_decision.stage3_action)
+    assert action_key(second_decision.stage3_action) == expected_key
+    assert action_key(fresh_decision.stage3_action) == expected_key
+    second_actions = generate_turn_actions(
+        second_state.board,
+        second_state.dealt_cards,
+    )
+    assert second_decision.action_index == resolve_action_key(
+        second_actions,
+        expected_key,
+    )
+
+
+def test_stage3_feature_cache_is_namespaced_by_legal_action_order():
+    first_state = _state()
+    second_state = replace(first_state, dealt_cards=("7d", "Qs", "Ah"))
+    first_actions = generate_turn_actions(
+        first_state.board,
+        first_state.dealt_cards,
+    )
+    second_actions = generate_turn_actions(
+        second_state.board,
+        second_state.dealt_cards,
+    )
+    cache = Stage3StateFeatureCache(max_size=8)
+
+    first = build_hu_turn3_stage3_feature_matrix_batch(
+        [first_state],
+        [first_actions],
+        state_keys=[canonical_t3_state_key(first_state)],
+        state_feature_cache=cache,
+    )
+    second = build_hu_turn3_stage3_feature_matrix_batch(
+        [second_state],
+        [second_actions],
+        state_keys=[canonical_t3_state_key(second_state)],
+        state_feature_cache=cache,
+    )
+    second_again = build_hu_turn3_stage3_feature_matrix_batch(
+        [second_state],
+        [second_actions],
+        state_keys=[canonical_t3_state_key(second_state)],
+        state_feature_cache=cache,
+    )
+
+    assert first.profile["stage3_state_feature_cache_hit"] == 0
+    assert second.profile["stage3_state_feature_cache_hit"] == 0
+    assert second_again.profile["stage3_state_feature_cache_hit"] == 1
+    assert [action_key_from_payload(row) for row in second.action_encodings] == [
+        action_key(action) for action in second_actions
+    ]
+
+
+def test_permutation_cache_on_off_action_key_parity_and_record_rebinding():
+    flat = FixedIndexModel(index=0, margin=0.0)
+    models = HuTurn3BatchModels(
+        fallback_turn3_model=flat,
+        stage7_model=None,
+        stage3_reference_model=flat,
+    )
+    config = HuTurn3Stage7BatchConfig(stage7_enabled=False, use_cache=True)
+    decision_cache = HuTurn3DecisionCache(max_size=8)
+    reference_cache = HuTurn3Stage3ReferenceCache(max_size=8)
+    action_cache = HuTurn3ActionCache(max_size=8)
+    cached_keys = []
+    fresh_keys = []
+
+    for index, dealt in enumerate(permutations(_state().dealt_cards)):
+        state = replace(
+            _state(),
+            dealt_cards=dealt,
+            hand_id=f"hand-{index}",
+            game_id=f"game-{index}",
+            decision_seed=1000 + index,
+        )
+        cached = decide_hu_turn3_stage7_batch(
+            [state],
+            config,
+            models,
+            cache=decision_cache,
+            reference_cache=reference_cache,
+            action_cache=action_cache,
+        ).decisions[0]
+        fresh = decide_hu_turn3_stage7_batch(
+            [state],
+            config,
+            models,
+        ).decisions[0]
+        assert cached.final_action is not None
+        assert fresh.final_action is not None
+        cached_keys.append(action_key(cached.final_action))
+        fresh_keys.append(action_key(fresh.final_action))
+        assert cached.record["hand_id"] == state.hand_id
+        assert cached.record["game_id"] == state.game_id
+        assert cached.record["seed"] == state.decision_seed
+        assert cached.record["cards_to_place"] == list(dealt)
+
+    assert cached_keys == fresh_keys
+    assert len(set(cached_keys)) == 1
 
 
 def test_reference_margin_pre_gate_skips_stage7_model():
@@ -168,8 +430,61 @@ def test_reference_margin_pre_gate_skips_stage7_model():
     assert stage7.predict_calls == 0
     assert profile["skipped_by_reference_margin"] == 1
     assert profile["stage7_model_called_count"] == 0
-    assert profile["stage3_fallback_recomputed_count"] == 0
-    assert profile["duplicate_stage3_compute_avoided_count"] == 1
+
+
+def test_batched_support_margin_can_reject_candidate():
+    models = HuTurn3BatchModels(
+        fallback_turn3_model=FixedIndexModel(index=0, margin=1.0),
+        stage7_model=FixedIndexModel(index=2, margin=40.0),
+        stage3_reference_model=FixedIndexModel(index=1, margin=20.0),
+        support_model=FixedIndexModel(index=2, margin=1.0),
+    )
+
+    result = decide_hu_turn3_stage7_batch(
+        [_state()],
+        HuTurn3Stage7BatchConfig(
+            hu_turn3_min_margin=5.0,
+            hu_turn3_reference_min_margin=10.0,
+            hu_turn3_min_support_margin=5.0,
+        ),
+        models,
+        8192,
+    )
+
+    decision = result.decisions[0]
+    assert decision.override_fired is False
+    assert decision.no_override_reason == "below_support_margin"
+    assert result.profile["support_model_called_count"] == 1
+
+
+def test_batched_gate_probability_can_reject_candidate():
+    gate = FixedGateModel(0.25)
+    models = HuTurn3BatchModels(
+        fallback_turn3_model=FixedIndexModel(index=0, margin=1.0),
+        stage7_model=FixedIndexModel(index=2, margin=40.0),
+        stage3_reference_model=FixedIndexModel(index=1, margin=20.0),
+        gate_model=gate,
+    )
+
+    result = decide_hu_turn3_stage7_batch(
+        [_state()],
+        HuTurn3Stage7BatchConfig(
+            hu_turn3_min_margin=5.0,
+            hu_turn3_reference_min_margin=10.0,
+            hu_turn3_min_gate_probability=0.7,
+        ),
+        models,
+        8192,
+    )
+
+    decision = result.decisions[0]
+    assert decision.override_fired is False
+    assert decision.no_override_reason == "fallback_to_stage3"
+    assert decision.record["gate_probability"] == 0.25
+    assert gate.calls == 1
+    assert result.profile["gate_model_called_count"] == 1
+    assert result.profile["stage3_fallback_recomputed_count"] == 0
+    assert result.profile["duplicate_stage3_compute_avoided_count"] == 1
 
 
 def test_stage3_reference_scalar_vs_batch_parity():
@@ -411,19 +726,36 @@ def test_batched_turn2_teacher_preserves_common_future_digest():
         hu_turn3_reference_min_margin=10.0,
         seed=1,
     )
-    sample = evaluate_hu_turn2_actions(
-        board=Board.from_rows(
+    board = Board.from_rows(
             top=["Qh"],
             middle=["Kh", "Kd", "6c"],
             bottom=["9c", "9d", "9s"],
-        ),
-        dealt_cards=["Qs", "Ah", "7d"],
-        opponent_board=Board.from_rows(
+        )
+    opponent = Board.from_rows(
             top=["2h"],
             middle=["3h", "4h", "5h"],
             bottom=["7h", "8h", "Th"],
-        ),
-        dead_cards=["2c"],
+        )
+    dealt = ("Qs", "Ah", "7d")
+    observation = ActorObservation(
+        hero_board=board,
+        opponent_public_board=opponent,
+        dealt_cards=dealt,
+        hero_private_discards=("2c",),
+        seat="first",
+        street="T2",
+        to_act_order="first",
+    )
+    belief = sample_hidden_card_particles(
+        observation,
+        base_seed=99,
+        run_id="t2_batch_common_future",
+        sample_count=2,
+    )
+    sample = evaluate_hu_turn2_actions(
+        board=board,
+        dealt_cards=dealt,
+        opponent_board=opponent,
         hero_seat="first",
         continuation_policy=policy,
         opponent_policy=policy,
@@ -434,6 +766,8 @@ def test_batched_turn2_teacher_preserves_common_future_digest():
         batched_continuation_config=HuTurn3Stage7BatchConfig(),
         batched_continuation_cache=HuTurn3DecisionCache(max_size=32),
         batched_continuation_batch_size=1,
+        observation=observation,
+        belief_batch=belief,
     )
 
     assert sample is not None
@@ -445,6 +779,110 @@ def test_batched_turn2_teacher_preserves_common_future_digest():
     assert "opponent_policy_decision_time" in sample["profiling"]
     assert "non_t3_turn_T2_seconds" in sample["profiling"]
     assert "stage3_reference_cache_hit_rate" in sample["profiling"]
+
+
+@pytest.mark.parametrize("hero_seat", ["first", "second"])
+def test_t2_full_rollout_scalar_batch_parity_with_asymmetric_actor_policies(hero_seat):
+    board = Board.from_rows(
+        top=["Qh"],
+        middle=["Kh", "Kd", "6c"],
+        bottom=["9c", "9d", "9s"],
+    )
+    if hero_seat == "first":
+        opponent = Board.from_rows(
+            top=["2h"],
+            middle=["3h", "4h", "5h"],
+            bottom=["7h", "8h", "Th"],
+        )
+    else:
+        opponent = Board.from_rows(
+            top=["2h"],
+            middle=["3h", "4h", "5h", "Jh"],
+            bottom=["7h", "8h", "Th", "6h"],
+        )
+    dealt = ("Qs", "Ah", "7d")
+    observation = ActorObservation(
+        hero_board=board,
+        opponent_public_board=opponent,
+        dealt_cards=dealt,
+        hero_private_discards=("2c",),
+        seat=hero_seat,
+        street="T2",
+        to_act_order=hero_seat,
+    )
+    belief = sample_hidden_card_particles(
+        observation,
+        base_seed=991,
+        run_id=f"scalar_batch_asymmetric|seat={hero_seat}",
+        sample_count=2,
+    )
+
+    def actor_policies():
+        opponent_seat = "second" if hero_seat == "first" else "first"
+        hero = RegularAiPolicy(
+            turn1_model=FixedIndexModel(index=0, margin=3.0),
+            turn2_model=FixedIndexModel(index=1, margin=4.0),
+            turn3_model=FixedIndexModel(index=0, margin=5.0),
+            hu_turn3_model=FixedIndexModel(index=2, margin=40.0),
+            hu_turn3_reference_model=FixedIndexModel(index=1, margin=20.0),
+            hu_turn3_min_margin=5.0,
+            hu_turn3_reference_min_margin=10.0,
+            seed=1,
+            seat=hero_seat,
+        )
+        opponent_policy = RegularAiPolicy(
+            turn1_model=FixedIndexModel(index=2, margin=6.0),
+            turn2_model=FixedIndexModel(index=3, margin=7.0),
+            turn3_model=FixedIndexModel(index=4, margin=8.0),
+            hu_turn3_model=FixedIndexModel(index=5, margin=50.0),
+            hu_turn3_reference_model=FixedIndexModel(index=3, margin=25.0),
+            hu_turn3_min_margin=5.0,
+            hu_turn3_reference_min_margin=10.0,
+            seed=2,
+            seat=opponent_seat,
+        )
+        return hero, opponent_policy
+
+    def evaluate(*, batched: bool):
+        hero, opponent_policy = actor_policies()
+        return evaluate_hu_turn2_actions(
+            board=board,
+            dealt_cards=dealt,
+            opponent_board=opponent,
+            hero_seat=hero_seat,
+            continuation_policy=hero,
+            opponent_policy=opponent_policy,
+            baseline_turn2_model=FixedIndexModel(index=0, margin=1.0),
+            future_samples=2,
+            future_rollout_seed=991,
+            action_indices=(0, 1),
+            use_batched_continuation=batched,
+            batched_continuation_config=HuTurn3Stage7BatchConfig(
+                hu_turn3_min_margin=5.0,
+                hu_turn3_reference_min_margin=10.0,
+                use_cache=False,
+            ),
+            batched_continuation_batch_size=1,
+            use_final_turn_cache=False,
+            observation=observation,
+            belief_batch=belief,
+        )
+
+    scalar = evaluate(batched=False)
+    batch = evaluate(batched=True)
+    assert scalar is not None and batch is not None
+
+    def values(sample):
+        return {
+            row["canonical_action_key"]: (
+                row["score"],
+                row["rollout_count"],
+            )
+            for row in sample["actions"]
+        }
+
+    assert values(batch) == values(scalar)
+    assert batch["common_random_future_digest"] == scalar["common_random_future_digest"]
 
 
 def test_summary_aggregation_reduce_rules_and_state_profile_csv(tmp_path):

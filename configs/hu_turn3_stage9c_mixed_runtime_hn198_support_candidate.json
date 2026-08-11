@@ -1,0 +1,70 @@
+{
+  "name": "hu_turn3_stage9c_mixed_runtime_hn198_support_candidate",
+  "description": "Stage9c support/veto candidate for old Stage9 m1 selective override. Evaluation-only; not production.",
+  "status": "smoke_positive_ci_crosses_zero",
+  "visibility_model": "hidden_discard",
+  "fl_ev": 10.227020614683454,
+  "models": {
+    "opening": "models/opening_stage7_torch_wide.pt",
+    "turn1": "models/turn1_stage6_torch_wide.pt",
+    "turn2": "models/turn2_stage8.pkl",
+    "turn3": "models/turn3_stage6.pkl",
+    "hu_turn3_candidate": "models/hu_turn3_joint_exact_stage9_mixed1200_mc128_extra_trees.pkl",
+    "hu_turn3_support": "models/hu_turn3_stage9c_mixed_runtime_hn198_mc128_extra_trees.pkl",
+    "hu_turn3_reference": "models/hu_turn3_stage3_mc32_500k_plus_m8_12_f128_100k_w2_cached_rank_wide.pt",
+    "current_baseline": "models/hu_turn3_stage7_reference_override_cached_rank_wide.pt"
+  },
+  "runtime": {
+    "hu_turn3_stage7_enabled": true,
+    "hu_turn3_min_margin": 1.0,
+    "hu_turn3_reference_min_margin": 0.0,
+    "hu_turn3_min_support_margin": 1.0,
+    "mode": "stage9_candidate_with_stage9c_support_veto_over_stage3_reference"
+  },
+  "training": {
+    "input": "outputs/hu_turn3_stage9c_train_mixed1200_plus_runtime_mc128.jsonl",
+    "hard_negative_input": "outputs/hu_turn3_stage9c_train_hard_negatives_mc128.jsonl",
+    "model_output": "models/hu_turn3_stage9c_mixed_runtime_hn198_mc128_extra_trees.pkl",
+    "metrics_output": "outputs/training/hu_turn3_stage9c_mixed_runtime_hn198_mc128_extra_trees_metrics.json",
+    "model_type": "extra_trees",
+    "n_estimators": 300,
+    "min_samples_leaf": 5,
+    "source_weights": {
+      "stage9b_runtime_hard_negative": 4.0,
+      "stage9b_runtime_fire_non_negative": 1.0,
+      "self_play_state_mining": 1.0
+    }
+  },
+  "teacher_eval": {
+    "stage9c_on_hard_negatives_avg_regret": 0.2443968303045879,
+    "stage9c_on_stage5_holdout200_avg_regret": 0.07003650892812462,
+    "stage9b_on_larger_fired_avg_regret": 1.116430233228069,
+    "stage9c_on_larger_fired_avg_regret": 0.14152274555011354
+  },
+  "seat_swap_smoke": {
+    "stage9_old_m1_support_stage9c_s1_vs_stage7_m5_r10_500_paired_seed2026062705": {
+      "paired_seeds": 500,
+      "hands": 1000,
+      "ev_per_hand": 0.06336212368810072,
+      "ci95_low": -0.040501430895800286,
+      "ci95_high": 0.16722567827200174,
+      "candidate_override_rate": 0.027,
+      "candidate_support_veto_count": 106,
+      "candidate_first_overrides": 13,
+      "candidate_second_overrides": 14,
+      "baseline_override_rate_in_this_seed_range": 0.0
+    }
+  },
+  "warnings": [
+    "Positive smoke is not production evidence; CI still crosses zero.",
+    "Stage7 baseline did not fire in this seed range, so this does not prove superiority over actively firing Stage7 distributions.",
+    "Stage9c hard-negative training improved the new fired-state regret but internal holdout regret was worse than Stage9b.",
+    "Do not promote to production; run larger non-overlapping seat-swap and fired-state replay before adoption."
+  ],
+  "recommended_next_step": {
+    "action": "larger_eval_only_if_budget_allows",
+    "candidate": "stage9_old_m1_support_stage9c_s1",
+    "minimum": "3 seeds x 1000 paired with decision logs, then fired-state MC128/MC512 replay",
+    "production_status": "No-Go"
+  }
+}

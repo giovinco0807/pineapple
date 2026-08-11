@@ -1,0 +1,52 @@
+{
+  "name": "hu_turn3_stage9_joint_exact_mixed1200_selective_m1",
+  "description": "T3 Stage9 joint-exact candidate as selective override over Stage3 HU reference. Evaluation-only.",
+  "status": "rejected_by_1000_paired_seat_swap",
+  "visibility_model": "hidden_discard",
+  "fl_ev": 10.227020614683454,
+  "models": {
+    "opening": "models/opening_stage7_torch_wide.pt",
+    "turn1": "models/turn1_stage6_torch_wide.pt",
+    "turn2": "models/turn2_stage8.pkl",
+    "turn3": "models/turn3_stage6.pkl",
+    "hu_turn3": "models/hu_turn3_joint_exact_stage9_mixed1200_mc128_extra_trees.pkl",
+    "hu_turn3_reference": "models/hu_turn3_stage3_mc32_500k_plus_m8_12_f128_100k_w2_cached_rank_wide.pt"
+  },
+  "runtime": {
+    "hu_turn3_stage7_enabled": true,
+    "hu_turn3_min_margin": 1.0,
+    "hu_turn3_reference_min_margin": 0.0,
+    "mode": "selective_override_over_stage3_reference"
+  },
+  "teacher_evidence": {
+    "stage5_final200_holdout_avg_regret": 0.06801771744984142,
+    "cycle13_14_eval_avg_regret": 0.005544971405893928
+  },
+  "seat_swap_smoke": {
+    "vs_stage3_reference_200_paired_seed_2026061841": {
+      "ev_per_hand": 0.23783775768354318,
+      "ci95_low": -0.31870542630384713,
+      "ci95_high": 0.7943809416709335,
+      "override_rate": 0.13
+    },
+    "vs_stage7_m5_r10_100_paired_seed_2026061831": {
+      "ev_per_hand": 0.105,
+      "ci95_low": -0.3179115289072642,
+      "ci95_high": 0.5279115289072642
+    }
+  },
+  "seat_swap_1000": {
+    "vs_stage3_reference_seed_2026061901_stride17": {
+      "paired_seeds": 1000,
+      "hands": 2000,
+      "ev_per_hand": -0.27113510307341726,
+      "ci95_low": -0.5135714167387465,
+      "ci95_high": -0.028698789408088038,
+      "override_rate": 0.152
+    }
+  },
+  "warnings": [
+    "Positive smoke is not production evidence; CI still crosses zero.",
+    "Use as next larger seat-swap candidate, not as default runtime."
+  ]
+}

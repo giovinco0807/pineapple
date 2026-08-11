@@ -1,0 +1,75 @@
+{
+  "schema": "hu_joint_policy_m1_quarantine_v1",
+  "status_date": "2026-07-12",
+  "rule_set": "heads_up_regular_ofc_pineapple_hidden_opponent_discards",
+  "current_profile_changed": false,
+  "large_scale_generation_allowed": false,
+  "policy_promotion_allowed": false,
+  "fixed_legacy_baseline_chain": [
+    "stage19_p0",
+    "stage18_p1",
+    "stage9f_p2",
+    "stage7_m5_r10"
+  ],
+  "legacy_evidence_status": "diagnostic_only_invalid_for_hidden_discard_promotion",
+  "legacy_artifacts": [
+    {
+      "path": "models/hu_turn2_stage8b_safe_lcb196_20k_reference_override_cached_rank_wide.pt",
+      "reason": "source feature cache included realized opponent private discards"
+    },
+    {
+      "path": "models/hu_turn3_stage7_reference_override_cached_rank_wide.pt",
+      "reason": "source feature cache included realized opponent private discards"
+    },
+    {
+      "path": "models/hu_turn1_stage18_first1801_mc32_hgb_abs_aug3.pkl",
+      "reason": "teacher continuation depended on quarantined T2 and T3 artifacts"
+    },
+    {
+      "path": "models/hu_turn0_stage3_top60_mc32_1000_hgb_baseline-delta_sew1_aug3.pkl",
+      "reason": "teacher and evaluation continuation depended on quarantined downstream artifacts"
+    }
+  ],
+  "quarantined_generation_or_training_modules": [
+    {
+      "path": "src/ofc_regular/hu_turn3_joint_exact_teacher.py",
+      "reason": "M2 work item; legacy raw dead_cards fallback and incomplete first-seat T4 response"
+    },
+    {
+      "path": "src/ofc_regular/train_hu_turn2_stage8c_risk_head.py",
+      "reason": "legacy trainer consumes unsplit dead_cards features"
+    },
+    {
+      "path": "src/ofc_regular/self_play_teacher_data.py",
+      "reason": "legacy generator can select current implicitly"
+    },
+    {
+      "path": "src/ofc_regular/hu_self_play_teacher_data.py",
+      "reason": "legacy generator can select current implicitly"
+    },
+    {
+      "path": "src/ofc_regular/mine_hu_turn3_states.py",
+      "reason": "legacy miner can select current implicitly"
+    }
+  ],
+  "safe_m1_boundaries": [
+    "src/ofc_regular/hu_infoset.py",
+    "src/ofc_regular/hu_belief.py",
+    "src/ofc_regular/action_key.py",
+    "src/ofc_regular/counter_rng.py",
+    "src/ofc_regular/play_ai.py",
+    "src/ofc_regular/evaluate_matchups.py",
+    "src/ofc_regular/hu_turn0_teacher_pilot.py",
+    "src/ofc_regular/hu_turn1_teacher_pilot.py",
+    "src/ofc_regular/hu_turn2_teacher_data.py",
+    "src/ofc_regular/build_hu_turn2_pilot_feature_cache.py",
+    "src/ofc_regular/cache_hu_turn3_features.py"
+  ],
+  "release_conditions": [
+    "correct first-seat T4 sequential opponent response",
+    "safe ActorObservation-only T2 and T3 artifact rebuild",
+    "scalar batch exact parity on both seats",
+    "100 to 1000 state correctness and speed pilot",
+    "fresh locked paired seat-swap population evaluation"
+  ]
+}

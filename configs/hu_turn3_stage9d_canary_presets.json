@@ -1,0 +1,60 @@
+{
+  "name": "hu_turn3_stage9d_canary_presets",
+  "status": "production_default_with_stage7_rollback",
+  "rule_set": "regular",
+  "schema": "hu_stage1",
+  "phase": "hu_turn3_9card",
+  "fl_ev": 10.227020614683454,
+  "rollback": {
+    "profile": "stage7_m5_r10",
+    "preset": "stage7_m5_r10",
+    "model": "models/hu_turn3_stage7_reference_override_cached_rank_wide.pt",
+    "hu_turn3_min_margin": 5.0,
+    "hu_turn3_reference_min_margin": 10.0
+  },
+  "candidate": {
+    "profile": "current",
+    "alias_profile": "stage9d_p07_relaxed_both",
+    "hu_turn3": "models/hu_turn3_joint_exact_stage9_mixed1200_mc128_extra_trees.pkl",
+    "support": "models/hu_turn3_stage9d_mixed_runtime_hn245_mc128_extra_trees.pkl",
+    "gate": "models/hu_turn3_stage9_accept_gate_rf_265fired_runtimepred_second3seed.pkl",
+    "reference": "models/hu_turn3_stage3_mc32_500k_plus_m8_12_f128_100k_w2_cached_rank_wide.pt"
+  },
+  "presets": [
+    {
+      "name": "stage7_m5_r10_rollback",
+      "production_default": false,
+      "candidate_default": false,
+      "runtime": {
+        "hu_turn3_stage7_enabled": true,
+        "hu_turn3_min_margin": 5.0,
+        "hu_turn3_reference_min_margin": 10.0,
+        "hu_turn3_min_gate_probability": 0.0
+      }
+    },
+    {
+      "name": "stage9d_p07_relaxed_both_candidate",
+      "production_default": true,
+      "candidate_default": true,
+      "runtime": {
+        "hu_turn3_stage7_enabled": true,
+        "hu_turn3_min_margin": 0.5,
+        "hu_turn3_reference_min_margin": 0.0,
+        "hu_turn3_min_support_margin": 0.5,
+        "hu_turn3_min_model_score": 5.0,
+        "hu_turn3_min_gate_probability": 0.7,
+        "hu_turn3_allowed_seats": []
+      }
+    }
+  ],
+  "promotion_evidence": {
+    "fresh10_seat_swap": "outputs/evals/hu_turn3_stage9d_accept_gate_second3seed_t07_relaxed_both_fresh/fresh10_summary.md",
+    "fresh10_fired_mc512_replay": "outputs/evals/hu_turn3_stage9d_second3seed_fresh10_fire_replay_mc512/summary.md",
+    "promotion_candidate_config": "configs/hu_turn3_stage9d_second3seed_gate_p07_relaxed_both_promotion_candidate.json"
+  },
+  "rollback_note": {
+    "profile": "stage7_m5_r10",
+    "config": "configs/hu_turn3_stage7_m5_r10_production.json",
+    "note": "Use stage7_m5_r10 to roll back from the Stage9d current profile."
+  }
+}

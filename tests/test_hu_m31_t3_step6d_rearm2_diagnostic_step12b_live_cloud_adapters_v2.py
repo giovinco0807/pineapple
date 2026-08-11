@@ -239,6 +239,47 @@ def test_compute_insert_is_one_shot_and_metadata_412_is_not_retried() -> None:
     assert TOKEN not in repr(client)
 
 
+def test_compute_serial_tail_is_bounded_and_secret_free() -> None:
+    contents = 'boot\nOFC_STEP12N_WORKER_FAILURE_V1 {"stage":"venv"}\n'
+
+    def callback(method: str, url: str, body: bytes | None) -> Any:
+        assert method == "GET"
+        assert body is None
+        assert f"/instances/{NAMES[0]}/serialPort?" in url
+        assert "port=1" in url
+        assert "start=-65536" in url
+        return _response(
+            200,
+            {
+                "kind": "compute#serialPortOutput",
+                "contents": contents,
+                "start": "120",
+                "next": "180",
+            },
+        )
+
+    http = _Http(callback)
+    client = subject.ExactPairComputeClient(
+        token_source=_TokenSource(),
+        instance_names=NAMES,
+        principal="user:giovinco.080807@gmail.com",
+        credential_kind="user",
+        http_client=http,
+        allow_insert=False,
+    )
+    serial = client.get_serial_port_output(instance_name=NAMES[0])
+    assert serial == {
+        "instance_name": NAMES[0],
+        "port": 1,
+        "start": 120,
+        "next": 180,
+        "contents": contents,
+    }
+    assert TOKEN not in repr(serial)
+    with pytest.raises(ValueError, match="escaped allowlist"):
+        client.get_serial_port_output(instance_name="outside")
+
+
 def test_result_store_lists_then_reads_exact_generation() -> None:
     prefixes = [
         (

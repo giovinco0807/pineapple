@@ -1,6 +1,6 @@
 {
   "name": "hu_turn3_stage7_m5_r10_production",
-  "status": "production_default",
+  "status": "rollback_previous_default",
   "rule_set": "regular",
   "schema": "hu_stage1",
   "phase": "hu_turn3_9card",
@@ -29,6 +29,11 @@
     "production_preset": "m5_r10",
     "stage7_full_replacement_enabled": false,
     "margin0_25_production_excluded": true
+  },
+  "superseded_by": {
+    "profile": "current",
+    "config": "configs/hu_turn3_stage9d_second3seed_gate_p07_relaxed_both_promotion_candidate.json",
+    "rollback_profile": "stage7_m5_r10"
   },
   "safety": {
     "model_load_failure": "fallback_to_stage3",

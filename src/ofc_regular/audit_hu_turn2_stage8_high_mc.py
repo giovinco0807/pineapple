@@ -4,7 +4,8 @@ This is an analysis-only tool. It does not start a 50k teacher pass, T1
 training, production deployment, or P2 fixation. It selects fired, near-fired,
 missed-positive, and suspected-false-positive states from the Stage8 20k
 teacher/evaluation artifacts, then can replay selected teacher states with
-higher MC using the fixed Stage7_candidate_A m5_r10 continuation.
+higher MC using an explicit T3 continuation. Hidden-discard default is the HU
+Stage3 reference action; legacy Stage7_candidate_A m5_r10 must be opted in.
 """
 
 from __future__ import annotations
@@ -33,12 +34,18 @@ from .ai_profiles import (
     load_model_bundle,
 )
 from .final_turn_decision_cache import FinalTurnDecisionCache
+from .hu_belief import sample_hidden_card_particles, turn2_actor_observation
 from .hu_turn2_stage8_runtime import (
     HuTurn2Stage8RuntimeConfig,
     load_hu_turn2_stage8_model,
 )
 from .hu_turn2_teacher_data import (
+    DEFAULT_T3_CONTINUATION,
+    T3ContinuationMode,
     _build_policy_for_profile,
+    _build_t3_continuation_policy,
+    _t3_continuation_metadata,
+    _t3_continuation_policy_name,
     evaluate_hu_turn2_actions,
 )
 from .hu_turn3_batch_continuation import (
@@ -126,6 +133,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--prediction-threads", type=int, default=1)
     parser.add_argument("--continuation-profile", default="current")
     parser.add_argument("--opponent-profile", default="current")
+    parser.add_argument(
+        "--t3-continuation",
+        choices=("stage3_reference_default", "stage7_m5_r10"),
+        default=DEFAULT_T3_CONTINUATION,
+        help=(
+            "T3 continuation used for replay rollouts. Hidden-discard default "
+            "is stage3_reference_default; stage7_m5_r10 is legacy opt-in."
+        ),
+    )
     parser.add_argument("--opening-lookahead-samples", type=int, default=128)
     parser.add_argument("--stage3-feature-encoder-mode", default="rust_direct")
     parser.add_argument("--batched-continuation-batch-size", type=int, default=8192)
@@ -625,14 +641,17 @@ def build_batched_config(args: argparse.Namespace) -> HuTurn3Stage7BatchConfig:
                 "tool": "hu_turn2_stage8_high_mc_audit",
                 "mc_samples": args.mc_samples,
                 "stage3_feature_encoder_mode": args.stage3_feature_encoder_mode,
+                "t3_continuation": args.t3_continuation,
+                "continuation_policy_T3": _t3_continuation_policy_name(args.t3_continuation),
             },
             sort_keys=True,
         ).encode()
     ).hexdigest()[:16]
+    stage7_enabled = args.t3_continuation == "stage7_m5_r10"
     return HuTurn3Stage7BatchConfig(
-        stage7_enabled=True,
-        hu_turn3_min_margin=5.0,
-        hu_turn3_reference_min_margin=10.0,
+        stage7_enabled=stage7_enabled,
+        hu_turn3_min_margin=5.0 if stage7_enabled else 0.0,
+        hu_turn3_reference_min_margin=10.0 if stage7_enabled else 0.0,
         batch_size=args.batched_continuation_batch_size,
         use_cache=True,
         use_stage3_feature_fast_path=True,
@@ -658,6 +677,31 @@ def load_model_bundle_for_replay(args: argparse.Namespace) -> object:
     )
 
 
+def build_replay_policy(
+    profile: str,
+    bundle: object,
+    *,
+    args: argparse.Namespace,
+    seed: int,
+    seat: str,
+) -> object:
+    if profile == "random_exact_final":
+        return _build_policy_for_profile(
+            profile,
+            bundle,
+            seed=seed,
+            seat=seat,
+            opening_lookahead_samples=args.opening_lookahead_samples,
+        )
+    return _build_t3_continuation_policy(
+        args.t3_continuation,
+        bundle,
+        seed=seed,
+        seat=seat,
+        opening_lookahead_samples=args.opening_lookahead_samples,
+    )
+
+
 def replay_one_state(
     selection: dict[str, Any],
     sample: dict[str, Any],
@@ -676,32 +720,50 @@ def replay_one_state(
     board = board_from_json(sample.get("board"))
     opponent = board_from_json(sample.get("opponent_board"))
     dealt = tuple(sample.get("dealt") or sample.get("cards_to_place") or ())
-    dead = tuple(sample.get("dead_cards") or ())
+    visible_dead = tuple(sample.get("visible_dead_cards") or ())
+    hero_private = tuple(sample.get("hero_private_discards") or ())
     if len(dealt) != 3:
         raise ValueError("T2 replay requires exactly 3 dealt cards")
     hero_seat = str(sample.get("seat") or "first")
     opponent_seat = "second" if hero_seat == "first" else "first"
     seed = replay_seed(sample, args.mc_samples, args.seed_mode)
-    hero_policy = _build_policy_for_profile(
+    observation = turn2_actor_observation(
+        hero_board=board,
+        opponent_public_board=opponent,
+        dealt_cards=dealt,
+        hero_seat=hero_seat,
+        hero_private_discards=hero_private,
+        visible_dead_cards=visible_dead or None,
+    )
+    belief_batch = sample_hidden_card_particles(
+        observation,
+        base_seed=seed,
+        run_id=(
+            "audit_hu_turn2_stage8_high_mc"
+            f"|state={selection.get('state_index', sample.get('state_index', ''))}"
+            f"|sample={sample.get('sample_id', '')}"
+        ),
+        sample_count=args.mc_samples,
+    )
+    hero_policy = build_replay_policy(
         args.continuation_profile,
         bundle,
+        args=args,
         seed=seed * 4 + 2,
         seat=hero_seat,
-        opening_lookahead_samples=args.opening_lookahead_samples,
     )
-    opponent_policy = _build_policy_for_profile(
+    opponent_policy = build_replay_policy(
         args.opponent_profile,
         bundle,
+        args=args,
         seed=seed * 4 + 3,
         seat=opponent_seat,
-        opening_lookahead_samples=args.opening_lookahead_samples,
     )
     started_at = time.perf_counter()
     high = evaluate_hu_turn2_actions(
         board=board,
         dealt_cards=dealt,
         opponent_board=opponent,
-        dead_cards=dead,
         hero_seat=hero_seat,
         continuation_policy=hero_policy,
         opponent_policy=opponent_policy,
@@ -717,6 +779,10 @@ def replay_one_state(
         batched_continuation_batch_size=args.batched_continuation_batch_size,
         final_turn_cache=final_turn_cache,
         use_final_turn_cache=True,
+        continuation_policy_name=_t3_continuation_policy_name(args.t3_continuation),
+        continuation_metadata=_t3_continuation_metadata(args.t3_continuation),
+        observation=observation,
+        belief_batch=belief_batch,
     )
     elapsed = time.perf_counter() - started_at
     if high is None:
@@ -753,6 +819,8 @@ def replay_one_state(
         "replay_status": "success",
         "failure_reason": "",
         "mc_samples": args.mc_samples,
+        "t3_continuation": args.t3_continuation,
+        "t3_continuation_policy": _t3_continuation_policy_name(args.t3_continuation),
         "future_rollout_seed": seed,
         "elapsed_seconds": elapsed,
         "candidate_original_index": candidate_original,
@@ -836,16 +904,27 @@ def runtime_fired_rows(path: Path) -> list[dict[str, Any]]:
     rows = []
     for row in iter_jsonl(path) or ():
         if row.get("override_fired"):
-            has_dead_cards = bool(row.get("dead_cards"))
+            missing_replay_fields = [
+                key
+                for key in (
+                    "dead_cards",
+                    "visible_dead_cards",
+                    "hero_private_discards",
+                    "opponent_private_discards",
+                )
+                if not row.get(key)
+            ]
+            replay_ready = not missing_replay_fields
             rows.append(
                 {
                     "source_kind": "runtime_decision_log",
-                    "replay_ready": has_dead_cards,
-                    "replay_ineligible": not has_dead_cards,
-                    "exclude_from_exact_replay": not has_dead_cards,
-                    "legacy_runtime_log": not has_dead_cards,
-                    "missing_dead_cards": not has_dead_cards,
-                    "replay_blocker": "" if has_dead_cards else "missing_dead_cards_in_legacy_runtime_log",
+                    "replay_ready": replay_ready,
+                    "replay_ineligible": not replay_ready,
+                    "exclude_from_exact_replay": not replay_ready,
+                    "legacy_runtime_log": not replay_ready,
+                    "missing_dead_cards": not bool(row.get("dead_cards")),
+                    "missing_hidden_discard_replay_metadata": bool(missing_replay_fields),
+                    "replay_blocker": "" if replay_ready else "missing_replay_fields:" + ";".join(missing_replay_fields),
                     "config_id": row.get("config_id"),
                     "seed": row.get("seed"),
                     "hand_id": row.get("hand_id"),
@@ -857,6 +936,10 @@ def runtime_fired_rows(path: Path) -> list[dict[str, Any]]:
                     "candidate_seat_score": row.get("candidate_seat_score"),
                     "hero_board": row.get("hero_board"),
                     "opponent_board": row.get("opponent_board"),
+                    "dead_cards": row.get("dead_cards"),
+                    "visible_dead_cards": row.get("visible_dead_cards"),
+                    "hero_private_discards": row.get("hero_private_discards"),
+                    "opponent_private_discards": row.get("opponent_private_discards"),
                     "cards_to_place": row.get("cards_to_place"),
                     "baseline_action": row.get("baseline_action"),
                     "stage8_action": row.get("stage8_action"),
@@ -1362,6 +1445,9 @@ def main() -> None:
         "high_mc_successes": len(results),
         "high_mc_failures": len(failures),
         "mc_samples": args.mc_samples,
+        "t3_continuation": args.t3_continuation,
+        "t3_continuation_policy": _t3_continuation_policy_name(args.t3_continuation),
+        "t3_continuation_metadata": _t3_continuation_metadata(args.t3_continuation),
         "max_replay_states": args.max_replay_states,
         "replay_offset": args.replay_offset,
         "replay_attempted_states": len(deduped[args.replay_offset : args.replay_offset + args.max_replay_states])

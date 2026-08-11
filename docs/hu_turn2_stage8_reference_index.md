@@ -51,12 +51,19 @@ needed for C1f/C2 gate inspection.
 - Legacy runtime logs without `dead_cards` are replay-ineligible for exact
   high-MC audit. New runtime decision logs include `dead_cards`.
 
-## Fixed T3 Continuation
+## T3 Continuation
 
-T2 evaluation uses the fixed Stage7 Candidate A continuation policy:
+Legacy/open-discard T2 evaluation used the Stage7 Candidate A continuation
+policy:
 
 - Stage7 model: `models/hu_turn3_stage7_reference_override_cached_rank_wide.pt`
 - `hu_turn3_min_margin = 5.0`
 - `hu_turn3_reference_min_margin = 10.0`
 - Stage3 HU margin10 fallback remains the default.
 - Stage7 is a HU T3 selective override only, not a full replacement.
+
+Current hidden-discard T2 teacher/evaluation runs must make this explicit:
+
+- default: `--t3-continuation stage3_reference_default`
+- Stage7 opt-in / legacy-continuation experiment:
+  `--t3-continuation stage7_m5_r10`

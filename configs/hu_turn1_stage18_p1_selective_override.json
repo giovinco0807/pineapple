@@ -1,0 +1,106 @@
+{
+  "name": "hu_turn1_stage18_p1_selective_override",
+  "status": "p1_accepted_for_downstream_experiments_not_current_default",
+  "rule_set": "regular",
+  "schema": "hu_turn1_stage18_p1_v1",
+  "phase": "hu_turn1_7card",
+  "ai_profile": "stage18_p1",
+  "t1_p1_fixed": true,
+  "production_default": false,
+  "current_profile_changed": false,
+  "full_replacement_enabled": false,
+  "selective_override_only": true,
+  "allowed_seats": [
+    "first"
+  ],
+  "models": {
+    "candidate": "models/hu_turn1_stage18_first1801_mc32_hgb_abs_aug3.pkl",
+    "safe_selector": "models/hu_turn1_stage18_highmc_safe_selector_a_meta_only.pkl"
+  },
+  "runtime": {
+    "config_string": "k5/mc8/d3/confirm32/cse1.5/pd1.5/seat=first/safe0.7",
+    "top_k": 5,
+    "stage_a_mc": 8,
+    "minimum_stage_a_delta": 3.0,
+    "confirm_mc": 32,
+    "confirm_se_multiplier": 1.5,
+    "minimum_predicted_delta": 1.5,
+    "safe_selector_threshold": 0.7,
+    "fallback_policy": "stage9f_p2"
+  },
+  "continuations": {
+    "t2": {
+      "profile": "stage9f_p2",
+      "status": "p2_fixed"
+    },
+    "t3": {
+      "profile": "stage7_m5_r10",
+      "hu_turn3_min_margin": 5.0,
+      "hu_turn3_reference_min_margin": 10.0
+    }
+  },
+  "safety": {
+    "second_seat_falls_back_to_stage9f_p2": true,
+    "candidate_model_load_failure_falls_back_to_stage9f_p2": true,
+    "safe_selector_load_failure_falls_back_to_stage9f_p2": true,
+    "feature_or_prediction_failure_falls_back_to_stage9f_p2": true,
+    "illegal_or_non_finite_candidate_falls_back_to_stage9f_p2": true,
+    "threshold_failure_falls_back_to_stage9f_p2": true,
+    "confirm_delta_is_gate_diagnostic_only": true,
+    "performance_metric": "realized_seat_swap_counterfactual_delta"
+  },
+  "acceptance_evidence": {
+    "run_name": "regular-hu-t1-stage18-c6-safe07-cse15-d3-pd15-250k-20260711-001",
+    "paired_seeds": 250000,
+    "decisions": 500000,
+    "valid_decisions": 499660,
+    "realized_fires": 340,
+    "override_rate_valid": 0.0006804627146459592,
+    "realized_per_fire_delta_mean": 3.510285961063288,
+    "realized_per_fire_ci95_low": 1.9682758944909797,
+    "realized_per_fire_ci95_high": 5.052296027635597,
+    "estimated_ev_per_decision": 0.002388618714248725,
+    "estimated_ev_per_decision_ci95_low": 0.0013393383583375357,
+    "estimated_ev_per_decision_ci95_high": 0.0034378990701599147,
+    "whole_hand_ev": 0.002386994453523036,
+    "invalid_overrides": 0,
+    "non_fired_counterfactual_nonzero_count": 0,
+    "non_fired_final_mismatch_count": 0,
+    "non_fired_final_unknown_count": 0,
+    "p95_loss": 24.227020614683454,
+    "p99_loss": 30.837020614683468,
+    "max_loss": 39.227020614683454,
+    "acceptance_passed": true,
+    "canonical_artifact": "outputs/evals/hu_turn1_stage18_c6_safe07_cse15_d3_pd15_250k_final/acceptance/acceptance.json"
+  },
+  "post_wiring_smoke": {
+    "artifact": "outputs/evals/hu_turn1_stage18_p1_smoke10/",
+    "paired_seeds": 10,
+    "hands": 20,
+    "t1_decisions": 20,
+    "runtime_profile_rows": 20,
+    "runtime_status_rows": 20,
+    "first_seat_rows": 10,
+    "second_seat_rows": 10,
+    "second_seat_not_allowed_rows": 10,
+    "replay_ready_rows": 20,
+    "non_fired_counterfactual_nonzero_count": 0,
+    "non_fired_final_mismatch_count": 0
+  },
+  "model_integrity": {
+    "candidate_sha256": "E910131715EFBEC7A116E411A8DC23DCFC9A904F2AEF9E0EEE9D4913A02DFEE7",
+    "safe_selector_sha256": "838FF3421C2393648AAABEB7316C9E6C3FE97197485B1363BE4E8B5DD33AE086"
+  },
+  "scope": {
+    "accepted": "fixed first-seat T1 P1 continuation for downstream T0 work",
+    "not_accepted": [
+      "second-seat T1 override",
+      "T1 full replacement",
+      "automatic replacement of the current profile"
+    ]
+  },
+  "rollback": {
+    "profile": "stage9f_p2",
+    "preset": "stage18_p1_off"
+  }
+}

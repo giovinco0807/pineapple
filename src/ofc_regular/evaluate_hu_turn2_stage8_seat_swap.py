@@ -11,7 +11,7 @@ import time
 from collections import Counter, defaultdict
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any, Iterable, Literal
 
 import numpy as np
 
@@ -38,6 +38,8 @@ DEFAULT_CALIBRATION_VALUES = Path("outputs/hu_turn2_stage8_20k_mc512_calibration
 DEFAULT_STAGE7_MODEL = Path("models/hu_turn3_stage7_reference_override_cached_rank_wide.pt")
 DEFAULT_STAGE3_REFERENCE = Path("models/hu_turn3_stage3_mc32_500k_plus_m8_12_f128_100k_w2_cached_rank_wide.pt")
 DEFAULT_OUTPUT_DIR = Path("outputs/evals/hu_turn2_stage8_20k_seat_swap")
+T3ContinuationMode = Literal["stage3_reference_default", "stage7_m5_r10"]
+DEFAULT_T3_CONTINUATION: T3ContinuationMode = "stage3_reference_default"
 
 DEFAULT_GRID_MARGINS = (2.00, 2.50, 2.75, 2.91, 3.10, 3.25, 3.50)
 DEFAULT_GRID_REFERENCES = (0.00, 0.05, 0.10, 0.20, 0.40)
@@ -83,6 +85,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--turn3-model", type=Path, default=DEFAULT_TURN3_MODEL)
     parser.add_argument("--hu-turn3-stage7-model", type=Path, default=DEFAULT_STAGE7_MODEL)
     parser.add_argument("--hu-turn3-reference-model", type=Path, default=DEFAULT_STAGE3_REFERENCE)
+    parser.add_argument(
+        "--t3-continuation",
+        choices=("stage3_reference_default", "stage7_m5_r10"),
+        default=DEFAULT_T3_CONTINUATION,
+        help=(
+            "T3 continuation used during T2 seat-swap validation. "
+            "Hidden-discard default is stage3_reference_default; "
+            "stage7_m5_r10 must be opted in explicitly."
+        ),
+    )
     parser.add_argument("--hu-turn2-stage8-model", type=Path, default=DEFAULT_T2_STAGE8_MODEL)
     parser.add_argument("--calibration-values", type=Path, default=DEFAULT_CALIBRATION_VALUES)
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
@@ -169,16 +181,50 @@ def load_parts(args: argparse.Namespace) -> ModelParts:
     )
 
 
-def make_baseline_policy(parts: ModelParts, *, seed: int, seat: str, opening_lookahead_samples: int) -> RegularAiPolicy:
+def _t3_policy_kwargs(parts: ModelParts, mode: T3ContinuationMode) -> dict[str, Any]:
+    if mode == "stage7_m5_r10":
+        return {
+            "hu_turn3_model": parts.hu_turn3_stage7,
+            "hu_turn3_reference_model": parts.hu_turn3_reference,
+            "hu_turn3_min_margin": 5.0,
+            "hu_turn3_reference_min_margin": 10.0,
+            "hu_turn3_stage7_enabled": True,
+        }
+    if mode == "stage3_reference_default":
+        return {
+            "hu_turn3_model": None,
+            "hu_turn3_reference_model": parts.hu_turn3_reference,
+            "hu_turn3_min_margin": 0.0,
+            "hu_turn3_reference_min_margin": 0.0,
+            "hu_turn3_stage7_enabled": False,
+        }
+    raise ValueError(f"unknown T3 continuation mode: {mode}")
+
+
+def _t3_continuation_policy_name(mode: T3ContinuationMode) -> str:
+    if mode == "stage7_m5_r10":
+        return "Stage7_candidate_A_m5_r10"
+    if mode == "stage3_reference_default":
+        return "Stage3_HU_reference_default"
+    raise ValueError(f"unknown T3 continuation mode: {mode}")
+
+
+def make_baseline_policy(
+    parts: ModelParts,
+    *,
+    seed: int,
+    seat: str,
+    opening_lookahead_samples: int,
+    t3_continuation: T3ContinuationMode = DEFAULT_T3_CONTINUATION,
+    hu_turn3_decision_log: list[dict[str, Any]] | None = None,
+) -> RegularAiPolicy:
     return RegularAiPolicy(
         opening_model=parts.opening,
         turn1_model=parts.turn1,
         turn2_model=parts.turn2_baseline,
         turn3_model=parts.turn3,
-        hu_turn3_model=parts.hu_turn3_stage7,
-        hu_turn3_reference_model=parts.hu_turn3_reference,
-        hu_turn3_min_margin=5.0,
-        hu_turn3_reference_min_margin=10.0,
+        **_t3_policy_kwargs(parts, t3_continuation),
+        hu_turn3_decision_log=hu_turn3_decision_log,
         seat=seat,
         seed=seed,
         opening_lookahead_samples=opening_lookahead_samples,
@@ -194,16 +240,14 @@ def make_candidate_policy(
     seed: int,
     seat: str,
     opening_lookahead_samples: int,
+    t3_continuation: T3ContinuationMode = DEFAULT_T3_CONTINUATION,
 ) -> HuTurn2Stage8SelectiveOverridePolicy:
     return HuTurn2Stage8SelectiveOverridePolicy(
         opening_model=parts.opening,
         turn1_model=parts.turn1,
         turn2_model=parts.turn2_baseline,
         turn3_model=parts.turn3,
-        hu_turn3_model=parts.hu_turn3_stage7,
-        hu_turn3_reference_model=parts.hu_turn3_reference,
-        hu_turn3_min_margin=5.0,
-        hu_turn3_reference_min_margin=10.0,
+        **_t3_policy_kwargs(parts, t3_continuation),
         hu_turn2_stage8_model=parts.hu_turn2_stage8,
         hu_turn2_stage8_config=config,
         hu_turn2_decision_log=decisions,
@@ -240,6 +284,7 @@ def evaluate_config_seed(
     games: int,
     parts: ModelParts,
     opening_lookahead_samples: int,
+    t3_continuation: T3ContinuationMode,
     progress_every: int,
 ) -> tuple[dict[str, Any], list[dict[str, Any]], list[dict[str, Any]]]:
     paired_scores: list[float] = []
@@ -262,12 +307,14 @@ def evaluate_config_seed(
                 seed=hand_seed * 4,
                 seat="first",
                 opening_lookahead_samples=opening_lookahead_samples,
+                t3_continuation=t3_continuation,
             ),
             policy_p1=make_baseline_policy(
                 parts,
                 seed=hand_seed * 4 + 1,
                 seat="second",
                 opening_lookahead_samples=opening_lookahead_samples,
+                t3_continuation=t3_continuation,
             ),
         )
         for row in decisions[before:]:
@@ -286,6 +333,7 @@ def evaluate_config_seed(
                 seed=hand_seed * 4 + 2,
                 seat="first",
                 opening_lookahead_samples=opening_lookahead_samples,
+                t3_continuation=t3_continuation,
             ),
             policy_p1=make_candidate_policy(
                 parts,
@@ -295,6 +343,7 @@ def evaluate_config_seed(
                 seed=hand_seed * 4 + 3,
                 seat="second",
                 opening_lookahead_samples=opening_lookahead_samples,
+                t3_continuation=t3_continuation,
             ),
         )
         candidate_second_score = -float(hand_ba["score_p0"])
@@ -318,6 +367,8 @@ def evaluate_config_seed(
                     {
                         "event": "t2_seat_swap_progress",
                         "config_id": config.config_id,
+                        "t3_continuation": t3_continuation,
+                        "t3_continuation_policy": _t3_continuation_policy_name(t3_continuation),
                         "seed": seed,
                         "paired_seeds": index + 1,
                         **summarize_values(paired_scores, "ev_per_hand_"),
@@ -329,6 +380,8 @@ def evaluate_config_seed(
     no_override = Counter(str(row.get("no_override_reason", "")) for row in decisions if not row.get("override_fired"))
     summary = {
         "config_id": config.config_id,
+        "t3_continuation": t3_continuation,
+        "t3_continuation_policy": _t3_continuation_policy_name(t3_continuation),
         "hu_turn2_min_margin": config.min_margin,
         "hu_turn2_reference_min_margin": config.reference_min_margin,
         "hu_turn2_gate_threshold": config.gate_threshold,
@@ -516,6 +569,8 @@ def aggregate_seed_rows(seed_rows: list[dict[str, Any]]) -> list[dict[str, Any]]
         output.append(
             {
                 "config_id": config_id,
+                "t3_continuation": rows[0].get("t3_continuation", ""),
+                "t3_continuation_policy": rows[0].get("t3_continuation_policy", ""),
                 "hu_turn2_min_margin": rows[0]["hu_turn2_min_margin"],
                 "hu_turn2_reference_min_margin": rows[0]["hu_turn2_reference_min_margin"],
                 "hu_turn2_gate_threshold": rows[0]["hu_turn2_gate_threshold"],
@@ -641,7 +696,7 @@ def write_summary(path: Path, grid_rows: list[dict[str, Any]], recommended: dict
         "",
         "- Candidate: T2 Stage8 broad 20k selective override.",
         "- Baseline/default: current HU T2 policy.",
-        "- T3 continuation fixed: Stage7_candidate_A m5_r10.",
+        f"- T3 continuation: `{_t3_continuation_policy_name(args.t3_continuation)}`.",
         "- This is validation only. No 50k teacher, T1, or production deployment was started.",
         "",
         "## Results",
@@ -689,6 +744,7 @@ def write_summary(path: Path, grid_rows: list[dict[str, Any]], recommended: dict
             f"- games_per_seed: `{args.games_per_seed}`",
             f"- seeds: `{args.seeds}`",
             f"- seed_stride: `{args.seed_stride}`",
+            f"- t3_continuation: `{args.t3_continuation}`",
             f"- model: `{args.hu_turn2_stage8_model}`",
             f"- calibration_values: `{args.calibration_values}`",
         ]
@@ -726,6 +782,7 @@ def main() -> None:
                     games=args.games_per_seed,
                     parts=parts,
                     opening_lookahead_samples=args.opening_lookahead_samples,
+                    t3_continuation=args.t3_continuation,
                     progress_every=args.progress_every,
                 )
                 seed_rows.append(summary)
@@ -744,7 +801,8 @@ def main() -> None:
     recommended_payload = {
         "schema": "hu_turn2_stage8_20k_recommended_runtime_v1",
         "candidate_model": str(args.hu_turn2_stage8_model),
-        "t3_continuation_policy": "Stage7_candidate_A_m5_r10",
+        "t3_continuation": args.t3_continuation,
+        "t3_continuation_policy": _t3_continuation_policy_name(args.t3_continuation),
         "full_replacement": False,
         **recommended,
     }
@@ -771,6 +829,8 @@ def main() -> None:
             [
                 "# HU T2 Stage8 20k Go / No-Go",
                 "",
+                f"- t3_continuation: `{args.t3_continuation}`",
+                f"- t3_continuation_policy: `{_t3_continuation_policy_name(args.t3_continuation)}`",
                 f"- seat_swap_positive: `{float(recommended.get('aggregate_ev_per_hand', 0.0)) > 0.0}`",
                 f"- teacher_avg_gain_positive: `{float(recommended.get('avg_gain_on_override', 0.0)) > 0.0}`",
                 f"- false_positive_acceptable: `{float(recommended.get('false_positive_override_rate', 1.0)) <= 0.10}`",

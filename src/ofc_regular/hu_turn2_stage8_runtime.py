@@ -11,7 +11,17 @@ from typing import Any, Iterable
 
 import numpy as np
 
+from .action_key import (
+    ACTION_KEY_SCHEMA,
+    action_key,
+    action_key_from_payload,
+    canonical_argmax_index,
+    canonical_descending_indices,
+    legal_action_set_digest,
+    ordered_action_mapping_digest,
+)
 from .action_space import Action, generate_turn_actions
+from .hu_infoset import card_free_metadata
 from .hu_turn3_model import sample_to_matrix
 from .policy import RegularAiPolicy, action_to_json, board_to_json, policy_sample
 from .state import Board
@@ -116,7 +126,13 @@ class HuTurn2Stage8MultiheadModel:
 
     def choose_action_index(self, sample: dict[str, Any]) -> int:
         predictions = self.predict_sample(sample)
-        return int(np.argmax(predictions[:, 0]))
+        values = predictions[:, 0]
+        best = float(np.max(values))
+        tied = [index for index, value in enumerate(values) if float(value) == best]
+        return min(
+            tied,
+            key=lambda index: action_key_from_payload(sample["actions"][index]).sort_key(),
+        )
 
     def _get_torch(self) -> Any:
         if self._torch is None:
@@ -229,7 +245,7 @@ class HuTurn2Stage8SelectiveOverridePolicy(RegularAiPolicy):
         self.hu_turn2_stage8_model = hu_turn2_stage8_model
         self.hu_turn2_stage8_config = hu_turn2_stage8_config or HuTurn2Stage8RuntimeConfig(0.0, 0.0, 0.0, False)
         self.hu_turn2_decision_log = hu_turn2_decision_log
-        self.hu_turn2_context = dict(hu_turn2_context or {})
+        self.hu_turn2_context = card_free_metadata(hu_turn2_context)
 
     def choose_action(
         self,
@@ -289,7 +305,7 @@ class HuTurn2Stage8SelectiveOverridePolicy(RegularAiPolicy):
         if baseline_predictions is None:
             return None
         baseline_values = baseline_predictions.reshape(-1)
-        baseline_index = int(np.argmax(baseline_values))
+        baseline_index = canonical_argmax_index(baseline_values, actions)
         reference_margin = _top_margin(baseline_values, baseline_index)
         final_index = baseline_index
         candidate_index: int | None = None
@@ -325,11 +341,11 @@ class HuTurn2Stage8SelectiveOverridePolicy(RegularAiPolicy):
                 if predictions.ndim != 2 or predictions.shape[1] < 5:
                     no_override_reason = "illegal_candidate"
                 else:
-                    candidate_index = int(np.argmax(predictions[:, 1]))
+                    candidate_index = canonical_argmax_index(predictions[:, 1], actions)
                     predicted_delta = float(predictions[candidate_index, 1])
                     predicted_ev = float(predictions[candidate_index, 0])
-                    ev_order = np.argsort(-predictions[:, 0], kind="mergesort")
-                    candidate_ev_rank = int(np.where(ev_order == candidate_index)[0][0]) + 1
+                    ev_order = canonical_descending_indices(predictions[:, 0], actions)
+                    candidate_ev_rank = ev_order.index(candidate_index) + 1
                     gate_probability = sigmoid(float(np.mean(predictions[:, 4])))
                     legality_check_result = self._candidate_legality_result(board, actions, candidate_index)
                     if legality_check_result != "legal":
@@ -356,6 +372,11 @@ class HuTurn2Stage8SelectiveOverridePolicy(RegularAiPolicy):
         override_fired = final_index != baseline_index
         if not no_override_reason and not override_fired:
             no_override_reason = "fallback_to_baseline"
+        visible_dead_cards = list(dead_cards)
+        opponent_public = set(opponent_board.all_cards())
+        hero_private_discards = [
+            card for card in dead_cards if card not in opponent_public
+        ]
         self._log_hu_turn2_decision(
             {
                 **self.hu_turn2_context,
@@ -369,6 +390,15 @@ class HuTurn2Stage8SelectiveOverridePolicy(RegularAiPolicy):
                 "opponent_board": board_to_json(opponent_board),
                 "cards_to_place": list(dealt),
                 "dead_cards": list(dead_cards),
+                "visible_dead_cards": list(visible_dead_cards),
+                "true_dead_cards": [],
+                "hero_private_discards": hero_private_discards,
+                "visibility_model": "actor_observation_v1",
+                "discard_visibility": "own_private_only",
+                "replay_ready": False,
+                "action_key_schema": ACTION_KEY_SCHEMA,
+                "legal_action_set_digest": legal_action_set_digest(actions),
+                "legal_action_order_digest": ordered_action_mapping_digest(actions),
                 "baseline_action": action_to_json(board, actions[baseline_index]),
                 "stage8_action": action_to_json(board, actions[candidate_index]) if candidate_index is not None else None,
                 "fallback_action": action_to_json(board, actions[baseline_index]),
@@ -376,6 +406,13 @@ class HuTurn2Stage8SelectiveOverridePolicy(RegularAiPolicy):
                 "baseline_action_index": baseline_index,
                 "stage8_action_index": candidate_index,
                 "final_action_index": final_index,
+                "baseline_action_key": action_key(actions[baseline_index]).to_token(),
+                "stage8_action_key": (
+                    action_key(actions[candidate_index]).to_token()
+                    if candidate_index is not None
+                    else None
+                ),
+                "final_action_key": action_key(actions[final_index]).to_token(),
                 "override_fired": override_fired,
                 "no_override_reason": no_override_reason or "",
                 "hu_turn2_min_margin": self.hu_turn2_stage8_config.min_margin,

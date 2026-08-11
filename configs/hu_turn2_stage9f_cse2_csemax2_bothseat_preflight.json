@@ -1,0 +1,130 @@
+{
+  "name": "hu_turn2_stage9f_cse2_csemax2_bothseat_preflight",
+  "status": "validation_profile_preflight",
+  "rule_set": "regular",
+  "schema": "hu_stage9f_topk_confirm_preflight_v1",
+  "phase": "hu_turn2_8card",
+  "objective": "hu_t2_bothseat_selective_override_over_current_baseline",
+  "production_default": false,
+  "production_p2_fixed": false,
+  "full_replacement_enabled": false,
+  "ai_profile": "stage9f_cse2_csemax2_bothseat",
+  "seat_scope": {
+    "allowed_seats": [
+      "first",
+      "second"
+    ],
+    "first_seat_enabled": true,
+    "second_seat_enabled": true,
+    "seat_scope_status": "c4_validated_bothseat"
+  },
+  "model": {
+    "path": "models/hu_turn2_stage8b_safe_lcb196_20k_reference_override_cached_rank_wide.pt",
+    "role": "candidate_generator",
+    "output_usage": "topk_rank_and_confirm_mc_gate"
+  },
+  "baseline_models": {
+    "opening": "models/opening_stage7_torch_wide.pt",
+    "turn1": "models/turn1_stage6_torch_wide.pt",
+    "turn2_baseline": "models/turn2_stage8.pkl",
+    "turn3": "models/turn3_stage6.pkl"
+  },
+  "t3_continuation": {
+    "profile": "stage7_m5_r10",
+    "model": "models/hu_turn3_stage7_reference_override_cached_rank_wide.pt",
+    "reference_model": "models/hu_turn3_stage3_mc32_500k_plus_m8_12_f128_100k_w2_cached_rank_wide.pt",
+    "hu_turn3_min_margin": 5.0,
+    "hu_turn3_reference_min_margin": 10.0,
+    "full_replacement_enabled": false,
+    "actual_runtime_threshold_wiring_required": true
+  },
+  "runtime": {
+    "enabled": true,
+    "config_string": "k3/mc16/d0/se0/confirm32/cse2/csemax2/fcd0/scd0/pd0/seat=first+second/bygate_delta",
+    "top_k": 3,
+    "stage_a_mc_samples": 16,
+    "stage_a_min_delta": 0.0,
+    "stage_a_se_multiplier": 0.0,
+    "confirm_mc_samples": 32,
+    "confirm_se_multiplier": 2.0,
+    "confirm_se_max": 2.0,
+    "first_confirm_delta_min": 0.0,
+    "second_confirm_delta_min": 0.0,
+    "min_predicted_delta": 0.0,
+    "topk_score": "gate_delta"
+  },
+  "safety": {
+    "missing_model_fallback_requires_explicit_flag": true,
+    "missing_model_fallback_cli_flag": "--allow-missing-stage8b-model-fallback",
+    "model_load_failure": "fallback_to_baseline_turn2",
+    "prediction_failure": "fallback_to_baseline_turn2",
+    "feature_generation_failure": "fallback_to_baseline_turn2",
+    "illegal_candidate": "fallback_to_baseline_turn2",
+    "nan_or_inf_prediction": "fallback_to_baseline_turn2",
+    "threshold_unmet": "fallback_to_baseline_turn2",
+    "actual_t3_runtime_must_match_t3_continuation": true,
+    "non_fired_cancellation_required": true
+  },
+  "primary_metric": {
+    "source": "realized_fired_whole_game_delta",
+    "confirm_delta_role": "gate_diagnostic_only",
+    "confirm_delta_performance_claim_allowed": false
+  },
+  "evaluation_artifacts": {
+    "bothseat_canary_20x6000": "outputs/evals/hu_turn2_stage9f_bothseat_canary_chunked_20x6000_m5r10/",
+    "bothseat_c4_40x12000": "outputs/evals/hu_turn2_stage9f_bothseat_c4_chunked_40x12000_m5r10/",
+    "profile_preflight_smoke20": "outputs/evals/hu_turn2_stage9f_bothseat_profile_preflight_smoke20/",
+    "missing_model_fallback_smoke": "outputs/evals/hu_turn2_stage9f_bothseat_preflight_missing_model_fallback_smoke/",
+    "profile_limited_canary1000": "outputs/evals/hu_turn2_stage9f_bothseat_profile_limited_canary1000/",
+    "profile_limited_canary2500": "outputs/evals/hu_turn2_stage9f_bothseat_profile_limited_canary2500/"
+  },
+  "recommended_metrics": {
+    "bothseat_c4_paired_hands": 218116,
+    "bothseat_c4_realized_fires": 4000,
+    "bothseat_c4_override_rate": 0.009215279942782739,
+    "bothseat_c4_estimated_ev_per_hand": 0.02580147220374282,
+    "bothseat_c4_estimated_ev_per_hand_ci95_low": 0.023193559559075212,
+    "bothseat_c4_estimated_ev_per_hand_ci95_high": 0.028409384848410425,
+    "bothseat_c4_seed_mean_ev_per_hand": 0.02614482783297874,
+    "bothseat_c4_seed_ci95_low": 0.02354535273646104,
+    "bothseat_c4_seed_ci95_high": 0.02874430292949644,
+    "bothseat_c4_per_fire_delta": 2.799857667259487,
+    "bothseat_c4_per_fire_ci95_low": 2.516858923774751,
+    "bothseat_c4_per_fire_ci95_high": 3.082856410744223,
+    "bothseat_c4_first_per_fire_delta": 2.72177039164401,
+    "bothseat_c4_second_per_fire_delta": 2.8745830640813437,
+    "bothseat_c4_non_fired_nonzero_count": 0,
+    "bothseat_c4_p95_loss": 7.0,
+    "bothseat_c4_max_loss": 37.227020614683454,
+    "profile_canary2500_paired_hands": 5000,
+    "profile_canary2500_realized_fires": 52,
+    "profile_canary2500_override_rate": 0.0104,
+    "profile_canary2500_estimated_ev_per_decision": 0.03767242473762015,
+    "profile_canary2500_per_fire_delta": 3.6223485324634757,
+    "profile_canary2500_per_fire_ci95_low": 1.0887200009373514,
+    "profile_canary2500_per_fire_ci95_high": 6.155977063989599,
+    "profile_canary2500_first_per_fire_delta": 2.3151347076455635,
+    "profile_canary2500_first_per_fire_ci95_low": 0.0956101546832211,
+    "profile_canary2500_first_per_fire_ci95_high": 4.534659260607906,
+    "profile_canary2500_second_per_fire_delta": 5.404912839033355,
+    "profile_canary2500_second_per_fire_ci95_low": 0.250888012077926,
+    "profile_canary2500_second_per_fire_ci95_high": 10.558937665988784,
+    "profile_canary2500_non_fired_nonzero_count": 0,
+    "profile_canary2500_p95_loss": 0.0,
+    "profile_canary2500_max_loss": 12.0,
+    "profile_canary2500_latency_p95_ms": 566.27
+  },
+  "decision": {
+    "stage9f_bothseat_c4_validation": "Pass",
+    "runtime_preflight": "Pass",
+    "profile_limited_canary": "Pass",
+    "production_p2_fixed": "No-Go",
+    "full_replacement": "No-Go",
+    "teacher_50k": "No-Go",
+    "turn1_training": "No-Go"
+  },
+  "rollback": {
+    "preset": "stage9f_off",
+    "action": "disable Stage9f TopK config and use baseline Turn2 policy"
+  }
+}

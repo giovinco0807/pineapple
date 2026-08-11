@@ -1,0 +1,126 @@
+{
+  "schema": "hu_m43_attempt03_model_freeze_v1",
+  "milestone": "M4.3-attempt03",
+  "status": "frozen_before_any_attempt03_teacher_row_was_received",
+  "frozen_at": "2026-07-14T02:30:00+09:00",
+  "reason": "Bind the executable v5 semantics and correct an independently discovered threshold-grid transcription error before any fresh fit or pre-calibration label was opened.",
+  "parent_plan": {
+    "path": "configs/hu_joint_policy_m43_attempt03.json",
+    "file_sha256": "2bd1666596ec6e7bf2cab7578006c96587977a8277969edb9cecdb54e24ef6d5",
+    "preflight_receipt_sha256": "c8fabf92dc9924baa95278cdd524f64bab41808b72245cee4933d3bccdc2effb"
+  },
+  "teacher_run": {
+    "run_name": "regular-hu-m43-attempt03-c2e64-pilot700-r2-20260714-0228",
+    "manifest_sha256": "1e9cc09b3968322bb5b2eeb137a9ddc7aa067e9b8f3f8a2efd424daea2441aea",
+    "fresh_teacher_rows_received_when_frozen": 0,
+    "precalibration_rows_opened_when_frozen": 0,
+    "sealed_calibration_rows_opened_when_frozen": 0,
+    "inherited_locked_rows_opened_when_frozen": 0
+  },
+  "implementation": {
+    "module": "src/ofc_regular/hu_m43_joint_model_v5.py",
+    "file_sha256": "64c5da4b694796dd0804c8e3fcc3578e6ceca9d99ff9453d162facd2c3940695",
+    "stage18_model": {
+      "path": "models/hu_turn1_stage18_first1801_mc32_hgb_abs_aug3.pkl",
+      "file_sha256": "e910131715efbec7a116e411a8dc23dcfc9a904f2aef9e0eee9d4913a02dfee7"
+    },
+    "runtime_teacher_inputs": false,
+    "canonical_action_key_tie_break": true
+  },
+  "base_crossfit": {
+    "folds": 5,
+    "fold_seed": 2026072401,
+    "outer_inner_jobs": 30,
+    "fit_states": 700,
+    "baseline_rows_included": false,
+    "worker": {
+      "paired_se_floor": 0.5,
+      "loss": "huber",
+      "huber_alpha": 0.9,
+      "iterations": 150,
+      "max_leaf_nodes": 31,
+      "learning_rate": 0.05
+    }
+  },
+  "meta_ranker": {
+    "features": "stage18_aware_22_in_diagnostic_order",
+    "fit_rows": "all_nonbaseline_actions",
+    "baseline_rows_included": false,
+    "state_weight_sum": 1.0,
+    "target": "offline_raw_teacher_paired_delta",
+    "objective": "lightgbm_huber",
+    "trees": 180,
+    "learning_rate": 0.035,
+    "num_leaves": 7,
+    "min_child_samples": 50,
+    "l2": 8.0,
+    "l1": 0.5,
+    "random_state": 20260714,
+    "proposal_order": "canonical_argmax_across_all_nonbaseline_then_vote_gate",
+    "positive_vote_gate": "centered_base_delta_strictly_positive_at_least_3_of_5",
+    "rerank_to_next_eligible_action": false
+  },
+  "precalibration_gate": {
+    "source": "fresh_one_shot_train.precal_holdout_200",
+    "minimum_raw_proposal_positive_rate": 0.4,
+    "minimum_eligible_fires": 30,
+    "minimum_eligible_mean_delta_per_fire": 0.0,
+    "minimum_eligible_delta_per_state": 0.0,
+    "maximum_false_positive_rate_delta_le_zero": 0.35,
+    "mean_delta_lcb": {
+      "method": "one_sided_student_t_over_independent_state_clusters",
+      "confidence": 0.9,
+      "strictly_greater_than": 0.0
+    },
+    "selected_action_downside_maximum": {
+      "p95": 25.0,
+      "p99": 40.0,
+      "max": 50.0
+    },
+    "post_result_model_feature_gate_or_threshold_change_allowed": false
+  },
+  "safety_calibration": {
+    "estimator": "standardized_l2_logistic",
+    "c": 0.25,
+    "seed": 2026072405,
+    "fit_sources": [
+      "fit_nested_oof_all_nonbaseline",
+      "sealed_calibration.safety_fit_50"
+    ],
+    "threshold_lock_source": "sealed_calibration.threshold_lock_50_only",
+    "threshold_grid": [
+      0.0,
+      0.1,
+      0.2,
+      0.3,
+      0.4,
+      0.5,
+      0.6,
+      0.7,
+      0.8,
+      0.9,
+      0.95,
+      0.975,
+      0.99,
+      1.0
+    ],
+    "minimum_fires": 10,
+    "maximum_false_positive_rate_delta_le_zero": 0.35,
+    "minimum_delta_per_state": 0.0,
+    "maximum_p95_loss": 25.0,
+    "maximum_p99_loss": 40.0,
+    "maximum_max_loss": 50.0,
+    "repeat_threshold_search_on_same_holdout_allowed": false
+  },
+  "threshold_grid_correction": {
+    "parent_plan_grid": [0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95],
+    "status": "superseded_before_data_open",
+    "evidence": "The parent grid was an accidental transcription and excluded the established low-probability region. The replacement is the already frozen Attempt02 grid, fixed before any Attempt03 result existed."
+  },
+  "activation_guards": {
+    "current_profile_changed": false,
+    "runtime_policy_activated": false,
+    "full_replacement_enabled": false,
+    "m5_authorized": false
+  }
+}

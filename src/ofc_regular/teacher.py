@@ -9,12 +9,19 @@ from itertools import combinations
 from pathlib import Path
 from typing import Iterable, Sequence
 
+from .action_key import action_key
 from .action_space import Action, generate_turn_actions
 from .cards import ALL_CARDS, validate_cards
 from .evaluator import BoardScore, score_board
+from .hu_infoset import FL_EV_CONFIG_PATH, FALLBACK_FL_EV
 from .state import Board
 
-DEFAULT_FL_EV = {14: 12.196164}
+# Single source of truth for the production FL EV.  ``hu_infoset`` owns both
+# the config path and the fallback so the observation default and the teacher
+# default can never drift apart; see configs/fl_ev_regular_v4_selfplay.json for
+# the provenance of the current value.
+_FALLBACK_DEFAULT_FL_EV = dict(FALLBACK_FL_EV)
+_DEFAULT_FL_EV_CONFIG = FL_EV_CONFIG_PATH
 
 
 @dataclass(frozen=True)
@@ -36,10 +43,17 @@ class ExpectedAction:
 
 def load_fl_ev(path: str | Path | None = None) -> dict[int, float]:
     if path is None:
-        return dict(DEFAULT_FL_EV)
-    data = json.loads(Path(path).read_text(encoding="utf-8"))
+        config_path = _DEFAULT_FL_EV_CONFIG
+        if not config_path.exists():
+            return dict(_FALLBACK_DEFAULT_FL_EV)
+    else:
+        config_path = Path(path)
+    data = json.loads(config_path.read_text(encoding="utf-8"))
     raw = data.get("fl_ev", {})
     return {int(k): float(v) for k, v in raw.items()}
+
+
+DEFAULT_FL_EV = load_fl_ev()
 
 
 def terminal_score(
@@ -76,7 +90,10 @@ def evaluate_turn_actions(
             continue
         score, board_score = terminal_score(next_board, opponent_board, fl_ev)
         evaluated.append(EvaluatedAction(action, next_board, score, board_score))
-    evaluated.sort(key=lambda item: item.score, reverse=True)
+    # Exact values can tie.  Legacy generation order depends on the order of
+    # the three dealt cards, so use the semantic ActionKey as the deterministic
+    # secondary key.
+    evaluated.sort(key=lambda item: (-item.score, action_key(item.action).sort_key()))
     return evaluated
 
 

@@ -1,0 +1,41 @@
+{
+  "name": "hu_turn3_stage9_joint_exact_mixed1200_full_candidate",
+  "description": "T3 Stage9 candidate trained from joint-exact MC128 teacher. Evaluation-only full HU T3 candidate; not production.",
+  "status": "evaluation_only",
+  "visibility_model": "hidden_discard",
+  "fl_ev": 10.227020614683454,
+  "models": {
+    "opening": "models/opening_stage7_torch_wide.pt",
+    "turn1": "models/turn1_stage6_torch_wide.pt",
+    "turn2": "models/turn2_stage8.pkl",
+    "turn3": "models/turn3_stage6.pkl",
+    "hu_turn3": "models/hu_turn3_joint_exact_stage9_mixed1200_mc128_extra_trees.pkl",
+    "hu_turn3_reference": null
+  },
+  "runtime": {
+    "hu_turn3_stage7_enabled": true,
+    "hu_turn3_min_margin": 0.0,
+    "hu_turn3_reference_min_margin": 0.0,
+    "mode": "full_hu_t3_candidate"
+  },
+  "teacher": {
+    "schema": "hu_turn3_joint_exact_v1",
+    "future_samples": 128,
+    "train_samples": 1200,
+    "train_file": "outputs/hu_turn3_joint_exact_stage9_train1200_mixed_mc128.jsonl",
+    "holdout_file": "outputs/hu_turn3_joint_exact_stage5_holdout200_from1k_mc128.jsonl"
+  },
+  "evidence": {
+    "stage5_final200_holdout_avg_regret": 0.06801771744984142,
+    "stage5_final200_holdout_top1": 0.855,
+    "stage5_final200_holdout_top3": 0.975,
+    "cycle13_14_eval_avg_regret": 0.005544971405893928,
+    "cycle13_14_eval_top1": 0.96,
+    "cycle13_14_eval_top3": 1.0
+  },
+  "warnings": [
+    "Teacher-regret candidate only; requires seat-swap before any runtime promotion.",
+    "This is full HU T3 replacement for evaluation, not a selective production override.",
+    "Legacy Stage7 open-discard evidence must not be mixed with hidden-discard promotion decisions."
+  ]
+}

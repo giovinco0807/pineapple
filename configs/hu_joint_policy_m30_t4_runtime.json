@@ -1,0 +1,169 @@
+{
+  "schema": "hu_joint_policy_m30_t4_runtime_v1",
+  "status_date": "2026-07-16",
+  "status": "complete_component_go_explicit_opt_in",
+  "decision": "exact_t4_available_without_named_profile_or_current_promotion",
+  "current_profile_changed": false,
+  "m30_named_profile_added": false,
+  "runtime_profile_activated": false,
+  "full_replacement_enabled": false,
+  "source_release_pending_r0": true,
+  "exactness_scope": {
+    "first_seat": {
+      "objective": "max_a expectation_uniform_opponent_deal min_b terminal_hu_score",
+      "unknown_cards": 24,
+      "future_deals": 2024,
+      "opponent_response": "all_legal_actions_exact",
+      "belief": "uniform_exchangeable_restart_belief"
+    },
+    "second_seat": {
+      "objective": "max_a terminal_hu_score_against_complete_opponent_board",
+      "hero_actions": "all_legal_actions_exact"
+    },
+    "full_bayesian_action_history_posterior": false,
+    "nash_equilibrium_proof": false,
+    "mathematical_full_game_optimality_proof": false
+  },
+  "information_boundary": {
+    "policy_input": "ActorObservation",
+    "hero_private_discards_allowed": true,
+    "opponent_private_discards_allowed": false,
+    "realized_remaining_deck_allowed": false,
+    "world_state_or_replay_truth_allowed": false,
+    "unknown_fields_rejected": true,
+    "python_scalar_and_batch_fail_closed": true
+  },
+  "action_value_contract": {
+    "all_legal_actions_enumerated": true,
+    "semantic_action_key_required": true,
+    "illegal_action_masking": "enumeration_boundary",
+    "selected_action_remapped_to_python_legal_action": true,
+    "all_action_evs_returned": true,
+    "action_set_and_order_digests_verified": true,
+    "dealt_card_order_invariant": true
+  },
+  "runtime_contract": {
+    "runtime_id": "hu_m30_t4_exact_both_seats_v1",
+    "activation": [
+      "--t4-mode-a m30_exact",
+      "--t4-mode-b m30_exact"
+    ],
+    "default_mode": "legacy",
+    "build_if_missing": false,
+    "strict_no_fallback": true,
+    "engine_version": "ofc_hu_m3_engine/0.1.0",
+    "windows_release_library": "target/m30_build/release/ofc_hu_m3_engine.dll",
+    "windows_release_library_sha256": "03d27825ccdf37ff52107207d8008df5b51235431c7274c604f922bc23c84d69",
+    "candidate_samples": 0,
+    "evaluation_samples": 0,
+    "teacher_value_status": "diagnostic_not_match_EV"
+  },
+  "validation": {
+    "rust_library_tests": 36,
+    "latest_focused_python_tests": 89,
+    "full_python_tests_passed": 2379,
+    "full_python_tests_skipped": 2,
+    "full_python_test_warnings": 50,
+    "rust_fmt_check": true,
+    "rust_clippy_warnings_denied": true,
+    "python_reference_parity": true,
+    "scalar_batch_parity": true,
+    "deterministic_rerun": true,
+    "hidden_truth_injection_rejected": true,
+    "native_hash_version_and_corruption_fail_closed": true,
+    "t4_second_legacy_exact_action_parity": true,
+    "nonlogging_runtime_skips_legacy_t4": true
+  },
+  "performance_pilots": {
+    "pilot_100": {
+      "artifact": "outputs/hu_joint_policy/m30_t4_complete/pilot_100.json",
+      "artifact_sha256": "0457e6f5c1d043b982a08e9932256124705b6114fc6f2fedd870a77b34d6e95d",
+      "states": 100,
+      "seed": 2026071601,
+      "seed_stride": 1000003,
+      "all_gates_passed": true,
+      "rows_digest": "ac88a9d117f4e29d0b8a6da711d76e409f04b1ae26ceccb59081aaa84272976b"
+    },
+    "pilot_1000": {
+      "artifact": "outputs/hu_joint_policy/m30_t4_complete/pilot_1000.json",
+      "artifact_sha256": "752d971f8f10fc99d0ba7eba58112a896ada27154915f906635a387f9479881e",
+      "states": 1000,
+      "seed": 2076071751,
+      "seed_stride": 1000003,
+      "seed_region_overlaps_pilot_100": false,
+      "all_gates_passed": true,
+      "first_latency_p50_ms": 23.74989999225363,
+      "first_latency_p95_ms": 42.90680000849534,
+      "first_latency_p99_ms": 54.53080000006594,
+      "first_latency_max_ms": 91.72129999205936,
+      "second_latency_p99_ms": 1.696300008916296,
+      "batch_roots_per_second": 156.0403646464552,
+      "first_changed_from_legacy_count": 96,
+      "first_changed_from_legacy_total": 500,
+      "rows_digest": "e3fba45fe785e5d7d84f4cd8b25ebe5108eabbf6799f02bbce2c327edd79268a"
+    }
+  },
+  "paired_evaluation": {
+    "off_policy_counterfactual_100": {
+      "artifact": "outputs/hu_joint_policy/m30_t4_complete/paired_random100_v3_summary.json",
+      "artifact_sha256": "24b7f8cfab659250546529f559b3d82f88aa919dd18ca6801a836c69ada72236",
+      "decision_artifact": "outputs/hu_joint_policy/m30_t4_complete/paired_random100_v3_t4_decisions.jsonl",
+      "decision_artifact_sha256": "9bac043909ff0847515c3cecdbafdbc747cf7dfe1183cff948c8f5a95d3bf3a2",
+      "profile": "random_exact_final",
+      "seed": 7106072301,
+      "seed_stride": 1000043,
+      "paired_seeds": 100,
+      "ev_per_hand": 0.295,
+      "ci95": [
+        0.12041591241936267,
+        0.4695840875806373
+      ],
+      "override_count": 11,
+      "second_seat_override_count": 0,
+      "realized_gain_per_override": 5.363636363636363,
+      "false_positive_override_count": 0,
+      "override_p95_tail_loss": 0.0,
+      "override_p99_tail_loss": 0.0,
+      "override_max_tail_loss": 0.0,
+      "nonfire_count": 89,
+      "nonfire_full_trajectory_cancellation": true
+    },
+    "fixed_chain_smoke_100": {
+      "artifact": "outputs/hu_joint_policy/m30_t4_complete/paired_stage19_100_summary.json",
+      "artifact_sha256": "1a0a3d9cb06d45b9b26d09b22ec0b6fe251b40696df9821472875759954a5a5b",
+      "decision_artifact": "outputs/hu_joint_policy/m30_t4_complete/paired_stage19_100_t4_decisions.jsonl",
+      "decision_artifact_sha256": "b646f0774b313676bb2354d032a4e160c4fa1ec516171ca0d4c8500413e56bc2",
+      "profile": "stage19_p0",
+      "seed": 5106072101,
+      "seed_stride": 1000039,
+      "paired_seeds": 100,
+      "ev_per_hand": 0.065,
+      "ci95": [
+        -0.006913896326429733,
+        0.13691389632642975
+      ],
+      "paired_seed_wins": 4,
+      "paired_seed_losses": 0,
+      "strength_acceptance": false,
+      "reason": "positive_point_estimate_but_ci_crosses_zero_and_upstream_chain_is_quarantined"
+    }
+  },
+  "baseline_invariants": {
+    "fixed_profiles_preserved": [
+      "stage19_p0",
+      "stage18_p1",
+      "stage9f_p2",
+      "stage7_m5_r10"
+    ],
+    "ai_profiles_sha256": "d2eb02669e27426623c70af21f1af4d7002db2a7eab77efd3319f8fb65b868d3",
+    "current_profile_changed": false,
+    "rollback": "omit_m30_exact_and_use_legacy_t4"
+  },
+  "remaining_no_go": [
+    "named_profile_or_current_activation before R0 release review",
+    "claim of Bayesian Nash or mathematical full-game optimality",
+    "joint-policy promotion while T3 and T2 artifacts remain quarantined",
+    "large-scale Spot generation before the next milestone passes local gates"
+  ],
+  "next_milestone": "M3.1_hidden_discard_safe_t3_rebuild"
+}

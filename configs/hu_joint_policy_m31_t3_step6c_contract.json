@@ -1,0 +1,247 @@
+{
+  "schema": "hu_joint_policy_m31_t3_step6c_contract_v1",
+  "status_date": "2026-07-17",
+  "status": "frozen_before_production_label_quality_pilot",
+  "decision": "freeze_100_root_quality_pilot_schedule_seeds_confirmation_and_no_activation_boundary",
+  "scope": "m31_t3_step6c_contract_only_no_search_cloud_launch_training_fanout_or_activation",
+  "anchors": {
+    "step5_contract": {
+      "path": "configs/hu_joint_policy_m31_t3_step5_contract.json",
+      "byte_sha256": "5f9fab4d844f1a7411a99f9dada2fe289314d4dea578d0c0f6a6d14918263c93",
+      "canonical_sha256": "04c4298feaed78f327f7fb6601f70a6821c3a91dcd2996cc34becbc4bb38e0b4"
+    },
+    "step5_validation": {
+      "path": "outputs/hu_joint_policy/m31_t3_step5/contract_validation_v2.json",
+      "sha256": "055b900e06db174f69d3ecb25fd1466f9e812d272222529121a40b71dd003bcc"
+    },
+    "step6b_status": {
+      "path": "configs/hu_joint_policy_m31_t3_step6b_status.json",
+      "sha256": "76e327525bb9165732e36fe2f47dd70cf07752f93de7c68e2cdd9e59a99c16f8"
+    },
+    "step6b_merged_validation": {
+      "path": "outputs/hu_joint_policy/m31_t3_step6b/canary500_validation_v1.json",
+      "sha256": "f95445cc71b402d97eb120cde2cfdbd1235ee57ca7c83b9227bcf5f9c3a238da"
+    },
+    "policy_registry": {
+      "path": "src/ofc_regular/ai_profiles.py",
+      "sha256": "d2eb02669e27426623c70af21f1af4d7002db2a7eab77efd3319f8fb65b868d3"
+    },
+    "accepted_linux_native_library": {
+      "path": "outputs/gcp_runs/regular-hu-m31-step6b-canary-20260717-001/package_src/native/release/libofc_hu_m3_engine.so",
+      "sha256": "3f831615d9e751b8e1f266f14dd2009903b3ac2a4094f7e47616e0aa372a01b0",
+      "engine_version": "ofc_hu_m3_engine/0.1.0"
+    },
+    "accepted_linux_feature_encoder": {
+      "path": "outputs/gcp_runs/regular-hu-m31-step6b-canary-20260717-001/package_src/target/release/libofc_stage3_feature_encoder.so",
+      "sha256": "82510e563ee290cd536e7aebe6bcf0efefac061af5488851f0a582bb4ef83411"
+    }
+  },
+  "immutable_boundaries": {
+    "step5_contract_edited": false,
+    "infrastructure_canary_rows_training_eligible": false,
+    "pilot_rows_training_authorized": false,
+    "production_teacher_fanout_authorized": false,
+    "current_profile_resolution_allowed": false,
+    "named_profile_addition_allowed": false,
+    "runtime_activation_allowed": false,
+    "full_replacement_allowed": false,
+    "teacher_values_are_realized_match_ev": false
+  },
+  "train_split": {
+    "name": "train",
+    "full_paired_hands": 6000,
+    "full_roots": 12000,
+    "full_hand_index_start": 0,
+    "full_hand_index_stop_exclusive": 6000,
+    "pilot_hand_indices": {
+      "start": 0,
+      "stop_exclusive": 50,
+      "count": 50
+    },
+    "pilot_root_indices": {
+      "start": 0,
+      "stop_exclusive": 100,
+      "count": 100
+    },
+    "pilot_shards": 2,
+    "paired_hands_per_shard": 25,
+    "roots_per_shard": 50,
+    "first_roots": 50,
+    "second_roots": 50,
+    "pilot_rows_quarantined_until_separate_training_authorization": true
+  },
+  "behavior_schedule": {
+    "schema": "hu_m31_t3_equal_quota_seeded_block_shuffle_v2",
+    "previous_step5_declared_schema": "equal_quota_seeded_shuffle_v1",
+    "infrastructure_canary_schema": "fixed_profile_cycle_by_global_hand_index_v1",
+    "resolution": "new_versioned_production_schedule_without_mutating_step5_or_canary",
+    "split": "train",
+    "block_hands": 5,
+    "profile_order": [
+      "stage19_p0",
+      "stage9f_p2",
+      "stage7_m5_r10",
+      "stage3_baseline",
+      "random_exact_final"
+    ],
+    "formula": "sort profiles within each five-hand block by (SHA256(schema + NUL + train + NUL + 317108071901 + NUL + block + NUL + profile), profile)",
+    "hash_encoding": "ascii_with_single_NUL_separators",
+    "content_dependent": false,
+    "full_hands_per_profile": 1200,
+    "pilot_hands_per_profile": 10,
+    "pilot_roots_per_profile": 20,
+    "pilot_shard_hands_per_profile": 5,
+    "full_schedule_sha256": "e371bd3ba10c97f42804e1fd10cc96fd94587f74c440c4e695864d88d92ac641",
+    "pilot_schedule_sha256": "278f3b6d0fdef52129fe0e4c112cfa7560fc1291d2fa7355362ae54b417bd713"
+  },
+  "seed_contract": {
+    "seed_stride": 1000003,
+    "formula": "namespace_seed_base + seed_stride * train_hand_index",
+    "namespace_bases": {
+      "hand": 310108071901,
+      "behavior": 317108071901,
+      "candidate": 324108071901,
+      "evaluation": 331108071901,
+      "child": 338108071901,
+      "confirmation": 345108071901
+    },
+    "pilot_namespace_seed_values": 300,
+    "pilot_seed_min": 310108071901,
+    "pilot_seed_max": 345157072048,
+    "pilot_seed_values_unique": true,
+    "overlap_with_infrastructure_canary_namespace": false,
+    "alternate_seed_after_results_allowed": false,
+    "posthoc_extension_allowed": false
+  },
+  "search": {
+    "run_id": "hu-m31-step6c-production-label-pilot-v1",
+    "primary_budget": {
+      "label": "production_label_8_32_4_0",
+      "candidate_samples": 8,
+      "evaluation_samples": 32,
+      "downstream_t3_samples": 4,
+      "downstream_t4_samples": 0
+    },
+    "confirmation_budget": {
+      "label": "independent_confirmation_8_128_4_0",
+      "candidate_samples": 8,
+      "evaluation_samples": 128,
+      "downstream_t3_samples": 4,
+      "downstream_t4_samples": 0
+    },
+    "confirmation_candidate_seed_source": "candidate",
+    "confirmation_evaluation_seed_source": "confirmation",
+    "confirmation_continuation_seed_source": "child",
+    "confirmation_reuses_primary_run_id": true,
+    "confirmation_candidate_rng_keys_equal_primary_subset": true,
+    "confirmation_selected_action_source": "primary_candidate_selected_action_key",
+    "confirmation_action_join_key": "regular_ofc_action_key_v1",
+    "confirmation_may_replace_primary_selection": false,
+    "common_random_futures_within_each_action_comparison": true,
+    "candidate_evaluation_and_confirmation_evaluation_rng_disjoint": true,
+    "all_legal_actions_required": true,
+    "original_index_and_order_mapping_required": true,
+    "downstream_t4": "exact_native_enumeration",
+    "teacher_value_status": "diagnostic_not_match_EV"
+  },
+  "confirmation_subset": {
+    "selection_unit": "paired_hand",
+    "selected_before_game_content": true,
+    "paired_hand_indices": [
+      5,
+      16,
+      29,
+      39,
+      45
+    ],
+    "root_indices": [
+      10,
+      11,
+      32,
+      33,
+      58,
+      59,
+      78,
+      79,
+      90,
+      91
+    ],
+    "paired_hands": 5,
+    "roots": 10,
+    "fraction_of_pilot_roots": 0.1,
+    "first_roots": 5,
+    "second_roots": 5,
+    "roots_per_profile": 2,
+    "evaluation_samples": 128,
+    "all_legal_actions": true,
+    "expected_primary_candidate_rng_keys": 800,
+    "expected_primary_evaluation_rng_keys": 3200,
+    "expected_confirmation_evaluation_rng_keys": 1280,
+    "primary_candidate_evaluation_overlap_max": 0,
+    "primary_candidate_confirmation_evaluation_overlap_max": 0,
+    "primary_evaluation_confirmation_evaluation_overlap_max": 0,
+    "percentile_method": "nearest_rank_ceil_n_times_q_v1",
+    "percentile_formula": "sorted_values[max(0, min(n - 1, ceil(n * q) - 1))]",
+    "ten_root_p95_and_p99_equal_max": true,
+    "selected_regret_mean_max": 0.75,
+    "selected_regret_p95_max": 3.0,
+    "selected_regret_p99_max": 6.0,
+    "selected_regret_max": 15.0,
+    "top1_agreement_is_diagnostic_only": true
+  },
+  "data_quality_gates": {
+    "forbidden_hidden_truth_rows_max": 0,
+    "unknown_field_rows_max": 0,
+    "invalid_action_mapping_rows_max": 0,
+    "nonfinite_action_value_rows_max": 0,
+    "duplicate_observation_fingerprints_max": 0,
+    "complete_legal_action_value_fraction_min": 1.0,
+    "exact_t4_decision_fraction_min": 1.0,
+    "first_second_root_ratio_exact": 1.0,
+    "primary_candidate_evaluation_rng_overlap_max": 0,
+    "primary_candidate_confirmation_evaluation_rng_overlap_max": 0,
+    "primary_evaluation_confirmation_evaluation_rng_overlap_max": 0,
+    "confirmation_fraction_exact": 0.1,
+    "ambiguous_rows_dropped_max": 0,
+    "action_geometry_distribution_is_pilot_diagnostic_only": true,
+    "failed_gate_decision": "complete_no_go_no_reseed_no_extension_no_same_data_threshold_reselection"
+  },
+  "operational_gates": {
+    "machine_type": "c4-standard-16",
+    "provisioning_model": "SPOT",
+    "workers_per_shard": 2,
+    "rayon_threads_per_worker": 8,
+    "checkpoint_unit": "completed_paired_hand_including_confirmation_when_selected",
+    "atomic_write_once_tasks": true,
+    "heartbeat_interval_seconds": 60,
+    "resume_missing_or_incomplete_tasks_only": true,
+    "immutable_source_native_feature_and_schedule_hashes_required": true,
+    "done_marker_committed_last": true,
+    "first_seat_p95_seconds_max": 180.0,
+    "second_seat_p95_seconds_max": 6.0,
+    "peak_process_rss_bytes_max": 1073741824,
+    "production_budget_speed_smoke_required_before_spot_authorization": true,
+    "separate_launch_authorization_required": true,
+    "spot_quality_pilot_authorized": false
+  },
+  "activation_guards": {
+    "training_authorized": false,
+    "production_teacher_fanout_authorized": false,
+    "current_profile_changed": false,
+    "named_profile_added": false,
+    "runtime_policy_activated": false,
+    "full_replacement_enabled": false,
+    "m31_complete": false
+  },
+  "forbidden": [
+    "opponent private discards or realized deck truth in a root row model input or artifact",
+    "using Step 6a or Step 6b infrastructure rows for training",
+    "replacing the primary selected ActionKey with the confirmation argmax",
+    "changing percentile semantics thresholds seeds or subset after reading results",
+    "reporting search Q values as realized match EV",
+    "production teacher fanout without a separate post-pilot authorization",
+    "model training profile addition current mutation runtime activation or full replacement",
+    "Nash or mathematical optimality claim"
+  ],
+  "next_step": "validate this immutable contract, prove accepted-binary production-budget parity and a bounded speed smoke, then create a separate authorization for exactly the two 25-paired-hand Step 6c pilot shards"
+}

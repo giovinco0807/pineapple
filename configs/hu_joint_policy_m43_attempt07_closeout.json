@@ -1,0 +1,129 @@
+{
+  "schema": "hu_m43_attempt07_no_go_closeout_v1",
+  "milestone": "M4.3-attempt07",
+  "status_date": "2026-07-14",
+  "status": "complete_no_go_development",
+  "decision": "close_attempt07_without_audit50_fit_threshold_or_runtime",
+  "run_name": "regular-hu-m43-attempt07-development100-20260714-150046",
+  "immutable_evidence": {
+    "selection": {
+      "path": "outputs/hu_joint_policy/m43_attempt07_development/regular-hu-m43-attempt07-development100-20260714-150046/merged/development_arm_selection.json",
+      "sha256": "53b797756747cbb71f89251020e7fdc86dabce75cd298507dc59c0764ed6373a"
+    },
+    "merged_input": {
+      "path": "outputs/hu_joint_policy/m43_attempt07_development/regular-hu-m43-attempt07-development100-20260714-150046/merged/teacher.jsonl",
+      "sha256": "c15e018fee5e86cbcba8fadcfdaa5a13b25866efa1092c7b74177814049761a5"
+    },
+    "receive_receipt": {
+      "path": "outputs/hu_joint_policy/m43_attempt07_development/regular-hu-m43-attempt07-development100-20260714-150046/merged/receive_receipt.json",
+      "sha256": "256f8d40541b81205e028e6a3d99aeb8bb15212807b10e476e0a64fed7c0ae1e"
+    },
+    "merge_receipt": {
+      "path": "outputs/hu_joint_policy/m43_attempt07_development/regular-hu-m43-attempt07-development100-20260714-150046/merged/merge_receipt.json",
+      "sha256": "d41fa8928abe9330f613462bc995a56828ab2de33b041e0e92b5eddf22a42a8c"
+    },
+    "consumption_claim": {
+      "path": "outputs/hu_joint_policy/m43_attempt07_development/regular-hu-m43-attempt07-development100-20260714-150046_OUTPUT_CONSUMED.json",
+      "sha256": "3c79d75b1c1913939b0a0b739749b855a8ffdb5fc76dbf7ce226a2e1c0855699"
+    },
+    "canonical_plan": {
+      "path": "configs/hu_joint_policy_m43_attempt07.json",
+      "sha256": "8bf15f8d109a2e441e1c240e533c56df42a7e65d2eefd3b2750d1bd63758b189"
+    },
+    "packaged_plan": {
+      "path": "outputs/gcp_runs/regular-hu-m43-attempt07-development100-20260714-150046/hu_joint_policy_m43_attempt07.json",
+      "sha256": "8bf15f8d109a2e441e1c240e533c56df42a7e65d2eefd3b2750d1bd63758b189"
+    },
+    "selector_source": {
+      "path": "src/ofc_regular/select_hu_m43_attempt07_development_arm.py",
+      "sha256": "ec61f2d02364ea2b535e4f593e27eb0da0f8ac0955112d34868af7120bf3c0fc"
+    },
+    "package_manifest": {
+      "path": "outputs/gcp_runs/regular-hu-m43-attempt07-development100-20260714-150046/manifest.json",
+      "sha256": "2f42d41849eec7e5d94da756b088acc5c762d0df3bab2f6525457615da92476d"
+    },
+    "spot_authorization": {
+      "path": "outputs/gcp_runs/regular-hu-m43-attempt07-development100-20260714-150046/development_spot_authorization.json",
+      "sha256": "aa6c6a38ee13ad12bffb1e70383db31046dc93ab194b53e7fc4a68cf40c62f9a"
+    },
+    "shard_schedule": {
+      "path": "outputs/gcp_runs/regular-hu-m43-attempt07-development100-20260714-150046/shards_manifest.jsonl",
+      "sha256": "6a8f80670e79cd0336f968719f921be033d1e810657c722f590bb4a4fe0eae34"
+    },
+    "source_zip": {
+      "path": "outputs/gcp_runs/regular-hu-m43-attempt07-development100-20260714-150046/ofc_regular_hu_m43_attempt07_development_source.zip",
+      "sha256": "1ad4f8730e2731bf92768b5d4b407f4537f1dce6c4d7fd24504d497366ffe9e7"
+    },
+    "startup": {
+      "path": "outputs/gcp_runs/regular-hu-m43-attempt07-development100-20260714-150046/startup_hu_m43_attempt07_development.sh",
+      "sha256": "c285d1aa46d7c0dee6a5a8137ea5cbd07ce67739e1caccba9025bdfc54ea8ed6"
+    },
+    "ai_profiles": {
+      "path": "src/ofc_regular/ai_profiles.py",
+      "sha256": "d2eb02669e27426623c70af21f1af4d7002db2a7eab77efd3319f8fb65b868d3"
+    }
+  },
+  "development_population": {
+    "roots": 100,
+    "profiles": [
+      "stage19_p0",
+      "stage9f_p2",
+      "stage7_m5_r10",
+      "stage3_baseline",
+      "random_exact_final"
+    ],
+    "states_per_profile": 20
+  },
+  "ineligible_arms": [
+    "r32_v128",
+    "r32_v64",
+    "r64_v128",
+    "r64_v64"
+  ],
+  "passed_integrity_gates": {
+    "action_mapping_violation_count": 0,
+    "hidden_information_violation_count": 0,
+    "nonfire_complete_trajectory_acceptance_deferred": true,
+    "nonfire_complete_trajectory_cancellation_verified": false,
+    "nonfire_exact_baseline_action_fallback_verified": true,
+    "rng_domain_violation_count": 0
+  },
+  "selection_science_boundary": {
+    "assessment_source": "disjoint_A128_raw_selected_action_vs_baseline_only",
+    "current_profile_mutated": false,
+    "fit_performed": false,
+    "full_replacement_enabled": false,
+    "future_audit_authorized": false,
+    "future_audit_opened": false,
+    "gate_reselected": false,
+    "runtime_policy_activated": false,
+    "runtime_trajectory_cancellation_claimed": false,
+    "teacher_values_are_realized_match_ev": false,
+    "threshold_selected": false,
+    "veto_values_used_as_development_quality_metrics": false
+  },
+  "forbidden_actions": {
+    "audit50_authorized": false,
+    "audit50_opened": false,
+    "fit_allowed": false,
+    "fit_performed": false,
+    "threshold_selection_allowed": false,
+    "threshold_selected": false,
+    "runtime_activation_allowed": false,
+    "runtime_policy_activated": false,
+    "current_profile_mutation_allowed": false,
+    "current_profile_mutated": false,
+    "full_replacement_enabled": false
+  },
+  "baseline_hash_audit": {
+    "policy_registry_path": "src/ofc_regular/ai_profiles.py",
+    "policy_registry_sha256": "d2eb02669e27426623c70af21f1af4d7002db2a7eab77efd3319f8fb65b868d3",
+    "current_mapping_changed": false
+  },
+  "next": {
+    "attempt07_closed": true,
+    "attempt07_data_use": "development_postmortem_only",
+    "audit50_must_not_run": true,
+    "new_attempt_and_new_disjoint_evidence_required": true
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "name": "hu_turn3_stage9_joint_exact_mixed1200_selective_m2",
+  "description": "More conservative T3 Stage9 joint-exact selective override over Stage3 HU reference. Evaluation-only.",
+  "status": "no_go_by_1000_paired_seat_swap",
+  "visibility_model": "hidden_discard",
+  "fl_ev": 10.227020614683454,
+  "models": {
+    "opening": "models/opening_stage7_torch_wide.pt",
+    "turn1": "models/turn1_stage6_torch_wide.pt",
+    "turn2": "models/turn2_stage8.pkl",
+    "turn3": "models/turn3_stage6.pkl",
+    "hu_turn3": "models/hu_turn3_joint_exact_stage9_mixed1200_mc128_extra_trees.pkl",
+    "hu_turn3_reference": "models/hu_turn3_stage3_mc32_500k_plus_m8_12_f128_100k_w2_cached_rank_wide.pt"
+  },
+  "runtime": {
+    "hu_turn3_stage7_enabled": true,
+    "hu_turn3_min_margin": 2.0,
+    "hu_turn3_reference_min_margin": 0.0,
+    "mode": "selective_override_over_stage3_reference"
+  },
+  "seat_swap_smoke": {
+    "vs_stage3_reference_200_paired_seed_2026061841": {
+      "ev_per_hand": 0.23033775768354317,
+      "ci95_low": -0.2710836310688467,
+      "ci95_high": 0.731759146435933,
+      "override_rate": 0.0725
+    }
+  },
+  "seat_swap_1000": {
+    "vs_stage3_reference_seed_2026061901_stride17": {
+      "paired_seeds": 1000,
+      "hands": 2000,
+      "ev_per_hand": -0.14529457215139208,
+      "ci95_low": -0.3795669984149549,
+      "ci95_high": 0.08897785411217077,
+      "override_rate": 0.061
+    }
+  },
+  "warnings": [
+    "Positive smoke is not production evidence; CI still crosses zero.",
+    "Use as conservative comparison candidate for larger seat-swap."
+  ]
+}

@@ -1,0 +1,90 @@
+{
+  "name": "hu_turn2_stage9f_latency_variant_probe",
+  "status": "smoke_complete_no_promotion",
+  "rule_set": "regular",
+  "schema": "hu_stage9f_latency_variant_probe_v1",
+  "phase": "hu_turn2_8card",
+  "objective": "test whether lower MC settings can reduce p95 latency without obvious signal loss",
+  "production_default": false,
+  "production_p2_fixed": false,
+  "experiment_only": true,
+  "full_replacement_enabled": false,
+  "baseline_guarded_preset": "configs/hu_turn2_stage9f_cse2_csemax2_bothseat_guarded_production_preset.json",
+  "t3_continuation": {
+    "profile": "stage7_m5_r10",
+    "hu_turn3_min_margin": 5.0,
+    "hu_turn3_reference_min_margin": 10.0
+  },
+  "tested_variants": [
+    {
+      "name": "current_guarded",
+      "config_string": "k3/mc16/d0/se0/confirm32/cse2/csemax2/fcd0/scd0/pd0/seat=first+second/bygate_delta",
+      "status": "keep_guarded_candidate"
+    },
+    {
+      "name": "reduced_mc12_confirm24",
+      "config_string": "k3/mc12/d0/se0/confirm24/cse2/csemax2/fcd0/scd0/pd0/seat=first+second/bygate_delta",
+      "status": "no_promotion_after_smoke"
+    },
+    {
+      "name": "reduced_mc8_confirm24",
+      "config_string": "k3/mc8/d0/se0/confirm24/cse2/csemax2/fcd0/scd0/pd0/seat=first+second/bygate_delta",
+      "status": "no_promotion_after_smoke80_only"
+    }
+  ],
+  "artifacts": {
+    "smoke80": "outputs/evals/hu_turn2_stage9f_latency_variant_smoke80/",
+    "smoke300": "outputs/evals/hu_turn2_stage9f_latency_variant_smoke300/"
+  },
+  "smoke300_results": {
+    "paired_seeds": 300,
+    "decisions_per_config": 600,
+    "current_guarded": {
+      "override_count": 9,
+      "runtime_override_rate": 0.015,
+      "aggregate_ev_per_hand": 0.05537836769113909,
+      "per_fire_delta": 3.691891179409273,
+      "per_fire_ci95_low": -7.308337290169092,
+      "p95_loss": 14.73621236881007,
+      "max_loss": 17.227020614683454,
+      "latency_p95_ms": 538.341399852652,
+      "stage_a_latency_p95_ms": 232.99391488544634,
+      "confirm_latency_p95_ms": 322.97268504044024
+    },
+    "reduced_mc12_confirm24": {
+      "override_count": 5,
+      "runtime_override_rate": 0.008333333333333333,
+      "aggregate_ev_per_hand": -0.03204503435780576,
+      "per_fire_delta": -3.845404122936691,
+      "per_fire_ci95_low": -12.24992728778026,
+      "p95_loss": 16.58161649174676,
+      "max_loss": 19.227020614683454,
+      "latency_p95_ms": 419.74714510142803,
+      "stage_a_latency_p95_ms": 194.78687000228086,
+      "confirm_latency_p95_ms": 229.63941489579145
+    }
+  },
+  "decision": {
+    "latency_variant_promotion": "No-Go",
+    "reason": "smoke shows lower p95 latency but weaker fired signal and too few fires for quality promotion",
+    "current_guarded_preset": "Keep",
+    "production_default": "No-Go until explicitly enabled",
+    "p2_fixed": "No-Go until explicitly accepted",
+    "teacher_50k": "No-Go",
+    "turn1_training": "No-Go"
+  },
+  "next_gate_if_latency_must_be_reduced": {
+    "required": "run non-overlapping larger latency/quality canary before replacing mc16_confirm32",
+    "minimum_recommendation": {
+      "paired_seeds": 5000,
+      "minimum_realized_fires": 50,
+      "compare_against": "current_guarded",
+      "required_invariants": [
+        "non_fired_nonzero_count == 0",
+        "replay_ready complete",
+        "aggregate and per-seat per-fire CI not negative",
+        "p95/max loss below current rollback thresholds"
+      ]
+    }
+  }
+}

@@ -16,3 +16,7 @@ path = "rust/ofc_stage3_feature_encoder/src/lib.rs"
 lto = true
 codegen-units = 1
 opt-level = 3
+
+[workspace]
+members = ["rust/hu_m3_engine"]
+resolver = "2"

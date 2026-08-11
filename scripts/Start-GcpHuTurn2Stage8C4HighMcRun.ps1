@@ -25,6 +25,8 @@ param(
     ),
     [int]$PredictionThreads = 1,
     [int]$OpeningLookaheadSamples = 64,
+    [ValidateSet("stage3_reference_default", "stage7_m5_r10")]
+    [string]$T3Continuation = "stage3_reference_default",
     [int]$BootDiskGb = 80,
     [string[]]$StartShards = @(),
     [switch]$CreateInstances,
@@ -208,6 +210,7 @@ PREDICTION_THREADS="$(meta PREDICTION_THREADS)"
 OPENING_LOOKAHEAD_SAMPLES="$(meta OPENING_LOOKAHEAD_SAMPLES)"
 MC_SAMPLES="$(meta MC_SAMPLES)"
 CONFIGS="$(meta CONFIGS)"
+T3_CONTINUATION="$(meta T3_CONTINUATION)"
 INSTANCE_NAME="$(instance_meta name)"
 ZONE_PATH="$(instance_meta zone)"
 ZONE="${ZONE_PATH##*/}"
@@ -320,7 +323,8 @@ for (( shard=START_SHARD; shard<TOTAL_SHARDS; shard+=VM_COUNT )); do
     --replay-offset "$replay_offset" \
     --device cpu \
     --prediction-threads "$PREDICTION_THREADS" \
-    --opening-lookahead-samples "$OPENING_LOOKAHEAD_SAMPLES" > "$log_path" 2>&1
+    --opening-lookahead-samples "$OPENING_LOOKAHEAD_SAMPLES" \
+    --t3-continuation "$T3_CONTINUATION" > "$log_path" 2>&1
   exit_code=$?
   set -e
 
@@ -332,14 +336,14 @@ for (( shard=START_SHARD; shard<TOTAL_SHARDS; shard+=VM_COUNT )); do
     printf 'complete\n' > "${local_out}/DONE"
     gcloud storage cp "$local_out"/* "gs://${BUCKET}/runs/${RUN_NAME}/results/${output_prefix}/" >/dev/null
     cat > "$status_path" <<EOF
-{"run_name":"$RUN_NAME","phase":"hu_t2_stage8_c4_high_mc","shard":$shard,"replay_offset":$replay_offset,"replay_count":$replay_count,"status":"complete","instance":"$INSTANCE_NAME","zone":"$ZONE","elapsed_seconds":$elapsed,"started_at":"$started_at","finished_at":"$finished_at","output":"gs://${BUCKET}/runs/${RUN_NAME}/results/${output_prefix}"}
+{"run_name":"$RUN_NAME","phase":"hu_t2_stage8_c4_high_mc","shard":$shard,"replay_offset":$replay_offset,"replay_count":$replay_count,"t3_continuation":"$T3_CONTINUATION","status":"complete","instance":"$INSTANCE_NAME","zone":"$ZONE","elapsed_seconds":$elapsed,"started_at":"$started_at","finished_at":"$finished_at","output":"gs://${BUCKET}/runs/${RUN_NAME}/results/${output_prefix}"}
 EOF
     gcloud storage cp "$status_path" "$status_remote" >/dev/null || true
   else
     log "failed shard=$shard exit=$exit_code elapsed=${elapsed}s"
     gcloud storage cp "$log_path" "gs://${BUCKET}/runs/${RUN_NAME}/logs/${output_prefix}.log" >/dev/null || true
     cat > "$status_path" <<EOF
-{"run_name":"$RUN_NAME","phase":"hu_t2_stage8_c4_high_mc","shard":$shard,"replay_offset":$replay_offset,"replay_count":$replay_count,"status":"failed","instance":"$INSTANCE_NAME","zone":"$ZONE","exit_code":$exit_code,"elapsed_seconds":$elapsed,"started_at":"$started_at","finished_at":"$finished_at","log":"gs://${BUCKET}/runs/${RUN_NAME}/logs/${output_prefix}.log"}
+{"run_name":"$RUN_NAME","phase":"hu_t2_stage8_c4_high_mc","shard":$shard,"replay_offset":$replay_offset,"replay_count":$replay_count,"t3_continuation":"$T3_CONTINUATION","status":"failed","instance":"$INSTANCE_NAME","zone":"$ZONE","exit_code":$exit_code,"elapsed_seconds":$elapsed,"started_at":"$started_at","finished_at":"$finished_at","log":"gs://${BUCKET}/runs/${RUN_NAME}/logs/${output_prefix}.log"}
 EOF
     gcloud storage cp "$status_path" "$status_remote" >/dev/null || true
     exit "$exit_code"
@@ -377,6 +381,7 @@ $manifest = [ordered]@{
     zones = $Zones
     prediction_threads = $PredictionThreads
     opening_lookahead_samples = $OpeningLookaheadSamples
+    t3_continuation = $T3Continuation
     selected_states_jsonl = $SelectedStatesJsonl
     source_uri = $sourceUri
     startup_uri = $startupUri
@@ -408,6 +413,7 @@ foreach ($i in $workerIndices) {
         "OPENING_LOOKAHEAD_SAMPLES=$OpeningLookaheadSamples",
         "MC_SAMPLES=$McSamples",
         "CONFIGS=$($configList[0])",
+        "T3_CONTINUATION=$T3Continuation",
         ("SELF_DELETE=" + ($(if ($NoSelfDelete) { "0" } else { "1" })))
     ) -join ","
 
@@ -449,6 +455,7 @@ foreach ($i in $workerIndices) {
     total_shards = $totalShards
     vm_count = $VmCount
     mc_samples = $McSamples
+    t3_continuation = $T3Continuation
     machine_type = $MachineType
     package = $packagePath
     source_uri = $sourceUri

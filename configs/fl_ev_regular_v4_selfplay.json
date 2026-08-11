@@ -1,0 +1,102 @@
+{
+  "rule_set": "regular",
+  "include_jokers": false,
+  "deck_cards": 52,
+  "fl_entry_cards": {"qq": 14, "kk": 14, "aa": 14, "trips": 14},
+  "fl_stay_cards": 14,
+  "reward_mode": "direct_hu_fixed_point",
+  "fl_ev": {"14": 9.6},
+  "provenance": {
+    "method": "self_play_entry_episode_fixed_point_v4 (M6 run B; adaptive Fantasyland actually played on both sides)",
+    "run": "~/ofc-ladder2/runB",
+    "run_arm": "runB_self_play_current_chain",
+    "date": "2026-08-06",
+    "adopted_fl_ev_14": 9.6,
+    "measured_fixed_point_14": 9.598532,
+    "estimator": "The engine played run B while told the v3 constant (9.109) and the realised entry-episode value was measured at V0 = 9.669. V(x) is measured-linear with the slope recorded in the v3 anchor sweep, so the self-consistent constant is the crossing V* = V(V*) = (V0 - s*x0)/(1 - s). This is the same closed-form crossing the v3 adoption used; it deliberately does NOT iterate, because the map's negative slope makes naive iteration alternate rather than converge (the June failure).",
+    "fixed_point_inputs": {
+      "V0_entry_episode_value": 9.669,
+      "V0_ci95": [9.57, 9.768],
+      "V0_sample_n": 52303,
+      "V0_definition": "entry-episode value, uncensored: the realised value of an episode beginning at a Fantasyland entry, counting the entry hand and every consecutive stay, excluding episodes truncated by the end of a session",
+      "x0_constant_engine_was_told": 9.109,
+      "slope": -0.14395064981191233,
+      "slope_source": "configs/fl_ev_regular_v3_direct2.json provenance.slope (anchor sweep over [7.5, 8.5, 9.5, 10.0, 10.227021, 11.0, 11.5, 12.5])",
+      "closed_form": "V* = (V0 - slope*x0) / (1 - slope)",
+      "fixed_point_from_ci_ends": [9.511989, 9.685074],
+      "residual_check": "V(V*) - V* = 0.0 exactly at float64"
+    },
+    "hands": 150000,
+    "hands_note": "150,000 hands = 7,500 sessions x 20 hands, mirror off (self-play makes the mirrored arm a bit-identical replay). Pooled reports count 300,000 PLAYER-hand observations, two per hand, one per seat; 238,476 normal-state + 61,524 Fantasyland player-hands. Both numbers describe the same run.",
+    "seed_base": 998500000,
+    "seed_range": [998500000, 998507499],
+    "sessions": 7500,
+    "session_length_hands": 20,
+    "session_length_rationale": "20 rather than 10 to halve entry-episode censoring, which is roughly 1/L; at 10 hands 23.4% of entry episodes were censored. Even length keeps seats balanced.",
+    "censoring": {
+      "censored_episodes": 6028,
+      "total_episodes": 58331,
+      "censored_share": 0.1033,
+      "all_inclusive_entry_episode_value": 9.263,
+      "all_inclusive_ci95": [9.17, 9.355],
+      "note": "The uncensored estimate is adopted. The all-inclusive figure counts truncated episodes at their partial value and is therefore biased low by construction; it is recorded as the other end of the bracket."
+    },
+    "measured_rates": {
+      "fl_entry_rate": 0.2446,
+      "fl_stay_rate": 0.103,
+      "bust_rate": 0.2176,
+      "entries": 58331,
+      "stays": 6339,
+      "normal_state_player_hands": 238476,
+      "fl_player_hands": 61524,
+      "uncensored_episode_length_mean": 1.108,
+      "uncensored_episode_length_max": 6,
+      "share_episode_length_one": 0.9024
+    },
+    "seat_split": {
+      "entry_episode_value_fl_hand_seat_first": 9.621,
+      "entry_episode_value_fl_hand_seat_first_ci95": [9.476, 9.765],
+      "entry_episode_value_fl_hand_seat_second": 9.718,
+      "entry_episode_value_fl_hand_seat_second_ci95": [9.573, 9.863],
+      "note": "The two seats' intervals overlap heavily, so a single constant remains defensible; seat alternation makes the ideal single constant the two-seat average, which is what the pooled estimate is."
+    },
+    "fl_vs_fl_check": {
+      "fl_vs_fl_zero_sum_value": 0.0,
+      "fl_vs_fl_seat_first_value": -0.071,
+      "fl_vs_fl_seat_first_ci95": [-0.309, 0.168],
+      "note": "FL-vs-FL is zero-sum by construction and measures 0.000 exactly, which is a correctness check on the harness rather than a result. The seat-first split straddles zero, consistent with the owner ruling that both seats set blind."
+    },
+    "what_makes_this_supersede_v3": "v3 (9.109) was measured with a STATIC Fantasyland side: estimate_hu_fl_ev_direct solved the Fantasyland board before the opponent board existed, and solve_fantasyland took no opponent argument. An adaptive Fantasyland player best-responds to the finished hero board and scores strictly better. That bias was measured directly on 300 T3-vs-FL roots at +0.42 to +0.46 points per hand (mean label EV shift -0.420, best-candidate shift mean -0.457), which made 9.109 a FLOOR rather than a point estimate. Run B plays Fantasyland for real and adaptively on both sides, so the floor is removed rather than corrected for.",
+    "both_sides_chain": "Both seats play the current full chain. The Fantasyland side is exact adaptive play via the fl_solver_regular non-dominated frontier best-response (exact, not approximate: pinned against brute force on 344 pairs), and the vs-Fantasyland streets are served by the M11 models rather than left unmodelled.",
+    "m11_vsfl_models": {
+      "vsfl_t1_v1.vfl1": "2d02958d27f289d48ed0059c8aafec8afd98720993f20758a4f9ab962eb35588",
+      "vsfl_t2_v1.vfl1": "f9c59ad4027d8380dbd6c4dc35e127109aea3f166ac669303b0cea490bfdd58b",
+      "vsfl_t3_v1.vfl1": "a1a2828affd1686757af4666f58fdba87ae651707477e502d4065db4c21abd1d",
+      "t0_vs_fl": "served by the T0-first stand-in t0first_model_v1.bin (07301034502de626d4deabe95d576dfd72207bd57550ebbae7934ebf0f191e84) per the owner ruling of 2026-08-06; situation-blind to a Fantasyland opponent, which is the one known remaining approximation in this estimate"
+    },
+    "predecessor_file": "configs/fl_ev_regular_v3_direct2.json",
+    "predecessor_fl_ev_14": 9.109,
+    "predecessor_chain": [
+      {
+        "file": "configs/fl_ev_regular_2k.json",
+        "fl_ev_14": 10.227020614683454,
+        "date": "2026-06-12",
+        "run": "regular-hu-fl-ev-direct-20260612-161630",
+        "status": "superseded, retained unmodified as the historical record",
+        "defect": "June's estimator drove the non-FL side through RegularAiPolicy with opponent_board=None, which silently disabled every heads-up branch and left it on a two-generations-old solo chain, so the opponent busted 38.9% instead of 24.8% and the hero's FL EV came out ~1.1 points too high. Separately the fixed-point iteration never converged: V_next has negative slope ~-0.14, so the iterates alternated, and 10.227 was iteration five's average of a non-converged walk. armB re-measured June's own arm properly at 10.250 [10.026, 10.491], confirming the gap was the opponent and not the solver."
+      },
+      {
+        "file": "configs/fl_ev_regular_v3_direct2.json",
+        "fl_ev_14": 9.109,
+        "date": "2026-08-03",
+        "run": "~/ofc-flev2/armA.json",
+        "status": "superseded by this file, retained unmodified; old corpora validate against it",
+        "defect": "Measured against a STATIC Fantasyland side, making it a floor rather than a point estimate. The static bias was subsequently measured at +0.42 to +0.46 points per hand. Also carried a phantom-opponent caveat: the non-FL side played unaware it faced Fantasyland, because the geometry rejected concealed-FL observations."
+      }
+    ],
+    "caveat_training_constant": "Every learned .bin and .vfl1 in the chain that produced this measurement was itself labelled under an earlier constant (10.227 for the normal-street chain, 9.109 for the M11 vs-FL models). Adopting 9.6 changes what future labels and searches optimise, not what the frozen weights already encode. Closing that loop is exactly what the M7 cascade relabel is for. The v3 work bounded the size of the unclosable part: a frozen-weights loop test (arm D, engine told 8.75) moved the fixed point by +0.006.",
+    "caveat_remaining_bias": "The one known remaining approximation is T0-vs-Fantasyland, served by the situation-blind T0-first stand-in. Its direction is not established, so no correction is applied. Note this is one of the two documented revisit triggers for that ruling.",
+    "history_policy": "configs/fl_ev_regular_2k.json and configs/fl_ev_regular_v3_direct2.json are both retained unmodified as historical records. This file supersedes v3 as the reader default; datasets labelled under a different constant are rejected by the loaders and by the label-generation worker's corpus-mixing guard by design."
+  },
+  "source": "Re-measurement of the heads-up Fantasyland fixed point from 150,000 hands of self-play with Fantasyland actually played on both sides (M6 run B, 2026-08-06). Supersedes configs/fl_ev_regular_v3_direct2.json (9.109), which stays on disk untouched as the historical record."
+}

@@ -1,0 +1,87 @@
+{
+  "schema": "hu_m43_attempt08_audit50_plan_v1",
+  "status": "frozen_before_reserved_audit_open",
+  "classification": "one_shot_disjoint_search_quality_audit_only",
+  "source_search_plan": {
+    "path": "configs/hu_joint_policy_m43_attempt08.json",
+    "sha256": "f0b8d7c2af40aeeb9b1a1c4e446237afb70ba04713b3d4bce555f26e4617ba51"
+  },
+  "development_prerequisite": {
+    "decision": "go",
+    "immutable_development_pass_freeze_required": true,
+    "separate_future_audit_open_authorization_required": true,
+    "audit_plan_sha256_bound_by_launch_authorization": true
+  },
+  "population": {
+    "name": "future_audit",
+    "roots": 50,
+    "root_index_first": 200,
+    "root_index_last": 249,
+    "profiles": [
+      "stage19_p0",
+      "stage9f_p2",
+      "stage7_m5_r10",
+      "stage3_baseline",
+      "random_exact_final"
+    ],
+    "roots_per_profile": 10,
+    "profile_assignment": "root_index_mod_5_in_frozen_profile_order",
+    "development_or_preflight_seed_reuse_allowed": false,
+    "alternate_root_seed_or_result_retry_allowed": false
+  },
+  "execution": {
+    "shard_layout": "one_root_per_shard",
+    "batch_child_selectors": true,
+    "native_batch_threads": 4,
+    "machine_type": "c4-highmem-4",
+    "max_wave_shards": 25,
+    "deterministic_same_root_recompute_after_spot_preemption_allowed": true,
+    "heartbeat_required": true,
+    "done_published_last": true,
+    "current_profile_resolution_allowed": false
+  },
+  "audit_go_no_go": {
+    "all_gates_required": true,
+    "assessment_source": "disjoint_A256_locked_final_nonbaseline_output_vs_explicit_baseline",
+    "states_denominator": 50,
+    "fires_total_min": 10,
+    "fires_each_profile_min": 1,
+    "mean_delta_per_state_formula": "sum_of_fired_root_A256_paired_means_divided_by_exactly_50_audit_roots_with_nonfires_zero",
+    "mean_delta_per_state_strictly_greater_than": 0.0,
+    "mean_delta_per_fire_formula": "mean_of_fired_root_A256_paired_means",
+    "mean_delta_per_fire_strictly_greater_than": 0.0,
+    "false_positive_definition": "final_fired_action_A256_paired_delta_mean_vs_baseline_lte_zero",
+    "false_positive_rate_per_fire_max": 0.4,
+    "tail_semantics": "maximum_across_fired_roots_of_each_A256_per_root_loss_metric",
+    "quantile_method": "numpy_linear",
+    "override_loss_p95_max": 25.0,
+    "override_loss_p99_max": 40.0,
+    "override_loss_max": 50.0,
+    "action_mapping_violation_count_max": 0,
+    "rng_domain_violation_count_max": 0,
+    "hidden_information_violation_count_max": 0,
+    "risk_reserve_contract_violation_count_max": 0,
+    "locked_action_change_violation_count_max": 0,
+    "nonfire_exact_baseline_action_fallback_required": true,
+    "teacher_values_reported_as_realized_match_ev": false
+  },
+  "decision_contract": {
+    "gate_evaluation_count": 1,
+    "threshold_search_on_audit_allowed": false,
+    "fit_on_audit_allowed": false,
+    "profile_exclusion_allowed": false,
+    "go_action": "authorize_distillation_from_development200_only",
+    "no_go_action": "close_attempt08_without_fit_threshold_or_runtime_activation",
+    "realized_population_acceptance_still_required_after_go": true
+  },
+  "activation_guards": {
+    "audit_authorized": false,
+    "audit_started": false,
+    "audit_content_opened": false,
+    "fit_started": false,
+    "threshold_selected": false,
+    "runtime_policy_activated": false,
+    "current_profile_changed": false,
+    "full_replacement_enabled": false
+  }
+}

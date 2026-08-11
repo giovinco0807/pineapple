@@ -1,0 +1,101 @@
+{
+  "schema": "hu_joint_policy_m3_status_v1",
+  "status_date": "2026-07-13",
+  "status": "complete_native_engine_correctness_and_speed_pilot",
+  "decision": "m3_go_m4_policy_promotion_still_no_go",
+  "rule_set": "heads_up_regular_ofc_pineapple_hidden_opponent_discards",
+  "fixed_legacy_baseline_chain": [
+    "stage19_p0",
+    "stage18_p1",
+    "stage9f_p2",
+    "stage7_m5_r10"
+  ],
+  "current_profile_changed": false,
+  "runtime_policy_activated": false,
+  "policy_promoted": false,
+  "spot_vm_started": false,
+  "engine": {
+    "crate": "ofc_hu_m3_engine",
+    "version": "ofc_hu_m3_engine/0.1.0",
+    "request_schema": "hu_m3_engine_request_v1",
+    "batch_request_schema": "hu_m3_engine_batch_request_v1",
+    "result_schema": "hu_m3_engine_result_v1",
+    "runner_schema": "hu_m3_shard_runner_v1",
+    "python_binding": "ctypes_json_v1"
+  },
+  "implemented_components": [
+    "cards_and_board",
+    "legal_actions_and_action_key",
+    "regular_hu_scoring_and_fl_ev",
+    "actor_observation",
+    "counter_rng",
+    "exchangeable_hidden_card_belief",
+    "t4_second_terminal_exhaustive",
+    "t4_first_exchangeable_expectimax",
+    "t3_sequential_crn_search",
+    "t3_declared_finite_support_exact",
+    "deterministic_scalar_and_batch",
+    "python_ffi",
+    "atomic_checkpoint_heartbeat_resume_runner"
+  ],
+  "exactness_scope": {
+    "t4_second": "full_terminal_exact",
+    "t4_first": "exact_when_sample_counts_are_zero_under_uniform_exchangeable_restart_belief",
+    "t3_declared_finite_support": "exact_under_canonical_infoset_continuation",
+    "t3_normal_52_card": "disjoint_candidate_evaluation_crn_monte_carlo",
+    "full_game_nash_or_mathematical_optimality_claimed": false
+  },
+  "validation": {
+    "full_python_tests_passed": 940,
+    "full_python_tests_seconds": 47.95,
+    "rust_library_tests_passed": 36,
+    "rust_runner_tests_passed": 2,
+    "python_rust_parity_tests_passed": 9,
+    "pilot_cli_tests_passed": 10,
+    "t4_first_exact_future_count": 2024,
+    "t3_exact_declared_support_both_seats": true,
+    "scalar_batch_parity": true,
+    "dealt_card_permutation_semantic_parity": true,
+    "raw_world_state_rejected": true,
+    "clippy_deny_warnings": true
+  },
+  "performance": {
+    "benchmark_roots": 4,
+    "sample_counts": "1/1/1/1",
+    "python_total_seconds": 2.2701869001612067,
+    "rust_total_seconds": 0.26434689993038774,
+    "aggregate_speedup": 8.5879081644575,
+    "minimum_required_speedup": 5.0
+  },
+  "pilot": {
+    "seed_start": 2026071301,
+    "seed_stride": 1000003,
+    "roots_100": 100,
+    "roots_100_first": 50,
+    "roots_100_second": 50,
+    "roots_100_runner_seconds": 6.291285899933428,
+    "roots_1000": 1000,
+    "roots_1000_first": 500,
+    "roots_1000_second": 500,
+    "roots_1000_runner_seconds": 71.12302879989147,
+    "all_gates_passed": true,
+    "cloud_actions_performed": false
+  },
+  "baseline_hash_audit": {
+    "m0_direct_artifacts_matching_current_bytes": 17,
+    "m0_direct_artifacts_checked_excluding_policy_registry": 17,
+    "policy_registry_expected_m1_sha256": "d2eb02669e27426623c70af21f1af4d7002db2a7eab77efd3319f8fb65b868d3",
+    "policy_registry_actual_sha256": "d2eb02669e27426623c70af21f1af4d7002db2a7eab77efd3319f8fb65b868d3",
+    "current_mapping_changed": false
+  },
+  "artifact": "outputs/hu_joint_policy/m3_complete/validation_summary.json",
+  "remaining_no_go": [
+    "runtime profile activation",
+    "full replacement",
+    "policy promotion based on teacher values",
+    "reuse of quarantined hidden-discard-leaking artifacts",
+    "Spot VM generation before an M4 data-generation manifest and budget gate",
+    "claim of full Bayesian posterior or mathematical game optimality"
+  ],
+  "next_milestone": "M4_T1_second_seat_policy"
+}

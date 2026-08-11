@@ -27,7 +27,7 @@ from .ai_profiles import (
 from .cards import create_deck
 from .evaluate_matchups import board_score_to_json, board_to_json, classify_board
 from .hu_turn3_model import hu_policy_sample, load_hu_action_value_model
-from .play_ai import _prediction_thread_context
+from .play_ai import _prediction_thread_context, _visible_dead_cards_for
 from .policy import (
     RegularAiPolicy,
     action_to_json,
@@ -304,7 +304,7 @@ def trace_hand_with_records(
     boards = [Board.from_rows(), Board.from_rows()]
     policies = [policy_p0, policy_p1]
     profiles = [profile_p0, profile_p1]
-    dead_cards: list[str] = []
+    private_discards: list[list[str]] = [[], []]
 
     for player in (0, 1):
         dealt = deck[cursor : cursor + 5]
@@ -312,11 +312,11 @@ def trace_hand_with_records(
         action = policies[player].choose_action(
             boards[player],
             dealt,
-            dead_cards=(*boards[1 - player].all_cards(), *dead_cards),
+            dead_cards=_visible_dead_cards_for(player, boards, private_discards),
             opponent_board=boards[1 - player],
         )
         boards[player] = boards[player].place(action.placements)
-        dead_cards.extend(action.discards)
+        private_discards[player].extend(action.discards)
 
     for _round_index in range(1, 5):
         for player in (0, 1):
@@ -325,11 +325,11 @@ def trace_hand_with_records(
             action = policies[player].choose_action(
                 boards[player],
                 dealt,
-                dead_cards=(*boards[1 - player].all_cards(), *dead_cards),
+                dead_cards=_visible_dead_cards_for(player, boards, private_discards),
                 opponent_board=boards[1 - player],
             )
             boards[player] = boards[player].place(action.placements)
-            dead_cards.extend(action.discards)
+            private_discards[player].extend(action.discards)
 
     score_p0, board_score_p0 = terminal_score(boards[0], boards[1], fl_ev=DEFAULT_FL_EV)
     _reverse_score, board_score_p1 = terminal_score(boards[1], boards[0], fl_ev=DEFAULT_FL_EV)

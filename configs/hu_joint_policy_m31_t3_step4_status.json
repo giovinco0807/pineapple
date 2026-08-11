@@ -1,0 +1,124 @@
+{
+  "schema": "hu_joint_policy_m31_t3_step4_status_v1",
+  "status_date": "2026-07-16",
+  "status": "step4_local1000_complete",
+  "decision": "local1000_correctness_determinism_restartability_and_performance_boundary_only",
+  "m31_complete": false,
+  "current_profile_changed": false,
+  "named_profile_added": false,
+  "runtime_policy_activated": false,
+  "full_replacement_enabled": false,
+  "spot_vm_started": false,
+  "spot_vm_authorized": false,
+  "spot_prerequisite_local1000_passed": true,
+  "search_contract": {
+    "root_t3": "common_random_monte_carlo",
+    "downstream_t4": "exact_native_enumeration",
+    "candidate_samples": 4,
+    "evaluation_samples": 8,
+    "downstream_t3_samples": 2,
+    "downstream_t4_samples": 0,
+    "run_id": "hu-m31-step4-local1000-v1",
+    "seed_start": 2026074201,
+    "seed_stride": 1000003,
+    "candidate_seed": 2026073101,
+    "evaluation_seed": 2026073102,
+    "teacher_value_status": "diagnostic_not_match_EV"
+  },
+  "native_anchor": {
+    "engine_version": "ofc_hu_m3_engine/0.1.0",
+    "library": "target/m31_opt_build/release/ofc_hu_m3_engine.dll",
+    "library_sha256": "d2d8f66ae56d978297a9228ca8b271622bb1b73cd2437237de8ef89915ea73e4",
+    "build_or_fallback": false,
+    "downstream_t4_mode": "exact"
+  },
+  "parallel_allocation": {
+    "selected_worker_processes": 2,
+    "selected_rayon_threads_per_worker": 8,
+    "same_workload_roots": 16,
+    "parallel_4x4_wall_seconds": 157.57539339999494,
+    "parallel_2x8_wall_seconds": 137.5180481999996,
+    "projected_wall_seconds_with_buffer": 12761.076120264817,
+    "max_wall_seconds": 12960.0
+  },
+  "local1000": {
+    "status": "pass",
+    "root_count": 1000,
+    "first_seat_roots": 500,
+    "second_seat_roots": 500,
+    "hand_count": 500,
+    "deterministic_rerun_roots": 20,
+    "checkpoint_tasks": 510,
+    "wall_seconds": 9749.526908636093,
+    "wall_hours": 2.7082019190655813,
+    "peak_process_rss_bytes": 57225216,
+    "unique_observation_fingerprints": 1000,
+    "step3_fingerprint_overlap": 0,
+    "unique_hand_seeds": 500,
+    "step3_hand_seed_overlap": 0,
+    "candidate_rng_keys": 4000,
+    "evaluation_rng_keys": 8000,
+    "candidate_evaluation_rng_overlap": 0,
+    "legal_action_geometry_counts": {
+      "3": 126,
+      "9": 411,
+      "12": 252,
+      "21": 211
+    },
+    "summary": "outputs/hu_joint_policy/m31_t3_step4/local1000_v1/summary.json",
+    "summary_sha256": "8fc6599192a9dcc1bc15d9368eccff8bbde0b5cb3c03ee34a2b8851d4421bb71"
+  },
+  "performance": {
+    "first_mean_seconds": 36.85819973400014,
+    "first_p95_seconds": 129.33326400000078,
+    "first_p99_seconds": 143.4811306000047,
+    "second_mean_seconds": 1.4726027967996196,
+    "second_p95_seconds": 3.1367190000019036,
+    "second_p99_seconds": 3.540888099989388
+  },
+  "artifacts": {
+    "parallel_4x4": {
+      "path": "outputs/hu_joint_policy/m31_t3_step4/parallel4x4_profile.json",
+      "sha256": "c264cc584c4a0e2ee3926253a95bf5c797e052e49bb08032787863c5d5d1517c"
+    },
+    "parallel_2x8": {
+      "path": "outputs/hu_joint_policy/m31_t3_step4/parallel2x8_same8_profile.json",
+      "sha256": "b8353cad2552eaa1b7bcb549c55ce2b1243d51fde6585b7e22bebf93371b6961"
+    },
+    "smoke": {
+      "path": "outputs/hu_joint_policy/m31_t3_step4/local1000_v1/smoke.json",
+      "sha256": "ff422377da704e0033d778affb10b3cf1ce3c8ed1c06fb91f3ad3bf4ce0c3cb5"
+    },
+    "heartbeat": {
+      "path": "outputs/hu_joint_policy/m31_t3_step4/local1000_v1/heartbeat.json",
+      "sha256": "4ca381d43662b1366e0a9a97dde5f574f478731d186297e65fe07bdea3a1d4cc",
+      "status": "complete",
+      "completed_tasks": 510
+    },
+    "completion_audit": "docs/hu_joint_policy_m31_t3_step4_completion_audit.md"
+  },
+  "validation": {
+    "focused_python_passed": 113,
+    "focused_python_seconds": 27.17,
+    "full_python_passed": 2453,
+    "full_python_skipped": 2,
+    "full_python_warnings": 50,
+    "full_python_seconds": 731.78,
+    "rust_library_tests_passed": 36,
+    "rust_runner_tests_passed": 2,
+    "rust_fmt_check": true,
+    "rust_release_clippy_warnings_denied": true,
+    "policy_registry_sha256": "d2eb02669e27426623c70af21f1af4d7002db2a7eab77efd3319f8fb65b868d3"
+  },
+  "remaining_no_go": [
+    "claim that the T3 Monte Carlo teacher is exact full-deck T3",
+    "claim that teacher values are realized match EV",
+    "model or policy strength claims from the local1000 artifact",
+    "named profile or current activation",
+    "full replacement",
+    "Spot VM expansion before Step 5 freezes numeric gates and non-overlapping seed ranges",
+    "claim of mathematical full-game optimality"
+  ],
+  "next_step": "M3.1 Step 5 frozen numeric acceptance gates and disjoint development calibration holdout seed manifest; only then authorize small resumable Spot teacher-data shards"
+}
+

@@ -1,0 +1,128 @@
+{
+  "schema": "hu_m43_attempt13_closeout_v1",
+  "milestone": "M4.3-attempt13",
+  "status_date": "2026-07-16",
+  "status": "complete_no_go_development",
+  "terminal_stage": "development200",
+  "frozen_contracts": {
+    "search_plan": {
+      "path": "configs/hu_joint_policy_m43_attempt13.json",
+      "sha256": "9b860be1de05570840e0fd7b1e4a3e3c2f52e5785be4a882d530b5f9baf5c6c2"
+    },
+    "distillation_plan": {
+      "path": "configs/hu_joint_policy_m43_attempt13_distillation.json",
+      "sha256": "f4b7ff1efdf828a570954e17e394baa1f9e805fd46ba04f3c6324928617ecbd9"
+    },
+    "population_plan": {
+      "path": "configs/hu_joint_policy_m43_attempt13_population.json",
+      "sha256": "bf05a9477e18049883926537b4fb15c7e3ecf350c212072aed7c5b981d593a17"
+    },
+    "ai_profiles": {
+      "path": "src/ofc_regular/ai_profiles.py",
+      "sha256": "d2eb02669e27426623c70af21f1af4d7002db2a7eab77efd3319f8fb65b868d3"
+    },
+    "correctness_preflight": {
+      "path": "outputs/hu_joint_policy/m43_attempt13_preflight/regular-hu-m43-attempt13-preflight-20260715-212950/preflight_result.json",
+      "sha256": "aa9e49800abdd21cde01e69fc03de1d60fc9562315177b12e0a78ecd3eb720a5"
+    }
+  },
+  "immutable_artifacts": {
+    "development_manifest": {
+      "path": "outputs/gcp_runs/regular-hu-m43-attempt13-development200-20260716-010306/manifest.json",
+      "sha256": "51273e984507012be7b650592b0764f27a87a4da5ddd489847610dbd5254abae"
+    },
+    "development_authorization": {
+      "path": "outputs/gcp_runs/regular-hu-m43-attempt13-development200-20260716-010306/execution_authorization.json",
+      "sha256": "b75cec67d444fa6b9a937918a740bae8296913ec8ea878a2fcb48b92c7238b7c"
+    },
+    "development_launch_authorization": {
+      "path": "outputs/gcp_runs/regular-hu-m43-attempt13-development200-20260716-010306/launch_authorization.json",
+      "sha256": "18668b90dd8923f16a41df13206a474cbaf65908223f103e57d715ea47b1b796"
+    },
+    "development_schedule": {
+      "path": "outputs/gcp_runs/regular-hu-m43-attempt13-development200-20260716-010306/shards_manifest.jsonl",
+      "sha256": "1b54cf3f8c54665aef21f5d0211da827ee984dc7a74d78be2fef6c448595694b"
+    },
+    "development_source_archive": {
+      "path": "outputs/gcp_runs/regular-hu-m43-attempt13-development200-20260716-010306/ofc_regular_hu_m43_attempt13_source.zip",
+      "sha256": "4eb40ab6139e9358a1e7523eeb54e39fee316fc64ac6540284817e991b08eff5"
+    },
+    "development_merged_teacher": {
+      "path": "outputs/hu_joint_policy/m43_attempt13_development/regular-hu-m43-attempt13-development200-20260716-010306/merged/teacher.jsonl",
+      "sha256": "89206e1e19341e13e9a3901144add25222749203b8e38e9e967c9af5aabbab29"
+    },
+    "development_receive_receipt": {
+      "path": "outputs/hu_joint_policy/m43_attempt13_development/regular-hu-m43-attempt13-development200-20260716-010306/merged/receive_receipt.json",
+      "sha256": "a87a5f56de81762d475a3449c342225a37680d7847061cc50252e8644eb47784"
+    },
+    "development_decision": {
+      "path": "outputs/hu_joint_policy/m43_attempt13_development/regular-hu-m43-attempt13-development200-20260716-010306/selector/decision.json",
+      "sha256": "6eb2d00341065b5a583493a383783a4c7c8a3590030e1d85d75ebd2c5251f787"
+    },
+    "development_decision_receipt": {
+      "path": "outputs/hu_joint_policy/m43_attempt13_development/regular-hu-m43-attempt13-development200-20260716-010306/selector/decision_receipt.json",
+      "sha256": "2323a2cb526f8ccd4cab289b687d33b444784f8fa5e7d3fc10f901d728dfeb6f"
+    },
+    "development_selector_source": {
+      "path": "src/ofc_regular/select_hu_m43_attempt13_development.py",
+      "sha256": "6aa1deff2421e996ad29ec0534feaff4e55a64ba8ebcc06f948a7158b135c2dd"
+    }
+  },
+  "terminal_gate_snapshot": {
+    "source_artifact": "development_decision",
+    "source_status": "no_go_close_attempt13_development",
+    "decision": "no_go",
+    "passed_gates": 16,
+    "total_gates": 18,
+    "failed_gates": [
+      "maximum_per_fired_root_p95_loss",
+      "maximum_per_fired_root_max_loss"
+    ],
+    "gate_evaluation_count": 1,
+    "recomputed_from_records": false
+  },
+  "opened_scope": {
+    "preflight_passed": true,
+    "development_completed": true,
+    "development_decision": "no_go",
+    "future_audit_started": false,
+    "future_audit_decision": null,
+    "fit_state": "not_started",
+    "audit50_fit_rows": 0,
+    "fit_artifact_runtime_eligible": false,
+    "runtime_freeze_written": false,
+    "population_started": false,
+    "population_decision": null
+  },
+  "science_boundary": {
+    "public_information_set_only": true,
+    "opponent_private_discard_used": false,
+    "opponent_profile_runtime_feature_used": false,
+    "teacher_values_are_realized_match_ev": false,
+    "teacher_ev_or_lcb_runtime_gate": false,
+    "threshold_reselection_performed": false,
+    "alternate_seed_retry_performed": false,
+    "top1_accuracy_is_acceptance_gate": false,
+    "candidate_selection_and_evaluation_rng_independent": true,
+    "realized_population_evidence": false,
+    "nonfire_full_trajectory_cancellation_verified": false,
+    "first_seat_candidate_is_exact_baseline_delegate": true,
+    "unseen_population_robustness_guaranteed": false,
+    "nash_equilibrium_claim": false,
+    "exploitability_bound_claim": false,
+    "mathematically_proven_optimal": false,
+    "evaluation_scope": "fresh_development200_search_quality_only"
+  },
+  "activation": {
+    "profile_id": "stage20_m4_attempt13",
+    "runtime_artifact_frozen": false,
+    "runtime_binding_verified": false,
+    "promotion_eligible": false,
+    "explicit_opt_in_authorized": false,
+    "automatic_activation_authorized": false,
+    "current_profile_mutated": false,
+    "runtime_policy_activated": false,
+    "full_replacement_enabled": false
+  },
+  "population_recompute": null
+}

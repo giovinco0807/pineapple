@@ -1,0 +1,96 @@
+{
+  "name": "hu_turn0_stage1_stage18_p1_plan",
+  "status": "pilot_ready_not_p0",
+  "rule_set": "regular",
+  "schema": "hu_turn0_stage1_plan_v1",
+  "phase": "hu_turn0_0card",
+  "objective": "complete both-seat HU T0 on the fixed accepted T1/T2/T3 continuation chain",
+  "production_default": false,
+  "t0_p0_fixed": false,
+  "full_replacement_enabled": false,
+  "fixed_continuations": {
+    "t1": {
+      "profile": "stage18_p1",
+      "runtime": "k5/mc8/d3/confirm32/cse1.5/pd1.5/seat=first/safe0.7"
+    },
+    "t2": {
+      "profile": "stage9f_p2"
+    },
+    "t3": {
+      "profile": "stage7_m5_r10",
+      "hu_turn3_min_margin": 5.0,
+      "hu_turn3_reference_min_margin": 10.0
+    },
+    "fl_ev": 10.227020614683454
+  },
+  "state_definition": {
+    "legal_actions": 232,
+    "first_seat": "opponent opening board is unknown and sampled inside each common future",
+    "second_seat": "first-seat opening board is visible and encoded",
+    "discard_visibility": "hidden_discard_own_private_only",
+    "common_random_futures_required": true,
+    "action_independent_continuation_seed_required": true
+  },
+  "initial_gcp_pilot": {
+    "run_name": "regular-hu-t0-stage1-all232-mc4-100-20260711-001",
+    "total_states": 100,
+    "first_states": 50,
+    "second_states": 50,
+    "all_legal_actions": true,
+    "future_samples": 4,
+    "shard_samples": 2,
+    "total_shards": 50,
+    "vm_count": 20,
+    "machine_type": "c4-highmem-2",
+    "provisioning_model": "SPOT",
+    "base_seed": 2026103001,
+    "seed_stride": 1000000,
+    "runner": "scripts/Start-GcpHuTurn0PilotRun.ps1",
+    "receiver": "scripts/Receive-GcpHuTurn0PilotRun.ps1",
+    "status_script": "scripts/Get-GcpHuTurn0PilotRunStatus.ps1"
+  },
+  "local_speed_evidence": {
+    "smoke_two_states_max2_mc1_seconds_per_state": 3.5208475498948246,
+    "first_all232_mc1_seconds": 202.06129700038582,
+    "second_all232_mc1_seconds": 66.12356320023537,
+    "first_primary_bottleneck": "T2 continuation 131.10 seconds",
+    "second_primary_bottleneck": "T2 continuation 49.11 seconds",
+    "estimated_average_all232_mc4_seconds_per_state": 536.3697204012424,
+    "estimated_20vm_wall_clock_minutes_excluding_startup": 44.697476700103535,
+    "c4_highmem_2_all232_mc4_seconds_per_state": 456.6839080855,
+    "c4_highmem_2_two_state_shard_seconds": 913.367816171,
+    "c4_benchmark_records": 2,
+    "c4_benchmark_correctness": "2/2 records, 232 actions, finite, CRN and replay-ready"
+  },
+  "pilot_hard_pass": {
+    "records": 100,
+    "missing": 0,
+    "first_records": 50,
+    "second_records": 50,
+    "legal_actions_per_state": 232,
+    "evaluated_actions_per_state": 232,
+    "non_finite_actions": 0,
+    "wrong_rollout_counts": 0,
+    "common_random_future_failures": 0,
+    "replay_not_ready": 0
+  },
+  "post_pilot_sequence": [
+    "train initial HU-aware T0 candidate generator on all-action MC4 rows",
+    "measure old opening and new candidate TopK coverage on state-heldout all-action rows",
+    "mine coverage misses and add hard examples",
+    "generate broad TopK terminal teacher with higher MC using the fixed continuation",
+    "train T0 action-value and safe-override heads",
+    "calibrate first and second seats separately without teacher-only runtime fields",
+    "run fresh paired seat-swap with non-fired cancellation",
+    "fix an explicit T0 P0 profile only after positive realized counterfactual evidence"
+  ],
+  "final_acceptance_principles": {
+    "primary_metric": "realized_fired_whole_game_seat_swap_counterfactual_delta",
+    "teacher_ev_role": "training_and_diagnostic_only",
+    "confirm_mc_role": "gate_diagnostic_only",
+    "first_and_second_must_be_reported_separately": true,
+    "non_fired_counterfactual_nonzero_count": 0,
+    "invalid_override_count": 0,
+    "full_replacement_requires_separate_evidence": true
+  }
+}

@@ -65,6 +65,15 @@ def baseline_model_paths(config: dict[str, Any]) -> dict[str, Path]:
     }
 
 
+def allowed_seats_from_runtime(runtime: dict[str, Any]) -> str:
+    value = runtime.get("hu_turn3_allowed_seats", "")
+    if isinstance(value, str):
+        return value
+    if value is None:
+        return ""
+    return ",".join(str(item) for item in value)
+
+
 def namespace_from_config(config: dict[str, Any], args: argparse.Namespace) -> argparse.Namespace:
     runtime = config.get("runtime", {})
     baseline = baseline_model_paths(config)
@@ -92,6 +101,8 @@ def namespace_from_config(config: dict[str, Any], args: argparse.Namespace) -> a
         hu_turn3_min_support_margin_a=float(
             runtime.get("hu_turn3_min_support_margin", 0.0) or 0.0
         ),
+        hu_turn3_min_model_score_a=runtime.get("hu_turn3_min_model_score"),
+        hu_turn3_allowed_seats_a=allowed_seats_from_runtime(runtime),
         hu_turn3_min_gate_probability_a=0.0,
         hu_turn3_max_self_regret_a=runtime.get("hu_turn3_max_self_regret"),
         disable_hu_turn3_stage7_a=not bool(runtime.get("hu_turn3_stage7_enabled", True)),
@@ -106,6 +117,8 @@ def namespace_from_config(config: dict[str, Any], args: argparse.Namespace) -> a
         hu_turn3_min_margin_b=0.0,
         hu_turn3_reference_min_margin_b=0.0,
         hu_turn3_min_support_margin_b=0.0,
+        hu_turn3_min_model_score_b=None,
+        hu_turn3_allowed_seats_b="",
         hu_turn3_min_gate_probability_b=0.0,
         hu_turn3_max_self_regret_b=None,
         disable_hu_turn3_stage7_b=False,

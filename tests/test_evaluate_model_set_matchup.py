@@ -33,8 +33,11 @@ def test_load_policy_parts_stage7_failure_uses_reference_stage3(monkeypatch):
         hu_turn3_min_margin_a=5.0,
         hu_turn3_reference_min_margin_a=10.0,
         hu_turn3_min_support_margin_a=0.0,
+        hu_turn3_min_model_score_a=None,
+        hu_turn3_allowed_seats_a="",
         hu_turn3_min_gate_probability_a=0.0,
         hu_turn3_max_self_regret_a=None,
+        hu_turn3_decision_log_a=None,
         disable_hu_turn3_stage7_a=False,
         opening_lookahead_samples=64,
     )

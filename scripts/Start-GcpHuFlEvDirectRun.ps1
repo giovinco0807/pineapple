@@ -19,7 +19,8 @@ param(
         "us-west1-b",
         "us-west1-c"
     ),
-    [double]$InitialEv = 12.196164,
+    # configs/fl_ev_regular_v3_direct2.json (armA, 2026-08-03).
+    [double]$InitialEv = 9.109,
     [double]$Tolerance = 0.02,
     [int]$PredictionThreads = 1,
     [int]$OpeningLookaheadSamples = 32,

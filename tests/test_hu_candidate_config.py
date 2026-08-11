@@ -48,6 +48,8 @@ def test_support_experiment_config_builds_matchup_namespace():
             "hu_turn3_min_margin": 8.0,
             "hu_turn3_reference_min_margin": 10.0,
             "hu_turn3_min_support_margin": 4.0,
+            "hu_turn3_min_model_score": 8.5,
+            "hu_turn3_allowed_seats": ["first"],
         },
     }
     args = argparse.Namespace(
@@ -69,6 +71,8 @@ def test_support_experiment_config_builds_matchup_namespace():
     assert namespace.hu_turn3_min_margin_a == 8.0
     assert namespace.hu_turn3_reference_min_margin_a == 10.0
     assert namespace.hu_turn3_min_support_margin_a == 4.0
+    assert namespace.hu_turn3_min_model_score_a == 8.5
+    assert namespace.hu_turn3_allowed_seats_a == "first"
 
 
 def test_stage7_m5_r10_production_config_builds_enabled_namespace():

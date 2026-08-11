@@ -1,0 +1,239 @@
+{
+  "schema": "hu_m43_population_acceptance_plan_v1",
+  "milestone": "M4.3-attempt12-final-population",
+  "status": "frozen_before_population_evaluation",
+  "purpose": "fresh_realized_match_ev_acceptance_for_attempt12_distilled_t1_second_selector",
+  "policy_attempt": "attempt12_distilled_v1",
+  "runtime_contract": {
+    "model_schema": "hu_m43_attempt12_t1_second_distilled_selector_v1",
+    "artifact_schema": "hu_m43_attempt12_t1_second_distilled_pickle_v1",
+    "feature_schema": "hu_m43_attempt12_lambda_all_legal_public_infoset_features_v1",
+    "head_schema": "hu_m43_attempt12_policy_delta_safe_tail_heads_v1",
+    "action_score_mode": "attempt12_lambda_all_legal_distilled_safe_selector_v1",
+    "candidate_nonbaseline_count_range": [
+      0,
+      26
+    ],
+    "lightgbm_group_size_range": [
+      1,
+      27
+    ],
+    "complete_legal_action_set_rebuilt": true,
+    "candidate_padding_allowed": false,
+    "candidate_duplication_allowed": false,
+    "baseline_appended_exactly_once": true,
+    "fixed_safe_probability_threshold": 0.5,
+    "fixed_fold_votes_min": 4,
+    "folds": 5,
+    "runtime_teacher_inputs": false,
+    "runtime_teacher_ev_lcb_gate": false,
+    "runtime_opponent_private_discard_input": false
+  },
+  "fixed_baseline_profile": "stage19_p0",
+  "baseline_chain": [
+    "stage19_p0",
+    "stage18_p1",
+    "stage9f_p2",
+    "stage7_m5_r10",
+    "exact_t4"
+  ],
+  "opponents": [
+    "stage19_p0",
+    "stage9f_p2",
+    "stage7_m5_r10",
+    "random_exact_final"
+  ],
+  "paired_seat_swap": true,
+  "paired_seeds_per_opponent": 1000,
+  "seed": 220108071901,
+  "seed_stride": 1000003,
+  "shards": 20,
+  "paired_seeds_per_shard": 50,
+  "candidate_records": 8000,
+  "baseline_records": 8000,
+  "terminal_trace_hands": 16000,
+  "second_seat_override_opportunities": 4000,
+  "minimum_valid_overrides": 300,
+  "minimum_population_fire_rate_needed": 0.075,
+  "sizing_rule": {
+    "formula": "paired_seeds_required = ceil(minimum_valid_overrides / (opponents * independent_fire_rate_lower_bound))",
+    "fixed_before_realized_population_labels": true,
+    "optional_stopping_or_posthoc_extension_allowed": false,
+    "insufficient_overrides_decision": "complete_no_go"
+  },
+  "freshness": {
+    "exclude_all_m4_m41_m42_m43_teacher_hand_seeds": true,
+    "exclude_prior_population_smoke_and_frozen_schedules": true,
+    "planned_overlap_count_at_freeze": 0,
+    "acceptance_validator_rechecks_all_declared_seed_schedules": true,
+    "alternate_seed_after_result_allowed": false,
+    "excluded_schedule_registry_sources": [
+      "configs/hu_joint_policy_m2_teacher.json",
+      "configs/hu_joint_policy_m3_status.json",
+      "configs/hu_joint_policy_m42_status.json",
+      "configs/hu_joint_policy_m43_attempt02.json",
+      "configs/hu_joint_policy_m43_attempt03.json",
+      "configs/hu_joint_policy_m43_attempt03_model_freeze.json",
+      "configs/hu_joint_policy_m43_attempt03_model_freeze_original_ce47.json",
+      "configs/hu_joint_policy_m43_population.json",
+      "configs/hu_joint_policy_m43_attempt03_population.json",
+      "configs/hu_joint_policy_m43_attempt05.json",
+      "configs/hu_joint_policy_m43_attempt06.json",
+      "configs/hu_joint_policy_m43_attempt06_status.json",
+      "configs/hu_joint_policy_m43_attempt07.json",
+      "configs/hu_joint_policy_m43_attempt07_preflight.json",
+      "configs/hu_joint_policy_m43_attempt08.json",
+      "configs/hu_joint_policy_m43_attempt08_preflight.json",
+      "configs/hu_joint_policy_m43_attempt08_population.json",
+      "configs/hu_joint_policy_m43_attempt09.json",
+      "configs/hu_joint_policy_m43_attempt10.json",
+      "configs/hu_joint_policy_m43_attempt10_population.json",
+      "configs/hu_joint_policy_m43_attempt11.json",
+      "configs/hu_joint_policy_m43_attempt11_population.json",
+      "configs/hu_joint_policy_m43_attempt12.json",
+      "configs/hu_joint_policy_m43_pilot.json",
+      "configs/hu_turn3_stage1_cycle10_margin8_candidate.json",
+      "configs/hu_turn3_stage1_cycle11_margin8_support_cycle10_4_experiment.json",
+      "configs/hu_turn3_stage2_mc32_500k_margin10_candidate.json",
+      "configs/hu_turn3_stage3_mc32_500k_plus_m8_12_f128_100k_w2_margin10_candidate.json",
+      "configs/hu_turn3_stage4ft_stage3init_mc2048_w4_lr1e4_rejected.json",
+      "configs/hu_turn3_stage5_mistake_mining_mc128_1k_plan.json",
+      "configs/hu_turn3_stage5_stage3init_boundary_mc2048_mistake_lr5e5_rejected.json",
+      "configs/hu_turn3_stage6_stage3init_s3vss5_mc2048_w6_lr5e5_candidate.json",
+      "configs/hu_turn3_stage7_reference_override_plan.json",
+      "configs/hu_turn3_stage9d_s10_r02_score10_first_tail_veto_candidate.json",
+      "configs/hu_turn3_stage9d_s10_r05_score10_first_tail_veto_candidate.json",
+      "configs/hu_turn3_stage9d_s10_score10_first_tail_veto_candidate.json",
+      "configs/hu_turn3_stage9d_s15_r02_score10_first_tail_veto_candidate.json"
+    ],
+    "excluded_schedule_registry_sha256": "de63af1ded1bfe6ff7c92dc6bcc8aedec9c408956e687c856198143bffca8255",
+    "excluded_population_schedules": [
+      {
+        "milestone": "M4",
+        "seed": 7026072001,
+        "seed_stride": 1000003,
+        "paired_seeds": 2
+      },
+      {
+        "milestone": "M4.1",
+        "seed": 50026072001,
+        "seed_stride": 1000003,
+        "paired_seeds": 2
+      },
+      {
+        "milestone": "M4.2",
+        "seed": 2126071901,
+        "seed_stride": 1000003,
+        "paired_seeds": 2
+      },
+      {
+        "milestone": "M4.3-attempt02",
+        "seed": 6106071901,
+        "seed_stride": 1000003,
+        "paired_seeds": 1000
+      },
+      {
+        "milestone": "M4.3-attempt03",
+        "seed": 12106071901,
+        "seed_stride": 1000003,
+        "paired_seeds": 1000
+      },
+      {
+        "milestone": "M4.3-attempt05-frozen-plan",
+        "seed": 14106071901,
+        "seed_stride": 1000003,
+        "paired_seeds": 1000
+      },
+      {
+        "milestone": "M4.3-attempt08-final-population",
+        "seed": 160108071901,
+        "seed_stride": 1000003,
+        "paired_seeds": 1000
+      },
+      {
+        "milestone": "M4.3-attempt10-final-population",
+        "seed": 180108071901,
+        "seed_stride": 1000003,
+        "paired_seeds": 1000
+      },
+      {
+        "milestone": "M4.3-attempt11-final-population",
+        "seed": 190108071901,
+        "seed_stride": 1000003,
+        "paired_seeds": 1000
+      }
+    ],
+    "exclude_attempt12_preflight_development_and_audit_namespaces": true,
+    "excluded_attempt12_namespace_bases": [
+      200108071901,
+      201108071901,
+      202108071901,
+      203108071901,
+      204108071901,
+      205108071901,
+      206108071901,
+      210108071901,
+      211108071901,
+      212108071901,
+      213108071901,
+      214108071901,
+      215108071901,
+      216108071901
+    ]
+  },
+  "evaluation_contract": {
+    "candidate_and_baseline_same_hand_seed": true,
+    "candidate_and_baseline_same_physical_seat": true,
+    "candidate_and_baseline_same_opponent_policy_seed": true,
+    "first_and_second_seat_metrics": true,
+    "first_seat_candidate_is_exact_baseline_delegate": true,
+    "nonfire_full_trajectory_digest_cancellation": true,
+    "invalid_counterfactuals_excluded": true,
+    "false_positive_override_definition": "realized_delta_le_zero",
+    "confidence_interval_unit": "hand_seed_cluster_after_opponent_average",
+    "teacher_values_are_realized_match_ev": false,
+    "threshold_reselection_allowed": false
+  },
+  "fixed_acceptance_gates": {
+    "invalid_counterfactuals_max": 0,
+    "nonfire_cancellation_mismatches_max": 0,
+    "nonfire_cancellation_unknown_max": 0,
+    "valid_overrides_min": 300,
+    "realized_gain_per_override_ci95_low_exclusive": 0,
+    "paired_seat_swap_delta_ci95_low_exclusive": 0,
+    "second_seat_delta_ci95_low_exclusive": 0,
+    "first_seat_delta_exact": 0,
+    "false_positive_override_rate_max": 0.3,
+    "override_loss_p95_max": 25,
+    "override_loss_p99_max": 40,
+    "override_loss_max": 50,
+    "each_opponent_delta_ev_per_hand_min": -0.005,
+    "each_opponent_delta_ci95_low_min": -0.02
+  },
+  "spot_execution": {
+    "machine_type": "c4-standard-4",
+    "provisioning_model": "SPOT",
+    "small_shards": true,
+    "checkpoint_unit": "completed_shard",
+    "heartbeat_required": true,
+    "immutable_package_only_first": true,
+    "shard_zero_canary_required_before_fanout": true,
+    "fanout_shards": "1..19_after_verified_shard0_DONE",
+    "resume_missing_shards_only": true,
+    "done_commit_last": true,
+    "merge_recomputes_metrics_from_records": true
+  },
+  "activation_guards": {
+    "current_profile_changed": false,
+    "runtime_policy_activated": false,
+    "full_replacement_enabled": false,
+    "threshold_changed_after_lock": false
+  },
+  "post_acceptance_activation": {
+    "population_complete_go_required": true,
+    "activation_mode_if_go": "explicit_opt_in_only",
+    "automatic_activation_allowed": false,
+    "current_profile_change_allowed": false
+  }
+}
+

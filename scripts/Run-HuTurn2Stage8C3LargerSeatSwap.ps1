@@ -8,6 +8,8 @@ param(
     [int]$PredictionThreads = 1,
     [int]$OpeningLookaheadSamples = 64,
     [int]$ProgressEvery = 100,
+    [ValidateSet("stage3_reference_default", "stage7_m5_r10")]
+    [string]$T3Continuation = "stage3_reference_default",
     [ValidateSet("auto", "cuda", "cpu")]
     [string]$Device = "auto",
     [switch]$WriteDecisionLog
@@ -26,6 +28,7 @@ $evalCmd = @(
     "--device", $Device,
     "--prediction-threads", "$PredictionThreads",
     "--opening-lookahead-samples", "$OpeningLookaheadSamples",
+    "--t3-continuation", "$T3Continuation",
     "--progress-every", "$ProgressEvery"
 )
 

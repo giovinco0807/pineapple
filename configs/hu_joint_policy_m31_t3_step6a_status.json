@@ -1,0 +1,139 @@
+{
+  "schema": "hu_joint_policy_m31_t3_step6a_status_v1",
+  "status_date": "2026-07-17",
+  "status": "step6a_spot_shard0_complete",
+  "decision": "infrastructure_canary_shard0_pass_remaining_canary_and_production_fanout_no_go",
+  "m31_complete": false,
+  "current_profile_changed": false,
+  "named_profile_added": false,
+  "runtime_policy_activated": false,
+  "full_replacement_enabled": false,
+  "spot_vm_started": true,
+  "spot_instance_deleted": true,
+  "spot_canary_shard_0_complete": true,
+  "spot_remaining_canary_shards_authorized": false,
+  "spot_production_fanout_authorized": false,
+  "canary_rows_eligible_for_training": false,
+  "accepted_run": {
+    "run_name": "regular-hu-m31-step6a-s0-20260717-004",
+    "project": "ofc-solver-485418",
+    "bucket": "pokerhu-ofc-solver-485418-training",
+    "zone": "asia-northeast1-b",
+    "machine_type": "c4-standard-16",
+    "provisioning_model": "SPOT",
+    "paired_hands": 25,
+    "roots": 50,
+    "tasks": 25,
+    "workers": 2,
+    "rayon_threads_per_worker": 8,
+    "source_sha256": "224506d27a15f237baaa5c200b4ef41bc2a8c61b817edac4b5a2f9c71d704be8",
+    "manifest_sha256": "a2d7cf23ed22fb4bbf3fee6fdecd6df807439117093e92783edb72d4fc665188",
+    "authorization_sha256": "e3b6340885d2002a2b552a6f54ae730c7fc9b6c47f358ee22de74ac09ff02ffc",
+    "done_sha256": "45928bbd0c1938506e33c7e15fa7053f82436f1da9b445cd58701ff8f2bfe852",
+    "summary_sha256": "4cdde3f061ef67354236e3297b7d40511550c7a00daf028bbc45b234c685717d",
+    "receive_receipt_sha256": "febe15eccf141d0fe1689fb8bdc5cdbfc7788459d5b8253943307bc41dd621ee",
+    "native_library_sha256": "3f831615d9e751b8e1f266f14dd2009903b3ac2a4094f7e47616e0aa372a01b0",
+    "feature_encoder_sha256": "82510e563ee290cd536e7aebe6bcf0efefac061af5488851f0a582bb4ef83411"
+  },
+  "integrity": {
+    "linux_portable_parity": true,
+    "resume_drill_recovered_tasks": 1,
+    "unique_observation_fingerprints": 50,
+    "total_observation_fingerprints": 50,
+    "candidate_rng_keys": 200,
+    "evaluation_rng_keys": 400,
+    "candidate_evaluation_rng_overlap": 0,
+    "profile_counts": {
+      "stage19_p0": 5,
+      "stage9f_p2": 5,
+      "stage7_m5_r10": 5,
+      "stage3_baseline": 5,
+      "random_exact_final": 5
+    },
+    "opponent_private_discards_used": false,
+    "all_task_and_decision_integrity": true
+  },
+  "performance": {
+    "wall_seconds_full_resume_run": 340.17,
+    "first": {
+      "count": 25,
+      "mean_seconds": 26.864487030680003,
+      "p50_seconds": 24.358427679999977,
+      "p95_seconds": 45.21336041500001,
+      "p99_seconds": 45.88996344900005,
+      "max_seconds": 45.88996344900005,
+      "p95_gate_seconds": 180.0
+    },
+    "second": {
+      "count": 25,
+      "mean_seconds": 0.8066546845600016,
+      "p50_seconds": 0.9460822310000196,
+      "p95_seconds": 1.2317264990000467,
+      "p99_seconds": 1.2420139349999886,
+      "max_seconds": 1.2420139349999886,
+      "p95_gate_seconds": 6.0
+    },
+    "peak_process_rss_bytes": 508878848,
+    "peak_process_rss_gate_bytes": 1073741824
+  },
+  "attempt_audit": [
+    {
+      "run": "regular-hu-m31-step6a-s0-20260717-001",
+      "accepted": false,
+      "outcome": "failed_closed_before_search_tasks",
+      "cause": "Linux Stage3 feature encoder was not included in the package"
+    },
+    {
+      "run": "regular-hu-m31-step6a-s0-20260717-002",
+      "accepted": false,
+      "outcome": "not_launched",
+      "cause": "local Linux smoke exposed fork-after-Rayon deadlock"
+    },
+    {
+      "run": "regular-hu-m31-step6a-s0-20260717-003",
+      "accepted": false,
+      "outcome": "search_and_receive_passed_but_reporting_rejected",
+      "cause": "latency percentile input was not sorted"
+    },
+    {
+      "run": "regular-hu-m31-step6a-s0-20260717-004",
+      "accepted": true,
+      "outcome": "pass"
+    }
+  ],
+  "validation": {
+    "step6a_tests_passed": 12,
+    "step6a_tests_seconds": 0.58,
+    "focused_python_passed": 126,
+    "focused_python_seconds": 30.86,
+    "full_python_passed": 2476,
+    "full_python_skipped": 2,
+    "full_python_warnings": 50,
+    "full_python_seconds": 831.96,
+    "black_check": true,
+    "bash_syntax_check": true
+  },
+  "source": {
+    "behavior_roots": "src/ofc_regular/hu_m31_t3_behavior_roots.py",
+    "behavior_roots_sha256": "f17fc6b93a537ebbf53f18bdc6f388f7cddd9365ab2ff1006af57f274d981a55",
+    "shard_runner": "src/ofc_regular/run_hu_m31_t3_step6a_shard.py",
+    "shard_runner_sha256": "37451b176c860fd5f1947cf80fecce0d703a1139911924f2f35ffd56dcb1e993",
+    "spot_lifecycle": "src/ofc_regular/hu_m31_t3_step6a_spot.py",
+    "spot_lifecycle_sha256": "4ac13938e753fdb471cfd98b60bb51663f967e10e05e10e207b3916120f28cc8",
+    "startup": "scripts/startup_hu_m31_t3_step6a.sh",
+    "startup_sha256": "ea342b03ed614440bb984e80ec4a47ca5a7fe1df51a5ade51943a2c8af2ab0b3",
+    "tests": "tests/test_hu_m31_t3_step6a_spot.py",
+    "tests_sha256": "5f5f1155d518fb20613426b2821e992edfa0219f4b750aeaed06b6e60f5f60c0"
+  },
+  "remaining_no_go": [
+    "remaining nine infrastructure canary shards before explicit authorization",
+    "production teacher fanout before the frozen 100-root 8/32/4/0 quality pilot",
+    "using infrastructure-canary rows for training",
+    "model training before versioned production teacher rows pass data gates",
+    "teacher values as realized match EV",
+    "named profile or current activation",
+    "full replacement",
+    "Nash or mathematical full-game optimality claim"
+  ],
+  "next_step": "M3.1 Step 6b explicitly authorize and run only the remaining nine 25-paired-hand infrastructure canary shards, then validate the merged 500-root canary before any production-label quality pilot"
+}

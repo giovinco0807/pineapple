@@ -9,9 +9,12 @@ import os
 import random
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Iterable, Sequence
 
 from .cards import create_deck
+from .counter_rng import policy_decision_seed
 from .hu_turn3_gate_model import load_hu_turn3_gate_model
+from .hu_infoset import ActorObservation, ScoringContext, WorldState
 from .hu_turn3_model import load_hu_action_value_model
 from .policy import RegularAiPolicy, board_to_json
 from .state import Board
@@ -31,6 +34,88 @@ class HandResult:
     board_p1: Board
 
 
+def _visible_dead_cards_for(
+    player: int,
+    boards: Sequence[Board],
+    private_discards: Sequence[Iterable[str]],
+) -> tuple[str, ...]:
+    """Cards visible to a player but not already represented by their board."""
+    if player not in (0, 1):
+        raise ValueError("player must be 0 or 1")
+    return (*boards[1 - player].all_cards(), *tuple(private_discards[player]))
+
+
+def _observation_for(
+    player: int,
+    boards: Sequence[Board],
+    private_discards: Sequence[Iterable[str]],
+    dealt_cards: Iterable[str],
+    street: str,
+    scoring: ScoringContext | None = None,
+) -> ActorObservation:
+    world = WorldState(
+        boards=(boards[0], boards[1]),
+        private_discards=(
+            tuple(private_discards[0]),
+            tuple(private_discards[1]),
+        ),
+        street=street,  # type: ignore[arg-type]
+        next_player=player,
+        scoring=scoring or ScoringContext(),
+    )
+    return world.observe(player, dealt_cards)
+
+
+def _choose_from_observation(
+    policy: object,
+    observation: ActorObservation,
+    *,
+    hand_id: str | int | None = None,
+    game_id: str | int | None = None,
+    decision_seed: int | None = None,
+):
+    chooser = getattr(policy, "choose_action_observation", None)
+    if callable(chooser):
+        return chooser(
+            observation,
+            hand_id=hand_id,
+            game_id=game_id,
+            decision_seed=decision_seed,
+        )
+    legacy_chooser = getattr(policy, "choose_action")
+    return legacy_chooser(
+        observation.hero_board,
+        observation.dealt_cards,
+        dead_cards=observation.legacy_dead_cards(),
+        opponent_board=observation.opponent_public_board,
+        hand_id=hand_id,
+        game_id=game_id,
+        decision_seed=decision_seed,
+        street=observation.street,
+    )
+
+
+def _hand_decision_seed(
+    *, base_seed: int, observation: ActorObservation
+) -> int:
+    """Domain-separate real-hand policy randomness by actor, street, and root."""
+    if observation.street == "FL":
+        street_ordinal = 5
+    else:
+        street_ordinal = int(observation.street[1:])
+    actor = 0 if observation.seat == "first" else 1
+    return policy_decision_seed(
+        base_seed=base_seed,
+        run_id="regular_ofc_hand_runtime",
+        root_fingerprint=observation.fingerprint(),
+        future_index=0,
+        actor=actor,
+        street=observation.street,
+        decision_ordinal=street_ordinal * 2 + actor,
+        stream="real_hand_policy",
+    )
+
+
 def play_hand(
     *,
     seed: int,
@@ -38,50 +123,63 @@ def play_hand(
     policy_p1: RegularAiPolicy,
     fl_ev: dict[int, float] | None = None,
 ) -> HandResult:
+    effective_fl_ev = fl_ev or DEFAULT_FL_EV
+    scoring = ScoringContext(
+        fl_ev=tuple((int(cards), float(value)) for cards, value in effective_fl_ev.items())
+    )
     rng = random.Random(seed)
     deck = create_deck(shuffle=True, rng=rng)
     cursor = 0
     boards = [Board.from_rows(), Board.from_rows()]
     policies = [policy_p0, policy_p1]
-    dead_cards: list[str] = []
+    private_discards: list[list[str]] = [[], []]
 
     for player in (0, 1):
         dealt = deck[cursor : cursor + 5]
         cursor += 5
-        action = policies[player].choose_action(
-            boards[player],
-            dealt,
-            dead_cards=(*boards[1 - player].all_cards(), *dead_cards),
-            opponent_board=boards[1 - player],
+        observation = _observation_for(
+            player, boards, private_discards, dealt, "T0", scoring
+        )
+        action = _choose_from_observation(
+            policies[player],
+            observation,
             hand_id=seed,
             game_id=seed,
-            decision_seed=seed,
-            street="T0",
+            decision_seed=_hand_decision_seed(
+                base_seed=seed, observation=observation
+            ),
         )
         boards[player] = boards[player].place(action.placements)
-        dead_cards.extend(action.discards)
+        private_discards[player].extend(action.discards)
 
     for round_index in range(1, 5):
         for player in (0, 1):
             dealt = deck[cursor : cursor + 3]
             cursor += 3
-            action = policies[player].choose_action(
-                boards[player],
+            observation = _observation_for(
+                player,
+                boards,
+                private_discards,
                 dealt,
-                dead_cards=(*boards[1 - player].all_cards(), *dead_cards),
-                opponent_board=boards[1 - player],
+                f"T{round_index}",
+                scoring,
+            )
+            action = _choose_from_observation(
+                policies[player],
+                observation,
                 hand_id=seed,
                 game_id=seed,
-                decision_seed=seed,
-                street=f"T{round_index}",
+                decision_seed=_hand_decision_seed(
+                    base_seed=seed, observation=observation
+                ),
             )
             boards[player] = boards[player].place(action.placements)
-            dead_cards.extend(action.discards)
+            private_discards[player].extend(action.discards)
 
     score, _board_score = terminal_score(
         boards[0],
         boards[1],
-        fl_ev=fl_ev or DEFAULT_FL_EV,
+        fl_ev=effective_fl_ev,
     )
     return HandResult(score_p0=score, board_p0=boards[0], board_p1=boards[1])
 

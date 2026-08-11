@@ -20,6 +20,7 @@ from .ai_profiles import (
 )
 from .cards import ALL_CARDS, create_deck, validate_cards
 from .hu_turn3_model import hu_policy_sample, load_hu_action_value_model
+from .play_ai import _visible_dead_cards_for
 from .policy import RegularAiPolicy, action_to_json, policy_sample
 from .state import Board
 from .teacher import DEFAULT_FL_EV, terminal_score
@@ -43,12 +44,29 @@ def to_act_order_for(board: Board, opponent_board: Board) -> str:
     return "second" if opponent_board.card_count() > board.card_count() else "first"
 
 
+def _visible_dead_cards_for_turn3_state(
+    *,
+    opponent_board: Board,
+    dead_cards: Iterable[str],
+    visible_dead_cards: Iterable[str] | None = None,
+    hero_private_discards: Iterable[str] = (),
+) -> tuple[str, ...]:
+    if visible_dead_cards is not None:
+        return tuple(visible_dead_cards)
+    hero_private = tuple(hero_private_discards)
+    fallback_dead = hero_private if hero_private else tuple(dead_cards)
+    return (*opponent_board.all_cards(), *fallback_dead)
+
+
 def evaluate_hu_self_play_turn3_actions(
     *,
     board: Board,
     dealt_cards: Iterable[str],
     opponent_board: Board,
     dead_cards: Iterable[str] = (),
+    visible_dead_cards: Iterable[str] | None = None,
+    hero_private_discards: Iterable[str] = (),
+    opponent_private_discards: Iterable[str] = (),
     hero_seat: str,
     hero_policy: RegularAiPolicy,
     opponent_policy: RegularAiPolicy,
@@ -61,9 +79,16 @@ def evaluate_hu_self_play_turn3_actions(
     dealt = tuple(dealt_cards)
     actions = generate_turn_actions(board, dealt)
     dead = tuple(dead_cards)
+    hero_private = tuple(hero_private_discards)
+    opponent_private = tuple(opponent_private_discards)
+    visible_dead = _visible_dead_cards_for_turn3_state(
+        opponent_board=opponent_board,
+        dead_cards=dead,
+        visible_dead_cards=visible_dead_cards,
+        hero_private_discards=hero_private,
+    )
     remaining = remaining_for_hu_teacher(board, dealt, opponent_board, dead)
     to_act_order = to_act_order_for(board, opponent_board)
-    visible_dead = (*opponent_board.all_cards(), *dead)
     action_payloads = hu_policy_sample(
         board,
         dealt,
@@ -101,6 +126,8 @@ def evaluate_hu_self_play_turn3_actions(
                     hero_board=hero_after_action,
                     opponent_board=opponent_board,
                     dead_cards=(*dead, *action.discards),
+                    hero_private_discards=(*hero_private, *action.discards),
+                    opponent_private_discards=opponent_private,
                     hero_seat=hero_seat,
                     future_cards=shuffled,
                     hero_policy=hero_policy,
@@ -112,6 +139,8 @@ def evaluate_hu_self_play_turn3_actions(
                     hero_board=hero_after_action,
                     opponent_board=resolved_opponent,
                     dead_cards=(*dead, *action.discards, *opponent_discards),
+                    hero_private_discards=(*hero_private, *action.discards),
+                    opponent_private_discards=(*opponent_private, *opponent_discards),
                     hero_seat=hero_seat,
                     future_cards=future_tail,
                     hero_policy=hero_policy,
@@ -148,6 +177,9 @@ def build_hu_self_play_turn3_sample(
     dealt_cards: Iterable[str],
     opponent_board: Board,
     dead_cards: Iterable[str] = (),
+    visible_dead_cards: Iterable[str] | None = None,
+    hero_private_discards: Iterable[str] = (),
+    opponent_private_discards: Iterable[str] = (),
     hero_seat: str,
     hero_policy: RegularAiPolicy,
     opponent_policy: RegularAiPolicy,
@@ -162,6 +194,9 @@ def build_hu_self_play_turn3_sample(
         dealt_cards=dealt_cards,
         opponent_board=opponent_board,
         dead_cards=dead_cards,
+        visible_dead_cards=visible_dead_cards,
+        hero_private_discards=hero_private_discards,
+        opponent_private_discards=opponent_private_discards,
         hero_seat=hero_seat,
         hero_policy=hero_policy,
         opponent_policy=opponent_policy,
@@ -174,12 +209,18 @@ def build_hu_self_play_turn3_sample(
     if not ranked:
         return None
     score_gap = ranked[0]["score"] - ranked[1]["score"] if len(ranked) > 1 else 0.0
+    visible_dead = _visible_dead_cards_for_turn3_state(
+        opponent_board=opponent_board,
+        dead_cards=dead_cards,
+        visible_dead_cards=visible_dead_cards,
+        hero_private_discards=hero_private_discards,
+    )
     sample = hu_policy_sample(
         board,
         dealt_cards,
         generate_turn_actions(board, dealt_cards),
         opponent_board=opponent_board,
-        dead_cards=(*opponent_board.all_cards(), *tuple(dead_cards)),
+        dead_cards=visible_dead,
         seat=hero_seat,
         to_act_order=to_act_order_for(board, opponent_board),
     )
@@ -307,6 +348,8 @@ def hu_turn3_selection_metadata(
     dealt_cards: Iterable[str],
     opponent_board: Board,
     dead_cards: Iterable[str] = (),
+    visible_dead_cards: Iterable[str] | None = None,
+    hero_private_discards: Iterable[str] = (),
     hero_seat: str,
     baseline_turn3_model: object,
     selection_hu_model: object,
@@ -317,12 +360,18 @@ def hu_turn3_selection_metadata(
     if not actions:
         return None
     dead = tuple(dead_cards)
+    visible_dead = _visible_dead_cards_for_turn3_state(
+        opponent_board=opponent_board,
+        dead_cards=dead,
+        visible_dead_cards=visible_dead_cards,
+        hero_private_discards=hero_private_discards,
+    )
     hu_sample = hu_policy_sample(
         board,
         dealt,
         actions,
         opponent_board=opponent_board,
-        dead_cards=(*opponent_board.all_cards(), *dead),
+        dead_cards=visible_dead,
         seat=hero_seat,
         to_act_order=to_act_order_for(board, opponent_board),
     )
@@ -416,6 +465,7 @@ def collect_hu_self_play_turn3_dataset(
             cursor = 0
             boards = [Board.from_rows(), Board.from_rows()]
             dead_cards: list[str] = []
+            private_discards: list[list[str]] = [[], []]
             policies = [
                 build_policy(
                     "current",
@@ -439,11 +489,12 @@ def collect_hu_self_play_turn3_dataset(
                 action = policies[player].choose_action(
                     boards[player],
                     dealt,
-                    dead_cards=(*boards[1 - player].all_cards(), *dead_cards),
+                    dead_cards=_visible_dead_cards_for(player, boards, private_discards),
                     opponent_board=boards[1 - player],
                 )
                 boards[player] = boards[player].place(action.placements)
                 dead_cards.extend(action.discards)
+                private_discards[player].extend(action.discards)
 
             for _round in range(1, 5):
                 for player in (0, 1):
@@ -457,7 +508,8 @@ def collect_hu_self_play_turn3_dataset(
                                 board=boards[player],
                                 dealt_cards=dealt,
                                 opponent_board=boards[1 - player],
-                                dead_cards=dead_cards,
+                                dead_cards=private_discards[player],
+                                visible_dead_cards=_visible_dead_cards_for(player, boards, private_discards),
                                 hero_seat="first" if player == 0 else "second",
                                 baseline_turn3_model=policy_bundle.turn3,
                                 selection_hu_model=selection_hu_model,
@@ -474,11 +526,12 @@ def collect_hu_self_play_turn3_dataset(
                                 action = policies[player].choose_action(
                                     boards[player],
                                     dealt,
-                                    dead_cards=(*boards[1 - player].all_cards(), *dead_cards),
+                                    dead_cards=_visible_dead_cards_for(player, boards, private_discards),
                                     opponent_board=boards[1 - player],
                                 )
                                 boards[player] = boards[player].place(action.placements)
                                 dead_cards.extend(action.discards)
+                                private_discards[player].extend(action.discards)
                                 continue
                         sample = build_hu_self_play_turn3_sample(
                             sample_id=collected,
@@ -486,6 +539,9 @@ def collect_hu_self_play_turn3_dataset(
                             dealt_cards=dealt,
                             opponent_board=boards[1 - player],
                             dead_cards=dead_cards,
+                            visible_dead_cards=_visible_dead_cards_for(player, boards, private_discards),
+                            hero_private_discards=private_discards[player],
+                            opponent_private_discards=private_discards[1 - player],
                             hero_seat="first" if player == 0 else "second",
                             hero_policy=policies[player],
                             opponent_policy=policies[1 - player],
@@ -507,11 +563,12 @@ def collect_hu_self_play_turn3_dataset(
                     action = policies[player].choose_action(
                         boards[player],
                         dealt,
-                        dead_cards=(*boards[1 - player].all_cards(), *dead_cards),
+                        dead_cards=_visible_dead_cards_for(player, boards, private_discards),
                         opponent_board=boards[1 - player],
                     )
                     boards[player] = boards[player].place(action.placements)
                     dead_cards.extend(action.discards)
+                    private_discards[player].extend(action.discards)
     if collected < samples:
         raise RuntimeError(f"collected {collected}/{samples} samples after {hands} hands")
     return {
@@ -578,6 +635,8 @@ def _rollout_after_hero_t3_action(
     hero_board: Board,
     opponent_board: Board,
     dead_cards: Iterable[str] = (),
+    hero_private_discards: Iterable[str] | None = None,
+    opponent_private_discards: Iterable[str] | None = None,
     hero_seat: str,
     future_cards: list[str],
     hero_policy: RegularAiPolicy,
@@ -587,6 +646,8 @@ def _rollout_after_hero_t3_action(
     hero = hero_board
     opponent = opponent_board
     dead = list(dead_cards)
+    hero_private = list(() if hero_private_discards is None else hero_private_discards)
+    opponent_private = list(() if opponent_private_discards is None else opponent_private_discards)
 
     def draw3() -> tuple[str, str, str] | None:
         nonlocal cursor
@@ -603,16 +664,19 @@ def _rollout_after_hero_t3_action(
         action = opponent_policy.choose_action(
             opponent,
             dealt,
-            dead_cards=(*hero.all_cards(), *dead),
+            dead_cards=(*hero.all_cards(), *tuple(opponent_private)),
             opponent_board=hero,
         )
         opponent = opponent.place(action.placements)
         dead.extend(action.discards)
+        opponent_private.extend(action.discards)
 
     return _rollout_after_resolved_t3_action(
         hero_board=hero,
         opponent_board=opponent,
         dead_cards=dead,
+        hero_private_discards=hero_private,
+        opponent_private_discards=opponent_private,
         hero_seat=hero_seat,
         future_cards=future_cards[cursor:],
         hero_policy=hero_policy,
@@ -625,6 +689,8 @@ def _rollout_after_resolved_t3_action(
     hero_board: Board,
     opponent_board: Board,
     dead_cards: Iterable[str] = (),
+    hero_private_discards: Iterable[str] | None = None,
+    opponent_private_discards: Iterable[str] | None = None,
     hero_seat: str,
     future_cards: list[str],
     hero_policy: RegularAiPolicy,
@@ -634,6 +700,8 @@ def _rollout_after_resolved_t3_action(
     hero = hero_board
     opponent = opponent_board
     dead = list(dead_cards)
+    hero_private = list(() if hero_private_discards is None else hero_private_discards)
+    opponent_private = list(() if opponent_private_discards is None else opponent_private_discards)
 
     def draw3() -> tuple[str, str, str] | None:
         nonlocal cursor
@@ -659,11 +727,12 @@ def _rollout_after_resolved_t3_action(
                 action = policy.choose_action(
                     hero,
                     dealt,
-                    dead_cards=(*opponent.all_cards(), *dead),
+                    dead_cards=(*opponent.all_cards(), *tuple(hero_private)),
                     opponent_board=opponent,
                 )
                 hero = hero.place(action.placements)
                 dead.extend(action.discards)
+                hero_private.extend(action.discards)
             else:
                 if opponent.card_count() >= 13:
                     continue
@@ -673,11 +742,12 @@ def _rollout_after_resolved_t3_action(
                 action = policy.choose_action(
                     opponent,
                     dealt,
-                    dead_cards=(*hero.all_cards(), *dead),
+                    dead_cards=(*hero.all_cards(), *tuple(opponent_private)),
                     opponent_board=hero,
                 )
                 opponent = opponent.place(action.placements)
                 dead.extend(action.discards)
+                opponent_private.extend(action.discards)
 
     score, _board_score = terminal_score(hero, opponent, fl_ev=DEFAULT_FL_EV)
     return score

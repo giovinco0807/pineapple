@@ -19,7 +19,36 @@ from typing import Any, Iterable
 
 import numpy as np
 
+from .action_key import ACTION_KEY_SCHEMA, action_key_from_payload
+from .hu_infoset import (
+    OBSERVATION_SCHEMA,
+    POLICY_FEATURE_SAMPLE_SCHEMA,
+    ScoringContext,
+    actor_observation_from_record,
+    policy_feature_sample_from_record,
+)
 from .hu_turn3_model import HU_FEATURE_DIM, sample_to_matrix
+
+FEATURE_CACHE_SCHEMA = "hu_turn2_pilot_feature_cache_v2"
+FEATURE_VALUE_SCHEMA = "hu_turn2_hu_action_features_v1"
+
+
+def _digest_payload(payload: Any) -> str:
+    encoded = json.dumps(
+        payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True
+    ).encode("ascii")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+REGULAR_RULES_DIGEST = _digest_payload(
+    {
+        "rule_set": "heads_up_regular_ofc_pineapple_v1",
+        "rows": {"top": 3, "middle": 5, "bottom": 5},
+        "middle_trips_royalty": 2,
+        "fantasyland_cards": 14,
+        "scoring": ScoringContext().to_dict(),
+    }
+)
 
 RUN_BUCKET_FILES = (
     "natural.jsonl",
@@ -36,7 +65,13 @@ GATE_LABEL_TO_ID = {"negative": 0, "gray": 1, "positive": 2}
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--input", type=Path, required=True, help="Merged HU T2 pilot teacher JSONL.")
+    parser.add_argument(
+        "--input",
+        type=Path,
+        action="append",
+        required=True,
+        help="Merged HU T2 pilot teacher JSONL. Can be repeated to combine teacher/replay files.",
+    )
     parser.add_argument("--cache-dir", type=Path, required=True)
     parser.add_argument(
         "--bucket-sidecar-dir",
@@ -68,7 +103,7 @@ def _count_jsonl(path: Path) -> int:
     return count
 
 
-def resolve_input_files(input_path: Path, sidecar_dir: Path | None) -> list[tuple[Path, str]]:
+def resolve_single_input_file(input_path: Path, sidecar_dir: Path | None) -> list[tuple[Path, str]]:
     """Prefer per-bucket sidecars when they exactly cover the merged input."""
 
     if input_path.is_dir():
@@ -87,20 +122,69 @@ def resolve_input_files(input_path: Path, sidecar_dir: Path | None) -> list[tupl
     return [(input_path, input_path.stem)]
 
 
+def resolve_input_files(input_paths: Iterable[Path], sidecar_dir: Path | None) -> list[tuple[Path, str]]:
+    files: list[tuple[Path, str]] = []
+    for input_path in input_paths:
+        files.extend(resolve_single_input_file(input_path, sidecar_dir))
+    return files
+
+
 def stable_state_hash(sample: dict[str, Any]) -> str:
-    payload = {
-        "schema": sample.get("schema"),
-        "turn": sample.get("turn"),
-        "seat": sample.get("seat"),
-        "to_act_order": sample.get("to_act_order"),
-        "board": sample.get("board"),
-        "opponent_board": sample.get("opponent_board"),
-        "dead_cards": sorted(str(card) for card in sample.get("dead_cards", ())),
-        "dealt": sorted(str(card) for card in sample.get("dealt", ())),
-        "seed": sample.get("seed"),
-        "state_id": sample.get("state_id"),
+    """Actor-information-set identity; replay truth cannot affect this hash."""
+    return actor_observation_from_record(sample).fingerprint()
+
+
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def action_record_mapping_digests(
+    actions: Iterable[dict[str, Any]],
+) -> tuple[str, str]:
+    rows = list(actions)
+    indices = [action_original_index(action) for action in rows]
+    if any(index is None for index in indices) or sorted(indices) != list(range(len(rows))):
+        raise ValueError("feature cache requires a complete legal original-index mapping")
+    ordered_rows = [
+        row
+        for _index, row in sorted(
+            zip((int(index) for index in indices), rows), key=lambda item: item[0]
+        )
+    ]
+    tokens = [action_key_from_payload(action).to_token() for action in ordered_rows]
+    if len(tokens) != len(set(tokens)):
+        raise ValueError("duplicate ActionKey in teacher legal actions")
+    order_digest = hashlib.sha256("\n".join(tokens).encode("ascii")).hexdigest()
+    set_digest = hashlib.sha256(
+        "\n".join(sorted(tokens)).encode("ascii")
+    ).hexdigest()
+    return set_digest, order_digest
+
+
+def cache_identity_payload(metadata: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "schema": metadata.get("schema"),
+        "observation_schema": metadata.get("observation_schema"),
+        "policy_feature_sample_schema": metadata.get("policy_feature_sample_schema"),
+        "action_key_schema": metadata.get("action_key_schema"),
+        "feature_value_schema": metadata.get("feature_value_schema"),
+        "rules_digest": metadata.get("rules_digest"),
+        "feature_dim": metadata.get("feature_dim"),
+        "feature_dtype": metadata.get("feature_dtype"),
+        "state_count": metadata.get("state_count"),
+        "action_count": metadata.get("action_count"),
+        "input_files": metadata.get("input_files"),
+        "observation_fingerprint_digest": metadata.get(
+            "observation_fingerprint_digest"
+        ),
+        "legal_action_mapping_digest": metadata.get(
+            "legal_action_mapping_digest"
+        ),
     }
-    return hashlib.sha256(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
 
 
 def action_original_index(action: Any) -> int | None:
@@ -124,14 +208,27 @@ def action_signature(action: dict[str, Any]) -> tuple[tuple[tuple[str, str], ...
 
 def action_position(actions: list[dict[str, Any]], action: Any, *, fallback: int = 0) -> int:
     original = action_original_index(action)
+    if isinstance(action, dict):
+        wanted = action_signature(action)
+        has_payload = bool(wanted[0] or wanted[1])
+        explicit_key = action.get("canonical_action_key", action.get("action_key"))
+        if has_payload:
+            payload_key = action_key_from_payload(
+                action["action"] if isinstance(action.get("action"), dict) else action
+            ).to_token()
+            if explicit_key is not None and explicit_key != payload_key:
+                raise ValueError("action key disagrees with action payload")
+            for index, candidate in enumerate(actions):
+                if action_signature(candidate) == wanted:
+                    if original is not None and action_original_index(candidate) != original:
+                        raise ValueError(
+                            "action original_index disagrees with semantic payload"
+                        )
+                    return index
+            raise ValueError("semantic action is missing from legal action records")
     if original is not None:
         for index, candidate in enumerate(actions):
             if action_original_index(candidate) == original:
-                return index
-    if isinstance(action, dict):
-        wanted = action_signature(action)
-        for index, candidate in enumerate(actions):
-            if action_signature(candidate) == wanted:
                 return index
     return min(max(fallback, 0), max(len(actions) - 1, 0))
 
@@ -144,6 +241,82 @@ def pilot_gate_label(sample: dict[str, Any]) -> str:
     if delta <= 0.05:
         return "negative"
     return "gray"
+
+
+def _coerce_float(value: Any) -> float | None:
+    try:
+        result = float(value)
+    except (TypeError, ValueError):
+        return None
+    if not math.isfinite(result):
+        return None
+    return result
+
+
+def _fl_ev_from_canonical_key(canonical_key: Any, *, card_count: int = 14) -> float | None:
+    if not isinstance(canonical_key, list) or not canonical_key:
+        return None
+    maybe_fl_ev = canonical_key[-1]
+    if not isinstance(maybe_fl_ev, list):
+        return None
+    for item in maybe_fl_ev:
+        if not isinstance(item, (list, tuple)) or len(item) != 2:
+            continue
+        try:
+            count = int(item[0])
+        except (TypeError, ValueError):
+            continue
+        if count == card_count:
+            return _coerce_float(item[1])
+    return None
+
+
+def sample_fl_ev_14(sample: dict[str, Any]) -> float | None:
+    """Infer the 14-card FL EV used by a teacher record, when it is recorded."""
+
+    for key in ("fl_ev_14", "fantasyland_ev_14"):
+        value = _coerce_float(sample.get(key))
+        if value is not None:
+            return value
+    fl_ev = sample.get("fl_ev")
+    if isinstance(fl_ev, dict):
+        value = _coerce_float(fl_ev.get("14") if "14" in fl_ev else fl_ev.get(14))
+        if value is not None:
+            return value
+    profiling = sample.get("profiling")
+    if isinstance(profiling, dict):
+        for row in profiling.get("_final_turn_slow_states", ()) or ():
+            if not isinstance(row, dict):
+                continue
+            metadata = row.get("metadata")
+            if not isinstance(metadata, dict):
+                continue
+            value = _fl_ev_from_canonical_key(metadata.get("canonical_key"))
+            if value is not None:
+                return value
+    return None
+
+
+def scoring_objective_metadata(samples: list[tuple[dict[str, Any], str]]) -> dict[str, Any]:
+    values: Counter[str] = Counter()
+    numeric_by_key: dict[str, float] = {}
+    missing = 0
+    for sample, _run_bucket in samples:
+        value = sample_fl_ev_14(sample)
+        if value is None:
+            missing += 1
+        else:
+            key = f"{value:.17g}"
+            values[key] += 1
+            numeric_by_key.setdefault(key, value)
+    numeric_values = sorted(numeric_by_key.values())
+    return {
+        "fl_ev_14": numeric_values[0] if len(numeric_values) == 1 and missing == 0 else None,
+        "fl_ev_14_values": {key: int(count) for key, count in sorted(values.items())},
+        "fl_ev_14_missing_records": missing,
+        "fl_ev_14_recorded_records": len(samples) - missing,
+        "fl_ev_14_status": "unique" if len(numeric_values) == 1 and missing == 0 else ("missing" if not numeric_values else "mixed_or_partial"),
+    }
 
 
 def margin_bucket(value: float) -> str:
@@ -201,7 +374,21 @@ def state_metadata(sample: dict[str, Any], *, run_bucket: str, state_index: int)
         "margin_bucket": margin_bucket(margin),
         "baseline_model_margin": float(sample.get("baseline_model_margin", 0.0) or 0.0),
         "rollout_count": int(sample.get("rollout_count", 0) or 0),
+        "t3_continuation": sample.get("t3_continuation"),
         "continuation_policy_T3": sample.get("continuation_policy_T3"),
+    }
+
+
+def t3_continuation_metadata(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    mode_counts = Counter(str(row.get("t3_continuation") or "legacy_unspecified") for row in rows)
+    policy_counts = Counter(str(row.get("continuation_policy_T3") or "legacy_unspecified") for row in rows)
+    primary_mode = next(iter(mode_counts)) if len(mode_counts) == 1 else "mixed"
+    primary_policy = next(iter(policy_counts)) if len(policy_counts) == 1 else "mixed"
+    return {
+        "t3_continuation": primary_mode,
+        "continuation_policy_T3": primary_policy,
+        "t3_continuation_counts": dict(mode_counts),
+        "continuation_policy_T3_counts": dict(policy_counts),
     }
 
 
@@ -292,6 +479,14 @@ def main() -> None:
 
     started_at = time.time()
     input_files = resolve_input_files(args.input, args.bucket_sidecar_dir)
+    input_file_metadata = [
+        {
+            "path": str(path.resolve()),
+            "run_bucket": bucket,
+            "sha256": sha256_file(path),
+        }
+        for path, bucket in input_files
+    ]
     samples: list[tuple[dict[str, Any], str]] = []
     action_counts: list[int] = []
     for path, run_bucket in input_files:
@@ -334,10 +529,27 @@ def main() -> None:
     run_bucket_counts: Counter[str] = Counter()
     label_counts: Counter[str] = Counter()
     total_rollout_count = Counter()
+    observation_fingerprints: list[str] = []
+    legal_mapping_rows: list[str] = []
 
     for state_index, (sample, run_bucket) in enumerate(samples):
         actions = list(sample.get("actions", ()))
-        sample_features, sample_targets = sample_to_matrix(sample)
+        if sample.get("action_key_schema") != ACTION_KEY_SCHEMA:
+            raise ValueError(
+                f"missing/unsupported ActionKey schema at state {state_index}"
+            )
+        action_set_digest, action_order_digest = action_record_mapping_digests(actions)
+        if sample.get("legal_action_set_digest") != action_set_digest:
+            raise ValueError(f"legal action set digest mismatch at state {state_index}")
+        if sample.get("legal_action_order_digest") != action_order_digest:
+            raise ValueError(f"legal action order digest mismatch at state {state_index}")
+        observation_fingerprint = stable_state_hash(sample)
+        observation_fingerprints.append(observation_fingerprint)
+        legal_mapping_rows.append(
+            f"{observation_fingerprint}|{action_set_digest}|{action_order_digest}"
+        )
+        policy_sample = policy_feature_sample_from_record(sample)
+        sample_features, sample_targets = sample_to_matrix(policy_sample)
         if sample_features.shape != (len(actions), HU_FEATURE_DIM):
             raise ValueError(f"feature shape mismatch at state {state_index}: {sample_features.shape}")
         start = int(offsets[state_index])
@@ -420,18 +632,32 @@ def main() -> None:
     )
 
     metadata = {
-        "schema": "hu_turn2_pilot_feature_cache_v1",
-        "input": str(args.input),
-        "input_files": [{"path": str(path), "run_bucket": bucket} for path, bucket in input_files],
+        "schema": FEATURE_CACHE_SCHEMA,
+        "observation_schema": OBSERVATION_SCHEMA,
+        "policy_feature_sample_schema": POLICY_FEATURE_SAMPLE_SCHEMA,
+        "action_key_schema": ACTION_KEY_SCHEMA,
+        "feature_value_schema": FEATURE_VALUE_SCHEMA,
+        "rules_digest": REGULAR_RULES_DIGEST,
+        "input": str(args.input[-1]),
+        "inputs": [str(path) for path in args.input],
+        "input_files": input_file_metadata,
         "cache_dir": str(cache_dir),
         "feature_dim": HU_FEATURE_DIM,
         "feature_dtype": args.dtype,
         "state_count": state_count,
         "action_count": action_count,
+        "observation_fingerprint_digest": hashlib.sha256(
+            "\n".join(observation_fingerprints).encode("ascii")
+        ).hexdigest(),
+        "legal_action_mapping_digest": hashlib.sha256(
+            "\n".join(legal_mapping_rows).encode("ascii")
+        ).hexdigest(),
         "run_bucket_counts": dict(run_bucket_counts),
         "source_bucket_counts": dict(source_counts),
         "pilot_gate_label_counts": dict(label_counts),
         "rollout_count_distribution": dict(total_rollout_count),
+        "t3_continuation_metadata": t3_continuation_metadata(state_metadata_rows),
+        "scoring_objective": scoring_objective_metadata(samples),
         "split_summary": split_summary,
         "train_fraction": args.train_fraction,
         "val_fraction": args.val_fraction,
@@ -445,6 +671,9 @@ def main() -> None:
             "all_legal_actions_present": True,
         },
     }
+    metadata["cache_manifest_digest"] = _digest_payload(
+        cache_identity_payload(metadata)
+    )
     (cache_dir / "metadata.json").write_text(
         json.dumps(metadata, indent=2, ensure_ascii=False) + "\n",
         encoding="utf-8",

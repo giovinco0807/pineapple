@@ -1,0 +1,182 @@
+{
+  "name": "hu_turn3_stage9d_mixed_runtime_hn245_support_candidate",
+  "description": "Stage9d support/veto candidate for old Stage9 m1 selective override. Evaluation-only; not production.",
+  "status": "support_s15_larger_positive_tail_not_safe",
+  "visibility_model": "hidden_discard",
+  "fl_ev": 10.227020614683454,
+  "models": {
+    "opening": "models/opening_stage7_torch_wide.pt",
+    "turn1": "models/turn1_stage6_torch_wide.pt",
+    "turn2": "models/turn2_stage8.pkl",
+    "turn3": "models/turn3_stage6.pkl",
+    "hu_turn3_candidate": "models/hu_turn3_joint_exact_stage9_mixed1200_mc128_extra_trees.pkl",
+    "hu_turn3_support": "models/hu_turn3_stage9d_mixed_runtime_hn245_mc128_extra_trees.pkl",
+    "hu_turn3_reference": "models/hu_turn3_stage3_mc32_500k_plus_m8_12_f128_100k_w2_cached_rank_wide.pt",
+    "current_baseline": "models/hu_turn3_stage7_reference_override_cached_rank_wide.pt"
+  },
+  "runtime": {
+    "hu_turn3_stage7_enabled": true,
+    "hu_turn3_min_margin": 1.0,
+    "hu_turn3_reference_min_margin": 0.0,
+    "hu_turn3_min_support_margin": 1.5,
+    "mode": "stage9_candidate_with_stage9d_support_veto_over_stage3_reference"
+  },
+  "training": {
+    "input": "outputs/hu_turn3_stage9d_train_mixed1200_plus_runtime_mc128.jsonl",
+    "hard_negative_input": "outputs/hu_turn3_stage9d_train_hard_negatives_mc128.jsonl",
+    "model_output": "models/hu_turn3_stage9d_mixed_runtime_hn245_mc128_extra_trees.pkl",
+    "metrics_output": "outputs/training/hu_turn3_stage9d_mixed_runtime_hn245_mc128_extra_trees_metrics.json",
+    "model_type": "extra_trees",
+    "n_estimators": 300,
+    "min_samples_leaf": 5,
+    "source_weights": {
+      "stage9b_runtime_hard_negative": 4.0,
+      "stage9b_runtime_fire_non_negative": 1.0,
+      "self_play_state_mining": 1.0
+    }
+  },
+  "teacher_eval": {
+    "stage9d_on_hard_negatives_avg_regret": 0.12221817239896002,
+    "stage9d_on_stage5_holdout200_avg_regret": 0.06801771744984142,
+    "stage9d_on_stage9c_larger_fired_avg_regret": 0.12550381134364397,
+    "stage9f_rejected": {
+      "model": "models/hu_turn3_stage9f_mixed_runtime_hn285_mc128_extra_trees.pkl",
+      "training_input": "outputs/hu_turn3_stage9f_train_mixed1200_plus_runtime_mc128.jsonl",
+      "hard_negatives_avg_regret": 0.28930605017180133,
+      "stage5_holdout200_avg_regret": 0.06936357843536357,
+      "stage9d_s15_larger_fired_avg_regret": 0.19841097889479012,
+      "reason": "Stage9f preserved standard holdout but worsened accumulated hard-negative and Stage9d s1.5 fired-state regret versus Stage9d; do not use as runtime support model."
+    }
+  },
+  "seat_swap_smoke": {
+    "stage9_old_m1_support_stage9d_s1_vs_stage7_m5_r10_500_paired_seed2026062805": {
+      "paired_seeds": 500,
+      "hands": 1000,
+      "ev_per_hand": 0.09113510307341727,
+      "ci95_low": -0.054240727147972206,
+      "ci95_high": 0.23651093329480674,
+      "candidate_override_rate": 0.028,
+      "candidate_support_veto_count": 118,
+      "candidate_first_overrides": 14,
+      "candidate_second_overrides": 14,
+      "baseline_override_rate_in_this_seed_range": 0.0
+    },
+    "stage9_old_m1_support_stage9d_s1_vs_stage7_m5_r10_3x1000_paired_seed2026062901_2903": {
+      "paired_seeds": 3000,
+      "hands": 6000,
+      "ev_per_hand": 0.05575673538227818,
+      "ci95_low": -0.00529535502674517,
+      "ci95_high": 0.11680882579130153,
+      "seed_ev_per_hand": {
+        "2026062901": 0.04890808245873381,
+        "2026062902": 0.047567551536708635,
+        "2026062903": 0.0707945721513921
+      },
+      "candidate_override_rate": 0.031166666666666665,
+      "candidate_support_veto_count": 709,
+      "candidate_first_overrides": 102,
+      "candidate_second_overrides": 85,
+      "baseline_override_rate_in_this_seed_range": 0.0
+    },
+    "stage9_old_m1_support_stage9d_s15_vs_stage7_m5_r10_1000_paired_seed2026063001": {
+      "paired_seeds": 1000,
+      "hands": 2000,
+      "ev_per_hand": 0.09902159276607554,
+      "ci95_low": 0.021686783562617065,
+      "ci95_high": 0.176356401969534,
+      "candidate_override_rate": 0.021,
+      "candidate_support_veto_count": 237,
+      "candidate_first_overrides": 23,
+      "candidate_second_overrides": 19,
+      "baseline_override_rate_in_this_seed_range": 0.0
+    },
+    "stage9_old_m1_support_stage9d_s15_vs_stage7_m5_r10_3x1000_paired_seed2026063101_3103": {
+      "paired_seeds": 3000,
+      "hands": 6000,
+      "ev_per_hand": 0.05929457215139209,
+      "ci95_low": 0.008987953946276744,
+      "ci95_high": 0.10960119035650744,
+      "seed_ev_per_hand": {
+        "2026063101": -0.010159469077974818,
+        "2026063102": 0.08902159276607555,
+        "2026063103": 0.09902159276607554
+      },
+      "candidate_override_rate": 0.021,
+      "candidate_support_veto_count": 680,
+      "candidate_first_overrides": 60,
+      "candidate_second_overrides": 66,
+      "baseline_override_rate_in_this_seed_range": 0.0
+    },
+    "stage9_old_m1_support_stage9d_s2_vs_stage7_m5_r10_1000_paired_seed2026063001": {
+      "paired_seeds": 1000,
+      "hands": 2000,
+      "ev_per_hand": 0.07779457215139209,
+      "ci95_low": 0.01745014984121962,
+      "ci95_high": 0.13813899446156455,
+      "candidate_override_rate": 0.016,
+      "candidate_support_veto_count": 247,
+      "candidate_first_overrides": 17,
+      "candidate_second_overrides": 15,
+      "baseline_override_rate_in_this_seed_range": 0.0
+    }
+  },
+  "fired_state_replay": {
+    "stage9d_larger_override_mc128": {
+      "samples": 187,
+      "mean_delta": 0.5725647589440588,
+      "median_delta": 0.0,
+      "negative_rate": 0.32620320855614976,
+      "hard_negative_le_m025_count": 54,
+      "pipeline_hard_negative_count": 34,
+      "worst_delta": -25.53242622047464,
+      "best_delta": 18.06118451613122
+    },
+    "stage9d_support_s15_seed2026063001_override_mc128": {
+      "samples": 42,
+      "mean_delta": 0.12160049244349033,
+      "median_delta": 0.0,
+      "negative_rate": 0.2619047619047619,
+      "hard_negative_le_m025_count": 11,
+      "pipeline_hard_negative_count": 7,
+      "worst_delta": -17.14323743205687,
+      "best_delta": 8.20975201168507
+    },
+    "stage9d_support_s15_larger_override_mc128": {
+      "samples": 126,
+      "mean_delta": 2.4400854984511104,
+      "median_delta": 1.7403597011328953,
+      "negative_rate": 0.23809523809523808,
+      "hard_negative_le_m025_count": 26,
+      "pipeline_hard_negative_count": 26,
+      "worst_delta": -12.359539059564828,
+      "best_delta": 17.22702061468343,
+      "recomputed_with_current_analyzer": "outputs/evals/hu_turn3_stage9d_s15_larger_vs_stage7/stage9d_s15_joint_reference_recheck/joint_exact_reference_summary.json",
+      "legacy_delta_summary_warning": "outputs/evals/hu_turn3_stage9d_s15_larger_vs_stage7/stage9d_s15_larger_override_joint_exact_mc128_a_delta_summary.json does not match the current joint-exact analyzer for this input; use the recomputed analyzer output."
+    },
+    "stage9d_support_s2_seed2026063001_override_mc128": {
+      "samples": 32,
+      "mean_delta": -0.013138712138052885,
+      "median_delta": 0.0,
+      "negative_rate": 0.28125,
+      "hard_negative_le_m025_count": 9,
+      "pipeline_hard_negative_count": 7,
+      "worst_delta": -17.528879023370155,
+      "best_delta": 7.9405798145806425
+    }
+  },
+  "warnings": [
+    "3x1000 paired at support_margin=1.0 is positive across all seeds, but the aggregate CI still barely crosses zero.",
+    "support_margin=1.5 cleared zero over 3x1000 paired seeds, but one seed was slightly negative.",
+    "Stage7 baseline did not fire in this seed range, so this does not prove superiority over actively firing Stage7 distributions.",
+    "MC128 fired-state replay at support_margin=1.5 is positive on average but still has a heavy negative tail.",
+    "Stage9e trained with the new hard negatives did not improve hard-negative regret versus Stage9d.",
+    "Stage9f added the 26 Stage9d s1.5 hard negatives but worsened hard-negative regret; do not continue blind hard-negative accumulation in the same ExtraTrees value model.",
+    "Do not promote to production; design a stronger tail-risk veto before adoption."
+  ],
+  "recommended_next_step": {
+    "action": "tail_risk_veto_before_production",
+    "candidate": "stage9_old_m1_support_stage9d_s15",
+    "minimum": "analyze support_margin/candidate_margin/reference_margin on fired replay rows, train or implement a separate tail-risk veto, then rerun s1.5 seat-swap and fired-state replay",
+    "production_status": "No-Go"
+  }
+}

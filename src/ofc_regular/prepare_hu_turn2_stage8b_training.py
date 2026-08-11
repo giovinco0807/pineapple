@@ -22,7 +22,7 @@ import numpy as np
 from .analyze_hu_turn2_gate_c1_followup import enriched_state_rows, load_action_original_indices
 from .analyze_hu_turn2_gate_c1f_expanded_calibration import attach_c1e_fields, load_c1e_index
 from .analyze_hu_turn2_pilot_calibration import load_model, write_csv
-from .train_hu_turn2_pilot_model import load_cache, predict_all, target_matrix
+from .train_hu_turn2_pilot_model import load_cache, predict_all, scoring_metadata_status, target_matrix
 from .train_torch_action_value import select_device
 
 
@@ -30,6 +30,12 @@ DEFAULT_CACHE_DIR = Path("D:/ofc-pineapple-storage/regular-ofc-pineapple/feature
 DEFAULT_MODEL = Path("models/hu_turn2_stage8_broad_20k_mc512_reference_override_cached_rank_wide.pt")
 DEFAULT_C1E_DIR = Path("outputs/hu_turn2_stage1_pilot_training_c1e_teacher_ev_feature_cache")
 DEFAULT_C3_POSTMORTEM_DIR = Path("outputs/evals/hu_turn2_stage8_c3_postmortem")
+DEFAULT_TOPK_HARD_NEGATIVES = Path(
+    "outputs/evals/hu_turn2_stage8b_topk_hard_negatives/topk_false_positive_hard_negatives.jsonl"
+)
+DEFAULT_COUNTERFACTUAL_LOSS_TARGETS = Path(
+    "outputs/evals/hu_turn2_stage8b_counterfactual_loss_targets/topk_counterfactual_loss_targets.jsonl"
+)
 DEFAULT_OUTPUT_DIR = Path("outputs/hu_turn2_stage8b_prelarge_training")
 LABEL_TO_ID = {"negative": 0, "gray": 1, "positive": 2}
 
@@ -40,6 +46,17 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--model", type=Path, default=DEFAULT_MODEL)
     parser.add_argument("--c1e-dir", type=Path, default=DEFAULT_C1E_DIR)
     parser.add_argument("--c3-postmortem-dir", type=Path, default=DEFAULT_C3_POSTMORTEM_DIR)
+    parser.add_argument(
+        "--topk-hard-negatives-jsonl",
+        type=Path,
+        action="append",
+        default=None,
+        help=(
+            "TopK hard-negative JSONL. Can be repeated. "
+            "Defaults to the standard TopK hard-negative pack when omitted."
+        ),
+    )
+    parser.add_argument("--counterfactual-loss-targets-jsonl", type=Path, default=DEFAULT_COUNTERFACTUAL_LOSS_TARGETS)
     parser.add_argument("--high-mc-results-jsonl", type=Path, default=None)
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
     parser.add_argument("--device", choices=("auto", "cuda", "cpu"), default="auto")
@@ -346,12 +363,54 @@ def c3_runtime_loss_rows(c3_postmortem_dir: Path) -> list[dict[str, Any]]:
     return output
 
 
+def topk_hard_negative_rows(paths: Path | Iterable[Path] | None) -> list[dict[str, Any]]:
+    if paths is None:
+        return []
+    if isinstance(paths, Path):
+        path_list = [paths]
+    else:
+        path_list = [Path(path) for path in paths]
+    output: list[dict[str, Any]] = []
+    for path in path_list:
+        if not path.exists():
+            continue
+        rows = read_jsonl(path)
+        for row in rows:
+            payload = dict(row)
+            payload["selection_order"] = len(output)
+            payload["replay_origin_group"] = "topk_mc_false_positive"
+            payload["replay_source"] = "stage8b_topk_hard_negative_pack"
+            payload["replay_source_path"] = str(path)
+            payload["requires_replay_before_training"] = True
+            output.append(payload)
+    return output
+
+
+def whole_game_risk_target_rows(path: Path | None) -> list[dict[str, Any]]:
+    if path is None or not path.exists():
+        return []
+    rows = read_jsonl(path)
+    output: list[dict[str, Any]] = []
+    for index, row in enumerate(rows):
+        payload = dict(row)
+        payload["selection_order"] = index
+        payload["replay_origin_group"] = "stage8b_topk_whole_game_loss"
+        payload["replay_source"] = "stage8b_topk_counterfactual_loss_targets"
+        payload["requires_separate_whole_game_risk_head"] = True
+        payload["do_not_use_as_local_ev_hard_negative"] = safe_int(payload.get("use_for_local_ev_hard_negative")) == 0
+        output.append(payload)
+    return output
+
+
 def write_summary(
     output_dir: Path,
     *,
     rows: list[dict[str, Any]],
     selected: list[dict[str, Any]],
     c3_runtime_losses: list[dict[str, Any]],
+    topk_hard_negatives: list[dict[str, Any]],
+    whole_game_risk_targets: list[dict[str, Any]],
+    scoring_status: dict[str, Any],
     elapsed: float,
     args: argparse.Namespace,
 ) -> None:
@@ -360,10 +419,18 @@ def write_summary(
     high_mc_labeled = sum(1 for row in rows if row.get("high_mc_label_source"))
     proxy_fired = sum(safe_int(row.get("current_proxy_m2p5_g0p9_fired")) for row in rows)
     replay_ready = sum(safe_int(row.get("replay_ready")) for row in rows)
+    risk_only_count = sum(safe_int(row.get("use_for_whole_game_risk_head")) for row in whole_game_risk_targets)
+    local_ev_hard_negative_from_topk = sum(safe_int(row.get("use_for_local_ev_hard_negative")) for row in whole_game_risk_targets)
+    scoring_ready = bool(scoring_status.get("training_allowed"))
+    ready_status = (
+        "Ready to launch with current labels"
+        if scoring_ready
+        else "No-Go until the feature cache is rerolled/rebuilt under the current scoring objective"
+    )
     training_command = (
         "python -m ofc_regular.train_hu_turn2_pilot_model "
         f"--cache-dir {args.cache_dir} "
-        "--stage8b-labels-csv outputs/hu_turn2_stage8b_prelarge_training/stage8b_safe_override_labels.csv "
+        f"--stage8b-labels-csv {args.output_dir / 'stage8b_safe_override_labels.csv'} "
         "--gate-label-column safe_lcb196_gate_label_id "
         "--gate-weight-column stage8b_gate_weight "
         "--model-output models/hu_turn2_stage8b_safe_lcb196_20k_reference_override_cached_rank_wide.pt "
@@ -382,6 +449,12 @@ def write_summary(
         f"- current proxy m2.5/g0.9 fired: `{proxy_fired}`",
         f"- selected teacher high-MC states: `{len(selected)}`",
         f"- C3 runtime top-loss replay states: `{len(c3_runtime_losses)}`",
+        f"- TopK runtime hard-negative replay states: `{len(topk_hard_negatives)}`",
+        f"- TopK whole-game risk-only targets: `{risk_only_count}`",
+        f"- TopK local-EV hard negatives from counterfactual audit: `{local_ev_hard_negative_from_topk}`",
+        f"- scoring objective status: `{scoring_status.get('status')}`",
+        f"- cache FL EV 14: `{scoring_status.get('cache_fl_ev_14')}`",
+        f"- current FL EV 14: `{scoring_status.get('expected_fl_ev_14')}`",
         f"- elapsed seconds: `{elapsed:.2f}`",
         "",
         "## Large Training Command",
@@ -392,7 +465,9 @@ def write_summary(
         "",
         "## Decision",
         "",
-        "- Stage8b large training: `Ready to launch with current MC4096 diagnostics included`",
+        f"- Stage8b safe-LCB large training: `{ready_status}`",
+        "- TopK hard negatives: `Replay/feature-generate before using as supervised labels`",
+        "- TopK whole-game risk-only rows: `Do not mix into local EV/safe-LCB gate labels; train a separate risk/counterfactual head first`",
         "- 50k teacher: `No-Go`",
         "- T1: `No-Go`",
         "- production / P2 fixed: `No-Go`",
@@ -408,7 +483,16 @@ def write_summary(
         "current_proxy_m2p5_g0p9_fired": proxy_fired,
         "selected_high_mc_states": len(selected),
         "c3_runtime_top_loss_replay_states": len(c3_runtime_losses),
-        "large_training_ready": True,
+        "topk_hard_negative_replay_states": len(topk_hard_negatives),
+        "topk_hard_negatives_require_replay_before_training": bool(topk_hard_negatives),
+        "whole_game_risk_targets": len(whole_game_risk_targets),
+        "whole_game_risk_only_targets": risk_only_count,
+        "topk_local_ev_hard_negatives_from_counterfactual_audit": local_ev_hard_negative_from_topk,
+        "whole_game_risk_targets_require_separate_head": bool(whole_game_risk_targets),
+        "scoring_metadata_status": scoring_status,
+        "large_training_ready": scoring_ready,
+        "safe_lcb_training_ready": scoring_ready,
+        "risk_head_training_ready": False,
         "large_training_command": training_command,
         "fifty_k_teacher": "No-Go",
         "t1": "No-Go",
@@ -427,6 +511,7 @@ def main() -> int:
 
     device = select_device(torch, args.device)
     cache = load_cache(args.cache_dir)
+    scoring_status = scoring_metadata_status(cache["metadata"])
     net, stats, _payload = load_model(torch, args.model, device)
     predictions = predict_all(torch, net, cache, stats, device, args.batch_size)
     targets = target_matrix(cache)
@@ -438,6 +523,9 @@ def main() -> int:
 
     selected = selected_high_mc_states(rows, limit=args.max_high_mc_states)
     c3_losses = c3_runtime_loss_rows(args.c3_postmortem_dir)
+    topk_hard_negative_paths = args.topk_hard_negatives_jsonl or [DEFAULT_TOPK_HARD_NEGATIVES]
+    topk_hard_negatives = topk_hard_negative_rows(topk_hard_negative_paths)
+    whole_game_risk_targets = whole_game_risk_target_rows(args.counterfactual_loss_targets_jsonl)
 
     write_csv(args.output_dir / "stage8b_safe_override_labels.csv", label_rows(rows))
     write_csv(args.output_dir / "stage8b_label_breakdown.csv", breakdown_rows(rows))
@@ -445,11 +533,16 @@ def main() -> int:
     write_csv(args.output_dir / "stage8b_hard_negative_candidates.csv", hard_negative_rows)
     write_jsonl(args.output_dir / "stage8b_selected_high_mc_states.jsonl", selected)
     write_jsonl(args.output_dir / "stage8b_c3_runtime_top_loss_replay_states.jsonl", c3_losses)
+    write_jsonl(args.output_dir / "stage8b_topk_hard_negative_replay_states.jsonl", topk_hard_negatives)
+    write_jsonl(args.output_dir / "stage8b_whole_game_risk_targets.jsonl", whole_game_risk_targets)
     write_summary(
         args.output_dir,
         rows=rows,
         selected=selected,
         c3_runtime_losses=c3_losses,
+        topk_hard_negatives=topk_hard_negatives,
+        whole_game_risk_targets=whole_game_risk_targets,
+        scoring_status=scoring_status,
         elapsed=time.perf_counter() - started,
         args=args,
     )
@@ -458,8 +551,12 @@ def main() -> int:
             {
                 "rows": len(rows),
                 "selected_high_mc_states": len(selected),
+                "topk_hard_negative_replay_states": len(topk_hard_negatives),
+                "whole_game_risk_targets": len(whole_game_risk_targets),
                 "output_dir": str(args.output_dir),
-                "large_training_ready": True,
+                "scoring_metadata_status": scoring_status,
+                "large_training_ready": bool(scoring_status.get("training_allowed")),
+                "risk_head_training_ready": False,
                 "fifty_k_teacher": "No-Go",
                 "t1": "No-Go",
                 "production": "No-Go",

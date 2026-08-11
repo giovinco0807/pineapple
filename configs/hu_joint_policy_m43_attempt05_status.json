@@ -1,0 +1,166 @@
+{
+  "schema": "hu_joint_policy_m43_attempt05_status_v1",
+  "milestone": "M4.3",
+  "attempt": "attempt05",
+  "status_date": "2026-07-14",
+  "status": "complete_no_go_architecture_one_shot",
+  "decision": "no_go_no_fresh_audit_or_spot",
+  "plan": {
+    "path": "configs/hu_joint_policy_m43_attempt05.json",
+    "schema": "hu_m43_attempt05_plan_v1",
+    "classification": "historical_frozen_pre_pilot_contract"
+  },
+  "architecture_one_shot": {
+    "classification": "old_dev900_development_only_consumed_not_fresh",
+    "command": "python -m ofc_regular.hu_m43_attempt05_training architecture-compare --deepsets-epochs 12 --device cuda --output-dir outputs/hu_joint_policy/m43_attempt05_old_dev900_architecture_once",
+    "report_path": "outputs/hu_joint_policy/m43_attempt05_old_dev900_architecture_once/architecture_comparison.json",
+    "report_sha256": "c8c8f364632ec85c600572239a387bedcc0ccbf82d3ef1f87147233ac765553f",
+    "report_schema": "hu_m43_attempt05_old_dev900_architecture_comparison_v1",
+    "report_status": "development_no_go_no_new_audit_authorized",
+    "states": 900,
+    "folds": 5,
+    "profiles": 5,
+    "raw_gate": {
+      "overall_positive_rate_min": 0.4,
+      "each_profile_positive_rate_min": 0.3
+    },
+    "families": {
+      "lambda_rank": {
+        "raw_gate_pass": false,
+        "raw_selected_positive_rate": 0.35333333333333333,
+        "minimum_profile_positive_rate": 0.31666666666666665,
+        "raw_selected_mean_delta": -0.9728898070556743,
+        "mean_regret_to_best_nonbaseline": 1.4570509226893777,
+        "failure_reasons": [
+          "overall_positive_rate_below_0.40",
+          "raw_selected_mean_delta_nonpositive"
+        ]
+      },
+      "deepsets": {
+        "raw_gate_pass": false,
+        "raw_selected_positive_rate": 0.21,
+        "minimum_profile_positive_rate": 0.17777777777777778,
+        "raw_selected_mean_delta": -2.769567713271671,
+        "mean_regret_to_best_nonbaseline": 3.253728828905375,
+        "failure_reasons": [
+          "overall_positive_rate_below_0.40",
+          "minimum_profile_positive_rate_below_0.30",
+          "raw_selected_mean_delta_nonpositive"
+        ]
+      }
+    },
+    "selected_family": null,
+    "winner_is_runtime_frozen": false,
+    "threshold_sweep_performed": false,
+    "fresh_generalization_claim": false
+  },
+  "postrun_trust_audit": {
+    "path": "outputs/hu_joint_policy/m43_attempt05_old_dev900_architecture_once/postrun_trust_audit.json",
+    "sha256": "0414b3bbc7b8e678911c66cd038d73528f2a03c015e53b120017e116eb35512f",
+    "schema": "hu_m43_attempt05_postrun_trust_audit_v1",
+    "status": "pass_current_trust_boundary_no_reselection",
+    "one_shot_wall_seconds": 447.158,
+    "architecture_report_sha256_matches": true,
+    "current_loader_revalidation": {
+      "states": 900,
+      "unique_observation_identities": 900,
+      "identity_leakage": 0,
+      "t1_second_only": true,
+      "canonical_policy_observation": true,
+      "complete_legal_action_key_set": true,
+      "baseline_action_key_index_binding": true,
+      "source_manifest_equal_to_one_shot": true
+    },
+    "candidate_artifacts": {
+      "lambda_rank": {
+        "sha256": "e7fa728308c8973e2e202baf79309e30b9b6f58c37431d8ea55850390abc28c3",
+        "two_independent_loads_equal": true,
+        "runtime_enabled": false,
+        "winner_frozen": false
+      },
+      "deepsets": {
+        "sha256": "c05b7469abe8d9ac8b4ccaf9def9f24bed4d6fc4670aab95d096baa702696b1b",
+        "two_independent_loads_equal": true,
+        "runtime_enabled": false,
+        "winner_frozen": false
+      }
+    },
+    "source_timing": {
+      "comparison_process_started_before_final_trust_hardening_landed": true,
+      "comparison_reexecuted": false,
+      "model_weights_recomputed_after_hardening": false,
+      "architecture_selection_recomputed_after_hardening": false,
+      "reason_no_rerun": "one-shot contract; source data were infoset-safe and the hardened loader revalidated the identical source hashes"
+    },
+    "fresh_or_locked_data_opened": false,
+    "new_audit_authorized": false,
+    "spot_started": false,
+    "current_profile_mutated": false
+  },
+  "search_feasibility_boundary": {
+    "classification": "local_timing_diagnostic_only_not_policy_quality_evidence",
+    "exact_all_legal_actions_wall_seconds": 400.711,
+    "mc1_wall_seconds": 2.509,
+    "observed_wall_time_ratio_exact_all_over_mc1": 159.709446,
+    "exact_all_scaled_generation_authorized": false,
+    "mc1_quality_or_acceptance_claim_allowed": false,
+    "interpretation": "exact-all is too expensive for an unbounded development sweep; MC1 is only a speed probe and does not establish top4 search quality"
+  },
+  "development_roles": {
+    "pilot_train": "not_started_closed_by_architecture_no_go",
+    "pilot_audit": "not_started_unopened",
+    "expand_train": "not_started_unopened",
+    "final_audit": "not_started_unopened"
+  },
+  "inherited_attempt04_acceptance_roles": {
+    "precal_holdout": "unopened",
+    "calibration_safety_fit": "unopened",
+    "calibration_threshold_lock": "unopened",
+    "locked_holdout": "unopened"
+  },
+  "population_acceptance": "unopened",
+  "spot_execution": {
+    "scripts_overhauled": false,
+    "package_created": false,
+    "instances_created": false,
+    "run_started": false
+  },
+  "attempt06_boundary": {
+    "top4_diagnostic_status": "complete_design_evidence_only",
+    "candidate_set_diagnostic_status": "complete_metric_corrected_design_evidence_only",
+    "attempt06_plan": {
+      "path": "configs/hu_joint_policy_m43_attempt06.json",
+      "schema": "hu_m43_attempt06_corrected_pre_fresh_plan_v3",
+      "sha256": "4844fb970780c04ff093eb43b1672e403f006515c47b287e6abdbea17867f5b8"
+    },
+    "plan_frozen": true,
+    "selected_search_design": {
+      "candidate_generator": "lambda_rank_artifact_design_only",
+      "learned_nonbaseline_top_k": 8,
+      "candidate_selection_samples": 8,
+      "independent_evaluation_samples": 128
+    },
+    "runtime_model_selected": false,
+    "fresh_generation_authorized": false,
+    "spot_authorized": false,
+    "runtime_authorized": false
+  },
+  "postmortem": "docs/hu_joint_policy_m43_attempt05_postmortem.md",
+  "baseline_hash_audit": {
+    "policy_registry_path": "src/ofc_regular/ai_profiles.py",
+    "policy_registry_expected_sha256": "d2eb02669e27426623c70af21f1af4d7002db2a7eab77efd3319f8fb65b868d3",
+    "current_mapping_changed": false
+  },
+  "guards": {
+    "current_profile_changed": false,
+    "runtime_policy_activated": false,
+    "full_replacement_enabled": false,
+    "teacher_lcb_runtime_gate_enabled": false,
+    "threshold_reselected_on_development": false,
+    "fresh_development_opened": false,
+    "acceptance_holdout_opened": false,
+    "population_evaluation_started": false,
+    "large_scale_authorized": false
+  },
+  "next_action": "follow the separately frozen Attempt06 local preflight; fresh generation, Spot, and runtime remain unauthorized"
+}

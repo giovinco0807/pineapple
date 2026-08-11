@@ -108,7 +108,9 @@ impl Default for Config {
             teacher_output: None,
             teacher_samples: 1_000,
             teacher_future_samples: 128,
-            teacher_fl_ev: 12.196164,
+            // configs/fl_ev_regular_v4_selfplay.json (M6 run B, 2026-08-06);
+            // supersedes 9.109 and, before it, 10.227020614683454.
+            teacher_fl_ev: 9.6,
             teacher_min_score_gap: 0.0,
         }
     }
@@ -1167,7 +1169,7 @@ fn print_help() {
     println!("                      write turn3 9-card teacher JSONL instead of FL EV");
     println!("  --teacher-samples N teacher rows to write (default 1000)");
     println!("  --future-samples N  final-turn deals sampled per row (0 = exact all futures)");
-    println!("  --teacher-fl-ev X   FL entry value used by teacher scoring (default 12.196164)");
+    println!("  --teacher-fl-ev X   FL entry value used by teacher scoring (default 9.6)");
     println!("  --teacher-min-score-gap X");
     println!("                      skip rows where best-second score gap is smaller");
 }

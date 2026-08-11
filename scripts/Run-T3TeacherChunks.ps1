@@ -3,7 +3,8 @@ param(
     [int]$ChunkSize = 500,
     [int]$FutureSamples = 64,
     [int]$Seed = 20260602,
-    [double]$FlEv = 12.196164,
+    # configs/fl_ev_regular_v3_direct2.json (armA, 2026-08-03).
+    [double]$FlEv = 9.109,
     [double]$MinScoreGap = 0.25,
     [string]$OutputDir = "outputs/t3_stage1_chunks",
     [string]$MergedOutput = "outputs/turn3_teacher_stage1_10k_f64.jsonl"

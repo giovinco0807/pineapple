@@ -1,0 +1,147 @@
+{
+  "schema": "ofc_webapp_assembly_v1",
+  "app_version": "0.1.0",
+  "assembly_sha256": "BUILD_TIME",
+  "rules": {
+    "name": "regular",
+    "include_jokers": false,
+    "fl_entry_cards": {
+      "qq": 14,
+      "kk": 14,
+      "aa": 14,
+      "trips": 14
+    },
+    "fl_stay_cards": 14
+  },
+  "artifacts": {
+    "engine_library": {
+      "path": "native/libofc_hu_m3_engine.so",
+      "sha256": "BUILD_TIME"
+    },
+    "feature_encoder": {
+      "path": "native/libofc_stage3_feature_encoder.so",
+      "sha256": "BUILD_TIME"
+    },
+    "fl_solver": {
+      "path": "native/regular_fl_solver",
+      "sha256": "BUILD_TIME"
+    },
+    "decision_inspector": {
+      "path": "native/ofc_webapp_decision_inspector",
+      "sha256": "BUILD_TIME"
+    }
+  },
+  "weights": {
+    "t4": {
+      "path": "models/learned/t4_model_v5.bin",
+      "sha256": "1aef64fcd46071498ea05a54d88f3204570d4d46834051e423a6738e463fef90"
+    },
+    "t3_second": {
+      "path": "models/learned/t3_model_v2.bin",
+      "sha256": "e9cd7416df1398e4355c1a6ff36fc3938686e819ee2c8b07f9ab3b0f2385531f"
+    },
+    "t3_first": {
+      "path": "models/learned/t3first_model_v1.bin",
+      "sha256": "36334b4b8dedcbc628ffa6f063db4673ab8f68aad4ca7d60da7387612093104e"
+    },
+    "t2_second": {
+      "path": "models/learned/t2_model_v1.bin",
+      "sha256": "996c430e88e0f8a27600e91d45d0c5440bfb741341a9acc816309841d06e0301"
+    }
+  },
+  "policies": {
+    "early_streets": {
+      "profile": "stage19_p0",
+      "evaluator": "python_policy",
+      "artifacts": {
+        "opening": {
+          "path": "models/opening_stage7_torch_wide.pt",
+          "sha256": "4cfec60e3035323d10348f4f28938c24428880edc557a5e824723d32838fe939"
+        },
+        "turn1": {
+          "path": "models/turn1_stage6_torch_wide.pt",
+          "sha256": "ecffa86f0ccbf0bea1d697ae98bf4b9de316006e5aa4539eda4476a29f3f8b4a"
+        },
+        "turn2": {
+          "path": "models/turn2_stage8.pkl",
+          "sha256": "4be8e1c3647306a18b74676bf4835fcac9e03f3dde65fba391e9aaf5ac3929fe"
+        },
+        "turn3": {
+          "path": "models/turn3_stage6.pkl",
+          "sha256": "5996204bf904b258451097042f38bbd87b3f570fbcbe9bf5f4a1d2bdaf376737"
+        },
+        "t0_candidate": {
+          "path": "models/hu_turn0_stage3_top60_mc32_1000_hgb_baseline-delta_sew1_aug3.pkl",
+          "sha256": "8f360bc4c326f0d8d20710a4efc7c42c62a80cca11341b34a41a72a4c6aadf71"
+        },
+        "t0_safe_selector": {
+          "path": "models/hu_turn0_stage19_safe_selector_highmc_candidate_delta_plus_meta.pkl",
+          "sha256": "7cd85b3a824816223ceb0d84870feb62e43d827452031e6f51de0ee452514abe"
+        },
+        "t1_candidate": {
+          "path": "models/hu_turn1_stage18_first1801_mc32_hgb_abs_aug3.pkl",
+          "sha256": "e910131715efbec7a116e411a8dc23dcfc9a904f2aef9e0eee9d4913a02dfee7"
+        },
+        "t1_safe_selector": {
+          "path": "models/hu_turn1_stage18_highmc_safe_selector_a_meta_only.pkl",
+          "sha256": "838ff3421c2393648aaabeb7316c9e6c3fe97197485b1363be4e8b5dd33ae086"
+        },
+        "t2_reference": {
+          "path": "models/hu_turn2_stage8b_safe_lcb196_20k_reference_override_cached_rank_wide.pt",
+          "sha256": "2a6a52ee09e329852d00197e686509b0747ff86ef627a7b6ed9a21311ec25b3b"
+        },
+        "t3_candidate": {
+          "path": "models/hu_turn3_stage7_reference_override_cached_rank_wide.pt",
+          "sha256": "727fb766b940f17c6c6d00a373b47d68bd07aa1095fe86633ba0fcab6c6e8f20"
+        },
+        "t3_reference": {
+          "path": "models/hu_turn3_stage3_mc32_500k_plus_m8_12_f128_100k_w2_cached_rank_wide.pt",
+          "sha256": "36f6ac00ca308b92aa4a11a7d6b3c65c4b5f65f6fb5fa2e71585d7f87d8dd112"
+        }
+      }
+    }
+  },
+  "dispatch": {
+    "T0": {
+      "evaluator": "python_policy",
+      "profile": "stage19_p0"
+    },
+    "T1": {
+      "evaluator": "python_policy",
+      "profile": "stage19_p0"
+    },
+    "T2": {
+      "first": {
+        "evaluator": "python_policy",
+        "profile": "stage19_p0"
+      },
+      "second": {
+        "evaluator": "rust_decide",
+        "weights": "t2_second"
+      }
+    },
+    "T3": {
+      "first": {
+        "evaluator": "rust_decide",
+        "weights": "t3_first"
+      },
+      "second": {
+        "evaluator": "rust_decide",
+        "weights": "t3_second"
+      }
+    },
+    "T4": {
+      "first": {
+        "evaluator": "rust_decide",
+        "weights": "t4"
+      },
+      "second": {
+        "evaluator": "rust_decide",
+        "weights": "t4"
+      }
+    },
+    "FL": {
+      "evaluator": "regular_fl_solver"
+    }
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "schema": "hu_m43_attempt03_model_freeze_lineage_v1",
+  "milestone": "M4.3-attempt03",
+  "status": "pass_administrative_amendment_precedes_first_teacher_row",
+  "purpose": "Preserve the byte-exact first freeze and prove that the later closure-provenance amendment did not change any executable model, gate, threshold, or activation semantics.",
+  "original_freeze": {
+    "path": "configs/hu_joint_policy_m43_attempt03_model_freeze_original_ce47.json",
+    "file_sha256": "ce47b111d923be163075f135164599415c5446cc71e9bd46eda8af4b93eb7e2f"
+  },
+  "amended_freeze": {
+    "path": "configs/hu_joint_policy_m43_attempt03_model_freeze.json",
+    "file_sha256": "8aed10b143172c9d3b2a98fca199e4fbe4324f5956406fea51c2d17fcb614b9d",
+    "filesystem_last_write_time_evidence": "2026-07-14T02:30:01.4109178+09:00",
+    "changed_top_level_keys_only": [
+      "parent_plan",
+      "teacher_run"
+    ],
+    "change_class": "administrative_hash_and_cloud_closure_provenance_only"
+  },
+  "semantic_projection": {
+    "parent_plan_file_sha256_original": "2bd1666596ec6e7bf2cab7578006c96587977a8277969edb9cecdb54e24ef6d5",
+    "parent_plan_file_sha256_amended": "2bd1666596ec6e7bf2cab7578006c96587977a8277969edb9cecdb54e24ef6d5",
+    "fields": [
+      "implementation",
+      "base_crossfit",
+      "meta_ranker",
+      "precalibration_gate",
+      "safety_calibration",
+      "threshold_grid_correction",
+      "activation_guards"
+    ],
+    "original_sha256": "1d1fc1f405123ad6fa875bfa565bc2955366eb294cdd2dfb4680ff68dc1caa6d",
+    "amended_sha256": "1d1fc1f405123ad6fa875bfa565bc2955366eb294cdd2dfb4680ff68dc1caa6d",
+    "equal": true
+  },
+  "first_teacher_row_boundary": {
+    "evidence_path": "outputs/gcp_runs/regular-hu-m43-attempt03-c2e64-pilot700-r2-20260714-0228/canary-partial/checkpoint.json",
+    "evidence_file_sha256": "9a8f990339b5175756f73beb52635c01b9c245301362c2d3610e42598695c79b",
+    "completed_roots": 1,
+    "completed_at": "2026-07-14T02:31:38.8190000+09:00",
+    "amended_freeze_precedes_first_row_seconds": 97.4080822
+  },
+  "holdout_boundary_at_amendment": {
+    "precalibration_rows_opened": 0,
+    "sealed_calibration_rows_opened": 0,
+    "inherited_locked_rows_opened": 0
+  },
+  "current_profile_mutated": false,
+  "runtime_policy_activated": false,
+  "full_replacement_enabled": false
+}

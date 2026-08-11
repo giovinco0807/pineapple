@@ -1,0 +1,44 @@
+{
+  "name": "hu_turn1_stage18_p1_presets",
+  "status": "p1_fixed_explicit_enable_matrix",
+  "rule_set": "regular",
+  "schema": "hu_turn1_stage18_p1_presets_v1",
+  "current_profile_changed": false,
+  "presets": [
+    {
+      "name": "stage18_p1_off",
+      "ai_profile": "stage9f_p2",
+      "enabled": false,
+      "production_default": false,
+      "fallback_policy": "stage9f_p2"
+    },
+    {
+      "name": "stage18_p1",
+      "ai_profile": "stage18_p1",
+      "enabled": true,
+      "validation_default": true,
+      "production_default": false,
+      "runtime_config": "k5/mc8/d3/confirm32/cse1.5/pd1.5/seat=first/safe0.7",
+      "allowed_seats": [
+        "first"
+      ],
+      "selective_override_only": true,
+      "full_replacement_enabled": false,
+      "fallback_policy": "stage9f_p2"
+    }
+  ],
+  "production_excluded": [
+    {
+      "name": "second_seat",
+      "reason": "C6 acceptance evidence covers first-seat T1 only"
+    },
+    {
+      "name": "full_replacement",
+      "reason": "Stage18 P1 is a selective override policy"
+    },
+    {
+      "name": "current_profile",
+      "reason": "P1 is explicitly selected for downstream experiments and is not an automatic global default"
+    }
+  ]
+}

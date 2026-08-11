@@ -3,6 +3,8 @@ import math
 import numpy as np
 
 from ofc_regular.action_space import generate_turn_actions
+from ofc_regular.decision_trace import attach_replay_truth, capture_decision_log_positions
+from ofc_regular.hu_infoset import ReplayTruth
 from ofc_regular.hu_turn2_stage8_runtime import (
     HuTurn2Stage8RuntimeConfig,
     HuTurn2Stage8SelectiveOverridePolicy,
@@ -64,12 +66,13 @@ def board_and_dealt():
     return board, opponent, dealt
 
 
-def make_policy(stage8_model, config, log, *, seat="first"):
+def make_policy(stage8_model, config, log, *, seat="first", context=None):
     return HuTurn2Stage8SelectiveOverridePolicy(
         turn2_model=BaselineTurn2Model(),
         hu_turn2_stage8_model=stage8_model,
         hu_turn2_stage8_config=config,
         hu_turn2_decision_log=log,
+        hu_turn2_context=context,
         seed=1,
         seat=seat,
     )
@@ -111,6 +114,46 @@ def test_turn2_stage8_selective_override_fires_when_thresholds_pass():
     assert log[-1]["dead_cards"] == []
     assert log[-1]["baseline_action_index"] == 1
     assert log[-1]["stage8_action_index"] == 0
+
+
+def test_turn2_stage8_runtime_log_separates_true_and_visible_dead_cards():
+    board, opponent, dealt = board_and_dealt()
+    log = []
+    policy = make_policy(
+        Stage8Model(candidate_index=0, predicted_delta=3.0, gate_logit=10.0),
+        HuTurn2Stage8RuntimeConfig(2.5, 0.0, 0.90),
+        log,
+        context={},
+    )
+
+    positions = capture_decision_log_positions(policy)
+    policy.choose_action(
+        board,
+        dealt,
+        dead_cards=[*opponent.all_cards(), "2c"],
+        opponent_board=opponent,
+    )
+    assert log[-1]["replay_ready"] is False
+    attach_replay_truth(
+        positions,
+        ReplayTruth(
+            true_dead_cards=("2c", "3c"),
+            visible_dead_cards=(*opponent.all_cards(), "2c"),
+            hero_private_discards=("2c",),
+            opponent_private_discards=("3c",),
+        ),
+    )
+
+    record = log[-1]
+    assert record["dead_cards"] == [*opponent.all_cards(), "2c"]
+    assert record["visible_dead_cards"] == [*opponent.all_cards(), "2c"]
+    assert "2c" in record["visible_dead_cards"]
+    assert "3c" not in record["visible_dead_cards"]
+    assert record["hero_private_discards"] == ["2c"]
+    assert "opponent_private_discards" not in record
+    assert record["true_dead_cards"] == ["2c", "3c"]
+    assert record["true_hero_private_discards"] == ["2c"]
+    assert record["true_opponent_private_discards"] == ["3c"]
 
 
 def test_turn2_stage8_falls_back_below_margin():

@@ -1,0 +1,68 @@
+{
+  "schema": "hu_m43_attempt08_development_closeout_v1",
+  "milestone": "M4.3-attempt08",
+  "status_date": "2026-07-14",
+  "status": "complete_no_go_development",
+  "decision": "no_go",
+  "run_name": "regular-hu-m43-attempt08-development200-finalprop-20260714-215952",
+  "opened_scope": {
+    "development_roots": 200,
+    "root_index_first": 0,
+    "root_index_last": 199,
+    "future_audit_opened": false,
+    "fit_performed": false,
+    "threshold_selected": false,
+    "runtime_policy_activated": false,
+    "current_profile_mutated": false
+  },
+  "artifacts": {
+    "merged_teacher": {
+      "path": "outputs/hu_joint_policy/m43_attempt08_development/regular-hu-m43-attempt08-development200-finalprop-20260714-215952/merged/teacher.jsonl",
+      "sha256": "c310d2f183028118067a749075e1d23664e21867e1d5a2d874320028f5dc3868"
+    },
+    "merge_receipt": {
+      "path": "outputs/hu_joint_policy/m43_attempt08_development/regular-hu-m43-attempt08-development200-finalprop-20260714-215952/merged/merge_receipt.json",
+      "sha256": "54d440780da7059c2eb0d519553a49a643a30eed554537b68dbe16defa0480fb"
+    },
+    "decision": {
+      "path": "outputs/hu_joint_policy/m43_attempt08_development/regular-hu-m43-attempt08-development200-finalprop-20260714-215952/selector/decision.json",
+      "sha256": "4bdc90be7049c201e8b7dbd788603eb087a7df591ab69df7002a52773774217f"
+    },
+    "decision_receipt": {
+      "path": "outputs/hu_joint_policy/m43_attempt08_development/regular-hu-m43-attempt08-development200-finalprop-20260714-215952/selector/decision_receipt.json",
+      "sha256": "f486ae8c02cffcea66997d491c3bedc593bbbf9f12dfc69e3d80a72c16cbc8af"
+    },
+    "selector_claim": {
+      "path": "outputs/hu_joint_policy/m43_attempt08_development/regular-hu-m43-attempt08-development200-finalprop-20260714-215952/selector/CLAIM.json",
+      "sha256": "b0920247e285f01913380588a1b2fef75e39a3505de3c34a7c268787d4ca5b2f"
+    }
+  },
+  "gate_summary": {
+    "passed": 13,
+    "total": 14,
+    "only_failed_gate": "override_loss_max_lte_50",
+    "observed_override_loss_max": 52.45404122936691,
+    "limit_override_loss_max": 50.0,
+    "failed_root_index": 72,
+    "failed_root_profile": "stage7_m5_r10",
+    "fires": 41,
+    "mean_delta_per_state": 0.06687437319183158,
+    "mean_delta_per_fire": 0.3262164545943004,
+    "false_positive_rate_per_fire": 0.3170731707317073,
+    "max_root_loss_p95": 24.306755153670863,
+    "max_root_loss_p99": 37.227020614683454
+  },
+  "boundary": {
+    "attempt08_seed_retry_allowed": false,
+    "attempt08_threshold_reselection_allowed": false,
+    "attempt08_future_audit_allowed": false,
+    "attempt08_fit_allowed": false,
+    "attempt08_runtime_activation_allowed": false,
+    "postmortem_design_use_allowed": true,
+    "fresh_attempt_required": true
+  },
+  "policy_registry": {
+    "ai_profiles_sha256": "d2eb02669e27426623c70af21f1af4d7002db2a7eab77efd3319f8fb65b868d3",
+    "current_profile_mutated": false
+  }
+}

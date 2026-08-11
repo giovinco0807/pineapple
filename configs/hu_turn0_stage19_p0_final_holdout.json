@@ -1,0 +1,79 @@
+{
+  "name": "hu_turn0_stage19_p0_final_holdout",
+  "status": "preregistered_final_holdout",
+  "rule_set": "regular",
+  "schema": "hu_turn0_stage19_p0_final_holdout_v1",
+  "created_date_jst": "2026-07-12",
+  "purpose": "Select a fixed T0 selective override for stage19_p0 using fresh whole-game counterfactual evidence.",
+  "fixed_chain": {
+    "fallback_profile": "stage18_p1",
+    "t1": "stage18_p1",
+    "t2": "stage9f_p2",
+    "t3": "stage7_m5_r10",
+    "fl_ev": 10.227020614683454
+  },
+  "candidate_model": "models/hu_turn0_stage3_top60_mc32_1000_hgb_baseline-delta_sew1_aug3.pkl",
+  "candidate_topk": 60,
+  "mode": "selective_override_only",
+  "full_replacement_enabled": false,
+  "candidates": [
+    {
+      "id": "p0_main_b05s15",
+      "priority": 1,
+      "min_margin_by_seat": {
+        "first": 0.5,
+        "second": 1.5
+      },
+      "allowed_seats": [
+        "first",
+        "second"
+      ],
+      "calibration_artifact": "outputs/evals/hu_turn0_p0_cal_weighted1000/",
+      "calibration_config": "w_b05s15"
+    },
+    {
+      "id": "p0_conservative_f075",
+      "priority": 2,
+      "min_margin_by_seat": {
+        "first": 0.75,
+        "second": 999.0
+      },
+      "allowed_seats": [
+        "first"
+      ],
+      "calibration_artifact": "outputs/evals/hu_turn0_p0_cal_weighted1000/",
+      "calibration_config": "w_f075"
+    }
+  ],
+  "evaluation": {
+    "paired_seeds_per_config": 5000,
+    "games_per_shard": 20,
+    "base_seed": 2026407001,
+    "seed_stride": 1000003,
+    "non_overlapping_with_calibration": true,
+    "vm_count": 80,
+    "machine_type": "c4-highmem-2",
+    "spot": true,
+    "opening_lookahead_samples": 1,
+    "no_threshold_adaptation_after_holdout": true
+  },
+  "acceptance": {
+    "selection_order": "Use p0_main_b05s15 if it passes; otherwise use p0_conservative_f075 if it passes; otherwise T0 remains stage18_p1 fallback and is not complete.",
+    "aggregate_avg_delta_per_hand_min_exclusive": 0.0,
+    "aggregate_ci95_low_min": 0.0,
+    "avg_delta_per_fire_min_exclusive": 0.0,
+    "per_fire_ci95_low_min": 0.0,
+    "minimum_fires": 300,
+    "non_fired_nonzero_count": 0,
+    "p99_fire_loss_max": 40.0,
+    "max_fire_loss_max": 50.0,
+    "enabled_seat_point_estimates_must_be_nonnegative": true,
+    "duplicate_event_count": 0,
+    "seed_set_mismatch_configs": []
+  },
+  "calibration_inputs": [
+    "outputs/evals/hu_turn0_p0_cal_unaug1000/summary.json",
+    "outputs/evals/hu_turn0_p0_cal_weighted1000/summary.json",
+    "outputs/evals/hu_turn0_p0_cal_standard1000/summary.json"
+  ]
+}

@@ -1,0 +1,52 @@
+{
+  "name": "hu_turn0_stage19_p0_presets",
+  "status": "p0_fixed_explicit_enable_matrix",
+  "rule_set": "regular",
+  "schema": "hu_turn0_stage19_p0_presets_v1",
+  "current_profile_changed": false,
+  "presets": [
+    {
+      "name": "stage19_p0_off",
+      "ai_profile": "stage18_p1",
+      "enabled": false,
+      "production_default": false,
+      "fallback_policy": "stage18_p1"
+    },
+    {
+      "name": "stage19_p0",
+      "ai_profile": "stage19_p0",
+      "enabled": true,
+      "validation_default": true,
+      "production_default": false,
+      "candidate_topk": 60,
+      "min_margin_by_seat": {
+        "first": 0.5,
+        "second": 999.0
+      },
+      "safe_selector_threshold_by_seat": {
+        "first": 0.6,
+        "second": 1.0
+      },
+      "allowed_seats": [
+        "first"
+      ],
+      "selective_override_only": true,
+      "full_replacement_enabled": false,
+      "fallback_policy": "stage18_p1"
+    }
+  ],
+  "excluded": [
+    {
+      "name": "second_seat",
+      "reason": "Stage19 P0 acceptance evidence covers first-seat T0 only"
+    },
+    {
+      "name": "full_replacement",
+      "reason": "Stage19 P0 is a selective override policy"
+    },
+    {
+      "name": "current_profile",
+      "reason": "P0 requires explicit selection and does not replace current"
+    }
+  ]
+}

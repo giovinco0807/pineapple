@@ -1,0 +1,202 @@
+{
+  "schema": "hu_joint_policy_revised_roadmap_v1",
+  "status_date": "2026-07-16",
+  "decision": "freeze_explicit_m30_exact_t4_before_safe_t3_t2_and_t1_rebuilds",
+  "authoritative_document": "docs/hu_joint_policy_implementation_milestones.md",
+  "current_profile_changed": false,
+  "runtime_profile_activated": false,
+  "full_replacement_enabled": false,
+  "large_scale_generation_allowed": false,
+  "historical_status_artifacts_mutated": false,
+  "fixed_legacy_baseline_chain": [
+    "stage19_p0",
+    "stage18_p1",
+    "stage9f_p2",
+    "stage7_m5_r10"
+  ],
+  "audit_boundary": {
+    "m1_foundation_status": "complete",
+    "m2_teacher_status": "complete_python_correctness_reference",
+    "m3_engine_status": "complete_native_engine_correctness_and_speed_pilot",
+    "m30_t4_runtime_status": "complete_local_explicit_opt_in_release_pending",
+    "m30_t4_current_profile_changed": false,
+    "m30_t4_runtime_profile_activated": false,
+    "safe_t3_model_status": "not_built",
+    "safe_t2_model_status": "not_built",
+    "t1_both_seat_policy_status": "not_promoted",
+    "t0_both_seat_policy_status": "not_started",
+    "approximate_exploitability_status": "not_started",
+    "legacy_t2_direct_hidden_discard_provenance": true,
+    "legacy_t3_direct_hidden_discard_provenance": true,
+    "legacy_p0_p1_downstream_label_contamination": true,
+    "local_runtime_information_set_guard_upstream_verified": false
+  },
+  "t4_exactness_scope": {
+    "first_seat": "exact_expectimin_under_uniform_exchangeable_restart_belief_all_2024_deals_and_exact_responses",
+    "second_seat": "exact_terminal_enumeration_against_complete_opponent_board",
+    "full_bayesian_action_history_posterior": false,
+    "nash_equilibrium_proof": false,
+    "mathematical_full_game_optimality_proof": false,
+    "returns_all_legal_action_values": true,
+    "actor_observation_only": true,
+    "strict_no_fallback": true
+  },
+  "historical_m4_boundary": {
+    "latest_attempt": "M4.3-attempt13",
+    "latest_status": "complete_no_go_development",
+    "latest_closeout": "configs/hu_joint_policy_m43_attempt13_closeout.json",
+    "allowed_use": "legacy_continuation_architecture_diagnostic_only",
+    "threshold_or_seed_reuse_allowed": false,
+    "audit50_opened": false,
+    "fit_performed": false,
+    "population_acceptance_performed": false,
+    "runtime_activation_performed": false
+  },
+  "execution_order": [
+    {
+      "id": "R0",
+      "name": "safe_release_and_provenance_boundary",
+      "status": "next",
+      "depends_on": [],
+      "spot_allowed": false,
+      "go_requires": [
+        "ActorObservation enforced on normal and public runtime entrypoints",
+        "complete legacy artifact quarantine registry",
+        "reviewable source scope with no unrelated deletion",
+        "full Python and M3 Rust regressions pass",
+        "current mapping unchanged",
+        "local and upstream information-set boundaries agree"
+      ]
+    },
+    {
+      "id": "M3.0",
+      "name": "both_seat_exact_t4_runtime_closure",
+      "status": "complete_local_release_pending",
+      "depends_on": [
+        "R0"
+      ],
+      "spot_allowed": false,
+      "go_requires": [
+        "strict ActorObservation schema rejects hidden truth in Python scalar and batch paths",
+        "all legal ActionKeys and action EVs validated against Python exact reference",
+        "determinism scalar batch and dealt-card permutation parity",
+        "100 then disjoint 1000 root pilots pass frozen latency gates",
+        "fresh paired counterfactual reports override gain false positives tail loss and nonfire trajectory identity",
+        "release library version and SHA pinned with no build or fallback",
+        "legacy named profiles and current remain unchanged"
+      ]
+    },
+    {
+      "id": "M3.1",
+      "name": "hidden_discard_safe_t3_reference_and_candidate_rebuild",
+      "status": "step2_correctness_complete_step3_profile_pending",
+      "depends_on": [
+        "R0",
+        "M3.0"
+      ],
+      "spot_allowed": false,
+      "go_requires": [
+        "ActorObservation-only versioned T3 caches",
+        "new safe reference and selective candidate artifacts",
+        "zero visibility action-mapping and RNG integrity violations",
+        "scalar batch exact parity",
+        "100 then 1000 root local pilots pass",
+        "fresh paired seat-swap multi-opponent holdout passes frozen gates"
+      ]
+    },
+    {
+      "id": "M3.2",
+      "name": "hidden_discard_safe_t2_both_seat_rebuild_and_promotion",
+      "status": "pending",
+      "depends_on": [
+        "M3.1"
+      ],
+      "spot_allowed": false,
+      "go_requires": [
+        "ActorObservation-only versioned T2 caches",
+        "accepted M3.1 T3 continuation",
+        "accepted M3.0 exact T4 enabled in scalar and batch paths",
+        "both-seat fire coverage and positive locked realized results",
+        "fresh multi-opponent robustness and frozen tail-loss gates",
+        "new explicit opt-in profile with stage9f_p2 preserved as rollback"
+      ]
+    },
+    {
+      "id": "M4R",
+      "name": "t1_both_seat_rebuild",
+      "status": "pending",
+      "depends_on": [
+        "M3.2"
+      ],
+      "spot_allowed": false,
+      "go_requires": [
+        "first and second T1 labels use accepted safe T2 T3 T4 chain",
+        "new frozen attempt identifier and disjoint seeds",
+        "positive paired EV per hand confidence",
+        "positive realized gain per override",
+        "false-positive and p95 p99 max-loss gates pass",
+        "no material opponent-family worst-case regression"
+      ]
+    },
+    {
+      "id": "M5",
+      "name": "t0_both_seat_rebuild",
+      "status": "pending",
+      "depends_on": [
+        "M4R"
+      ],
+      "spot_allowed": false,
+      "go_requires": [
+        "all 232 legal opening actions retain semantic mapping",
+        "both seats relabeled with accepted safe T1 T4 chain",
+        "old Stage19 evidence used only as rollback comparison",
+        "fresh paired seat-swap population gates pass"
+      ]
+    },
+    {
+      "id": "M6",
+      "name": "joint_population_iteration_and_exploitability_reduction",
+      "status": "pending",
+      "depends_on": [
+        "M5"
+      ],
+      "spot_allowed": false,
+      "go_requires": [
+        "historical exploitative conservative and randomized population",
+        "approximate best-response evaluation",
+        "restricted late-street CFR",
+        "decreasing approximate NashConv or ABR gap",
+        "positive both-seat robustness with stable tail risk"
+      ]
+    }
+  ],
+  "global_promotion_gates": [
+    "non-overlapping seed ranges and seed stride recorded",
+    "paired seat-swap evaluation",
+    "first and second results reported separately",
+    "realized gain per override",
+    "false-positive override rate",
+    "p95 p99 and maximum fired loss",
+    "multi-opponent worst-case robustness",
+    "non-fire full-trajectory identity",
+    "approximate exploitability after M5"
+  ],
+  "forbidden": [
+    "opponent private discard policy input",
+    "implicit current profile resolution",
+    "teacher EV or teacher LCB as a runtime gate",
+    "model top1 accuracy as a promotion decision",
+    "holdout threshold reselection",
+    "full replacement before locked acceptance",
+    "Spot scaling before local 100 and 1000 root pilots",
+    "Nash or mathematical complete optimality claim without proof"
+  ],
+  "spot_boundary": {
+    "small_resumable_shards_required": true,
+    "checkpoint_required": true,
+    "heartbeat_required": true,
+    "preemption_resume_required": true,
+    "candidate_and_evaluation_rng_disjoint": true,
+    "authorization_condition": "current milestone local Go and frozen numeric gates"
+  }
+}

@@ -1,0 +1,102 @@
+{
+  "schema": "hu_m43_attempt06_status_v3",
+  "milestone": "M4.3",
+  "attempt": "attempt06",
+  "status_date": "2026-07-14",
+  "status": "frozen_preflight",
+  "decision": "corrected_rank8_search_quality_audit_only",
+  "plan": {
+    "path": "configs/hu_joint_policy_m43_attempt06.json",
+    "schema": "hu_m43_attempt06_corrected_pre_fresh_plan_v3",
+    "sha256": "4844fb970780c04ff093eb43b1672e403f006515c47b287e6abdbea17867f5b8"
+  },
+  "frozen_design": {
+    "family": "lambda_rank",
+    "artifact_sha256": "e7fa728308c8973e2e202baf79309e30b9b6f58c37431d8ea55850390abc28c3",
+    "teacher_schema": "hu_m43_attempt06_t1_second_top8_c8_e128_teacher_v3",
+    "learned_nonbaseline_top_k": 8,
+    "candidate_selection_samples": 8,
+    "independent_evaluation_samples": 128,
+    "independent_evaluation_raw_paired_deltas_retained": true,
+    "independent_evaluation_raw_count": 128,
+    "raw_summary_recomputed_with": "numpy_linear",
+    "independent_evaluation_action_scope": "locked_action_plus_explicit_baseline_only",
+    "native_batch_threads": 4,
+    "batch_child_selectors_required": true,
+    "config_sha256_cross_bind_required": [
+      "teacher_row_provenance",
+      "checkpoint",
+      "heartbeat",
+      "generator_summary",
+      "done"
+    ],
+    "rank8_conditional_recall_overall_min": 0.95,
+    "rank8_conditional_recall_each_profile_min": 0.93,
+    "observed_overall": 0.9575221238938053,
+    "observed_min_profile": 0.9391304347826087,
+    "tail_gate_semantics": "per_fired_root_e128_p05_p01_min_then_maximum_across_fires",
+    "paired_mean_cross_fire_quantiles_are_gate": false,
+    "runtime_model_frozen": false,
+    "runtime_enabled": false
+  },
+  "seed_transfer": {
+    "source": "attempt05.development_roles.pilot_audit",
+    "source_started": false,
+    "exclusive_owner": "attempt06.search_quality_audit",
+    "roots": 50,
+    "shards": 50,
+    "roots_per_shard": 1,
+    "seed_granularity": "one_hand_candidate_evaluation_child_tuple_per_root",
+    "per_root_seed_tuple_count": 50,
+    "profiles": 5,
+    "roots_per_profile": 10,
+    "hand_seed_start": 17306071901,
+    "candidate_seed_start": 23306071901,
+    "evaluation_seed_start": 24306071901,
+    "child_policy_seed_start": 25306071901
+  },
+  "preflight": {
+    "local_correctness": "not_started",
+    "determinism": "not_started",
+    "scalar_batch_exact_parity": "not_started",
+    "latency_profile": "not_started"
+  },
+  "one_shot_search_quality_audit": {
+    "status": "not_started",
+    "consumption_marker_claimed": false,
+    "fresh_content_opened": false,
+    "fit_performed": false,
+    "threshold_selected": false,
+    "result": null
+  },
+  "spot_execution": {
+    "authorized": false,
+    "scripts_created": false,
+    "package_created": false,
+    "instances_created": false,
+    "run_started": false
+  },
+  "continuation_boundary": {
+    "actual_t2_policy_id": "stage9f_p2",
+    "hypothetical_t4_mode": "counter_mc_1",
+    "real_live_t4_exact_unchanged": true
+  },
+  "baseline_hash_audit": {
+    "policy_registry_path": "src/ofc_regular/ai_profiles.py",
+    "policy_registry_expected_sha256": "d2eb02669e27426623c70af21f1af4d7002db2a7eab77efd3319f8fb65b868d3",
+    "current_mapping_changed": false
+  },
+  "guards": {
+    "current_profile_changed": false,
+    "runtime_policy_activated": false,
+    "full_replacement_enabled": false,
+    "fresh_audit_started": false,
+    "spot_run_started": false,
+    "fit_started": false,
+    "threshold_selection_started": false,
+    "acceptance_holdout_opened": false,
+    "population_evaluation_started": false,
+    "large_scale_authorized": false
+  },
+  "next_action": "implement top8 c8 e128 audit path, then pass local correctness determinism scalar-batch-exact parity and latency preflight before any Spot authorization"
+}

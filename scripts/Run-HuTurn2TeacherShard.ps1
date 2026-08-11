@@ -1,11 +1,25 @@
 param(
     [string]$SourceBucket = "natural",
     [int]$Samples = 100,
-    [int]$FutureSamples = 4096,
+    [int]$FutureSamples = 16,
     [int]$Seed = 2026061101,
+    [int]$MaxHands = 1000000,
+    [int]$PrefilterFutureSamples = 0,
     [int]$PredictionThreads = 1,
+    [int]$ProgressEvery = 10,
+    [string]$Stage3FeatureEncoderMode = "rust_direct",
+    [ValidateSet("stage3_reference_default", "stage7_m5_r10")]
+    [string]$T3Continuation = "stage3_reference_default",
     [string]$Output = "outputs/hu_turn2_stage1/chunks/hu_turn2_teacher_natural_0000.jsonl",
-    [string]$SummaryOutput = ""
+    [string]$SummaryOutput = "",
+    [switch]$EnableM2T4Search,
+    [int]$M2T4CandidateSamples = 16,
+    [int]$M2T4EvaluationSamples = 32,
+    [int]$M2T4Seed = 2026071303,
+    [int]$M2T4CandidateSeed = 2026071301,
+    [int]$M2T4EvaluationSeed = 2026071302,
+    [string]$M2T4RunId = "hu-m2-t2-continuation-v1",
+    [switch]$NoBatchedContinuation
 )
 
 $ErrorActionPreference = "Stop"
@@ -16,18 +30,32 @@ $argsList = @(
     "--future-samples", "$FutureSamples",
     "--seed", "$Seed",
     "--source-bucket", "$SourceBucket",
+    "--max-hands", "$MaxHands",
     "--prediction-threads", "$PredictionThreads",
-    "--progress-every", "10",
-    "--opening-model", "models/opening_stage7_torch_wide.pt",
-    "--turn1-model", "models/turn1_stage6_torch_wide.pt",
-    "--turn2-model", "models/turn2_stage8.pkl",
-    "--turn3-model", "models/turn3_stage6.pkl",
-    "--stage7-model", "models/hu_turn3_stage7_reference_override_cached_rank_wide.pt",
-    "--stage3-reference-model", "models/hu_turn3_stage3_mc32_500k_plus_m8_12_f128_100k_w2_cached_rank_wide.pt",
+    "--progress-every", "$ProgressEvery",
+    "--t3-continuation", "$T3Continuation",
+    "--stage3-feature-encoder-mode", "$Stage3FeatureEncoderMode",
     "--output", "$Output"
 )
+if (-not $NoBatchedContinuation) {
+    $argsList += @("--use-batched-continuation")
+}
+if ($PrefilterFutureSamples -gt 0) {
+    $argsList += @("--prefilter-future-samples", "$PrefilterFutureSamples")
+}
 if ($SummaryOutput -ne "") {
     $argsList += @("--summary-output", "$SummaryOutput")
+}
+if ($EnableM2T4Search) {
+    $argsList += @(
+        "--enable-m2-t4-search",
+        "--m2-t4-candidate-samples", "$M2T4CandidateSamples",
+        "--m2-t4-evaluation-samples", "$M2T4EvaluationSamples",
+        "--m2-t4-seed", "$M2T4Seed",
+        "--m2-t4-candidate-seed", "$M2T4CandidateSeed",
+        "--m2-t4-evaluation-seed", "$M2T4EvaluationSeed",
+        "--m2-t4-run-id", "$M2T4RunId"
+    )
 }
 
 python @argsList

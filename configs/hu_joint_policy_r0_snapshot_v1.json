@@ -1,0 +1,736 @@
+{
+  "schema": "hu_joint_policy_r0_snapshot_spec_v1",
+  "snapshot_id": "hu-joint-policy-r0-snapshot-v1",
+  "repository": {
+    "head_commit": "623e3948cb70b05be2958f0b1c63b6f02c7fb756",
+    "branch": "codex/regular-ofc-pineapple",
+    "upstream": "origin/codex/regular-ofc-pineapple",
+    "upstream_commit": "623e3948cb70b05be2958f0b1c63b6f02c7fb756",
+    "require_dirty": true
+  },
+  "policy_registry": {
+    "role": "policy_registry",
+    "sha256": "d2eb02669e27426623c70af21f1af4d7002db2a7eab77efd3319f8fb65b868d3",
+    "current_profile_changed": false
+  },
+  "profiles": [
+    "stage19_p0",
+    "stage18_p1",
+    "stage9f_p2",
+    "stage7_m5_r10"
+  ],
+  "authorization": {
+    "cloud_authorized": false,
+    "current_profile_changed": false,
+    "promotion_authorized": false,
+    "quality_authorized": false,
+    "runtime_activation_authorized": false,
+    "training_authorized": false
+  },
+  "gates": {
+    "default_gate_id": "r0a_t3_research_snapshot",
+    "definitions": [
+      {
+        "gate_id": "r0a_t3_research_snapshot",
+        "purpose": "reproducible_t3_research_snapshot",
+        "excluded_roles": [
+          "m30_windows_exact_runtime"
+        ]
+      },
+      {
+        "gate_id": "r0b_exact_t4_release_runtime",
+        "purpose": "exact_t4_release_runtime_recovery",
+        "excluded_roles": []
+      }
+    ]
+  },
+  "entries": [
+    {
+      "role": "root_cargo_manifest",
+      "kind": "toolchain",
+      "source_scope": "repo",
+      "source": "Cargo.toml",
+      "archive_path": "toolchain/Cargo.toml",
+      "sha256": "02bccf8314183382e7cd4b660daa861bc53b2b7eaaa79ffc7d93e4e16972a6a4"
+    },
+    {
+      "role": "cargo_lock",
+      "kind": "toolchain",
+      "source_scope": "repo",
+      "source": "Cargo.lock",
+      "archive_path": "toolchain/Cargo.lock",
+      "sha256": "977dec57f219532bf550e018dad3c6f7ff6cec1a74b5c4597818015a6cd2e823"
+    },
+    {
+      "role": "python_project",
+      "kind": "toolchain",
+      "source_scope": "repo",
+      "source": "pyproject.toml",
+      "archive_path": "toolchain/pyproject.toml",
+      "sha256": "0d93882d03507a7e5d6cfb5121dee5bc9f0ee7f62f6b8cb71093136f36c50599"
+    },
+    {
+      "role": "policy_registry",
+      "kind": "source",
+      "source_scope": "repo",
+      "source": "src/ofc_regular/ai_profiles.py",
+      "archive_path": "source/src/ofc_regular/ai_profiles.py",
+      "sha256": "d2eb02669e27426623c70af21f1af4d7002db2a7eab77efd3319f8fb65b868d3"
+    },
+    {
+      "role": "artifact_manifest_source",
+      "kind": "source",
+      "source_scope": "repo",
+      "source": "src/ofc_regular/artifact_manifest.py",
+      "archive_path": "source/src/ofc_regular/artifact_manifest.py",
+      "sha256": "36fee5ef085f6eeca345e21563bdc20333c08bbe8b4e3538d7cd5fb6dc5d43dd"
+    },
+    {
+      "role": "r0_snapshot_source",
+      "kind": "source",
+      "source_scope": "repo",
+      "source": "src/ofc_regular/freeze_hu_joint_policy_r0.py",
+      "archive_path": "source/src/ofc_regular/freeze_hu_joint_policy_r0.py",
+      "sha256": "13befb693be09a17caf6a8a565bbf642dae8774f524a25a3a44414bbeef43817"
+    },
+    {
+      "role": "action_key_source",
+      "kind": "source",
+      "source_scope": "repo",
+      "source": "src/ofc_regular/action_key.py",
+      "archive_path": "source/src/ofc_regular/action_key.py",
+      "sha256": "ff777a084fa1044d22f4f05ee6fa24a6a877e11f7cd2cd217e5f18e89e00ebf0"
+    },
+    {
+      "role": "counter_rng_source",
+      "kind": "source",
+      "source_scope": "repo",
+      "source": "src/ofc_regular/counter_rng.py",
+      "archive_path": "source/src/ofc_regular/counter_rng.py",
+      "sha256": "f713f881163046b5ba6d9ad3fbc4078c640799f8d58933f05eb7816e17252971"
+    },
+    {
+      "role": "hu_infoset_source",
+      "kind": "source",
+      "source_scope": "repo",
+      "source": "src/ofc_regular/hu_infoset.py",
+      "archive_path": "source/src/ofc_regular/hu_infoset.py",
+      "sha256": "f72624fff2e49564a95b462c94e74fff957c8aa19850d2a2e52b188c091cc490"
+    },
+    {
+      "role": "hu_belief_source",
+      "kind": "source",
+      "source_scope": "repo",
+      "source": "src/ofc_regular/hu_belief.py",
+      "archive_path": "source/src/ofc_regular/hu_belief.py",
+      "sha256": "9137531c6ec9e2c2a017070bd3407f69635117f7e9469fbfc556018c46af863d"
+    },
+    {
+      "role": "policy_source",
+      "kind": "source",
+      "source_scope": "repo",
+      "source": "src/ofc_regular/policy.py",
+      "archive_path": "source/src/ofc_regular/policy.py",
+      "sha256": "6dec731cce97f914940c774214f6495dcb6feda60708b534f6b1316517e0f617"
+    },
+    {
+      "role": "play_ai_source",
+      "kind": "source",
+      "source_scope": "repo",
+      "source": "src/ofc_regular/play_ai.py",
+      "archive_path": "source/src/ofc_regular/play_ai.py",
+      "sha256": "44d4bb0911b45115ead5d9e591bc07bca94c404eb5e06134d41cd111e167a76b"
+    },
+    {
+      "role": "evaluate_matchups_source",
+      "kind": "source",
+      "source_scope": "repo",
+      "source": "src/ofc_regular/evaluate_matchups.py",
+      "archive_path": "source/src/ofc_regular/evaluate_matchups.py",
+      "sha256": "935e059158d609ea2ad8b09affd5088a6f57a5cf73630591a54ddebebb3906e9"
+    },
+    {
+      "role": "decision_trace_source",
+      "kind": "source",
+      "source_scope": "repo",
+      "source": "src/ofc_regular/decision_trace.py",
+      "archive_path": "source/src/ofc_regular/decision_trace.py",
+      "sha256": "e99378cd6605d45bcfbf8b51a3e2fa0a0bfdb8e33c953b01e372fa6f97c67202"
+    },
+    {
+      "role": "m3_rust_bridge_source",
+      "kind": "source",
+      "source_scope": "repo",
+      "source": "src/ofc_regular/hu_m3_rust.py",
+      "archive_path": "source/src/ofc_regular/hu_m3_rust.py",
+      "sha256": "6de5bc5cf45d0088593b1c3d2eacbdd4fa2606a4c1063a128fc8c2a463514b78"
+    },
+    {
+      "role": "m30_t4_runtime_source",
+      "kind": "source",
+      "source_scope": "repo",
+      "source": "src/ofc_regular/hu_m3_t4_runtime.py",
+      "archive_path": "source/src/ofc_regular/hu_m3_t4_runtime.py",
+      "sha256": "f16dc52a3347a8cb47b083299c9b43cb180207b47a9b7ece819006c0dba116c9"
+    },
+    {
+      "role": "m30_t4_validator_source",
+      "kind": "source",
+      "source_scope": "repo",
+      "source": "src/ofc_regular/validate_hu_m30_t4_runtime.py",
+      "archive_path": "source/src/ofc_regular/validate_hu_m30_t4_runtime.py",
+      "sha256": "94b0d828a6a30528c94732743b624d5f17ff845066fe449c2aafae0080dcdd8b"
+    },
+    {
+      "role": "m31_t3_runtime_source",
+      "kind": "source",
+      "source_scope": "repo",
+      "source": "src/ofc_regular/hu_m31_t3_runtime.py",
+      "archive_path": "source/src/ofc_regular/hu_m31_t3_runtime.py",
+      "sha256": "d9230a82b8350dde3937f63988a90c96e3cb1b6fe6f0b83858f550897276998a"
+    },
+    {
+      "role": "m31_behavior_roots_source",
+      "kind": "source",
+      "source_scope": "repo",
+      "source": "src/ofc_regular/hu_m31_t3_behavior_roots.py",
+      "archive_path": "source/src/ofc_regular/hu_m31_t3_behavior_roots.py",
+      "sha256": "f17fc6b93a537ebbf53f18bdc6f388f7cddd9365ab2ff1006af57f274d981a55"
+    },
+    {
+      "role": "m31_full100_plan_source",
+      "kind": "source",
+      "source_scope": "repo",
+      "source": "src/ofc_regular/hu_m31_t3_step6d_candidate02_full100_plan.py",
+      "archive_path": "source/src/ofc_regular/hu_m31_t3_step6d_candidate02_full100_plan.py",
+      "sha256": "88178ebb945d8b9432e540c777d6e34b45fbab8bc6ad6756fb4b8a119fcd36f1"
+    },
+    {
+      "role": "m31_performance_runner_source",
+      "kind": "source",
+      "source_scope": "repo",
+      "source": "src/ofc_regular/run_hu_m31_t3_step6d_performance_v2.py",
+      "archive_path": "source/src/ofc_regular/run_hu_m31_t3_step6d_performance_v2.py",
+      "sha256": "02a4cbcc6773f88fa8fa936215a6e1602d9bf281ec7d6afc4f2b7d9d77834105"
+    },
+    {
+      "role": "m31_full100_merge_source",
+      "kind": "source",
+      "source_scope": "repo",
+      "source": "src/ofc_regular/merge_hu_m31_t3_step6d_candidate02_full100.py",
+      "archive_path": "source/src/ofc_regular/merge_hu_m31_t3_step6d_candidate02_full100.py",
+      "sha256": "28ca51e3e611a921a69ef01e4481d0be558b87139c88a40a25d6a7c8492885f3"
+    },
+    {
+      "role": "m31_performance_merge_source",
+      "kind": "source",
+      "source_scope": "repo",
+      "source": "src/ofc_regular/merge_hu_m31_t3_step6d_performance_v2.py",
+      "archive_path": "source/src/ofc_regular/merge_hu_m31_t3_step6d_performance_v2.py",
+      "sha256": "b1f5e8e9a82db6287bc19ac62bd913366ccc3523087dc123a2d245bac8ad12a1"
+    },
+    {
+      "role": "m31_tail_selector_source",
+      "kind": "source",
+      "source_scope": "repo",
+      "source": "src/ofc_regular/select_hu_m31_t3_step6d_candidate02_tail_v2.py",
+      "archive_path": "source/src/ofc_regular/select_hu_m31_t3_step6d_candidate02_tail_v2.py",
+      "sha256": "3a0dee68a1744c3d5272e4ff2f5935e8638dc499fe57c086e9fa62f0f69293bd"
+    },
+    {
+      "role": "m31_candidate_equivalence_source",
+      "kind": "source",
+      "source_scope": "repo",
+      "source": "src/ofc_regular/validate_hu_m31_t3_candidate02_equivalence.py",
+      "archive_path": "source/src/ofc_regular/validate_hu_m31_t3_candidate02_equivalence.py",
+      "sha256": "f415b97b445eb6cb82f81de10cdac337711c046b97be9afef4c84cfbc85fb5a0"
+    },
+    {
+      "role": "m31_performance_validator_source",
+      "kind": "source",
+      "source_scope": "repo",
+      "source": "src/ofc_regular/validate_hu_m31_t3_step6d_performance.py",
+      "archive_path": "source/src/ofc_regular/validate_hu_m31_t3_step6d_performance.py",
+      "sha256": "3c361b2be0413e1fbb53cca5c4a0f373e4fa2dc508d36326955fa42b5779900e"
+    },
+    {
+      "role": "artifact_manifest_test",
+      "kind": "test",
+      "source_scope": "repo",
+      "source": "tests/test_artifact_manifest.py",
+      "archive_path": "test/tests/test_artifact_manifest.py",
+      "sha256": "e78743ce329fe0b4911c9de99e42623edaa697db95bc645273a274f7d8d6e1cc"
+    },
+    {
+      "role": "r0_snapshot_test",
+      "kind": "test",
+      "source_scope": "repo",
+      "source": "tests/test_freeze_hu_joint_policy_r0.py",
+      "archive_path": "test/tests/test_freeze_hu_joint_policy_r0.py",
+      "sha256": "49d36eff7b8b925537f5e81d23b963d3ab20d19888e47a2d8e0c926f09056cff"
+    },
+    {
+      "role": "infoset_test",
+      "kind": "test",
+      "source_scope": "repo",
+      "source": "tests/test_hu_infoset.py",
+      "archive_path": "test/tests/test_hu_infoset.py",
+      "sha256": "106eacae535a473e112f86e2feb684ebee58ecb7659735f8dbc5a5286172f903"
+    },
+    {
+      "role": "action_key_test",
+      "kind": "test",
+      "source_scope": "repo",
+      "source": "tests/test_action_key.py",
+      "archive_path": "test/tests/test_action_key.py",
+      "sha256": "4e75d0d541f2be0bb121e4fa78282f1ac35fb0cebbc66a27217afb127e7c35db"
+    },
+    {
+      "role": "m30_t4_runtime_test",
+      "kind": "test",
+      "source_scope": "repo",
+      "source": "tests/test_hu_m3_t4_runtime.py",
+      "archive_path": "test/tests/test_hu_m3_t4_runtime.py",
+      "sha256": "3de7c7d4f2c7458980ae5cf82395243e5ab3487baea783c49035760525b2854e"
+    },
+    {
+      "role": "m31_performance_runner_test",
+      "kind": "test",
+      "source_scope": "repo",
+      "source": "tests/test_hu_m31_t3_step6d_performance_v2.py",
+      "archive_path": "test/tests/test_hu_m31_t3_step6d_performance_v2.py",
+      "sha256": "5ba289385d8012a8206786d2d257eecd2f3ab5d8c60120813079276c19a00193"
+    },
+    {
+      "role": "m3_crate_manifest",
+      "kind": "source",
+      "source_scope": "repo",
+      "source": "rust/hu_m3_engine/Cargo.toml",
+      "archive_path": "source/rust/hu_m3_engine/Cargo.toml",
+      "sha256": "d9a3e7ee6ab9f9990aa56890a8b1d92c31537ae99972041c4a09acd1b437c27b"
+    },
+    {
+      "role": "m3_action_rs",
+      "kind": "source",
+      "source_scope": "repo",
+      "source": "rust/hu_m3_engine/src/action.rs",
+      "archive_path": "source/rust/hu_m3_engine/src/action.rs",
+      "sha256": "b0fa26c09cec063f65b328ebf703c11adfc25f2f3765fae3b43b934e459c1c81"
+    },
+    {
+      "role": "m3_action_key_rs",
+      "kind": "source",
+      "source_scope": "repo",
+      "source": "rust/hu_m3_engine/src/action_key.rs",
+      "archive_path": "source/rust/hu_m3_engine/src/action_key.rs",
+      "sha256": "52ae50c11bc7de05a17207afac32e2fe4b9a5ffd9edf58557c6d6aac8589d113"
+    },
+    {
+      "role": "m3_belief_rs",
+      "kind": "source",
+      "source_scope": "repo",
+      "source": "rust/hu_m3_engine/src/belief.rs",
+      "archive_path": "source/rust/hu_m3_engine/src/belief.rs",
+      "sha256": "afbd3f11ac340364655a7eb5bd04453a9de559578e983bb792701d18795acdf9"
+    },
+    {
+      "role": "m3_runner_rs",
+      "kind": "source",
+      "source_scope": "repo",
+      "source": "rust/hu_m3_engine/src/bin/runner.rs",
+      "archive_path": "source/rust/hu_m3_engine/src/bin/runner.rs",
+      "sha256": "39471e2f9d34946673bcb8a741e10f2efb3fc67aec2305c48821c1bec10826c2"
+    },
+    {
+      "role": "m3_cards_rs",
+      "kind": "source",
+      "source_scope": "repo",
+      "source": "rust/hu_m3_engine/src/cards.rs",
+      "archive_path": "source/rust/hu_m3_engine/src/cards.rs",
+      "sha256": "d0d39b5ffaa319ffd99c18a3512b5346114efbfe82eed6dcffc44ea0a763b5e4"
+    },
+    {
+      "role": "m3_compact_scoring_rs",
+      "kind": "source",
+      "source_scope": "repo",
+      "source": "rust/hu_m3_engine/src/compact_scoring.rs",
+      "archive_path": "source/rust/hu_m3_engine/src/compact_scoring.rs",
+      "sha256": "177b340acc812222b7a8a3e0e9e1f53baba2bc9f5a0dda6fa75ef0905c2cb9b1"
+    },
+    {
+      "role": "m3_counter_rng_rs",
+      "kind": "source",
+      "source_scope": "repo",
+      "source": "rust/hu_m3_engine/src/counter_rng.rs",
+      "archive_path": "source/rust/hu_m3_engine/src/counter_rng.rs",
+      "sha256": "ddd1f8899fc0bc8f443245e89d75a90bcead9e8099b828a72b9524fdeac65efe"
+    },
+    {
+      "role": "m3_explicit_support_rs",
+      "kind": "source",
+      "source_scope": "repo",
+      "source": "rust/hu_m3_engine/src/explicit_support.rs",
+      "archive_path": "source/rust/hu_m3_engine/src/explicit_support.rs",
+      "sha256": "c04854d99d56b1e66c88e64f3c1e82df891fdb965f368f7e0792338804797c66"
+    },
+    {
+      "role": "m3_infoset_rs",
+      "kind": "source",
+      "source_scope": "repo",
+      "source": "rust/hu_m3_engine/src/infoset.rs",
+      "archive_path": "source/rust/hu_m3_engine/src/infoset.rs",
+      "sha256": "d9cc75dcbb0fe2b2ce0e528576bebbe3d2b43ff699388c3aedbd564940ef29cd"
+    },
+    {
+      "role": "m3_lib_rs",
+      "kind": "source",
+      "source_scope": "repo",
+      "source": "rust/hu_m3_engine/src/lib.rs",
+      "archive_path": "source/rust/hu_m3_engine/src/lib.rs",
+      "sha256": "7f641f7eef35f1454ce77ef2b7df17ad36499da9d585caf2e49cbc48342ff822"
+    },
+    {
+      "role": "m3_runner_support_rs",
+      "kind": "source",
+      "source_scope": "repo",
+      "source": "rust/hu_m3_engine/src/runner_support.rs",
+      "archive_path": "source/rust/hu_m3_engine/src/runner_support.rs",
+      "sha256": "1102bd785d5999ede1c798141ff275393cdea2258189685fb466d5987dc7af08"
+    },
+    {
+      "role": "m3_scoring_rs",
+      "kind": "source",
+      "source_scope": "repo",
+      "source": "rust/hu_m3_engine/src/scoring.rs",
+      "archive_path": "source/rust/hu_m3_engine/src/scoring.rs",
+      "sha256": "7ba3d8800ffc2ce0c60051db0ff3ed5f676702fbf1ad8519d83fe40bbb7dfe91"
+    },
+    {
+      "role": "m3_search_rs",
+      "kind": "source",
+      "source_scope": "repo",
+      "source": "rust/hu_m3_engine/src/search.rs",
+      "archive_path": "source/rust/hu_m3_engine/src/search.rs",
+      "sha256": "c07c9b4d250d3e8955bea2c0dbfc7bb4d8b7dddafb71f473fe554794073fe4a0"
+    },
+    {
+      "role": "m3_state_rs",
+      "kind": "source",
+      "source_scope": "repo",
+      "source": "rust/hu_m3_engine/src/state.rs",
+      "archive_path": "source/rust/hu_m3_engine/src/state.rs",
+      "sha256": "25bf8a3907074dc74c7e9b55080645d6ce103562f1d9c3b4b817216ebad4eb82"
+    },
+    {
+      "role": "candidate01_semantics_rs",
+      "kind": "test",
+      "source_scope": "repo",
+      "source": "rust/hu_m3_engine/tests/candidate01_semantics.rs",
+      "archive_path": "test/rust/hu_m3_engine/tests/candidate01_semantics.rs",
+      "sha256": "97ace64045d66091392b6d1b05a52485c7402774e9980ee0b52d3cd7f95fec39"
+    },
+    {
+      "role": "baseline_p0_config",
+      "kind": "config",
+      "source_scope": "repo",
+      "source": "configs/hu_turn0_stage19_p0_selective_override.json",
+      "archive_path": "config/hu_turn0_stage19_p0_selective_override.json",
+      "sha256": "637d329de33a64150ba54aebdf6ea172a4ecf612b48950e1eccce03d1486827f"
+    },
+    {
+      "role": "baseline_p1_config",
+      "kind": "config",
+      "source_scope": "repo",
+      "source": "configs/hu_turn1_stage18_p1_selective_override.json",
+      "archive_path": "config/hu_turn1_stage18_p1_selective_override.json",
+      "sha256": "55abefd06f5e3b0cfd8e70a71ee4f590b673097d78c6355fa2916627e9275060"
+    },
+    {
+      "role": "baseline_p2_config",
+      "kind": "config",
+      "source_scope": "repo",
+      "source": "configs/hu_turn2_stage9f_p2_acceptance_candidate.json",
+      "archive_path": "config/hu_turn2_stage9f_p2_acceptance_candidate.json",
+      "sha256": "76a72c43318bedeb22fcf49953abdc9c129ec0d3008836124fe30186d0ff5380"
+    },
+    {
+      "role": "baseline_t3_config",
+      "kind": "config",
+      "source_scope": "repo",
+      "source": "configs/hu_turn3_stage7_m5_r10_production.json",
+      "archive_path": "config/hu_turn3_stage7_m5_r10_production.json",
+      "sha256": "e48b129cda5a24094f19f3d5d445d20ba884f05076e8e32701d1d50c091a7f38"
+    },
+    {
+      "role": "fl_ev_config",
+      "kind": "config",
+      "source_scope": "repo",
+      "source": "configs/fl_ev_regular_2k.json",
+      "archive_path": "config/fl_ev_regular_2k.json",
+      "sha256": "0555e32bce448c6a84770b172e02284c498797d7d14342f44ffd69a2118d9fdb"
+    },
+    {
+      "role": "m1_quarantine_config",
+      "kind": "config",
+      "source_scope": "repo",
+      "source": "configs/hu_joint_policy_m1_quarantine.json",
+      "archive_path": "config/hu_joint_policy_m1_quarantine.json",
+      "sha256": "f6ee652b71f736d0fe2b901801a6226b1f1efc01b1eb3b9504aeeb23b564293b"
+    },
+    {
+      "role": "m30_runtime_config",
+      "kind": "config",
+      "source_scope": "repo",
+      "source": "configs/hu_joint_policy_m30_t4_runtime.json",
+      "archive_path": "config/hu_joint_policy_m30_t4_runtime.json",
+      "sha256": "a5dfea8105e5145fdf9fa5bae889dd9d1ef0aeec27fc953f7310d1c8a0b12561"
+    },
+    {
+      "role": "m30_rebuild_closeout",
+      "kind": "config",
+      "source_scope": "repo",
+      "source": "configs/hu_joint_policy_m30_t4_rebuild_20260718_status.json",
+      "archive_path": "config/hu_joint_policy_m30_t4_rebuild_20260718_status.json",
+      "sha256": "503232a016dd050df739499e495b974e1fe1d826f60af8ee2e1b99029bf5dbc1"
+    },
+    {
+      "role": "full_hand_rl_milestone_plan",
+      "kind": "artifact",
+      "source_scope": "repo",
+      "source": "docs/hu_joint_policy_full_hand_rl_milestones_20260718.md",
+      "archive_path": "artifact/roadmap/hu_joint_policy_full_hand_rl_milestones_20260718.md",
+      "sha256": "8cdf4e81e146f801c6b7f97050f4ced02f4d200416e311bb8b5a1ffbe0ebc506"
+    },
+    {
+      "role": "m31_runtime_config",
+      "kind": "config",
+      "source_scope": "repo",
+      "source": "configs/hu_joint_policy_m31_t3_runtime.json",
+      "archive_path": "config/hu_joint_policy_m31_t3_runtime.json",
+      "sha256": "c05a6dacb86666b35f27adb317d11641839714a287b00830a343982962c21fb7"
+    },
+    {
+      "role": "m31_step6d_contract",
+      "kind": "config",
+      "source_scope": "repo",
+      "source": "configs/hu_joint_policy_m31_t3_step6d_contract.json",
+      "archive_path": "config/hu_joint_policy_m31_t3_step6d_contract.json",
+      "sha256": "1924295b18070432cf3126159311102d9285dba37c498a3ea7666b0d5b777775"
+    },
+    {
+      "role": "m31_tail_v2_selection_config",
+      "kind": "config",
+      "source_scope": "repo",
+      "source": "configs/hu_joint_policy_m31_t3_candidate02_tail_v2_selection.json",
+      "archive_path": "config/hu_joint_policy_m31_t3_candidate02_tail_v2_selection.json",
+      "sha256": "62cfbe2d95477ed7686a1b583997ee2e35ab23291fd338cfeac597e9a216fed1"
+    },
+    {
+      "role": "opening_model",
+      "kind": "model",
+      "source_scope": "repo",
+      "source": "models/opening_stage7_torch_wide.pt",
+      "archive_path": "model/opening_stage7_torch_wide.pt",
+      "sha256": "4cfec60e3035323d10348f4f28938c24428880edc557a5e824723d32838fe939"
+    },
+    {
+      "role": "turn1_model",
+      "kind": "model",
+      "source_scope": "repo",
+      "source": "models/turn1_stage6_torch_wide.pt",
+      "archive_path": "model/turn1_stage6_torch_wide.pt",
+      "sha256": "ecffa86f0ccbf0bea1d697ae98bf4b9de316006e5aa4539eda4476a29f3f8b4a"
+    },
+    {
+      "role": "turn2_model",
+      "kind": "model",
+      "source_scope": "repo",
+      "source": "models/turn2_stage8.pkl",
+      "archive_path": "model/turn2_stage8.pkl",
+      "sha256": "4be8e1c3647306a18b74676bf4835fcac9e03f3dde65fba391e9aaf5ac3929fe"
+    },
+    {
+      "role": "turn3_model",
+      "kind": "model",
+      "source_scope": "repo",
+      "source": "models/turn3_stage6.pkl",
+      "archive_path": "model/turn3_stage6.pkl",
+      "sha256": "5996204bf904b258451097042f38bbd87b3f570fbcbe9bf5f4a1d2bdaf376737"
+    },
+    {
+      "role": "baseline_p2_model",
+      "kind": "model",
+      "source_scope": "repo",
+      "source": "models/hu_turn2_stage8b_safe_lcb196_20k_reference_override_cached_rank_wide.pt",
+      "archive_path": "model/hu_turn2_stage8b_safe_lcb196_20k_reference_override_cached_rank_wide.pt",
+      "sha256": "2a6a52ee09e329852d00197e686509b0747ff86ef627a7b6ed9a21311ec25b3b"
+    },
+    {
+      "role": "baseline_t3_model",
+      "kind": "model",
+      "source_scope": "repo",
+      "source": "models/hu_turn3_stage7_reference_override_cached_rank_wide.pt",
+      "archive_path": "model/hu_turn3_stage7_reference_override_cached_rank_wide.pt",
+      "sha256": "727fb766b940f17c6c6d00a373b47d68bd07aa1095fe86633ba0fcab6c6e8f20"
+    },
+    {
+      "role": "baseline_t3_reference_model",
+      "kind": "model",
+      "source_scope": "repo",
+      "source": "models/hu_turn3_stage3_mc32_500k_plus_m8_12_f128_100k_w2_cached_rank_wide.pt",
+      "archive_path": "model/hu_turn3_stage3_mc32_500k_plus_m8_12_f128_100k_w2_cached_rank_wide.pt",
+      "sha256": "36f6ac00ca308b92aa4a11a7d6b3c65c4b5f65f6fb5fa2e71585d7f87d8dd112"
+    },
+    {
+      "role": "baseline_p1_model",
+      "kind": "model",
+      "source_scope": "repo",
+      "source": "models/hu_turn1_stage18_first1801_mc32_hgb_abs_aug3.pkl",
+      "archive_path": "model/hu_turn1_stage18_first1801_mc32_hgb_abs_aug3.pkl",
+      "sha256": "e910131715efbec7a116e411a8dc23dcfc9a904f2aef9e0eee9d4913a02dfee7"
+    },
+    {
+      "role": "baseline_p1_selector",
+      "kind": "model",
+      "source_scope": "repo",
+      "source": "models/hu_turn1_stage18_highmc_safe_selector_a_meta_only.pkl",
+      "archive_path": "model/hu_turn1_stage18_highmc_safe_selector_a_meta_only.pkl",
+      "sha256": "838ff3421c2393648aaabeb7316c9e6c3fe97197485b1363be4e8b5dd33ae086"
+    },
+    {
+      "role": "baseline_p0_model",
+      "kind": "model",
+      "source_scope": "repo",
+      "source": "models/hu_turn0_stage3_top60_mc32_1000_hgb_baseline-delta_sew1_aug3.pkl",
+      "archive_path": "model/hu_turn0_stage3_top60_mc32_1000_hgb_baseline-delta_sew1_aug3.pkl",
+      "sha256": "8f360bc4c326f0d8d20710a4efc7c42c62a80cca11341b34a41a72a4c6aadf71"
+    },
+    {
+      "role": "baseline_p0_selector",
+      "kind": "model",
+      "source_scope": "repo",
+      "source": "models/hu_turn0_stage19_safe_selector_highmc_candidate_delta_plus_meta.pkl",
+      "archive_path": "model/hu_turn0_stage19_safe_selector_highmc_candidate_delta_plus_meta.pkl",
+      "sha256": "7cd85b3a824816223ceb0d84870feb62e43d827452031e6f51de0ee452514abe"
+    },
+    {
+      "role": "m30_windows_exact_runtime",
+      "kind": "binary",
+      "source_scope": "repo",
+      "source": "target/m30_build/release/ofc_hu_m3_engine.dll",
+      "archive_path": "binary/windows/ofc_hu_m3_engine.dll",
+      "sha256": "03d27825ccdf37ff52107207d8008df5b51235431c7274c604f922bc23c84d69"
+    },
+    {
+      "role": "feature_encoder_windows",
+      "kind": "binary",
+      "source_scope": "repo",
+      "source": "target/release/ofc_stage3_feature_encoder.dll",
+      "archive_path": "binary/windows/ofc_stage3_feature_encoder.dll",
+      "sha256": "24d156f455867ddb5915b07d440f72c790f893e310ef95d273b74d7b4d017b6b"
+    },
+    {
+      "role": "candidate02_linux_engine",
+      "kind": "binary",
+      "source_scope": "external",
+      "source": "D:/ofc-gcp-runs/regular-hu-m31-c02-performance-lock-20260717-001/package/package_src/native/candidate/release/libofc_hu_m3_engine.so",
+      "archive_path": "binary/linux/candidate/libofc_hu_m3_engine.so",
+      "sha256": "4050e04b22d7943da9e1691402a2b34cf3d3781041a44557f35e2dfcf366d55d"
+    },
+    {
+      "role": "reference_linux_engine",
+      "kind": "binary",
+      "source_scope": "external",
+      "source": "D:/ofc-gcp-runs/regular-hu-m31-c02-performance-lock-20260717-001/package/package_src/native/reference/release/libofc_hu_m3_engine.so",
+      "archive_path": "binary/linux/reference/libofc_hu_m3_engine.so",
+      "sha256": "3f831615d9e751b8e1f266f14dd2009903b3ac2a4094f7e47616e0aa372a01b0"
+    },
+    {
+      "role": "feature_encoder_linux",
+      "kind": "binary",
+      "source_scope": "external",
+      "source": "D:/ofc-gcp-runs/regular-hu-m31-c02-performance-lock-20260717-001/package/package_src/target/release/libofc_stage3_feature_encoder.so",
+      "archive_path": "binary/linux/libofc_stage3_feature_encoder.so",
+      "sha256": "82510e563ee290cd536e7aebe6bcf0efefac061af5488851f0a582bb4ef83411"
+    },
+    {
+      "role": "m30_pilot_100",
+      "kind": "artifact",
+      "source_scope": "repo",
+      "source": "outputs/hu_joint_policy/m30_t4_complete/pilot_100.json",
+      "archive_path": "artifact/m30/pilot_100.json",
+      "sha256": "0457e6f5c1d043b982a08e9932256124705b6114fc6f2fedd870a77b34d6e95d"
+    },
+    {
+      "role": "m30_pilot_1000",
+      "kind": "artifact",
+      "source_scope": "repo",
+      "source": "outputs/hu_joint_policy/m30_t4_complete/pilot_1000.json",
+      "archive_path": "artifact/m30/pilot_1000.json",
+      "sha256": "752d971f8f10fc99d0ba7eba58112a896ada27154915f906635a387f9479881e"
+    },
+    {
+      "role": "m30_random100_summary",
+      "kind": "artifact",
+      "source_scope": "repo",
+      "source": "outputs/hu_joint_policy/m30_t4_complete/paired_random100_v3_summary.json",
+      "archive_path": "artifact/m30/paired_random100_v3_summary.json",
+      "sha256": "24b7f8cfab659250546529f559b3d82f88aa919dd18ca6801a836c69ada72236"
+    },
+    {
+      "role": "m30_random100_decisions",
+      "kind": "artifact",
+      "source_scope": "repo",
+      "source": "outputs/hu_joint_policy/m30_t4_complete/paired_random100_v3_t4_decisions.jsonl",
+      "archive_path": "artifact/m30/paired_random100_v3_t4_decisions.jsonl",
+      "sha256": "9bac043909ff0847515c3cecdbafdbc747cf7dfe1183cff948c8f5a95d3bf3a2"
+    },
+    {
+      "role": "m30_stage19_summary",
+      "kind": "artifact",
+      "source_scope": "repo",
+      "source": "outputs/hu_joint_policy/m30_t4_complete/paired_stage19_100_summary.json",
+      "archive_path": "artifact/m30/paired_stage19_100_summary.json",
+      "sha256": "1a0a3d9cb06d45b9b26d09b22ec0b6fe251b40696df9821472875759954a5a5b"
+    },
+    {
+      "role": "m31_tail_selection_manifest",
+      "kind": "artifact",
+      "source_scope": "repo",
+      "source": "outputs/hu_joint_policy/m31_t3_step6d/candidate02_development/tail_reselection_v2/selection_manifest.json",
+      "archive_path": "artifact/m31/tail_reselection_v2/selection_manifest.json",
+      "sha256": "62cfbe2d95477ed7686a1b583997ee2e35ab23291fd338cfeac597e9a216fed1"
+    },
+    {
+      "role": "m31_full100_plan",
+      "kind": "artifact",
+      "source_scope": "repo",
+      "source": "outputs/hu_joint_policy/m31_t3_step6d/candidate02_development/full100_plan_v1.json",
+      "archive_path": "artifact/m31/full100_plan_v1.json",
+      "sha256": "9ef14137b97db975bed683bcdd7e53b27414d2efab282c6f98390d7702944758"
+    },
+    {
+      "role": "m31_full100_summary",
+      "kind": "artifact",
+      "source_scope": "repo",
+      "source": "outputs/hu_joint_policy/m31_t3_step6d/full100_merge/regular-hu-m31-c02-full100-dev-20260717-002/summary.json",
+      "archive_path": "artifact/m31/full100/summary.json",
+      "sha256": "f587df6d037313e2111a5cbc3d474370106f6a341ef4ec130cee7516192e668f"
+    },
+    {
+      "role": "m31_full100_validation",
+      "kind": "artifact",
+      "source_scope": "repo",
+      "source": "outputs/hu_joint_policy/m31_t3_step6d/full100_merge/regular-hu-m31-c02-full100-dev-20260717-002/validation.json",
+      "archive_path": "artifact/m31/full100/validation.json",
+      "sha256": "da252b3cabfc361d89de2f2fe08931fe61302287b69b82bf9f812a4432baf3eb"
+    }
+  ],
+  "notes": [
+    "R0 is provenance only and does not authorize current, runtime activation, training, quality, promotion, or cloud.",
+    "The fixed P0/P1/P2/T3 chain and its models remain explicit rollback and diagnostic artifacts.",
+    "M3.0 exact T4 remains explicit opt-in; M3.1 Candidate02 development evidence is not performance-lock or promotion evidence.",
+    "R0a freezes the accepted Candidate02 Linux research inputs and explicitly defers only the missing pinned M3.0 Windows release DLL.",
+    "R0b includes the pinned M3.0 Windows release DLL and must remain No-Go while that exact binary is absent; no replacement build is authorized."
+  ]
+}

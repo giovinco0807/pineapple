@@ -1,0 +1,85 @@
+{
+  "schema": "hu_joint_policy_m31_t3_candidate02_tail_v1_status_v1",
+  "status": "invalid_tail_topology_contract_do_not_promote",
+  "decision": "rerun_with_runtime_unseen_tail_v2_contract",
+  "run_name": "regular-hu-m31-c02-tail-20260717-001",
+  "candidate_variant": "candidate02_compact_scorer",
+  "candidate_library_sha256": "4050e04b22d7943da9e1691402a2b34cf3d3781041a44557f35e2dfcf366d55d",
+  "reference_library_sha256": "3f831615d9e751b8e1f266f14dd2009903b3ac2a4094f7e47616e0aa372a01b0",
+  "run_contract_digest": "92a87f1544a73104d5256db39b022094c8c7f7b11f77bd19dcf1ab1442581ebd",
+  "artifact_chain": {
+    "package_manifest_sha256": "5dc5d80292838e2ab176bd4a5e039f6b7a4eeac60caa7b83e2decaa5acab26d3",
+    "launch_authorization_sha256": "e93634d1a42c0476d46c6d65d43c53a1a3b7cfd9f17f545e2284be5645a534ca",
+    "launch_claim_sha256": "7e8d9b248a25cf4bcc0cc42123b51d6d3af8f504791016617d30d7703238c3a1",
+    "launch_result_sha256": "11dea254cf491ce2489483f41128e2d1271c12f25d6d4fbf575e00214924ae64",
+    "receive_receipt_sha256": "a64a8e061f3880dca11ef755d497af85e5817dfec8fd791b0b428cb076f469ca"
+  },
+  "observed_diagnostic_only": {
+    "paired_hand_count": 10,
+    "root_count": 20,
+    "portable_parity_root_count": 20,
+    "candidate_first_median_seconds": 24.665935433999998,
+    "candidate_first_max_seconds": 68.739399866,
+    "first_geometric_mean_speedup": 2.7251141579635867,
+    "candidate_second_max_seconds": 0.8160458629999994,
+    "peak_source_process_rss_bytes": 492085248,
+    "required_heavy_21x21_count": 8,
+    "observed_heavy_21x21_count": 1
+  },
+  "invalidity": {
+    "reason": "fresh candidate02 seeds were combined with hand indices selected under the prior seed schedule",
+    "runtime_outcome_used_for_tail_v2_selection": false,
+    "official_tail_gate_valid": false,
+    "full_performance_development_authorized": false,
+    "performance_lock_authorized": false,
+    "quality_pilot_authorized": false,
+    "training_authorized": false
+  },
+  "tail_v2_reselection": {
+    "prior_runtime_exposed_indices": [
+      2,
+      6,
+      7,
+      9,
+      13,
+      20,
+      21,
+      29,
+      33,
+      50
+    ],
+    "selected_hand_indices": [
+      0,
+      4,
+      5,
+      12,
+      14,
+      16,
+      17,
+      23,
+      41,
+      43
+    ],
+    "heavy_21x21_indices": [
+      0,
+      5,
+      12,
+      16,
+      17,
+      23,
+      41,
+      43
+    ],
+    "random_control_indices": [
+      4,
+      14
+    ],
+    "all_100_root_artifact_digest": "0aacb1b7f9b3c45a7ca51d9e58218e55ef3cc29159e2d431757806be076e6796",
+    "all_100_topology_digest": "779e6a6d2ce6d84ccb31df6e02c48efdb7833ef06dab0625aeeab551d3d81633",
+    "selection_inputs_include_runtime_or_value_outputs": false
+  },
+  "current_profile_changed": false,
+  "named_profile_added": false,
+  "runtime_policy_activated": false,
+  "m31_complete": false
+}

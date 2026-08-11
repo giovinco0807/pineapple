@@ -1,0 +1,81 @@
+{
+  "schema": "hu_joint_policy_m43_attempt06_closeout_v1",
+  "milestone": "M4.3-attempt06",
+  "status_date": "2026-07-14",
+  "status": "complete_no_go_search_quality",
+  "decision": "close_attempt06_without_fit_threshold_retry_or_spot_expansion",
+  "run_name": "regular-hu-m43-attempt06-preflight-final-20260714-1154",
+  "immutable_evidence": {
+    "plan_sha256": "4844fb970780c04ff093eb43b1672e403f006515c47b287e6abdbea17867f5b8",
+    "package_manifest_sha256": "88b05e0510242602f1618ca73306eb1e129f60e5e807dec4b1fac7de7e9114bc",
+    "source_zip_sha256": "f7be2111d5af0c00bf3a33eb03e4b1bae57fb61e59bd4aac404f12c5b0f21591",
+    "startup_sha256": "46f07a6bbf6858b01cb44b1840ae36a09e00eeaa09cb599546ba30d519350162",
+    "audit_consumption_marker_sha256": "0ca1918111a789b472d0ef46347e4d039f98e90d9881ce22c302ff81b04c553c",
+    "merged_teacher_sha256": "6b1063589aa2ee4f3e65d9489384176a85c69abe1dfefe30ffb4474f96964903",
+    "merge_receipt_sha256": "92a043f79a7f4d3226e1a80ca0ce39f0fcfd2e353c2cb9575597d7372355aac6",
+    "receive_receipt_sha256": "f5b9e2c66128b2e23eefa173c3a406552534a92ba98f7a28c5e0eba9d66daef7",
+    "search_quality_audit_path": "outputs/hu_joint_policy/m43_attempt06_search_quality/regular-hu-m43-attempt06-preflight-final-20260714-1154-search_quality_audit.json",
+    "search_quality_audit_sha256": "7ee02666f86d93f905183e45ecff08dfde9a8120567ea061d9690149d75997f2"
+  },
+  "audit_population": {
+    "states": 50,
+    "profiles": 5,
+    "states_per_profile": 10,
+    "candidate_selection_futures_per_state": 8,
+    "independent_evaluation_futures_per_state": 128
+  },
+  "passed_integrity_gates": {
+    "action_mapping_violation_count": 0,
+    "rng_domain_violation_count": 0,
+    "hidden_information_violation_count": 0,
+    "nonfire_counterfactual_cancellation_verified": true
+  },
+  "failed_quality_gates": {
+    "mean_delta_per_state": -0.5055891573153429,
+    "mean_delta_per_fire": -0.7022071629379762,
+    "false_positive_rate_per_fire": 0.6111111111111112,
+    "metric_b_p95_loss": 31.827020614683452,
+    "metric_b_p99_loss": 42.91404122936691,
+    "metric_b_max_loss": 65.45404122936691
+  },
+  "development_postmortem": {
+    "classification": "post_open_development_diagnostic_not_attempt06_gate_reselection",
+    "fires": 36,
+    "positive_fires": 14,
+    "false_positive_fires": 22,
+    "mean_c8_selected_delta_vs_baseline": 5.298422644145559,
+    "mean_independent_e128_delta_vs_baseline": -0.7022071629379762,
+    "mean_c8_optimism": 6.000629807083535,
+    "c8_vs_e128_rmse": 7.277204001810477,
+    "c8_vs_e128_pearson": 0.026561718388313588,
+    "c8_vs_e128_spearman": -0.009911185562861054,
+    "selection_gap_vs_e128_pearson": -0.06344262255187995,
+    "selection_gap_below_selected_c8_standard_error": 28,
+    "fires_passing_all_tail_limits": 17,
+    "positive_fires_passing_all_tail_limits": 8,
+    "conclusion": "c8_winner_lock_is_too_noisy_and_optimistic_to_act_as_the_selector"
+  },
+  "science_boundary": {
+    "attempt06_threshold_reselected": false,
+    "attempt06_same_seed_retry_allowed": false,
+    "attempt06_fit_performed": false,
+    "attempt06_model_changed": false,
+    "attempt06_spot_expansion_authorized": false,
+    "teacher_values_are_realized_match_ev": false,
+    "teacher_lcb_used_as_runtime_gate": false,
+    "current_profile_changed": false,
+    "runtime_policy_activated": false,
+    "full_replacement_enabled": false
+  },
+  "baseline_hash_audit": {
+    "policy_registry_path": "src/ofc_regular/ai_profiles.py",
+    "policy_registry_sha256": "d2eb02669e27426623c70af21f1af4d7002db2a7eab77efd3319f8fb65b868d3",
+    "current_mapping_changed": false
+  },
+  "next": {
+    "attempt": "M4.3-attempt07",
+    "required_architecture_change": "separate_candidate_screen_rerank_safety_confirmation_and_final_audit_rng_domains",
+    "attempt06_data_use": "development_postmortem_only",
+    "new_disjoint_audit_required": true
+  }
+}

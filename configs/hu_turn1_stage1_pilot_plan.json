@@ -1,0 +1,2976 @@
+{
+  "name": "hu_turn1_stage1_pilot",
+  "status": "t1_stage1j_mc16_broad500_mc32_timeout228_training_topk_diagnostic_no_go",
+  "rule_set": "regular",
+  "schema": "hu_turn1_stage1_pilot_plan_v1",
+  "phase": "hu_turn1_5card",
+  "purpose": "Build the first HU Turn1 teacher path after accepting the Stage9f Turn2 P2 continuation.",
+  "continuation_policy": {
+    "turn2_profile": "stage9f_p2",
+    "turn2_runtime": "k3/mc16/d0/se0/confirm32/cse2/csemax2/fcd0/scd0/pd0/seat=first+second/bygate_delta",
+    "turn3_continuation": "stage7_m5_r10",
+    "full_replacement_enabled": false,
+    "selective_override_only": true
+  },
+  "pilot_cli": {
+    "module": "ofc_regular.hu_turn1_teacher_pilot",
+    "smoke_command": "python -m ofc_regular.hu_turn1_teacher_pilot --samples 1 --future-samples 1 --max-actions 1 --seed 2026062301 --profile stage9f_p2 --opponent-profile stage9f_p2 --opening-lookahead-samples 1 --output outputs/hu_turn1_stage1_pilot/smoke_stage9f_p2_mc1.jsonl --summary-output outputs/hu_turn1_stage1_pilot/smoke_stage9f_p2_mc1_summary.json",
+    "full_action_speed_command": "python -m ofc_regular.hu_turn1_teacher_pilot --samples 1 --future-samples 1 --max-actions 0 --seed 2026062302 --profile stage9f_p2 --opponent-profile stage9f_p2 --opening-lookahead-samples 1 --output outputs/hu_turn1_stage1_pilot/full_actions_stage9f_p2_mc1.jsonl --summary-output outputs/hu_turn1_stage1_pilot/full_actions_stage9f_p2_mc1_summary.json"
+  },
+  "observed_smoke": {
+    "output": "outputs/hu_turn1_stage1_pilot/smoke_stage9f_p2_mc1.jsonl",
+    "summary": "outputs/hu_turn1_stage1_pilot/smoke_stage9f_p2_mc1_summary.json",
+    "samples": 1,
+    "future_samples": 1,
+    "max_actions": 1,
+    "seconds_per_sample": 4.1773671000264585,
+    "truncated_samples": 1
+  },
+  "observed_full_action_speed": {
+    "output": "outputs/hu_turn1_stage1_pilot/full_actions_stage9f_p2_mc1.jsonl",
+    "summary": "outputs/hu_turn1_stage1_pilot/full_actions_stage9f_p2_mc1_summary.json",
+    "samples": 1,
+    "future_samples": 1,
+    "max_actions": 0,
+    "legal_actions": 24,
+    "seconds_per_sample": 49.00124489981681,
+    "actions_truncated": false,
+    "best_score": 1.0,
+    "worst_score": -6.0,
+    "score_gap": 1.0
+  },
+  "observed_profile_full_action_mc1": {
+    "output": "outputs/hu_turn1_stage1_pilot/profile_full_actions_stage9f_p2_mc1.jsonl",
+    "summary": "outputs/hu_turn1_stage1_pilot/profile_full_actions_stage9f_p2_mc1_summary.json",
+    "samples": 1,
+    "future_samples": 1,
+    "max_actions": 0,
+    "legal_actions": 27,
+    "seconds_per_sample": 59.82809369987808,
+    "profile_seconds": {
+      "model_load": 4.672326099826023,
+      "rollout": 59.5331120993942,
+      "choose_action_total": 59.52241349872202,
+      "choose_action_t1": 0.13304570084437728,
+      "choose_action_t2": 58.504858599742875,
+      "choose_action_t3": 0.8484148981515318,
+      "choose_action_t4": 0.03609429998323321,
+      "terminal_score": 0.00527210021391511
+    },
+    "profile_counts": {
+      "rollouts": 27,
+      "choose_action_total": 189,
+      "choose_action_t2": 54,
+      "topk_decisions": 54,
+      "topk_overrides": 0
+    },
+    "topk_no_override_reason_counts": {
+      "above_confirm_se": 3,
+      "below_confirm_delta": 14,
+      "below_confirm_se": 5,
+      "mc_best_is_baseline": 18,
+      "topk_empty": 14
+    },
+    "diagnosis": "T2 Stage9f P2 continuation dominates Turn1 teacher cost; T3 and terminal scoring are not the bottleneck."
+  },
+  "observed_gcp_10_state_mc1": {
+    "run_name": "regular-hu-t1-stage1-pilot-20260623-001",
+    "output_dir": "outputs/hu_turn1_stage1_pilot/gcp_10_mc1",
+    "merged_output": "outputs/hu_turn1_stage1_pilot/gcp_10_mc1/hu_turn1_stage1_pilot.jsonl",
+    "summary": "outputs/hu_turn1_stage1_pilot/gcp_10_mc1/summary.json",
+    "samples": 10,
+    "future_samples": 1,
+    "max_actions": 0,
+    "completed_shards": 10,
+    "missing_shards": 0,
+    "mean_seconds_per_sample": 10.9126893069,
+    "max_seconds_per_sample": 26.792143589999995,
+    "mean_action_count": 26.7,
+    "topk_decisions": 534,
+    "topk_overrides": 10,
+    "t2_choose_action_seconds_sum": 97.34309910799954,
+    "rollout_seconds_sum": 107.59395729800036,
+    "notes": [
+      "Shards 4 and 9 were restarted after Spot interruption; final aggregate is complete.",
+      "GCP e2-highcpu-4 shards are much faster than local, but T2 continuation remains the dominant cost."
+    ]
+  },
+  "observed_t2_duplicate_profile_full_action_mc1": {
+    "output": "outputs/hu_turn1_stage1_pilot/dup_profile_full_actions_stage9f_p2_mc1.jsonl",
+    "summary": "outputs/hu_turn1_stage1_pilot/dup_profile_full_actions_stage9f_p2_mc1_summary.json",
+    "samples": 1,
+    "future_samples": 1,
+    "max_actions": 0,
+    "legal_actions": 27,
+    "seconds_per_sample": 16.805097500095144,
+    "t2_choose_action_count": 54,
+    "t2_choose_action_seconds": 14.708753098500893,
+    "t2_state_only": {
+      "raw": 54,
+      "unique": 54,
+      "repeated": 0,
+      "duplicate_rate": 0.0
+    },
+    "t2_state_plus_decision_seed": {
+      "raw": 54,
+      "unique": 54,
+      "repeated": 0,
+      "duplicate_rate": 0.0
+    },
+    "diagnosis": "Exact T2 decision cache and simple T2 state-only cache have no reuse on this full-action MC1 sample; broad speedup likely needs batching/distillation rather than memoization alone."
+  },
+  "fast_t2_continuation_candidate": {
+    "profile": "stage9f_fast_t2_t1_teacher",
+    "status": "gcp_fast2k_teacher_pilot_passed_schema_distribution_checks",
+    "purpose": "Fast HU T2 continuation for broad T1 teacher generation. It is not production and does not replace stage9f_p2.",
+    "model": "models/hu_turn2_stage8b_safe_lcb196_20k_reference_override_cached_rank_wide.pt",
+    "runtime": {
+      "type": "hu_turn2_stage8_selective_override_no_mc_confirm",
+      "min_margin": 2.5,
+      "reference_min_margin": 0.0,
+      "gate_threshold": 0.9,
+      "allowed_seats": [
+        "first",
+        "second"
+      ],
+      "t3_continuation": "stage7_m5_r10"
+    },
+    "local_compare_mc1": {
+      "output_dir": "outputs/hu_turn1_stage1_pilot/fast_t2_compare_mc1",
+      "summary": "outputs/hu_turn1_stage1_pilot/fast_t2_compare_mc1/summary.json",
+      "samples": 1,
+      "future_samples": 1,
+      "max_actions": 0,
+      "stage9f_p2_seconds_per_sample": 5.520390799967572,
+      "stage9f_p2_t2_choose_action_seconds": 4.508261299226433,
+      "fast_seconds_per_sample": 1.6226193001493812,
+      "fast_t2_choose_action_seconds": 0.8717443000059575,
+      "state_match_rate": 1.0,
+      "best_action_match_rate": 1.0,
+      "speedup_vs_stage9f_p2_seconds_per_sample": 3.401,
+      "speedup_vs_stage9f_p2_t2_choose_action": 5.171
+    },
+    "local_compare_10_mc1": {
+      "output_dir": "outputs/hu_turn1_stage1_pilot/fast_t2_compare_10_mc1",
+      "summary": "outputs/hu_turn1_stage1_pilot/fast_t2_compare_10_mc1/summary.json",
+      "samples": 10,
+      "future_samples": 1,
+      "max_actions": 0,
+      "stage9f_p2_seconds_per_sample": 7.370571720018051,
+      "stage9f_p2_t2_choose_action_seconds": 63.04370679752901,
+      "stage9f_p2_topk_decisions": 534,
+      "stage9f_p2_topk_overrides": 2,
+      "fast_seconds_per_sample": 4.088584510004148,
+      "fast_t2_choose_action_seconds": 23.271440899465233,
+      "state_match_rate": 1.0,
+      "best_action_match_rate": 1.0,
+      "profile_best_in_baseline_top3_rate": 1.0,
+      "profile_best_baseline_regret_mean": 0.0,
+      "profile_best_baseline_regret_max": 0.0,
+      "speedup_vs_stage9f_p2_seconds_per_sample": 1.803,
+      "speedup_vs_stage9f_p2_t2_choose_action": 2.709
+    },
+    "local_compare_50_mc1": {
+      "output_dir": "outputs/hu_turn1_stage1_pilot/fast_t2_compare_50_mc1",
+      "summary": "outputs/hu_turn1_stage1_pilot/fast_t2_compare_50_mc1/summary.json",
+      "samples": 50,
+      "future_samples": 1,
+      "max_actions": 0,
+      "stage9f_p2_seconds_per_sample": 8.399010995998978,
+      "stage9f_p2_t2_choose_action_seconds": 360.4575981046073,
+      "stage9f_p2_topk_decisions": 2646,
+      "stage9f_p2_topk_overrides": 45,
+      "fast_seconds_per_sample": 2.9067472240002825,
+      "fast_t2_choose_action_seconds": 83.60604310710914,
+      "state_match_rate": 1.0,
+      "best_action_match_rate": 1.0,
+      "profile_best_in_baseline_top3_rate": 1.0,
+      "profile_best_baseline_regret_mean": 0.0,
+      "profile_best_baseline_regret_max": 0.0,
+      "speedup_vs_stage9f_p2_seconds_per_sample": 2.889,
+      "speedup_vs_stage9f_p2_t2_choose_action": 4.311
+    },
+    "next_gate": "Build T1 feature cache and run Stage1 training smoke; keep production-scale T1 No-Go."
+  },
+  "observed_t1_replay_ready_decision_relabel_pipeline": {
+    "status": "smoke_passed",
+    "purpose": "Convert runtime T1 fired decisions into replay-ready stronger-teacher relabel targets.",
+    "decision_log_context_fields": [
+      "visibility_model",
+      "discard_visibility",
+      "true_dead_cards",
+      "visible_dead_cards",
+      "hero_private_discards",
+      "opponent_private_discards",
+      "replay_ready"
+    ],
+    "legacy_logs": "Existing logs without replay_ready remain replay-ineligible for exact relabeling.",
+    "extractor": "python -m ofc_regular.extract_hu_turn1_decision_relabel_targets",
+    "target_schema": "hu_turn1_stage1_decision_relabel_target_v1",
+    "smoke": {
+      "matchup_output": "outputs/evals/hu_turn1_stage1_stage9f_p2_full2k/seat_swap_20_margin1_replay_ready_t1log.json",
+      "decision_log": "outputs/evals/hu_turn1_stage1_stage9f_p2_full2k/seat_swap_20_margin1_replay_ready_hu_t1.jsonl",
+      "analysis_dir": "outputs/evals/hu_turn1_stage1_stage9f_p2_full2k/t1_decision_analysis_20_margin1_replay_ready",
+      "paired_seeds": 20,
+      "hands": 40,
+      "fired_valid_rows": 7,
+      "relabel_targets": 4,
+      "target_label_counts": {
+        "hard_negative": 3,
+        "positive": 1
+      },
+      "stage9f_p2_relabel_smoke_records": 2,
+      "stage9f_p2_best_action_changed": 2,
+      "stage9f_p2_source_best_new_regret_mean": 6.0,
+      "stage9f_p2_source_best_new_regret_max": 6.0
+    },
+    "next_gate": "Generate a larger replay-ready T1 decision log, extract fired targets, then sharded Stage9f P2 relabel."
+  },
+  "observed_t1_replay_ready_1000_margin1_relabel": {
+    "status": "completed_no_go_for_current_runtime_go_for_teacher_relabel_dataset",
+    "matchup_output": "outputs/evals/hu_turn1_stage1_stage9f_p2_full2k/seat_swap_1000_margin1_replay_ready_t1log.json",
+    "decision_log": "outputs/evals/hu_turn1_stage1_stage9f_p2_full2k/seat_swap_1000_margin1_replay_ready_hu_t1.jsonl",
+    "analysis_dir": "outputs/evals/hu_turn1_stage1_stage9f_p2_full2k/t1_decision_analysis_1000_margin1_replay_ready",
+    "paired_seeds": 1000,
+    "hands": 2000,
+    "avg_score_per_hand_for_a": -0.7858781699772123,
+    "ci95_low": -1.0535250717787479,
+    "ci95_high": -0.5182312681756767,
+    "valid_t1_rows": 1592,
+    "fired_valid_rows": 322,
+    "fired_realized_delta_mean": -3.601174072511976,
+    "fired_realized_delta_ci95_low": -4.9796369727642045,
+    "fired_realized_delta_ci95_high": -2.2227111722597472,
+    "fired_loss_win_zero": {
+      "loss": 125,
+      "win": 71,
+      "zero": 126
+    },
+    "relabel_targets_balanced100": {
+      "output": "outputs/evals/hu_turn1_stage1_stage9f_p2_full2k/t1_decision_analysis_1000_margin1_replay_ready/relabel_targets_balanced100.jsonl",
+      "summary": "outputs/evals/hu_turn1_stage1_stage9f_p2_full2k/t1_decision_analysis_1000_margin1_replay_ready/relabel_targets_balanced100_summary.json",
+      "records": 100,
+      "label_counts": {
+        "hard_negative": 50,
+        "positive": 50
+      },
+      "seat_counts": {
+        "first": 45,
+        "second": 55
+      }
+    },
+    "stage9f_p2_relabel_balanced100": {
+      "output_dir": "outputs/evals/hu_turn1_stage1_stage9f_p2_full2k/t1_decision_analysis_1000_margin1_replay_ready/stage9f_p2_relabel_balanced100_full",
+      "merged_output": "outputs/evals/hu_turn1_stage1_stage9f_p2_full2k/t1_decision_analysis_1000_margin1_replay_ready/stage9f_p2_relabel_balanced100_full/relabel_targets_stage9f_p2_merged.jsonl",
+      "aggregate_summary": "outputs/evals/hu_turn1_stage1_stage9f_p2_full2k/t1_decision_analysis_1000_margin1_replay_ready/stage9f_p2_relabel_balanced100_full/relabel_targets_stage9f_p2_aggregate_summary.json",
+      "records": 100,
+      "best_action_changed": 83,
+      "best_action_changed_rate": 0.83,
+      "source_best_new_regret_mean": 11.87761886431389,
+      "source_best_new_regret_max": 42.45404122936691,
+      "by_reason": {
+        "runtime_hard_negative": {
+          "records": 50,
+          "changed": 41,
+          "changed_rate": 0.82,
+          "regret_mean": 11.944429482754392,
+          "regret_max": 42.45404122936691
+        },
+        "runtime_positive": {
+          "records": 50,
+          "changed": 42,
+          "changed_rate": 0.84,
+          "regret_mean": 11.810808245873384,
+          "regret_max": 30.227020614683457
+        }
+      },
+      "relabel_seconds_sum": 1827.3065832003485,
+      "t2_choose_action_seconds_sum": 1541.2926457012072
+    },
+    "interpretation": [
+      "Replay-ready fired-target extraction and Stage9f P2 relabeling work end to end.",
+      "Current margin1 runtime remains a strong No-Go.",
+      "Raw realized positive labels are not reliable teacher positives; Stage9f P2 rejects runtime_positive rows at nearly the same rate as hard negatives.",
+      "Use Stage9f P2 relabel outputs as stronger action-value targets; use realized fired delta only as a sampling signal."
+    ]
+  },
+  "observed_t1_runtime_relabel100_augmented_training": {
+    "status": "completed_holdout_improved_runtime_no_go",
+    "augment_script": "python -m ofc_regular.augment_hu_turn1_teacher",
+    "augmented_teacher": "outputs/hu_turn1_stage1_pilot/augmented_stage9f_p2_runtime_relabel100/hu_turn1_stage1_full2k_plus_runtime_relabel100.jsonl",
+    "augment_summary": "outputs/hu_turn1_stage1_pilot/augmented_stage9f_p2_runtime_relabel100/summary.json",
+    "base_records": 2000,
+    "runtime_relabel_records": 100,
+    "output_records": 2100,
+    "runtime_relabel_source": "stage9f_p2_runtime_relabel",
+    "evaluation_fix": "HU top3 metric now uses stable descending sort so tied predictions cannot make top3 lower than top1.",
+    "trained_models": {
+      "w1": {
+        "model": "models/hu_turn1_stage1_stage9f_p2_full2k_plus_runtime100_w1_hgb_leaf3_lr01_l2_1.pkl",
+        "metrics": "outputs/training/hu_turn1_stage1_stage9f_p2_full2k_plus_runtime100/w1_hgb_leaf3_lr01_l2_1_metrics.json",
+        "holdout_top1": 0.44047619047619047,
+        "holdout_top3": 0.6261904761904762,
+        "holdout_avg_regret": 7.935326582242303
+      },
+      "w5": {
+        "model": "models/hu_turn1_stage1_stage9f_p2_full2k_plus_runtime100_w5_hgb_leaf3_lr01_l2_1.pkl",
+        "metrics": "outputs/training/hu_turn1_stage1_stage9f_p2_full2k_plus_runtime100/w5_hgb_leaf3_lr01_l2_1_metrics.json",
+        "holdout_top1": 0.5071428571428571,
+        "holdout_top3": 0.6428571428571429,
+        "holdout_avg_regret": 6.867476042333921
+      },
+      "w10": {
+        "model": "models/hu_turn1_stage1_stage9f_p2_full2k_plus_runtime100_w10_hgb_leaf3_lr01_l2_1.pkl",
+        "metrics": "outputs/training/hu_turn1_stage1_stage9f_p2_full2k_plus_runtime100/w10_hgb_leaf3_lr01_l2_1_metrics.json",
+        "holdout_top1": 0.6452380952380953,
+        "holdout_top3": 0.7428571428571429,
+        "holdout_avg_regret": 4.481350465837234
+      }
+    },
+    "runtime_smoke_100": {
+      "w10_margin1": {
+        "output": "outputs/evals/hu_turn1_stage1_stage9f_p2_full2k_plus_runtime100/seat_swap_100_w10_margin1.json",
+        "avg_score_per_hand_for_a": -0.8568106184405037,
+        "ci95_low": -1.6704759169571874,
+        "ci95_high": -0.04314531992381987,
+        "fired_count": 22,
+        "fired_delta_mean": -8.380096531277305
+      },
+      "w5_margin1": {
+        "output": "outputs/evals/hu_turn1_stage1_stage9f_p2_full2k_plus_runtime100/seat_swap_100_w5_margin1.json",
+        "avg_score_per_hand_for_a": -0.7368106184405037,
+        "ci95_low": -1.6492397759030728,
+        "ci95_high": 0.17561853902206548,
+        "fired_count": 24,
+        "fired_delta_mean": -4.287836769113909
+      },
+      "w10_margin1p5": {
+        "output": "outputs/evals/hu_turn1_stage1_stage9f_p2_full2k_plus_runtime100/seat_swap_100_w10_margin1p5.json",
+        "avg_score_per_hand_for_a": -0.31727020614683454,
+        "ci95_low": -0.7693071313905929,
+        "ci95_high": 0.13476671909692384,
+        "fired_count": 8,
+        "fired_delta_mean": -7.9317551536708635
+      },
+      "w5_margin1p5": {
+        "output": "outputs/evals/hu_turn1_stage1_stage9f_p2_full2k_plus_runtime100/seat_swap_100_w5_margin1p5.json",
+        "avg_score_per_hand_for_a": -0.02613510307341727,
+        "ci95_low": -0.27739392285595055,
+        "ci95_high": 0.22512371670911602,
+        "fired_count": 8,
+        "fired_delta_mean": -0.6533775768354317
+      },
+      "w10_margin2": {
+        "output": "outputs/evals/hu_turn1_stage1_stage9f_p2_full2k_plus_runtime100/seat_swap_100_w10_margin2.json",
+        "avg_score_per_hand_for_a": 0.0,
+        "ci95_low": 0.0,
+        "ci95_high": 0.0,
+        "fired_count": 1,
+        "fired_delta_mean": 0.0
+      },
+      "w5_margin2": {
+        "output": "outputs/evals/hu_turn1_stage1_stage9f_p2_full2k_plus_runtime100/seat_swap_100_w5_margin2.json",
+        "avg_score_per_hand_for_a": 0.03,
+        "ci95_low": -0.028800000000000006,
+        "ci95_high": 0.0888,
+        "fired_count": 2,
+        "fired_delta_mean": 3.0
+      }
+    },
+    "interpretation": [
+      "Adding balanced100 Stage9f P2 relabels can strongly improve in-sample/holdout action-value metrics, especially with high source weight.",
+      "The improvement still does not transfer to a deployable T1 margin gate.",
+      "Margin 1 fires too many bad overrides; margin 2 underfires; margin 1.5 is not convincingly positive.",
+      "This remains diagnostic only and should not replace the current T1 policy."
+    ]
+  },
+  "observed_t1_runtime_relabel196_augmented_training": {
+    "status": "completed_runtime_still_no_go",
+    "target_extraction": {
+      "input": "outputs/evals/hu_turn1_stage1_stage9f_p2_full2k/seat_swap_1000_margin1_replay_ready_hu_t1.jsonl",
+      "output": "outputs/evals/hu_turn1_stage1_stage9f_p2_full2k/t1_decision_analysis_1000_margin1_replay_ready/relabel_targets_all_fired_nonzero.jsonl",
+      "summary": "outputs/evals/hu_turn1_stage1_stage9f_p2_full2k/t1_decision_analysis_1000_margin1_replay_ready/relabel_targets_all_fired_nonzero_summary.json",
+      "records": 196,
+      "label_counts": {
+        "hard_negative": 125,
+        "positive": 71
+      },
+      "seat_counts": {
+        "first": 97,
+        "second": 99
+      }
+    },
+    "stage9f_p2_relabel_all196": {
+      "output_dir": "outputs/evals/hu_turn1_stage1_stage9f_p2_full2k/t1_decision_analysis_1000_margin1_replay_ready/stage9f_p2_relabel_all196_full",
+      "merged_output": "outputs/evals/hu_turn1_stage1_stage9f_p2_full2k/t1_decision_analysis_1000_margin1_replay_ready/stage9f_p2_relabel_all196_full/relabel_targets_stage9f_p2_merged.jsonl",
+      "aggregate_summary": "outputs/evals/hu_turn1_stage1_stage9f_p2_full2k/t1_decision_analysis_1000_margin1_replay_ready/stage9f_p2_relabel_all196_full/relabel_targets_stage9f_p2_aggregate_summary.json",
+      "records": 196,
+      "best_action_changed": 183,
+      "best_action_changed_rate": 0.9336734693877551,
+      "source_best_new_regret_mean": 13.39947322575558,
+      "source_best_new_regret_max": 41.227020614683454,
+      "by_reason": {
+        "runtime_hard_negative": {
+          "records": 125,
+          "changed": 120,
+          "changed_rate": 0.96,
+          "regret_mean": 13.81552140029564,
+          "regret_max": 41.227020614683454
+        },
+        "runtime_positive": {
+          "records": 71,
+          "changed": 63,
+          "changed_rate": 0.8873239436619719,
+          "regret_mean": 12.666994045227268,
+          "regret_max": 36.227020614683454
+        }
+      },
+      "relabel_seconds_sum": 7162.830923500704,
+      "t2_choose_action_seconds_sum": 5329.6338237919845
+    },
+    "augmented_teacher": "outputs/hu_turn1_stage1_pilot/augmented_stage9f_p2_runtime_relabel196/hu_turn1_stage1_full2k_plus_runtime_relabel196.jsonl",
+    "augment_summary": "outputs/hu_turn1_stage1_pilot/augmented_stage9f_p2_runtime_relabel196/summary.json",
+    "output_records": 2196,
+    "trained_models": {
+      "w3": {
+        "model": "models/hu_turn1_stage1_stage9f_p2_full2k_plus_runtime196_w3_hgb_leaf3_lr01_l2_1.pkl",
+        "metrics": "outputs/training/hu_turn1_stage1_stage9f_p2_full2k_plus_runtime196/w3_hgb_leaf3_lr01_l2_1_metrics.json",
+        "holdout_top1": 0.4988610478359909,
+        "holdout_top3": 0.6287015945330297,
+        "holdout_avg_regret": 7.0447810385790355
+      },
+      "w5": {
+        "model": "models/hu_turn1_stage1_stage9f_p2_full2k_plus_runtime196_w5_hgb_leaf3_lr01_l2_1.pkl",
+        "metrics": "outputs/training/hu_turn1_stage1_stage9f_p2_full2k_plus_runtime196/w5_hgb_leaf3_lr01_l2_1_metrics.json",
+        "holdout_top1": 0.5056947608200456,
+        "holdout_top3": 0.6355353075170843,
+        "holdout_avg_regret": 6.758491603854546
+      },
+      "w10": {
+        "model": "models/hu_turn1_stage1_stage9f_p2_full2k_plus_runtime196_w10_hgb_leaf3_lr01_l2_1.pkl",
+        "metrics": "outputs/training/hu_turn1_stage1_stage9f_p2_full2k_plus_runtime196/w10_hgb_leaf3_lr01_l2_1_metrics.json",
+        "holdout_top1": 0.49658314350797267,
+        "holdout_top3": 0.6264236902050114,
+        "holdout_avg_regret": 6.761496018788372
+      }
+    },
+    "runtime_smoke_100_w5": {
+      "margin1": {
+        "output": "outputs/evals/hu_turn1_stage1_stage9f_p2_full2k_plus_runtime196/seat_swap_100_w5_margin1.json",
+        "analysis": "outputs/evals/hu_turn1_stage1_stage9f_p2_full2k_plus_runtime196/t1_decision_analysis_100_w5_margin1",
+        "avg_score_per_hand_for_a": -0.4434053092202518,
+        "ci95_low": -0.9543760524704183,
+        "ci95_high": 0.06756543402991477,
+        "fired_count": 16,
+        "fired_delta_mean": -4.917566365253148
+      },
+      "margin1p5": {
+        "output": "outputs/evals/hu_turn1_stage1_stage9f_p2_full2k_plus_runtime196/seat_swap_100_w5_margin1p5.json",
+        "analysis": "outputs/evals/hu_turn1_stage1_stage9f_p2_full2k_plus_runtime196/t1_decision_analysis_100_w5_margin1p5",
+        "avg_score_per_hand_for_a": -0.015,
+        "ci95_low": -0.17771148289738703,
+        "ci95_high": 0.147711482897387,
+        "fired_count": 7,
+        "fired_delta_mean": -0.42857142857142855
+      },
+      "margin2": {
+        "output": "outputs/evals/hu_turn1_stage1_stage9f_p2_full2k_plus_runtime196/seat_swap_100_w5_margin2.json",
+        "analysis": "outputs/evals/hu_turn1_stage1_stage9f_p2_full2k_plus_runtime196/t1_decision_analysis_100_w5_margin2",
+        "avg_score_per_hand_for_a": -0.055,
+        "ci95_low": -0.1628,
+        "ci95_high": 0.05279999999999999,
+        "fired_count": 2,
+        "fired_delta_mean": -5.5
+      }
+    },
+    "interpretation": [
+      "Expanding runtime-sampled Stage9f P2 relabels from 100 to 196 confirms the runtime candidate is usually not the teacher-best action.",
+      "Weighted HGB training still improves offline regret relative to the original full2k, but the deployable margin-only T1 gate remains negative or underfires.",
+      "The next T1 direction should be a safe-override probability/gate objective or stronger search teacher, not another margin-only HGB source-weight sweep."
+    ]
+  },
+  "observed_t1_teacher_regret_safe_gate_all196": {
+    "status": "completed_diagnostic_no_go_for_runtime",
+    "input": "outputs/evals/hu_turn1_stage1_stage9f_p2_full2k/t1_decision_analysis_1000_margin1_replay_ready/stage9f_p2_relabel_all196_full/relabel_targets_stage9f_p2_merged.jsonl",
+    "label_mode": "teacher_regret",
+    "teacher_accept_regret": 0.25,
+    "teacher_gray_regret": 1.0,
+    "positive_label_definition": "source_best_new_regret <= 0.25",
+    "records": 196,
+    "positives": 40,
+    "negatives": 156,
+    "regret_distribution": {
+      "le_0": 40,
+      "le_0p25": 40,
+      "le_1": 42,
+      "le_2": 48,
+      "le_5": 59,
+      "le_10": 91,
+      "p50": 12.0,
+      "p75": 23.227020614683454,
+      "p90": 29.227020614683454,
+      "p95": 32.227020614683454,
+      "max": 41.227020614683454
+    },
+    "best_selector": {
+      "model": "models/hu_turn1_safe_override_selector_teacher_regret_all196_accept0p25_gray1_delta_meta.pkl",
+      "output_dir": "outputs/training/hu_turn1_safe_override_selector_teacher_regret_all196/accept0p25_gray1_delta_meta",
+      "feature_mode": "delta_plus_meta",
+      "best_model": "logistic_balanced",
+      "val_average_precision": 0.4901052449965493,
+      "test_average_precision": 0.2355790744978388,
+      "val_auc": 0.6739130434782609,
+      "test_auc": 0.3695652173913043
+    },
+    "threshold_diagnostic": {
+      "val_threshold_0p9": {
+        "fires": 2,
+        "precision_positive": 0.5,
+        "teacher_regret_mean": 9.113510307341727,
+        "teacher_regret_max": 18.227020614683454
+      },
+      "test_threshold_0p9": {
+        "fires": 3,
+        "precision_positive": 0.3333333333333333,
+        "teacher_regret_mean": 17.151347076455636,
+        "teacher_regret_max": 27.227020614683454
+      }
+    },
+    "other_trials": [
+      {
+        "name": "candidate_delta_plus_meta_accept0p25_gray1",
+        "val_average_precision": 0.3176587301587301,
+        "result": "weaker"
+      },
+      {
+        "name": "delta_plus_meta_accept1_gray3",
+        "val_average_precision": 0.5198232323232322,
+        "result": "slightly higher val AP but test thresholds still fire high-regret rows"
+      },
+      {
+        "name": "delta_plus_meta_accept2_gray5",
+        "val_average_precision": 0.5237283319124751,
+        "result": "looser label does not produce safe heldout threshold behavior"
+      }
+    ],
+    "interpretation": [
+      "A direct safe-override selector can memorize training rows but does not generalize from only 196 runtime-sampled relabels.",
+      "High selector probability still fires high-regret rows on heldout splits.",
+      "This confirms the safe-gate idea is directionally right, but it needs substantially more diverse teacher-regret labels or a stronger feature/model design before runtime integration."
+    ]
+  },
+  "observed_t1_teacher_regret_safe_gate_combined296": {
+    "status": "completed_no_go_for_runtime_go_for_larger_stratified_relabel_data",
+    "non_fired_target_extraction": {
+      "input": "outputs/evals/hu_turn1_stage1_stage9f_p2_full2k/seat_swap_1000_margin1_replay_ready_hu_t1.jsonl",
+      "output": "outputs/evals/hu_turn1_stage1_stage9f_p2_full2k/t1_decision_analysis_1000_margin1_replay_ready/relabel_targets_non_fired_margin0p5_top100.jsonl",
+      "summary": "outputs/evals/hu_turn1_stage1_stage9f_p2_full2k/t1_decision_analysis_1000_margin1_replay_ready/relabel_targets_non_fired_margin0p5_top100_summary.json",
+      "mode": "only_non_fired_candidates",
+      "min_predicted_margin": 0.5,
+      "records": 100,
+      "seat_counts": {
+        "first": 57,
+        "second": 43
+      }
+    },
+    "stage9f_p2_relabel_non_fired100": {
+      "output_dir": "outputs/evals/hu_turn1_stage1_stage9f_p2_full2k/t1_decision_analysis_1000_margin1_replay_ready/stage9f_p2_relabel_non_fired_margin0p5_top100",
+      "merged_output": "outputs/evals/hu_turn1_stage1_stage9f_p2_full2k/t1_decision_analysis_1000_margin1_replay_ready/stage9f_p2_relabel_non_fired_margin0p5_top100/relabel_targets_stage9f_p2_merged.jsonl",
+      "aggregate_summary": "outputs/evals/hu_turn1_stage1_stage9f_p2_full2k/t1_decision_analysis_1000_margin1_replay_ready/stage9f_p2_relabel_non_fired_margin0p5_top100/relabel_targets_stage9f_p2_aggregate_summary.json",
+      "records": 100,
+      "best_action_changed": 93,
+      "source_best_new_regret_mean": 12.85669968890121,
+      "source_best_new_regret_max": 41.45404122936691,
+      "teacher_regret_counts": {
+        "le_0": 19,
+        "le_0p25": 19,
+        "le_1": 19,
+        "le_2": 27,
+        "le_5": 35,
+        "le_10": 50
+      },
+      "relabel_seconds_sum": 1140.96,
+      "t2_choose_action_seconds_sum": 965.86
+    },
+    "combined_relabel": {
+      "output": "outputs/evals/hu_turn1_stage1_stage9f_p2_full2k/t1_decision_analysis_1000_margin1_replay_ready/stage9f_p2_relabel_combined296/relabel_targets_stage9f_p2_merged.jsonl",
+      "summary": "outputs/evals/hu_turn1_stage1_stage9f_p2_full2k/t1_decision_analysis_1000_margin1_replay_ready/stage9f_p2_relabel_combined296/summary.json",
+      "records": 296,
+      "source_best_new_regret_mean": 13.216103787629107,
+      "source_best_new_regret_max": 41.45404122936691,
+      "teacher_regret_counts": {
+        "le_0": 59,
+        "le_0p25": 59,
+        "le_1": 61,
+        "le_2": 75,
+        "le_5": 94,
+        "le_10": 141
+      },
+      "source_kind": {
+        "runtime_fired_decision": {
+          "records": 196,
+          "le0p25": 40,
+          "regret_mean": 13.399473225755584
+        },
+        "runtime_non_fired_candidate_decision": {
+          "records": 100,
+          "le0p25": 19,
+          "regret_mean": 12.85669968890121
+        }
+      }
+    },
+    "safe_selector_trials": {
+      "accept0p25_gray1_delta_plus_meta": {
+        "model": "models/hu_turn1_safe_override_selector_teacher_regret_combined296_accept0p25_gray1_delta_plus_meta.pkl",
+        "output_dir": "outputs/training/hu_turn1_safe_override_selector_teacher_regret_combined296/accept0p25_gray1_delta_plus_meta",
+        "rows": 296,
+        "positives": 59,
+        "negatives": 237,
+        "val_average_precision": 0.37140953158089013,
+        "test_average_precision": 0.22949750156654516,
+        "test_threshold_0p9": {
+          "fires": 4,
+          "precision_le0p25": 0.25,
+          "teacher_regret_mean": 14.363510307341727,
+          "teacher_regret_max": 25.227020614683454
+        },
+        "decision": "No-Go; high safe probability still fires high-regret rows"
+      },
+      "accept2_gray5_delta_plus_meta": {
+        "model": "models/hu_turn1_safe_override_selector_teacher_regret_combined296_accept2_gray5_delta_plus_meta.pkl",
+        "output_dir": "outputs/training/hu_turn1_safe_override_selector_teacher_regret_combined296/accept2_gray5_delta_plus_meta",
+        "rows": 296,
+        "positives": 75,
+        "negatives": 221,
+        "val_average_precision": 0.41238095131406544,
+        "test_threshold_0p9": {
+          "fires": 9,
+          "precision_le2": 0.1111111111111111,
+          "teacher_regret_mean": 15.21,
+          "teacher_regret_max": 36.23
+        },
+        "decision": "No-Go; looser label increases val AP but does not produce safe heldout threshold behavior"
+      }
+    },
+    "interpretation": [
+      "Non-fired near-boundary candidates add useful teacher-accepted rows, but they are still hard-negative-rich.",
+      "Combined296 improves coverage but remains too small and biased for a deployable safe selector.",
+      "Do not integrate the combined296 safe selector into runtime.",
+      "Next useful step is larger stratified replay-ready T1 relabel data with both fired and non-fired candidate rows."
+    ]
+  },
+  "observed_t1_teacher_regret_safe_gate_stratified670": {
+    "status": "completed_no_go_for_runtime_selector",
+    "target_inputs": {
+      "fired_all322": "outputs/evals/hu_turn1_stage1_stage9f_p2_full2k/t1_decision_analysis_1000_margin1_replay_ready/relabel_targets_fired_all322.jsonl",
+      "non_fired_margin0p5_all348": "outputs/evals/hu_turn1_stage1_stage9f_p2_full2k/t1_decision_analysis_1000_margin1_replay_ready/relabel_targets_non_fired_margin0p5_all.jsonl",
+      "combined": "outputs/evals/hu_turn1_stage1_stage9f_p2_full2k/t1_decision_analysis_1000_margin1_replay_ready/relabel_targets_stratified670/relabel_targets_stratified670.jsonl"
+    },
+    "stage9f_p2_relabel": {
+      "output_dir": "outputs/evals/hu_turn1_stage1_stage9f_p2_full2k/t1_decision_analysis_1000_margin1_replay_ready/stage9f_p2_relabel_stratified670_full",
+      "merged_output": "outputs/evals/hu_turn1_stage1_stage9f_p2_full2k/t1_decision_analysis_1000_margin1_replay_ready/stage9f_p2_relabel_stratified670_full/relabel_targets_stage9f_p2_merged.jsonl",
+      "aggregate_summary": "outputs/evals/hu_turn1_stage1_stage9f_p2_full2k/t1_decision_analysis_1000_margin1_replay_ready/stage9f_p2_relabel_stratified670_full/relabel_targets_stage9f_p2_aggregate_summary.json",
+      "records": 670,
+      "best_action_changed": 598,
+      "best_action_changed_rate": 0.8925373134328358,
+      "source_best_new_regret_mean": 11.77181683187905,
+      "source_best_new_regret_max": 53.45404122936691,
+      "teacher_regret_counts": {
+        "le_0": 172,
+        "le_0p25": 172,
+        "le_1": 178,
+        "le_2": 214,
+        "le_5": 260,
+        "le_10": 360
+      },
+      "by_source_batch": {
+        "fired_all322": {
+          "records": 322,
+          "le0p25": 80,
+          "regret_mean": 12.505117338454243
+        },
+        "non_fired_margin0p5_all348": {
+          "records": 348,
+          "le0p25": 92,
+          "regret_mean": 11.093303144760627
+        }
+      },
+      "relabel_seconds_sum": 20884.12114060507,
+      "t2_choose_action_seconds_sum": 16356.934703784063
+    },
+    "safe_selector_trials": {
+      "accept0p25_gray1_delta_plus_meta": {
+        "model": "models/hu_turn1_safe_override_selector_teacher_regret_stratified670_accept0p25_gray1_delta_plus_meta.pkl",
+        "output_dir": "outputs/training/hu_turn1_safe_override_selector_teacher_regret_stratified670/accept0p25_gray1_delta_plus_meta",
+        "val_average_precision": 0.3138094936884696,
+        "test_average_precision": 0.3011081095339295,
+        "test_threshold_0p9": {
+          "fires": 31,
+          "precision_le0p25": 0.3225806451612903,
+          "teacher_regret_mean": 12.99,
+          "teacher_regret_max": 36.23
+        },
+        "decision": "No-Go"
+      },
+      "accept0p25_gray1_candidate_delta_plus_meta": {
+        "model": "models/hu_turn1_safe_override_selector_teacher_regret_stratified670_accept0p25_gray1_candidate_delta_plus_meta.pkl",
+        "output_dir": "outputs/training/hu_turn1_safe_override_selector_teacher_regret_stratified670/accept0p25_gray1_candidate_delta_plus_meta",
+        "val_average_precision": 0.3420763632135605,
+        "test_average_precision": 0.3268679098306093,
+        "test_threshold_0p3": {
+          "fires": 7,
+          "precision_le0p25": 0.42857142857142855,
+          "teacher_regret_mean": 14.27,
+          "teacher_regret_max": 30.23
+        },
+        "decision": "No-Go; high thresholds underfire and low threshold still fires high-regret rows"
+      },
+      "accept2_gray5_delta_plus_meta": {
+        "model": "models/hu_turn1_safe_override_selector_teacher_regret_stratified670_accept2_gray5_delta_plus_meta.pkl",
+        "output_dir": "outputs/training/hu_turn1_safe_override_selector_teacher_regret_stratified670/accept2_gray5_delta_plus_meta",
+        "val_average_precision": 0.36758093120987656,
+        "test_average_precision": 0.34640008552343055,
+        "test_threshold_0p9": {
+          "fires": 29,
+          "precision_le2": 0.20689655172413793,
+          "teacher_regret_mean": 13.51,
+          "teacher_regret_max": 36.23
+        },
+        "decision": "No-Go"
+      }
+    },
+    "interpretation": [
+      "The larger stratified670 relabel confirms that many teacher-safe rows exist, but the current selector features cannot separate them from high-regret rows.",
+      "Adding more rows from the same margin1 runtime distribution did not produce a deployable runtime gate.",
+      "Next T1 work should change the candidate generator/objective or collect broader self-play T1 states, not tune selector thresholds."
+    ]
+  },
+  "observed_t1_stratified670_action_value_generator": {
+    "status": "offline_improved_runtime_no_go",
+    "augmented_teacher": "outputs/hu_turn1_stage1_pilot/augmented_stage9f_p2_stratified670/hu_turn1_stage1_full2k_plus_stratified670.jsonl",
+    "augment_summary": "outputs/hu_turn1_stage1_pilot/augmented_stage9f_p2_stratified670/summary.json",
+    "records": {
+      "stage9f_p2_refinement": 2000,
+      "stage9f_p2_stratified670_relabel": 670,
+      "total": 2670
+    },
+    "hgb_leaf3_lr01_l2_1": {
+      "w1": {
+        "model": "models/hu_turn1_stage1_stage9f_p2_full2k_plus_stratified670_w1_hgb_leaf3_lr01_l2_1.pkl",
+        "holdout_top1": 0.4550561797752809,
+        "holdout_top3": 0.6142322097378277,
+        "holdout_avg_regret": 7.807904049377508
+      },
+      "w5": {
+        "model": "models/hu_turn1_stage1_stage9f_p2_full2k_plus_stratified670_w5_hgb_leaf3_lr01_l2_1.pkl",
+        "holdout_top1": 0.50187265917603,
+        "holdout_top3": 0.6310861423220974,
+        "holdout_avg_regret": 6.97023852188877
+      },
+      "w10": {
+        "model": "models/hu_turn1_stage1_stage9f_p2_full2k_plus_stratified670_w10_hgb_leaf3_lr01_l2_1.pkl",
+        "holdout_top1": 0.5056179775280899,
+        "holdout_top3": 0.6647940074906367,
+        "holdout_avg_regret": 6.6586989644204175
+      },
+      "w20": {
+        "model": "models/hu_turn1_stage1_stage9f_p2_full2k_plus_stratified670_w20_hgb_leaf3_lr01_l2_1.pkl",
+        "holdout_top1": 0.5411985018726592,
+        "holdout_top3": 0.7097378277153558,
+        "holdout_avg_regret": 5.983529653009047,
+        "source_split": {
+          "stage9f_p2_refinement": {
+            "samples": 394,
+            "top1": 0.5431,
+            "top3": 0.7107,
+            "avg_regret": 5.9119
+          },
+          "stage9f_p2_stratified670_relabel": {
+            "samples": 140,
+            "top1": 0.5357,
+            "top3": 0.7071,
+            "avg_regret": 6.185
+          }
+        }
+      }
+    },
+    "runtime_smoke": {
+      "w20_margin1_100": {
+        "output": "outputs/evals/hu_turn1_stage1_stratified670_w20/seat_swap_100_margin1.json",
+        "avg_score_per_hand_for_a": 0.2,
+        "ci95_low": -0.11270782180524652,
+        "ci95_high": 0.5127078218052465,
+        "fired_count": 18,
+        "fired_delta_mean": 1.6111111111111112,
+        "decision": "promising smoke only"
+      },
+      "w20_margin1_500": {
+        "output": "outputs/evals/hu_turn1_stage1_stratified670_w20/seat_swap_500_margin1.json",
+        "analysis": "outputs/evals/hu_turn1_stage1_stratified670_w20/t1_decision_analysis_500_margin1",
+        "avg_score_per_hand_for_a": -0.087,
+        "ci95_low": -0.31962631664538543,
+        "ci95_high": 0.14562631664538547,
+        "fired_count": 84,
+        "fired_delta_mean": -0.9285714285714286,
+        "decision": "No-Go"
+      },
+      "w20_margin1p5_100": {
+        "avg_score_per_hand_for_a": -0.01113510307341727,
+        "fired_count": 8,
+        "fired_delta_mean": -0.27837757683543174,
+        "decision": "No-Go"
+      },
+      "w20_margin2_100": {
+        "avg_score_per_hand_for_a": -0.11613510307341728,
+        "fired_count": 3,
+        "fired_delta_mean": -7.742340204894485,
+        "decision": "No-Go"
+      }
+    },
+    "interpretation": [
+      "Stratified670 source weighting improves offline candidate-generator metrics substantially.",
+      "The offline improvement does not transfer to a deployable T1 margin gate.",
+      "Margin buckets are not reliable enough for runtime gating."
+    ]
+  },
+  "observed_t1_tail84_feedback_action_value_generator": {
+    "status": "offline_improved_runtime_no_go",
+    "tail_targets": "outputs/evals/hu_turn1_stage1_stratified670_w20/relabel_targets_w20_margin1_fired_all84.jsonl",
+    "tail_relabel": {
+      "merged_output": "outputs/evals/hu_turn1_stage1_stratified670_w20/stage9f_p2_relabel_w20_margin1_fired_all84/relabel_targets_stage9f_p2_merged.jsonl",
+      "aggregate_summary": "outputs/evals/hu_turn1_stage1_stratified670_w20/stage9f_p2_relabel_w20_margin1_fired_all84/relabel_targets_stage9f_p2_aggregate_summary.json",
+      "records": 84,
+      "best_action_changed": 77,
+      "best_action_changed_rate": 0.9166666666666666,
+      "source_best_new_regret_mean": 10.890088487004196,
+      "source_best_new_regret_max": 32.227020614683454,
+      "realized_delta_mean": -0.9285714285714286
+    },
+    "augmented_teacher": "outputs/hu_turn1_stage1_pilot/augmented_stage9f_p2_stratified670_plus_w20_margin1_fired84/hu_turn1_stage1_full2k_plus_stratified670_plus_w20_margin1_fired84.jsonl",
+    "records": {
+      "stage9f_p2_refinement": 2000,
+      "stage9f_p2_stratified670_relabel": 670,
+      "stage9f_p2_w20_margin1_fired_relabel": 84,
+      "total": 2754
+    },
+    "hgb_leaf3_lr01_l2_1": {
+      "w20_20": {
+        "model": "models/hu_turn1_stage1_stage9f_p2_full2k_plus_stratified670_tail84_w20_20_hgb_leaf3_lr01_l2_1.pkl",
+        "holdout_top1": 0.47549909255898365,
+        "holdout_top3": 0.662431941923775,
+        "holdout_avg_regret": 7.0274180956236
+      },
+      "w20_50": {
+        "model": "models/hu_turn1_stage1_stage9f_p2_full2k_plus_stratified670_tail84_w20_50_hgb_leaf3_lr01_l2_1.pkl",
+        "holdout_top1": 0.5009074410163339,
+        "holdout_top3": 0.6678765880217786,
+        "holdout_avg_regret": 6.6442327905901735
+      },
+      "w20_100": {
+        "model": "models/hu_turn1_stage1_stage9f_p2_full2k_plus_stratified670_tail84_w20_100_hgb_leaf3_lr01_l2_1.pkl",
+        "holdout_top1": 0.5553539019963702,
+        "holdout_top3": 0.6878402903811253,
+        "holdout_avg_regret": 5.567026960656103
+      }
+    },
+    "runtime_smoke": {
+      "w20_100_margin0p5_100": {
+        "avg_score_per_hand_for_a": -0.24613510307341727,
+        "ci95_low": -0.6368939999306505,
+        "ci95_high": 0.14462379378381604,
+        "fired_count": 13,
+        "fired_delta_mean": -4.709770816514112,
+        "decision": "No-Go"
+      },
+      "w20_100_margin1_100": {
+        "avg_score_per_hand_for_a": 0.06,
+        "ci95_low": -0.05760000000000001,
+        "ci95_high": 0.1776,
+        "fired_count": 3,
+        "fired_delta_mean": 0.0,
+        "decision": "underfire"
+      },
+      "w20_100_margin1_500": {
+        "output": "outputs/evals/hu_turn1_stage1_stratified670_tail84_w20_100/seat_swap_500_margin1.json",
+        "analysis": "outputs/evals/hu_turn1_stage1_stratified670_tail84_w20_100/t1_decision_analysis_500_margin1",
+        "avg_score_per_hand_for_a": -0.17336212368810072,
+        "ci95_low": -0.40643024273584605,
+        "ci95_high": 0.059705995359644604,
+        "fired_count": 53,
+        "fired_delta_mean": -3.270983465813221,
+        "decision": "No-Go"
+      }
+    },
+    "interpretation": [
+      "Tail84 feedback improves offline holdout but does not fix runtime conversion.",
+      "Lowering T1 margin to regain fire rate reintroduces large negative fired deltas.",
+      "T1 margin-gated selective override remains No-Go; next work needs a different runtime objective or search/rerank confirmation."
+    ]
+  },
+  "observed_t1_topk_confirm_runtime": {
+    "status": "post_fix_plumbing_passed_quality_unproven",
+    "profile": "stage9f_p2_hu_t1_topk_confirm",
+    "candidate_model": "models/hu_turn1_stage1_stage9f_p2_full2k_plus_stratified670_tail84_w20_100_hgb_leaf3_lr01_l2_1.pkl",
+    "continuation_policy": {
+      "t2": "stage9f_p2",
+      "t3": "stage7_m5_r10"
+    },
+    "design": [
+      "Use the T1 HU action-value model only as a TopK candidate generator.",
+      "Stage A evaluates topK candidates plus baseline with common-random-future MC rollouts.",
+      "Stage B independently re-evaluates champion vs baseline with a separate confirm seed.",
+      "Confirm delta is a gate diagnostic only; realized fired seat-swap delta remains the performance metric."
+    ],
+    "implementation_fix": {
+      "summary": "The profile now inherits the T2 Stage9f P2 policy, and the T1 helper no longer shadows the T2 rerank method.",
+      "reason": "The first implementation used T1 TopK confirm code but actual gameplay did not use the T2 Stage9f P2 continuation.",
+      "pre_fix_strength_results_invalid": true,
+      "metric_note": "non_fired_nonzero_count is a candidate-counterfactual count; use non_fired_final_mismatch_count for actual baseline-cancellation checks."
+    },
+    "pre_fix_obsolete_runs": {
+      "smoke_outputs": [
+        "outputs/evals/hu_turn1_topk_confirm_smoke/summary_1.json",
+        "outputs/evals/hu_turn1_topk_confirm_smoke/summary_10.json",
+        "outputs/evals/hu_turn1_topk_confirm_smoke/summary_10_mc2_confirm4_cse1.json"
+      ],
+      "invalid_strength_run": {
+        "output": "outputs/evals/hu_turn1_topk_confirm_sweep_small/summary_50_mc2_confirm4_cse1.json",
+        "decision_log": "outputs/evals/hu_turn1_topk_confirm_sweep_small/decisions_50_mc2_confirm4_cse1.jsonl",
+        "paired_seeds": 50,
+        "hu_turn1_non_fired_nonzero_count": 4,
+        "decision": "obsolete_invalid_for_strength; non-fired T1 cancellation failed before the T2 continuation inheritance fix"
+      }
+    },
+    "post_fix_small_sweep": {
+      "analysis_output_dir": "outputs/evals/hu_turn1_topk_confirm_sweep_small/analysis_after_t2fix",
+      "performance_metric_source": "realized_seat_swap_counterfactual",
+      "confirm_delta_metric_role": "gate_diagnostic_only",
+      "configs": {
+        "k3_mc2_d0_confirm4_cse1_pd0_seat_first+second": {
+          "summary": "outputs/evals/hu_turn1_topk_confirm_sweep_small/summary_10_mc2_confirm4_cse1_after_t2fix.json",
+          "decision_log": "outputs/evals/hu_turn1_topk_confirm_sweep_small/decisions_10_mc2_confirm4_cse1_after_t2fix.jsonl",
+          "paired_seeds": 10,
+          "avg_score_per_hand_for_a": 0.5,
+          "ci95_low": -1.2286,
+          "ci95_high": 2.2286,
+          "decision_count": 20,
+          "valid_decision_count": 14,
+          "valid_override_count": 6,
+          "realized_per_fire_delta_mean": 1.6666666666666667,
+          "realized_per_fire_ci95_low": -4.249518290249778,
+          "realized_per_fire_ci95_high": 7.582851623583112,
+          "non_fired_nonzero_count": 0,
+          "decision": "only candidate worth extending; fired count remains far below target"
+        },
+        "k3_mc2_d0_confirm4_cse1p5_pd0_seat_first+second": {
+          "summary": "outputs/evals/hu_turn1_topk_confirm_sweep_small/summary_10_mc2_confirm4_cse1p5_after_t2fix.json",
+          "decision_log": "outputs/evals/hu_turn1_topk_confirm_sweep_small/decisions_10_mc2_confirm4_cse1p5_after_t2fix.jsonl",
+          "paired_seeds": 10,
+          "avg_score_per_hand_for_a": -0.6614,
+          "ci95_low": -3.7943,
+          "ci95_high": 2.4716,
+          "decision_count": 20,
+          "valid_decision_count": 17,
+          "valid_override_count": 3,
+          "realized_per_fire_delta_mean": -4.409006871561151,
+          "realized_per_fire_ci95_low": -28.132195509850725,
+          "realized_per_fire_ci95_high": 19.314181766728424,
+          "non_fired_nonzero_count": 0,
+          "decision": "do not extend before cse1; small-run fired delta was negative"
+        },
+        "k3_mc2_d0_confirm4_cse2_pd0_seat_first+second": {
+          "summary": "outputs/evals/hu_turn1_topk_confirm_sweep_small/summary_10_mc2_confirm4_cse2_after_t2fix.json",
+          "decision_log": "outputs/evals/hu_turn1_topk_confirm_sweep_small/decisions_10_mc2_confirm4_cse2_after_t2fix.jsonl",
+          "paired_seeds": 10,
+          "avg_score_per_hand_for_a": 0.0,
+          "ci95_low": 0.0,
+          "ci95_high": 0.0,
+          "decision_count": 20,
+          "valid_decision_count": 20,
+          "valid_override_count": 0,
+          "realized_per_fire_delta_mean": 0.0,
+          "non_fired_nonzero_count": 0,
+          "decision": "underfires"
+        }
+      }
+    },
+    "post_fix_cse1_d0_combined250_audit": {
+      "status": "No-Go for adoption; weak positive mean but CI crosses zero and tail loss remains high",
+      "config": "k3/mc2/d0/confirm4/cse1/pd0/seat=first+second",
+      "component_runs": [
+        "outputs/evals/hu_turn1_topk_confirm_cse1_100/summary.json",
+        "outputs/evals/hu_turn1_topk_confirm_cse1_add150/summary.json"
+      ],
+      "analysis_output_dir": "outputs/evals/hu_turn1_topk_confirm_cse1_combined250/analysis",
+      "paired_seeds": 250,
+      "hands": 500,
+      "weighted_ev_per_hand": 0.1144540412293669,
+      "decision_count": 500,
+      "valid_decision_count": 433,
+      "valid_override_count": 59,
+      "override_rate_valid": 0.13625866050808313,
+      "realized_per_fire_delta_mean": 0.9869035479658952,
+      "realized_per_fire_ci95_low": -1.8868899547181393,
+      "realized_per_fire_ci95_high": 3.8606970506499296,
+      "estimated_ev_per_decision": 0.1345265830832086,
+      "p95_loss": 17.327020614683452,
+      "max_loss": 29.227020614683454,
+      "non_fired_counterfactual_nonzero_count": 2,
+      "non_fired_final_mismatch_count": 0
+    },
+    "posthoc_confirm_delta_floor_diagnostic": {
+      "source": "combined250 fired rows only; diagnostic and selection-biased, requires fresh-seed validation",
+      "actual_audit_config": {
+        "min_confirm_delta": 0.0,
+        "valid_override_count": 59,
+        "realized_per_fire_delta_mean": 0.9869,
+        "ci95_low": -1.8869,
+        "ci95_high": 3.8607,
+        "p95_loss": 17.227,
+        "max_loss": 29.227
+      },
+      "candidate_d2": {
+        "min_confirm_delta": 2.0,
+        "valid_override_count": 28,
+        "realized_per_fire_delta_mean": 4.5958,
+        "ci95_low": -0.0015,
+        "ci95_high": 9.193,
+        "p95_loss": 8.0,
+        "max_loss": 18.227
+      },
+      "candidate_d3": {
+        "min_confirm_delta": 3.0,
+        "valid_override_count": 23,
+        "realized_per_fire_delta_mean": 6.1264,
+        "ci95_low": 0.8927,
+        "ci95_high": 11.3602,
+        "p95_loss": 6.0,
+        "max_loss": 18.227,
+        "decision": "post-hoc diagnostic only; failed fresh-seed validation"
+      },
+      "candidate_d6": {
+        "min_confirm_delta": 6.0,
+        "valid_override_count": 12,
+        "realized_per_fire_delta_mean": 7.5568,
+        "ci95_low": 0.976,
+        "ci95_high": 14.1375,
+        "p95_loss": 2.0,
+        "max_loss": 6.0,
+        "decision": "likely underfires"
+      }
+    },
+    "fresh_d3_cse1_250_validation": {
+      "status": "No-Go; post-hoc d3 floor did not transfer to fresh seeds",
+      "config": "k3/mc2/d3/confirm4/cse1/pd0/seat=first+second",
+      "summary": "outputs/evals/hu_turn1_topk_confirm_d3_cse1_250/summary.json",
+      "decision_log": "outputs/evals/hu_turn1_topk_confirm_d3_cse1_250/decisions.jsonl",
+      "analysis_output_dir": "outputs/evals/hu_turn1_topk_confirm_d3_cse1_250/analysis",
+      "paired_seeds": 250,
+      "hands": 500,
+      "ev_per_hand": -0.13781616491746762,
+      "ci95_low": -0.42308775463243875,
+      "ci95_high": 0.1474554247975035,
+      "decision_count": 500,
+      "valid_decision_count": 469,
+      "valid_override_count": 29,
+      "override_rate_valid": 0.06183368869936034,
+      "realized_per_fire_delta_mean": -1.7554511192666833,
+      "realized_per_fire_ci95_low": -6.1392,
+      "realized_per_fire_ci95_high": 2.6283,
+      "p95_loss": 24.227,
+      "non_fired_final_mismatch_count": 0,
+      "diagnosis": "Confirm4 remains too noisy; losses include large confirm deltas with high confirm SE."
+    },
+    "gcp_d0_confirm16_cse1_2000_validation": {
+      "status": "No-Go; larger independent confirm MC reached enough fires but realized per-fire delta was negative",
+      "run_name": "regular-hu-t1-topk-d0-confirm16-2000-20260624-073133",
+      "config": "k3/mc2/d0/confirm16/cse1/pd0/seat=first+second",
+      "summary": "outputs/evals/hu_turn1_topk_confirm_d0_confirm16_gcp2000/aggregate/summary.json",
+      "decision_log": "outputs/evals/hu_turn1_topk_confirm_d0_confirm16_gcp2000/aggregate/hu_turn1_decisions.jsonl",
+      "analysis_output_dir": "outputs/evals/hu_turn1_topk_confirm_d0_confirm16_gcp2000/aggregate/hu_turn1_topk_confirm_audit",
+      "paired_seeds": 2000,
+      "hands": 4000,
+      "ev_per_hand": -0.03846483761240468,
+      "decision_count": 4000,
+      "valid_decision_count": 3760,
+      "valid_override_count": 220,
+      "override_rate_valid": 0.05851063829787234,
+      "realized_per_fire_delta_mean": -0.9969,
+      "realized_per_fire_ci95_low": -2.5018,
+      "realized_per_fire_ci95_high": 0.5081,
+      "estimated_ev_per_decision": -0.0583,
+      "p95_loss": 23.227,
+      "non_fired_counterfactual_nonzero_count": 32,
+      "non_fired_final_mismatch_count": 0,
+      "reason_counts": {
+        "below_confirm_delta": 1298,
+        "below_confirm_se": 472,
+        "mc_best_is_baseline": 1293,
+        "override_fired": 240,
+        "topk_empty": 697
+      },
+      "diagnosis": "Non-fired cancellation is clean, but confirm16 does not make the current T1 TopK candidate safe; the next T1 step should change candidate generator or teacher objective before another broad validation."
+    },
+    "next_validation": [
+      "Do not adopt k3/mc2/d0/confirm4/cse1/pd0/seat=first+second; it reached 59 valid fired but tail loss remains high and CI crosses zero.",
+      "Do not adopt k3/mc2/d3/confirm4/cse1/pd0/seat=first+second; fresh validation was negative.",
+      "Do not adopt k3/mc2/d0/confirm16/cse1/pd0/seat=first+second; GCP 2000 validation reached 220 valid fires but realized per-fire delta was negative.",
+      "Do not continue simple confirm4/confirm16 threshold sweeps on this T1 TopK candidate.",
+      "Next useful validation should first change the T1 candidate generator or teacher objective; only then use realized fired seat-swap delta and tail loss for confirmation.",
+      "Judge only realized fired seat-swap delta and tail loss, not confirm delta.",
+      "Keep non-fired cancellation clean before using per-fire estimates."
+    ]
+  },
+  "go_nogo": {
+    "turn1_teacher_path": "Pipeline works, but current T1 runtime conversion is No-Go",
+    "large_turn1_teacher": "No-Go until a redesigned teacher/objective beats the runtime fired-delta audit, not just holdout top1",
+    "production": "No-Go",
+    "turn2_p2_continuation": "Use stage9f_p2 explicitly; current profile is not replaced",
+    "turn1_stage9f_p2_full2k_model_adoption": "No-Go after 3000 paired margin1 fired-delta audit",
+    "turn1_margin_gate": "No-Go; margin buckets remain negative through margin >= 2",
+    "turn1_safe_selector": "No-Go; simple selector has weak out-of-sample ranking and sparse threshold transfer",
+    "turn1_replay_ready_relabel_pipeline": "Go for larger replay-ready fired-target extraction and Stage9f P2 relabeling",
+    "turn1_realized_delta_as_direct_label": "No-Go; runtime_positive rows are often rejected by Stage9f P2 relabeling",
+    "turn1_runtime_relabel100_augmented_model": "No-Go for runtime adoption; holdout improves but margin gates still fail or underfire",
+    "turn1_runtime_relabel196_augmented_model": "No-Go for runtime adoption; expanded relabel set confirms margin-only HGB gate remains negative or underfires",
+    "turn1_teacher_regret_safe_gate_all196": "No-Go for runtime adoption; direct safe gate overfits and does not safely separate teacher-accepted overrides on heldout rows",
+    "turn1_teacher_regret_safe_gate_combined296": "No-Go for runtime adoption; non-fired candidate relabels add useful accepted rows but combined selector still fires high-regret heldout rows",
+    "turn1_teacher_regret_safe_gate_stratified670": "No-Go for runtime adoption; larger stratified relabel confirms current selector features cannot separate teacher-safe rows from high-regret rows",
+    "turn1_stratified670_action_value_generator": "No-Go for runtime adoption; offline candidate-generator metrics improved but margin gate failed at 500 paired seeds",
+    "turn1_tail84_feedback_action_value_generator": "No-Go for runtime adoption; tail feedback improved offline metrics but runtime margin gate still negative",
+    "turn1_topk_confirm_runtime": "confirm4 threshold variants cse1/d0 and d3/cse1 are No-Go; next validation needs larger independent confirm MC; not production"
+  },
+  "next_steps": [
+    "Do not adopt stage9f_p2_hu_t1_stage1 or any margin-only T1 threshold.",
+    "Do not use the simple safe selector as runtime; keep its artifacts diagnostic only.",
+    "Use the 3000-run fired labels as hard-negative/positive evidence, but keep them replay-ineligible because legacy logs lack private discard context.",
+    "For new T1 logs, use replay_ready context and extract fired relabel targets with extract_hu_turn1_decision_relabel_targets.",
+    "Include non-fired near-boundary candidate rows in the next T1 relabel batch; they add teacher-accepted examples and hard negatives.",
+    "Next T1 work should improve runtime objective quality; do not keep tuning margin-only gates or post-hoc safe selector thresholds on the same margin1 runtime distribution.",
+    "The T1 TopK + independent confirm runtime path is now available for validation-only experiments.",
+    "Ignore pre-fix TopK confirm strength runs where non-fired T1 cancellation failed.",
+    "Do not continue threshold-only confirm4 sweeps; use larger independent confirm MC for the next T1 TopK confirm validation.",
+    "Only after a TopK confirm candidate passes a realized fired-delta audit should a larger T1 seat-swap be run again.",
+    "Production-scale T1 and T1 runtime adoption remain No-Go."
+  ],
+  "observed_gcp_fast2k_mc1": {
+    "run_name": "regular-hu-t1-stage1-fast2k-20260623-001",
+    "output_dir": "outputs/hu_turn1_stage1_pilot/gcp_fast2k_mc1",
+    "merged_output": "outputs/hu_turn1_stage1_pilot/gcp_fast2k_mc1/hu_turn1_stage1_pilot.jsonl",
+    "aggregate_summary": "outputs/hu_turn1_stage1_pilot/gcp_fast2k_mc1/summary.json",
+    "analysis_summary": "outputs/hu_turn1_stage1_pilot/gcp_fast2k_mc1/analysis/summary.json",
+    "analysis_markdown": "outputs/hu_turn1_stage1_pilot/gcp_fast2k_mc1/analysis/summary.md",
+    "samples": 2000,
+    "future_samples": 1,
+    "max_actions": 0,
+    "completed_shards": 200,
+    "missing_shards": 0,
+    "mean_seconds_per_sample": 1.7969367550065,
+    "max_seconds_per_sample": 2.320350936899996,
+    "mean_action_count": 26.394,
+    "total_actions": 52788,
+    "action_count_mean": 26.394,
+    "action_count_p95": 27.0,
+    "score_gap_mean": 2.9231317366931546,
+    "score_gap_median": 0.0,
+    "score_gap_p95": 18.227020614683454,
+    "distinct_score_gap_mean": 8.359562998872885,
+    "best_tie_count_mean": 4.7995,
+    "zero_gap_rows": 1347,
+    "ge_1_gap_rows": 653,
+    "seat_counts": {
+      "first": 1000,
+      "second": 1000
+    },
+    "player_counts": {
+      "0": 1000,
+      "1": 1000
+    },
+    "profile": "stage9f_fast_t2_t1_teacher",
+    "t2_continuation_profile": "stage9f_fast_t2_t1_teacher",
+    "t3_continuation": "stage7_m5_r10",
+    "schema_clean": {
+      "invalid_state_rows": 0,
+      "invalid_action_rows": 0,
+      "action_count_mismatches": 0,
+      "best_action_missing": 0,
+      "best_action_not_legal": 0,
+      "best_score_mismatches": 0,
+      "score_gap_mismatches": 0,
+      "actions_truncated": 0,
+      "duplicate_state_keys": 0
+    },
+    "notes": [
+      "GCP 2k pilot completed with 200/200 shards and 2,000 records.",
+      "sample_id is shard-local and repeats; hand_seed:player state keys are unique.",
+      "This dataset is Go for feature-cache/training smoke, not production-scale T1."
+    ]
+  },
+  "observed_t1_stage1_fast2k_training_smoke": {
+    "status": "No-Go for model adoption; training pipeline works but holdout regret is too high",
+    "input": "outputs/hu_turn1_stage1_pilot/gcp_fast2k_mc1/hu_turn1_stage1_pilot.jsonl",
+    "outputs_dir": "outputs/training/hu_turn1_stage1_fast2k_smoke",
+    "models": {
+      "self_ridge": {
+        "model": "models/turn1_stage1_hu_fast2k_smoke_ridge.npz",
+        "metrics": "outputs/training/hu_turn1_stage1_fast2k_smoke/ridge_metrics.json",
+        "holdout_top1": 0.3475,
+        "holdout_top3": 0.5425,
+        "holdout_avg_regret": 9.53117373594176,
+        "holdout_mse": 200.05087357536988
+      },
+      "self_mlp": {
+        "model": "models/turn1_stage1_hu_fast2k_smoke_torch.pt",
+        "metrics": "outputs/training/hu_turn1_stage1_fast2k_smoke/metrics.json",
+        "device": "cuda",
+        "holdout_top1": 0.225,
+        "holdout_top3": 0.405,
+        "holdout_avg_regret": 12.715470488189837,
+        "holdout_mse": 189.04301079425352
+      },
+      "hu_hgb": {
+        "model": "models/hu_turn1_stage1_fast2k_smoke_hgb.pkl",
+        "metrics": "outputs/training/hu_turn1_stage1_fast2k_smoke/hu_hgb_metrics.json",
+        "holdout_top1": 0.3225,
+        "holdout_top3": 0.5025,
+        "holdout_avg_regret": 10.556619457455682,
+        "holdout_mse": 191.13625717316722
+      },
+      "hu_extra_trees": {
+        "model": "models/hu_turn1_stage1_fast2k_smoke_extra_trees.pkl",
+        "metrics": "outputs/training/hu_turn1_stage1_fast2k_smoke/hu_extra_trees_metrics.json",
+        "holdout_top1": 0.2875,
+        "holdout_top3": 0.465,
+        "holdout_avg_regret": 11.553889663602508,
+        "holdout_mse": 188.7220176067314,
+        "note": "Strong train fit but poor holdout; overfits the 2k MC1 labels."
+      }
+    },
+    "margin_bucket_metrics": "outputs/training/hu_turn1_stage1_fast2k_smoke/margin_bucket_metrics.csv",
+    "diagnosis": [
+      "Training pipeline is functional, but current 2k MC1 labels are not enough for a usable T1 model.",
+      "Self-board ridge is the best holdout baseline but still has avg_regret around 9.53.",
+      "HU-aware HGB/ExtraTrees do not solve the holdout regret, so capacity alone is not the primary blocker.",
+      "Next step should be selected refinement or higher-MC relabeling for decisive/high-regret T1 states, not production-scale T1."
+    ]
+  },
+  "observed_t1_stage1_selected_refinement": {
+    "status": "full_stage9f_p2_relabel_completed_and_merged",
+    "target_output": "outputs/hu_turn1_stage1_pilot/refinement_targets/stage1_selected_targets.jsonl",
+    "target_summary": "outputs/hu_turn1_stage1_pilot/refinement_targets/stage1_selected_targets_summary.json",
+    "target_metrics": "outputs/hu_turn1_stage1_pilot/refinement_targets/stage1_selected_targets_metrics.csv",
+    "targets": 200,
+    "source_records": 2000,
+    "reason_counts": {
+      "fill_cover": 17,
+      "high_model_regret": 80,
+      "high_score_gap": 60,
+      "low_score_gap": 40,
+      "random_cover": 20
+    },
+    "seat_counts": {
+      "first": 107,
+      "second": 93
+    },
+    "max_model_regret_mean": 25.051400564086006,
+    "max_model_regret_p90": 39.32702061468345,
+    "score_gap_mean": 9.70991680284554,
+    "score_gap_p90": 26.227020614683454,
+    "relabel_smoke": {
+      "output": "outputs/hu_turn1_stage1_pilot/refinement_targets/stage1_selected_targets_stage9f_p2_relabel_smoke4.jsonl",
+      "summary": "outputs/hu_turn1_stage1_pilot/refinement_targets/stage1_selected_targets_stage9f_p2_relabel_smoke4_summary.json",
+      "analysis": "outputs/hu_turn1_stage1_pilot/refinement_targets/stage9f_p2_relabel_smoke4_analysis/summary.json",
+      "records": 4,
+      "profile": "stage9f_p2",
+      "future_samples": 1,
+      "best_action_changed_rate": 1.0,
+      "source_best_new_regret_mean": 2.75,
+      "source_best_new_regret_max": 6.0,
+      "relabel_seconds_sum": 109.93165420019068,
+      "t2_choose_action_seconds_sum": 106.20241139945574,
+      "schema_clean": {
+        "invalid_state_rows": 0,
+        "invalid_action_rows": 0,
+        "action_count_mismatches": 0,
+        "best_action_not_legal": 0,
+        "score_gap_mismatches": 0,
+        "actions_truncated": 0
+      }
+    },
+    "full_relabel_estimate": {
+      "seconds_per_target_from_smoke4": 27.48291355004767,
+      "estimated_seconds_for_200": 5496.582710009534,
+      "recommendation": "Run sharded via --skip-targets/--max-targets; use Spot VM or local parallel chunks."
+    },
+    "full_relabel": {
+      "output": "outputs/hu_turn1_stage1_pilot/refinement_targets/stage9f_p2_full_relabel/stage1_selected_targets_stage9f_p2_relabel_merged.jsonl",
+      "aggregate_summary": "outputs/hu_turn1_stage1_pilot/refinement_targets/stage9f_p2_full_relabel/stage1_selected_targets_stage9f_p2_relabel_aggregate_summary.json",
+      "analysis_summary": "outputs/hu_turn1_stage1_pilot/refinement_targets/stage9f_p2_full_relabel/analysis/summary.json",
+      "records": 200,
+      "parts": 10,
+      "best_action_changed": 174,
+      "best_action_changed_rate": 0.87,
+      "source_best_new_regret_mean": 10.000376390551871,
+      "source_best_new_regret_max": 37.227020614683454,
+      "relabel_seconds_sum": 7121.238401802257,
+      "t2_choose_action_seconds_sum": 5663.214411305031,
+      "seat_counts": {
+        "first": 107,
+        "second": 93
+      },
+      "reason_counts": {
+        "fill_cover": 17,
+        "high_model_regret": 80,
+        "high_score_gap": 60,
+        "low_score_gap": 40,
+        "random_cover": 20
+      },
+      "schema_clean": {
+        "invalid_state_rows": 0,
+        "invalid_action_rows": 0,
+        "action_count_mismatches": 0,
+        "best_action_not_legal": 0,
+        "score_gap_mismatches": 0,
+        "actions_truncated": 0,
+        "duplicate_state_keys": 0
+      }
+    }
+  },
+  "observed_t1_stage1_refined200_merge": {
+    "base": "outputs/hu_turn1_stage1_pilot/gcp_fast2k_mc1/hu_turn1_stage1_pilot.jsonl",
+    "refinement": "outputs/hu_turn1_stage1_pilot/refinement_targets/stage9f_p2_full_relabel/stage1_selected_targets_stage9f_p2_relabel_merged.jsonl",
+    "output": "outputs/hu_turn1_stage1_pilot/merged_stage9f_p2_refined/hu_turn1_stage1_fast2k_plus_stage9f_p2_refined200.jsonl",
+    "summary": "outputs/hu_turn1_stage1_pilot/merged_stage9f_p2_refined/merge_summary.json",
+    "analysis_summary": "outputs/hu_turn1_stage1_pilot/merged_stage9f_p2_refined/analysis/summary.json",
+    "base_records": 2000,
+    "refinement_records": 200,
+    "output_records": 2000,
+    "replaced_records": 200,
+    "label_source_counts": {
+      "base_fast_t2": 1800,
+      "stage9f_p2_refinement": 200
+    },
+    "schema_clean": {
+      "invalid_state_rows": 0,
+      "invalid_action_rows": 0,
+      "action_count_mismatches": 0,
+      "best_action_not_legal": 0,
+      "score_gap_mismatches": 0,
+      "actions_truncated": 0,
+      "duplicate_state_keys": 0
+    }
+  },
+  "observed_t1_stage1_fast2k_refined200_training": {
+    "status": "No-Go for model adoption; selected refinement improved diagnostics but did not beat the old self-board ridge baseline on the same merged holdout",
+    "input": "outputs/hu_turn1_stage1_pilot/merged_stage9f_p2_refined/hu_turn1_stage1_fast2k_plus_stage9f_p2_refined200.jsonl",
+    "outputs_dir": "outputs/training/hu_turn1_stage1_fast2k_refined200",
+    "holdout_split_seed": 2026062501,
+    "models": {
+      "self_ridge": {
+        "model": "models\\turn1_stage1_hu_fast2k_refined200_ridge.npz",
+        "feature_family": "self-board",
+        "holdout_top1": 0.3475,
+        "holdout_top3": 0.53,
+        "holdout_avg_regret": 8.776633323648088,
+        "holdout_mse": 193.58161809260852
+      },
+      "self_mlp": {
+        "model": "models\\turn1_stage1_hu_fast2k_refined200_torch.pt",
+        "feature_family": "self-board",
+        "holdout_top1": 0.245,
+        "holdout_top3": 0.4075,
+        "holdout_avg_regret": 11.553659869749342,
+        "holdout_mse": 184.13563828577784,
+        "note": "overfits quickly; best epoch 1"
+      },
+      "hu_hgb": {
+        "model": "models\\hu_turn1_stage1_fast2k_refined200_hgb.pkl",
+        "feature_family": "HU-aware",
+        "holdout_top1": 0.36,
+        "holdout_top3": 0.545,
+        "holdout_avg_regret": 9.209808839015176,
+        "holdout_mse": 182.1365746948213
+      },
+      "hu_hgb_w5": {
+        "model": "models\\hu_turn1_stage1_fast2k_refined200_hgb_w5.pkl",
+        "feature_family": "HU-aware weighted",
+        "holdout_top1": 0.35,
+        "holdout_top3": 0.5625,
+        "holdout_avg_regret": 9.205835978258216,
+        "holdout_mse": 182.110214962294,
+        "source_weights": {
+          "stage9f_p2_refinement": 5.0
+        }
+      },
+      "hu_hgb_w10": {
+        "model": "models\\hu_turn1_stage1_fast2k_refined200_hgb_w10.pkl",
+        "feature_family": "HU-aware weighted",
+        "holdout_top1": 0.37,
+        "holdout_top3": 0.5625,
+        "holdout_avg_regret": 8.637092911354417,
+        "holdout_mse": 181.53744988798826,
+        "source_weights": {
+          "stage9f_p2_refinement": 10.0
+        },
+        "note": "best weighted HGB in this sweep but still worse than old self ridge on merged holdout"
+      },
+      "hu_hgb_w20": {
+        "model": "models\\hu_turn1_stage1_fast2k_refined200_hgb_w20.pkl",
+        "feature_family": "HU-aware weighted",
+        "holdout_top1": 0.35,
+        "holdout_top3": 0.5425,
+        "holdout_avg_regret": 9.23743066903796,
+        "holdout_mse": 185.5282319426493,
+        "source_weights": {
+          "stage9f_p2_refinement": 20.0
+        },
+        "note": "overweighted refinement and regressed"
+      }
+    },
+    "comparison_artifacts": {
+      "margin_bucket_metrics": "outputs/training/hu_turn1_stage1_fast2k_refined200/margin_bucket_metrics.csv",
+      "source_bucket_metrics": "outputs/training/hu_turn1_stage1_fast2k_refined200/source_bucket_metrics.csv"
+    },
+    "reference_old_self_ridge_on_same_merged_holdout": {
+      "model": "models/turn1_stage1_hu_fast2k_smoke_ridge.npz",
+      "holdout_top1": 0.3725,
+      "holdout_top3": 0.55,
+      "holdout_avg_regret": 8.37444878373617,
+      "holdout_p95_regret": 27.277020614683455
+    },
+    "diagnosis": [
+      "The 200 selected states are meaningful: Stage9f P2 changed 174/200 source best actions and source-best regret averaged about 10 points under the relabel.",
+      "However, merging only 200 refined labels into 1,800 fast labels did not produce a better T1 model than the old self-board ridge when evaluated on the same merged holdout.",
+      "Source-weighted HGB at 10x improved versus unweighted HGB but still did not beat the old self-board ridge overall.",
+      "Next should be more Stage9f P2 labels or a cleaner distilled objective, not T1 runtime adoption."
+    ]
+  },
+  "observed_t1_stage1_stage9f_p2_full2k_relabel": {
+    "status": "holdout_improved_runtime_smoke_no_go",
+    "remaining1800_relabel": {
+      "output": "outputs/hu_turn1_stage1_pilot/refinement_targets/stage9f_p2_remaining1800_relabel_throttle6/stage1_remaining_targets_stage9f_p2_relabel_merged.jsonl",
+      "records": 1800,
+      "best_action_changed": 1576,
+      "best_action_changed_rate": 0.8755555555555555,
+      "source_best_new_regret_mean": 11.440165966596876,
+      "source_best_new_regret_max": 60.45404122936691
+    },
+    "combined_full2k_relabel": {
+      "output": "outputs/hu_turn1_stage1_pilot/refinement_targets/stage9f_p2_full2k_relabel/stage1_all2k_targets_stage9f_p2_relabel_merged.jsonl",
+      "records": 2000,
+      "unique_state_keys": 2000,
+      "best_action_changed": 1750,
+      "best_action_changed_rate": 0.875,
+      "source_best_new_regret_mean": 11.296187008992375,
+      "source_best_new_regret_max": 60.45404122936691,
+      "seat_counts": {
+        "first": 1000,
+        "second": 1000
+      }
+    },
+    "merged_teacher": {
+      "output": "outputs/hu_turn1_stage1_pilot/merged_stage9f_p2_full2k/hu_turn1_stage1_fast2k_stage9f_p2_relabel_full2k.jsonl",
+      "records": 2000,
+      "replaced_records": 2000,
+      "label_source_counts": {
+        "stage9f_p2_refinement": 2000
+      },
+      "analysis_summary": "outputs/hu_turn1_stage1_pilot/merged_stage9f_p2_full2k/analysis/summary.json",
+      "schema_clean": true
+    },
+    "best_hgb_model": {
+      "model": "models/hu_turn1_stage1_stage9f_p2_full2k_hgb_leaf3_lr01_l2_1.pkl",
+      "single_split_holdout_top1": 0.415,
+      "single_split_holdout_top3": 0.46,
+      "single_split_holdout_avg_regret": 8.00289025674429,
+      "cross_seed_mean_avg_regret": 7.90484707121213,
+      "old_hu_hgb_cross_seed_mean_avg_regret": 9.82197108133162,
+      "old_self_ridge_cross_seed_mean_avg_regret": 9.969492674097694
+    },
+    "runtime_profile": {
+      "name": "stage9f_p2_hu_t1_stage1",
+      "t2_t3_continuation": "stage9f_p2",
+      "hu_turn1_min_margin": 1.0,
+      "full_replacement": false,
+      "production": false
+    },
+    "seat_swap_smoke": {
+      "full_replacement_100": {
+        "output": "outputs/evals/hu_turn1_stage1_stage9f_p2_full2k/seat_swap_smoke_100.json",
+        "paired_seeds": 100,
+        "seed_stride": 1009,
+        "avg_score_per_hand_for_a": -0.6268106184405036,
+        "ci95_low": -1.8921728277723762,
+        "ci95_high": 0.638551590891369
+      },
+      "margin5_100": {
+        "output": "outputs/evals/hu_turn1_stage1_stage9f_p2_full2k/seat_swap_smoke_100_margin5.json",
+        "paired_seeds": 100,
+        "seed_stride": 1009,
+        "avg_score_per_hand_for_a": 0.0,
+        "ci95_low": 0.0,
+        "ci95_high": 0.0,
+        "decision": "underfire_no_effect"
+      },
+      "margin1_100": {
+        "output": "outputs/evals/hu_turn1_stage1_stage9f_p2_full2k/seat_swap_smoke_100_margin1.json",
+        "paired_seeds": 100,
+        "seed_stride": 1009,
+        "avg_score_per_hand_for_a": -0.28954041229366906,
+        "ci95_low": -1.0207416623357306,
+        "ci95_high": 0.44166083774839254,
+        "decision": "No-Go smoke"
+      }
+    },
+    "decision_log_audit_margin1": {
+      "decision_log": "outputs/evals/hu_turn1_stage1_stage9f_p2_full2k/seat_swap_smoke_100_margin1_hu_t1.jsonl",
+      "analysis_dir": "outputs/evals/hu_turn1_stage1_stage9f_p2_full2k/t1_decision_analysis_margin1",
+      "rows": 200,
+      "valid_rows": 163,
+      "fired_valid_rows": 29,
+      "non_fired_valid_rows": 134,
+      "override_rate_on_valid": 0.17791411042944785,
+      "fired_delta_mean": -2.10027870547358,
+      "fired_delta_ci95_low": -7.092555957512028,
+      "fired_delta_ci95_high": 2.8919985465648677,
+      "fired_loss_count": 12,
+      "fired_win_count": 6,
+      "fired_zero_count": 11,
+      "non_fired_nonzero_count": 0,
+      "hard_negative_targets": "outputs/evals/hu_turn1_stage1_stage9f_p2_full2k/t1_decision_analysis_margin1/hu_turn1_hard_negative_targets.jsonl",
+      "hard_negative_rows": 12,
+      "primary_metric": "realized_fired_decision_delta",
+      "prediction_margin_role": "gate_diagnostic_only"
+    },
+    "decision_log_audit_500_margin1": {
+      "matchup_output": "outputs/evals/hu_turn1_stage1_stage9f_p2_full2k/seat_swap_500_margin1_t1log.json",
+      "decision_log": "outputs/evals/hu_turn1_stage1_stage9f_p2_full2k/seat_swap_500_margin1_hu_t1.jsonl",
+      "analysis_dir": "outputs/evals/hu_turn1_stage1_stage9f_p2_full2k/t1_decision_analysis_500_margin1",
+      "paired_seeds": 500,
+      "hands": 1000,
+      "avg_score_per_hand_for_a": -0.42467551536708636,
+      "ci95_low": -0.7862711711149404,
+      "ci95_high": -0.06307985961923229,
+      "rows": 1000,
+      "valid_rows": 803,
+      "fired_valid_rows": 149,
+      "non_fired_valid_rows": 654,
+      "override_rate_on_valid": 0.1855541718555417,
+      "fired_delta_mean": -2.0506067939172423,
+      "fired_delta_ci95_low": -4.119145461592735,
+      "fired_delta_ci95_high": 0.01793187375825056,
+      "fired_loss_count": 54,
+      "fired_win_count": 37,
+      "fired_zero_count": 58,
+      "non_fired_nonzero_count": 0,
+      "labeled_targets": "outputs/evals/hu_turn1_stage1_stage9f_p2_full2k/t1_decision_analysis_500_margin1/hu_turn1_fired_labeled_targets.jsonl",
+      "positive_targets": 37,
+      "hard_negative_targets": 54,
+      "neutral_targets": 58,
+      "decision": "margin1_runtime_gate_no_go; labeled fired rows are useful training data"
+    },
+    "decision": [
+      "Full2k Stage9f P2 relabeling and HGB tuning improved holdout avg regret.",
+      "The first runtime smoke did not convert holdout improvement into seat-swapped EV.",
+      "The reusable T1 decision-log audit path is now available and confirms margin1 fired decisions are negative on this smoke.",
+      "The 500-paired-seed audit makes margin1 a stronger No-Go and provides 149 labeled fired rows for safe-override training.",
+      "T1 runtime adoption remains No-Go.",
+      "Next T1 work should train/evaluate a selective override objective around realized action deltas instead of promoting this HGB model."
+    ]
+  },
+  "observed_t1_stage1b_candidate_generator_classifier": {
+    "status": "No-Go for T1 candidate generation; classifier objective did not beat existing regression candidate on holdout TopK metrics",
+    "trainer": "python -m ofc_regular.train_hu_turn1_candidate_generator",
+    "input": "outputs/hu_turn1_stage1_pilot/augmented_stage9f_p2_stratified670_plus_w20_margin1_fired84/hu_turn1_stage1_full2k_plus_stratified670_plus_w20_margin1_fired84.jsonl",
+    "baseline_model": "models/hu_turn1_stage1_stage9f_p2_full2k_plus_stratified670_tail84_w20_100_hgb_leaf3_lr01_l2_1.pkl",
+    "models": {
+      "smoke200_logistic": {
+        "model": "models/hu_turn1_stage1b_candidate_smoke200_logistic.pkl",
+        "metrics": "outputs/training/hu_turn1_stage1b_candidate_smoke200/metrics.json",
+        "purpose": "CLI/runtime-load smoke only"
+      },
+      "hgb_accept025_gray2_weighted_v2": {
+        "model": "models/hu_turn1_stage1b_candidate_hgb_accept025_gray2_weighted_v2.pkl",
+        "metrics": "outputs/training/hu_turn1_stage1b_candidate_hgb_accept025_gray2_weighted_v2/metrics.json",
+        "accept_regret": 0.25,
+        "gray_regret": 2.0,
+        "holdout_top1_avg_regret": 9.849205885031097,
+        "holdout_top3_best_avg_regret": 5.8451943039352985,
+        "holdout_top5_best_avg_regret": 3.813203771525176,
+        "holdout_top3_accepted_action_recall": 0.5099818511796733,
+        "baseline_holdout_top1_avg_regret": 5.858143674304476,
+        "baseline_holdout_top3_best_avg_regret": 2.8830817628835823,
+        "baseline_holdout_top5_best_avg_regret": 2.0906455925842464,
+        "decision": "No-Go; worse than baseline regression candidate on same split"
+      },
+      "hgb_accept2_gray5_weighted": {
+        "model": "models/hu_turn1_stage1b_candidate_hgb_accept2_gray5_weighted.pkl",
+        "metrics": "outputs/training/hu_turn1_stage1b_candidate_hgb_accept2_gray5_weighted/metrics.json",
+        "accept_regret": 2.0,
+        "gray_regret": 5.0,
+        "holdout_top1_avg_regret": 9.965603531262342,
+        "holdout_top3_best_avg_regret": 6.249412538737844,
+        "holdout_top5_best_avg_regret": 4.338852283022338,
+        "holdout_top3_accepted_action_recall": 0.5626134301270418,
+        "baseline_holdout_top1_avg_regret": 5.858143674304476,
+        "baseline_holdout_top3_best_avg_regret": 2.8830817628835823,
+        "baseline_holdout_top5_best_avg_regret": 2.0906455925842464,
+        "decision": "No-Go; broader positive label still worse than baseline regression candidate"
+      }
+    },
+    "extra_trees_probe": {
+      "config": "accept0.25/gray2, 300 trees, min_samples_leaf=5",
+      "status": "stopped_after_5_minute_timeout_no_metrics",
+      "decision": "too slow for this diagnostic path; do not prioritize before better teacher/objective design"
+    },
+    "next_step": [
+      "Do not run seat-swap with Stage1b classifier models.",
+      "Keep the existing regression HGB as the best available T1 TopK candidate generator, despite runtime No-Go.",
+      "Next useful T1 work should add better teacher data or a regression/ranking objective that improves TopK regret on holdout before another confirm validation."
+    ]
+  },
+  "planned_t1_stage1c_natural_teacher_expansion": {
+    "status": "balanced_teacher_generated_model_improvement_no_go",
+    "purpose": "Expand natural-distribution HU T1 teacher data with the fixed Stage9f P2 continuation before training another candidate generator.",
+    "reason": [
+      "T1 TopK confirm d0/confirm16/cse1 reached enough fired decisions but realized fired delta was negative.",
+      "Stage1b classifier candidate generators were worse than the existing regression HGB on same-split TopK regret.",
+      "The next useful work is stronger natural teacher coverage and a regression/ranking objective, not another runtime threshold sweep."
+    ],
+    "fixed_continuation": {
+      "profile": "stage9f_p2",
+      "opponent_profile": "stage9f_p2",
+      "t2_status": "fixed continuation for T1 teacher work; not production",
+      "t3_status": "Stage7 m5_r10 remains fixed inside continuation"
+    },
+    "local_probe": {
+      "stage9f_p2_natural2_full_actions": {
+        "command": "python -m ofc_regular.hu_turn1_teacher_pilot --samples 2 --future-samples 1 --max-actions 0 --seed 2026062501 --profile stage9f_p2 --opponent-profile stage9f_p2 --opening-lookahead-samples 1 --collect-topk-log --output outputs/hu_turn1_stage1c_natural_teacher_expansion/smoke_stage9f_p2_natural2_mc1.jsonl --summary-output outputs/hu_turn1_stage1c_natural_teacher_expansion/smoke_stage9f_p2_natural2_mc1_summary.json",
+        "result": "timed out after 120 seconds before writing output; killed residual process",
+        "interpretation": "Local machine is not suitable for even tiny Stage9f P2 natural teacher smoke while other exact-oracle jobs are active."
+      },
+      "stage9f_fast_natural1_max2": {
+        "command": "python -m ofc_regular.hu_turn1_teacher_pilot --samples 1 --future-samples 1 --max-actions 2 --seed 2026062503 --profile stage9f_fast_t2_t1_teacher --opponent-profile stage9f_fast_t2_t1_teacher --opening-lookahead-samples 1 --collect-topk-log --output outputs/hu_turn1_stage1c_natural_teacher_expansion/smoke_fast_natural1_max2_mc1.jsonl --summary-output outputs/hu_turn1_stage1c_natural_teacher_expansion/smoke_fast_natural1_max2_mc1_summary.json",
+        "result": "timed out after 120 seconds before writing output; killed residual process",
+        "interpretation": "Use GCP smoke rather than local CPU for this stage."
+      }
+    },
+    "gcp_smoke_command": "powershell -ExecutionPolicy Bypass -File scripts/Start-GcpHuTurn1PilotRun.ps1 -RunName regular-hu-t1-stage1c-natural-smoke-20260624 -TotalSamples 4 -ShardSamples 1 -VmCount 4 -FutureSamples 1 -MaxActions 0 -BaseSeed 2026062504 -Profile stage9f_p2 -OpponentProfile stage9f_p2 -OpeningLookaheadSamples 1 -CollectTopkLog -CreateInstances",
+    "gcp_smoke_result": {
+      "status": "pass",
+      "run_name": "regular-hu-t1-stage1c-natural-smoke-20260624-0938",
+      "records": 4,
+      "expected_shards": 4,
+      "completed_shards": 4,
+      "missing_shards": [],
+      "mean_seconds_per_sample": 11.4303546035,
+      "max_seconds_per_sample": 21.784153169000007,
+      "mean_action_count": 27.0,
+      "topk_decisions": 216,
+      "topk_overrides": 0,
+      "t2_choose_action_seconds_sum": 41.434796471999846,
+      "rollout_seconds_sum": 45.24353090900004,
+      "duplicate_rate_t2_state_only": 0.0,
+      "duplicate_rate_t2_state_plus_decision_seed": 0.0,
+      "merged_output": "outputs/hu_turn1_stage1c_natural_teacher_expansion/regular-hu-t1-stage1c-natural-smoke-20260624-0938/hu_turn1_stage1_pilot.jsonl",
+      "summary": "outputs/hu_turn1_stage1c_natural_teacher_expansion/regular-hu-t1-stage1c-natural-smoke-20260624-0938/summary.json",
+      "residual_gcp_instances": 0,
+      "decision": "Stage1c GCP smoke passed; proceed to a larger natural teacher run before retraining T1."
+    },
+    "gcp_broad_candidate_command_after_smoke": "powershell -ExecutionPolicy Bypass -File scripts/Start-GcpHuTurn1PilotRun.ps1 -RunName regular-hu-t1-stage1c-natural-2000-20260624 -TotalSamples 2000 -ShardSamples 1 -VmCount 40 -FutureSamples 1 -MaxActions 0 -BaseSeed 2026062601 -Profile stage9f_p2 -OpponentProfile stage9f_p2 -OpeningLookaheadSamples 1 -CollectTopkLog -CreateInstances",
+    "gcp_first_only_2000_result": {
+      "status": "schema_pass_distribution_no_go",
+      "run_name": "regular-hu-t1-stage1c-natural-2000-20260624-1010",
+      "records": 2000,
+      "completed_shards": 2000,
+      "missing_shards": [],
+      "mean_seconds_per_sample": 8.840895930199496,
+      "max_seconds_per_sample": 28.935685188,
+      "mean_action_count": 26.3685,
+      "topk_decisions": 105474,
+      "topk_overrides": 1143,
+      "duplicate_rate_t2_state_only": 0.0,
+      "duplicate_rate_t2_state_plus_decision_seed": 0.0,
+      "seat_counts": {
+        "first": 2000
+      },
+      "player_counts": {
+        "0": 2000
+      },
+      "merged_output": "outputs/hu_turn1_stage1c_natural_teacher_expansion/regular-hu-t1-stage1c-natural-2000-20260624-1010/hu_turn1_stage1_pilot.jsonl",
+      "analysis_summary": "outputs/hu_turn1_stage1c_natural_teacher_expansion/regular-hu-t1-stage1c-natural-2000-20260624-1010/analysis/summary.json",
+      "decision": "Not training-ready for both seats because ShardSamples=1 stops after the first player in each shard."
+    },
+    "gcp_balanced_2000_result": {
+      "status": "teacher_schema_pass",
+      "run_name": "regular-hu-t1-stage1c-natural-balanced2000-20260624-1130",
+      "command": "powershell -ExecutionPolicy Bypass -File scripts/Start-GcpHuTurn1PilotRun.ps1 -RunName regular-hu-t1-stage1c-natural-balanced2000-20260624-1130 -TotalSamples 2000 -ShardSamples 2 -VmCount 40 -FutureSamples 1 -MaxActions 0 -BaseSeed 2026063601 -Profile stage9f_p2 -OpponentProfile stage9f_p2 -OpeningLookaheadSamples 1 -CollectTopkLog -CreateInstances",
+      "records": 2000,
+      "expected_shards": 1000,
+      "completed_shards": 1000,
+      "missing_shards": [],
+      "mean_seconds_per_sample": 8.7333774251585,
+      "max_seconds_per_sample": 25.8203356635,
+      "mean_action_count": 26.397,
+      "topk_decisions": 105588,
+      "topk_overrides": 1079,
+      "rollout_seconds_sum": 17319.201023797,
+      "t2_choose_action_seconds_sum": 15686.550325539,
+      "invalid_state_rows": 0,
+      "invalid_action_rows": 0,
+      "action_count_mismatches": 0,
+      "best_action_not_legal": 0,
+      "best_score_mismatches": 0,
+      "score_gap_mismatches": 0,
+      "actions_truncated": 0,
+      "duplicate_state_keys": 0,
+      "seat_counts": {
+        "first": 1000,
+        "second": 1000
+      },
+      "player_counts": {
+        "0": 1000,
+        "1": 1000
+      },
+      "score_gap_mean": 3.004702061468345,
+      "score_gap_median": 0.0,
+      "score_gap_p95": 18.227020614683454,
+      "score_gap_buckets": {
+        "lt_0p01": 1256,
+        "lt_1p00": 1257,
+        "ge_1p00": 743
+      },
+      "merged_output": "outputs/hu_turn1_stage1c_natural_teacher_expansion/regular-hu-t1-stage1c-natural-balanced2000-20260624-1130/hu_turn1_stage1_pilot.jsonl",
+      "analysis_summary": "outputs/hu_turn1_stage1c_natural_teacher_expansion/regular-hu-t1-stage1c-natural-balanced2000-20260624-1130/analysis/summary.json",
+      "decision": "Teacher generation is clean and balanced; use only as diagnostic/training input, not as a runtime approval."
+    },
+    "observed_stage1c_training": {
+      "status": "no_go_for_t1_model_adoption",
+      "single_source_model": {
+        "model": "models/hu_turn1_stage1c_balanced2k_hgb_leaf3_lr01_l2_1.pkl",
+        "metrics": "outputs/training/hu_turn1_stage1c_balanced2k/hgb_leaf3_lr01_l2_1_metrics.json",
+        "holdout_top1": 0.4025,
+        "holdout_top3": 0.555,
+        "holdout_avg_regret": 7.979822705207583
+      },
+      "same_split_comparison_on_balanced_holdout": {
+        "comparison_csv": "outputs/training/hu_turn1_stage1c_balanced2k/same_split_model_comparison.csv",
+        "old_best_avg_regret": 4.985417989129094,
+        "stage1c_balanced2k_avg_regret": 7.979822705207583,
+        "decision": "Stage1c balanced-only model is much worse than the existing w20_100 T1 candidate on the same natural balanced holdout."
+      },
+      "augmented_training": {
+        "teacher": "outputs/hu_turn1_stage1_pilot/augmented_stage1c_balanced2k/hu_turn1_stage1_full2k_plus_stratified670_tail84_plus_stage1c_balanced2k.jsonl",
+        "summary": "outputs/hu_turn1_stage1_pilot/augmented_stage1c_balanced2k/summary.json",
+        "comparison_csv": "outputs/training/hu_turn1_stage1c_augmented_balanced2k/stage1c_model_comparison.csv",
+        "tested_models": [
+          "models/hu_turn1_stage1c_augmented_balanced2k_natw0p5_hgb_leaf3_lr01_l2_1.pkl",
+          "models/hu_turn1_stage1c_augmented_balanced2k_natw1_hgb_leaf3_lr01_l2_1.pkl",
+          "models/hu_turn1_stage1c_augmented_balanced2k_natw3_hgb_leaf3_lr01_l2_1.pkl"
+        ],
+        "best_augmented_balanced_holdout_avg_regret": 7.908349844450621,
+        "old_best_balanced_holdout_avg_regret": 4.985417989129094,
+        "best_augmented_augmented_holdout_avg_regret": 8.169805412748692,
+        "old_best_augmented_holdout_avg_regret": 5.167344910350982,
+        "decision": "Adding Stage1c balanced natural data with weights 0.5/1/3 degraded holdout regret versus the existing w20_100 candidate."
+      },
+      "decision": "Do not adopt Stage1c models and do not run T1 seat-swap from this line. Next useful T1 work needs a stronger objective or higher-quality labels, not more MC1 natural labels."
+    },
+    "observed_stage1d_high_regret_relabel_probe": {
+      "status": "relabel_success_hgb_retraining_no_go",
+      "target_selection": {
+        "input": "outputs/hu_turn1_stage1c_natural_teacher_expansion/regular-hu-t1-stage1c-natural-balanced2000-20260624-1130/hu_turn1_stage1_pilot.jsonl",
+        "output": "outputs/hu_turn1_stage1c_natural_teacher_expansion/stage1d_refinement_targets/balanced2k_stage1d_targets300.jsonl",
+        "summary": "outputs/hu_turn1_stage1c_natural_teacher_expansion/stage1d_refinement_targets/balanced2k_stage1d_targets300_summary.json",
+        "selection_model": "models/hu_turn1_stage1_stage9f_p2_full2k_plus_stratified670_tail84_w20_100_hgb_leaf3_lr01_l2_1.pkl",
+        "targets": 300,
+        "seat_counts": {
+          "first": 155,
+          "second": 145
+        },
+        "reason_counts": {
+          "high_model_regret": 120,
+          "high_score_gap": 80,
+          "low_score_gap": 60,
+          "random_cover": 40,
+          "fill_cover": 27
+        },
+        "max_model_regret_mean": 14.884573434528223,
+        "max_model_regret_p90": 33.227020614683454,
+        "score_gap_mean": 7.872196253120648,
+        "score_gap_p90": 24.227020614683454
+      },
+      "relabel": {
+        "smoke2": "outputs/hu_turn1_stage1c_natural_teacher_expansion/stage1d_refinement_targets/balanced2k_stage1d_targets300_relabel_smoke2.jsonl",
+        "output": "outputs/hu_turn1_stage1c_natural_teacher_expansion/stage1d_refinement_targets/stage9f_p2_relabel_targets300_parallel/balanced2k_stage1d_targets300_stage9f_p2_relabel_merged.jsonl",
+        "summary": "outputs/hu_turn1_stage1c_natural_teacher_expansion/stage1d_refinement_targets/stage9f_p2_relabel_targets300_parallel/balanced2k_stage1d_targets300_stage9f_p2_relabel_merged_summary.json",
+        "records": 300,
+        "best_action_changed": 265,
+        "best_action_changed_rate": 0.8833333333333333,
+        "source_best_new_regret_mean": 11.656267833579712,
+        "source_best_new_regret_median": 8.0,
+        "source_best_new_regret_p90": 27.227020614683454,
+        "source_best_new_regret_max": 49.45404122936691,
+        "relabel_seconds_mean": 15.293020584001205
+      },
+      "training": {
+        "teacher": "outputs/hu_turn1_stage1c_natural_teacher_expansion/stage1d_refinement_targets/full2k_stratified670_tail84_plus_stage1d_relabel300.jsonl",
+        "comparison_csv": "outputs/training/hu_turn1_stage1d_full2k_stratified670_tail84_plus_relabel300/stage1d_model_comparison.csv",
+        "source_comparison_csv": "outputs/training/hu_turn1_stage1d_full2k_stratified670_tail84_plus_relabel300/stage1d_source_model_comparison.csv",
+        "old_best_holdout_avg_regret": 5.611101674815713,
+        "stage1d_w20_holdout_avg_regret": 8.588090504663421,
+        "stage1d_w50_holdout_avg_regret": 8.596494928678833,
+        "old_best_stage1d_source_avg_regret": 6.894747569070503,
+        "stage1d_w20_stage1d_source_avg_regret": 8.964863032766697,
+        "stage1d_w50_stage1d_source_avg_regret": 8.01876273827122
+      },
+      "decision": "The relabels are useful hard examples, but the current HGB action-value source-weight retraining path is worse than the existing w20_100 baseline. Do not adopt Stage1d HGB models; next work should be a ranker/candidate-generator or safe-override objective using these hard examples."
+    },
+    "observed_stage1d_candidate_generator_probe": {
+      "status": "candidate_generator_no_go_old_top8_preferred",
+      "training_source": "outputs/hu_turn1_stage1c_natural_teacher_expansion/stage1d_refinement_targets/full2k_stratified670_tail84_plus_stage1d_relabel300.jsonl",
+      "baseline_model": "models/hu_turn1_stage1_stage9f_p2_full2k_plus_stratified670_tail84_w20_100_hgb_leaf3_lr01_l2_1.pkl",
+      "models": {
+        "hgb_accept025_gray2": "models/hu_turn1_stage1d_candidate_hgb_accept025_gray2_weighted.pkl",
+        "hgb_accept2_gray5": "models/hu_turn1_stage1d_candidate_hgb_accept2_gray5_weighted.pkl"
+      },
+      "metrics_dir": "outputs/training/hu_turn1_stage1d_candidate_generator",
+      "standalone_holdout": {
+        "old_best_top1_avg_regret": 4.879593871229973,
+        "old_best_top3_best_avg_regret": 2.5731848243220194,
+        "old_best_top5_best_avg_regret": 1.7003314827852194,
+        "hgb_accept025_top1_avg_regret": 8.68681217103977,
+        "hgb_accept025_top3_best_avg_regret": 5.451973981501992,
+        "hgb_accept025_top5_best_avg_regret": 4.142804528176667,
+        "hgb_accept2_top1_avg_regret": 8.62692813781099,
+        "hgb_accept2_top3_best_avg_regret": 5.500481144041925,
+        "hgb_accept2_top5_best_avg_regret": 3.82410690562969
+      },
+      "union_topk": {
+        "old_top3_best_avg_regret": 2.5731848243220194,
+        "old_top5_best_avg_regret": 1.7003314827852194,
+        "old_top8_best_avg_regret": 0.8980756912867454,
+        "old_top5_plus_hgb_accept025_top5_avg_union_size": 7.5073649754500815,
+        "old_top5_plus_hgb_accept025_top5_teacher_best_recall": 0.8445171849427169,
+        "old_top5_plus_hgb_accept025_top5_best_avg_regret": 1.2230988407184702,
+        "old_top5_plus_hgb_accept2_top5_avg_union_size": 7.571194762684124,
+        "old_top5_plus_hgb_accept2_top5_teacher_best_recall": 0.8543371522094927,
+        "old_top5_plus_hgb_accept2_top5_best_avg_regret": 1.1552526193938109
+      },
+      "extra_trees_attempt": {
+        "status": "timeout_no_metrics",
+        "timeout_seconds": 300,
+        "partial_model_deleted": true
+      },
+      "decision": "Do not adopt Stage1d candidate-generator models. Old w20_100 Top8 is a better offline candidate set than old Top5 plus the new HGB candidate generator."
+    },
+    "observed_t1_topk_confirm_k8_smoke": {
+      "status": "runtime_wiring_pass_evaluation_needs_gcp",
+      "profile": "stage9f_p2_hu_t1_topk_confirm",
+      "config": "k8/mc2/d0/confirm4/cse1.5/pd0/seat=first+second",
+      "summary": "outputs/evals/hu_turn1_topk_confirm_k8_smoke2/summary.json",
+      "decision_log": "outputs/evals/hu_turn1_topk_confirm_k8_smoke2/hu_turn1_decisions.jsonl",
+      "analysis_dir": "outputs/evals/hu_turn1_topk_confirm_k8_smoke2/analysis",
+      "games": 2,
+      "hands": 4,
+      "elapsed_seconds": 34.76797533035278,
+      "override_count": 0,
+      "non_fired_final_matches_baseline_count": 4,
+      "non_fired_delta_max_abs": 0.0,
+      "next_gcp_candidate_config": "k8/mc8/d0/confirm16/cse1.5/pd0/seat=first+second",
+      "decision": "k8 TopK confirm wiring works and preserves non-fired pair cancellation. Meaningful validation is too slow locally and should be run on GCP/Spot."
+    },
+    "observed_t1_topk_confirm_k8_gcp_smoke100": {
+      "status": "runtime_no_go_harness_passed",
+      "run_name": "regular-hu-t1-k8-confirm16-smoke100-20260624-1420",
+      "profile_a": "stage9f_p2_hu_t1_topk_confirm",
+      "profile_b": "stage9f_p2",
+      "config": "k8/mc8/d0/confirm16/cse1.5/pd0/seat=first+second",
+      "summary": "outputs/evals/hu_turn1_topk_confirm_k8_gcp_smoke100/summary.json",
+      "decision_log": "outputs/evals/hu_turn1_topk_confirm_k8_gcp_smoke100/hu_turn1_decisions.jsonl",
+      "analysis_dir": "outputs/evals/hu_turn1_topk_confirm_k8_gcp_smoke100/hu_turn1_topk_confirm_audit",
+      "games": 100,
+      "hands": 200,
+      "t1_decisions": 200,
+      "valid_t1_decisions": 195,
+      "valid_override_count": 5,
+      "override_rate_valid": 0.02564102564102564,
+      "realized_per_fire_delta_mean": -3.0454041229366906,
+      "realized_per_fire_ci95_low": -8.091816906671372,
+      "realized_per_fire_ci95_high": 2.001008660797991,
+      "estimated_ev_per_decision": -0.07808728520350489,
+      "estimated_ev_per_decision_ci95_low": -0.20748248478644543,
+      "estimated_ev_per_decision_ci95_high": 0.051307914379435667,
+      "loss_count": 2,
+      "win_count": 0,
+      "zero_count": 3,
+      "p95_loss": 10.981616491746761,
+      "confirm_delta_mean_on_valid_fired": 5.434053092202518,
+      "confirm_delta_metric_role": "gate_diagnostic_only",
+      "confirm_delta_performance_claim_allowed": false,
+      "performance_metric_source": "realized_seat_swap_counterfactual",
+      "non_fired_valid_count": 190,
+      "non_fired_counterfactual_nonzero_count": 0,
+      "non_fired_final_mismatch_count": 0,
+      "residual_gcp_instances": 0,
+      "decision": "No-Go for runtime expansion. The harness passed, but confirm-positive fired rows had negative realized per-fire delta, so this line should not be scaled."
+    },
+    "observed_t1_topk_confirm_k8_safe_selector_smoke2": {
+      "status": "runtime_wiring_pass_gcp_pending",
+      "profile_a": "stage9f_p2_hu_t1_topk_confirm",
+      "profile_b": "stage9f_p2",
+      "config": "k8/mc2/d0/confirm4/cse1.5/safe0.5/pd0/seat=first+second",
+      "safe_selector_model": "models/hu_turn1_safe_override_selector_teacher_regret_combined296_accept0p25_gray1_delta_plus_meta.pkl",
+      "summary": "outputs/evals/hu_turn1_topk_confirm_k8_safe_smoke2/summary.json",
+      "decision_log": "outputs/evals/hu_turn1_topk_confirm_k8_safe_smoke2/hu_turn1_decisions.jsonl",
+      "games": 2,
+      "hands": 4,
+      "t1_decisions": 4,
+      "override_count": 0,
+      "below_safe_selector_count": 1,
+      "safe_selector_threshold": 0.5,
+      "safe_selector_score_min_on_scored_rows": 8.272346419225082e-7,
+      "topk_non_fired_counterfactual_nonzero_count": 0,
+      "hu_turn1_non_fired_counterfactual_nonzero_count": 0,
+      "decision": "Safe selector veto is wired and can stop a confirm-passing T1 candidate. This is validation-only; next evidence should be a small GCP smoke using the same k8/confirm16 line with safe0.5."
+    },
+    "observed_t1_topk_confirm_k8_safe_selector_gcp_smoke100": {
+      "status": "harness_passed_underpowered",
+      "run_name": "regular-hu-t1-k8-confirm16-safe05-smoke100-20260624-1434",
+      "profile_a": "stage9f_p2_hu_t1_topk_confirm",
+      "profile_b": "stage9f_p2",
+      "config": "k8/mc8/d0/confirm16/cse1.5/safe0.5/pd0/seat=first+second",
+      "safe_selector_model": "models/hu_turn1_safe_override_selector_teacher_regret_combined296_accept0p25_gray1_delta_plus_meta.pkl",
+      "output_dir": "outputs/evals/hu_turn1_topk_confirm_k8_safe_gcp_smoke100",
+      "audit_dir": "outputs/evals/hu_turn1_topk_confirm_k8_safe_gcp_smoke100/hu_turn1_topk_confirm_audit",
+      "games": 100,
+      "hands": 200,
+      "t1_decisions": 200,
+      "valid_t1_decisions": 198,
+      "valid_override_count": 2,
+      "override_rate_valid": 0.010101010101010102,
+      "realized_per_fire_delta_mean": 0.0,
+      "realized_per_fire_ci95_low": 0.0,
+      "realized_per_fire_ci95_high": 0.0,
+      "estimated_ev_per_decision": 0.0,
+      "loss_count": 0,
+      "win_count": 0,
+      "zero_count": 2,
+      "below_safe_selector_count": 3,
+      "safe_selector_scored_count": 5,
+      "safe_selector_score_min": 3.3630316401856734e-7,
+      "safe_selector_score_max": 0.9962708428794256,
+      "non_fired_final_mismatch_count": 0,
+      "non_fired_counterfactual_nonzero_count": 2,
+      "residual_gcp_instances": 0,
+      "decision": "Safe selector removed the prior negative tendency on this smoke and preserved final-action cancellation, but only 2 fired rows and both realized delta 0.0. This is not positive runtime evidence; larger validation would need a fired-count target."
+    },
+    "observed_t1_topk_confirm_k8_safe_selector_firetarget2500": {
+      "status": "runtime_no_go_fired_count_validation_complete",
+      "run_name": "regular-hu-t1-k8-safe05-firetarget2500-20260624-1507",
+      "profile_a": "stage9f_p2_hu_t1_topk_confirm",
+      "profile_b": "stage9f_p2",
+      "config": "k8/mc8/d0/confirm16/cse1.5/safe0.5/pd0/seat=first+second",
+      "safe_selector_model": "models/hu_turn1_safe_override_selector_teacher_regret_combined296_accept0p25_gray1_delta_plus_meta.pkl",
+      "output_dir": "outputs/evals/hu_turn1_topk_confirm_k8_safe_firetarget2500",
+      "audit_dir": "outputs/evals/hu_turn1_topk_confirm_k8_safe_firetarget2500/hu_turn1_topk_confirm_audit",
+      "paired_seeds": 2500,
+      "hands": 5000,
+      "t1_decisions": 5000,
+      "valid_t1_decisions": 4977,
+      "valid_override_count": 23,
+      "override_rate_valid": 0.004621257785814748,
+      "realized_per_fire_delta_mean": -1.1165679062630591,
+      "realized_per_fire_ci95_low": -5.983593267804295,
+      "realized_per_fire_ci95_high": 3.750457455278177,
+      "estimated_ev_per_decision": -0.005159948130209033,
+      "estimated_ev_per_decision_ci95_low": -0.027651726975989308,
+      "estimated_ev_per_decision_ci95_high": 0.01733183071557124,
+      "loss_count": 5,
+      "win_count": 9,
+      "zero_count": 9,
+      "p95_loss": 22.627020614683445,
+      "max_loss": 34.227020614683454,
+      "confirm_delta_mean_on_valid_fired": 4.289262214001095,
+      "confirm_delta_metric_role": "gate_diagnostic_only",
+      "confirm_delta_performance_claim_allowed": false,
+      "below_safe_selector_count": 162,
+      "non_fired_final_mismatch_count": 0,
+      "residual_gcp_instances": 0,
+      "decision": "No-Go for T1 runtime adoption. Safe selector reduced fire rate but still allowed large losing fired rows; confirm delta stayed positive on fired rows and remains diagnostic-only, not a performance metric. Stop simple threshold/safe-score sweeps and use fired losses as hard negatives for a redesigned T1 objective or runtime gate."
+    },
+    "observed_t1_topk_confirm_replay_metadata_smoke": {
+      "status": "smoke_passed",
+      "purpose": "Ensure HU T1 TopK confirm decision logs are exact-relabel eligible for future fired-target collection.",
+      "legacy_firetarget2500_replay_status": "runtime_diagnostic_only_replay_ineligible_without_explicit_replay_ready",
+      "decision_schema": "hu_turn1_topk_confirm_decision_v1",
+      "decision_log_context_fields": [
+        "visibility_model",
+        "discard_visibility",
+        "true_dead_cards",
+        "visible_dead_cards",
+        "hero_private_discards",
+        "opponent_private_discards",
+        "replay_ready"
+      ],
+      "smoke_output_dir": "outputs/evals/hu_turn1_topk_confirm_replay_meta_smoke",
+      "decision_log": "outputs/evals/hu_turn1_topk_confirm_replay_meta_smoke/hu_turn1_decisions.jsonl",
+      "paired_seeds": 1,
+      "hands": 2,
+      "decision_rows": 2,
+      "replay_ready_rows": 2,
+      "visibility_model": "hidden_discard",
+      "discard_visibility": "own_private_only",
+      "extractor_smoke_summary": "outputs/evals/hu_turn1_topk_confirm_replay_meta_smoke/relabel_targets_summary.json",
+      "extractor_not_replay_ready_skips": 0,
+      "extractor_written_targets": 0,
+      "extractor_written_targets_note": "Smoke rows lacked realized seat-swap deltas, so target count 0 is expected; replay readiness was not the blocker.",
+      "next_gate": "Collect a small replay-ready fired-target TopK confirm run, extract fired rows with replay_ready required, then Stage9f P2 relabel before any new T1 training."
+    },
+    "observed_t1_topk_confirm_replay_ready_extract_smoke20": {
+      "status": "pipeline_smoke_passed",
+      "purpose": "Verify new HU T1 TopK confirm logs can produce replay-ready fired relabel targets and Stage9f P2 relabel inputs.",
+      "output_dir": "outputs/evals/hu_turn1_topk_confirm_replay_ready_extract_smoke20",
+      "profile_a": "stage9f_p2_hu_t1_topk_confirm",
+      "profile_b": "stage9f_p2",
+      "config": "k1/mc1/d0/seat=first",
+      "paired_seeds": 20,
+      "hands": 40,
+      "decision_rows": 40,
+      "replay_ready_rows": 40,
+      "realized_t1_delta_rows": 28,
+      "realized_t1_override_rows": 12,
+      "realized_t1_override_delta_mean": -0.4355850512236212,
+      "target_output": "outputs/evals/hu_turn1_topk_confirm_replay_ready_extract_smoke20/relabel_targets.jsonl",
+      "target_summary": "outputs/evals/hu_turn1_topk_confirm_replay_ready_extract_smoke20/relabel_targets_summary.json",
+      "target_records": 5,
+      "target_label_counts": {
+        "hard_negative": 1,
+        "positive": 4
+      },
+      "extractor_not_replay_ready_skips": 0,
+      "stage9f_p2_relabel_smoke": {
+        "output": "outputs/evals/hu_turn1_topk_confirm_replay_ready_extract_smoke20/relabel_targets_stage9f_p2_smoke2.jsonl",
+        "summary": "outputs/evals/hu_turn1_topk_confirm_replay_ready_extract_smoke20/relabel_targets_stage9f_p2_smoke2_summary.json",
+        "records": 2,
+        "best_action_changed": 2,
+        "best_action_changed_rate": 1.0,
+        "reason_counts": {
+          "runtime_hard_negative": 1,
+          "runtime_positive": 1
+        },
+        "relabel_seconds_sum": 5.094497200101614,
+        "t2_choose_action_seconds_sum": 4.725552999880165
+      },
+      "interpretation": "End-to-end TopK confirm fired-row relabel pipeline is restored. This smoke is not runtime evidence because it used a cheap aggressive config.",
+      "next_gate": "Run a replay-ready fired-target collection using the k8/mc8/confirm16/safe0.5 diagnostic line or a planned diagnostic variant, then Stage9f P2 relabel before new T1 training."
+    },
+    "observed_t1_topk_confirm_replayready_firetarget_gcp": {
+      "status": "relabel_data_collection_passed_runtime_still_no_go",
+      "run_name": "regular-hu-t1-k8-safe05-replayready-20260624-1740",
+      "profile_a": "stage9f_p2_hu_t1_topk_confirm",
+      "profile_b": "stage9f_p2",
+      "config": "k8/mc8/d0/confirm16/cse1.5/safe0.5/pd0/seat=first+second",
+      "output_dir": "outputs/evals/hu_turn1_topk_confirm_replayready_firetarget_gcp",
+      "paired_seeds": 2500,
+      "hands": 5000,
+      "gcp_shards_completed": 250,
+      "gcp_shards_expected": 250,
+      "t1_decision_rows": 5000,
+      "replay_ready_rows": 5000,
+      "valid_fired_rows": 22,
+      "realized_fired_mean": 3.8946,
+      "realized_fired_ci95_low": -0.6367,
+      "realized_fired_ci95_high": 8.4259,
+      "estimated_ev_per_t1_decision": 0.0172,
+      "non_fired_final_mismatch_count": 0,
+      "no_override_reason_counts": {
+        "below_confirm_delta": 1372,
+        "below_confirm_se": 759,
+        "below_safe_selector": 163,
+        "mc_best_is_baseline": 1786,
+        "topk_empty": 898,
+        "override_fired": 22
+      },
+      "topk_aggregate_runtime_audit": {
+        "realized_override_mean": -1.2307,
+        "realized_override_ci95_low": -3.1788,
+        "realized_override_ci95_high": 0.7174,
+        "p95_loss": 13.0,
+        "max_loss": 36.2270,
+        "interpretation": "Broader TopK audit remains runtime-negative; confirm MC is gate diagnostic only."
+      },
+      "relabel_targets": {
+        "fired_output": "outputs/evals/hu_turn1_topk_confirm_replayready_firetarget_gcp/relabel_targets.jsonl",
+        "fired_records": 13,
+        "fired_label_counts": {
+          "positive": 8,
+          "hard_negative": 5
+        },
+        "boundary_output": "outputs/evals/hu_turn1_topk_confirm_replayready_firetarget_gcp/relabel_targets_boundary_margin0p5_top300.jsonl",
+        "boundary_records": 300,
+        "boundary_seat_counts": {
+          "first": 152,
+          "second": 148
+        },
+        "combined_output": "outputs/evals/hu_turn1_topk_confirm_replayready_firetarget_gcp/relabel_targets_combined313.jsonl"
+      },
+      "stage9f_p2_relabel_combined313": {
+        "output_dir": "outputs/evals/hu_turn1_topk_confirm_replayready_firetarget_gcp/stage9f_p2_relabel_combined313_full",
+        "merged_output": "outputs/evals/hu_turn1_topk_confirm_replayready_firetarget_gcp/stage9f_p2_relabel_combined313_full/relabel_targets_stage9f_p2_merged.jsonl",
+        "aggregate_summary": "outputs/evals/hu_turn1_topk_confirm_replayready_firetarget_gcp/stage9f_p2_relabel_combined313_full/relabel_targets_stage9f_p2_aggregate_summary.json",
+        "records": 313,
+        "source_kind_counts": {
+          "runtime_fired_decision": 13,
+          "runtime_non_fired_candidate_decision": 300
+        },
+        "safe_override_label_counts": {
+          "positive": 9,
+          "hard_negative": 9,
+          "neutral": 295
+        },
+        "seat_counts": {
+          "first": 156,
+          "second": 157
+        },
+        "best_action_changed": 272,
+        "best_action_changed_rate": 0.8690,
+        "fired_best_action_changed": 13,
+        "non_fired_boundary_best_action_changed": 259,
+        "source_action_new_regret_mean": 11.8444,
+        "source_action_new_regret_max": 44.2270
+      },
+      "decision": "Replay-ready collection and Stage9f P2 relabel are usable as T1 training / hard-negative data. Runtime TopK+confirm+safe selector remains No-Go and must not be adopted.",
+      "next_gate": "Merge combined313 relabel rows into the existing T1 teacher corpus, train a Stage1e/Stage1d-plus-runtime-relabel candidate, and evaluate by holdout regret and seat-swap before any T1 runtime decision."
+    },
+    "observed_t1_stage1e_runtime313_training": {
+      "status": "no_go",
+      "purpose": "Test whether the 313 replay-ready runtime relabel rows can improve the T1 candidate generator or safe override selector.",
+      "merged_teacher": "outputs/hu_turn1_stage1c_natural_teacher_expansion/stage1e_runtime_relabel313/full2k_stratified670_tail84_stage1d300_plus_runtime313.jsonl",
+      "previous_stage1d_rows": 3054,
+      "runtime_relabel_rows": 313,
+      "merged_rows": 3367,
+      "candidate_generator": {
+        "status": "no_go",
+        "output_dir": "outputs/training/hu_turn1_stage1e_candidate_generator_runtime313",
+        "models": {
+          "accept025_gray2": "models/hu_turn1_stage1e_candidate_hgb_accept025_gray2_runtime313_weighted.pkl",
+          "accept2_gray5": "models/hu_turn1_stage1e_candidate_hgb_accept2_gray5_runtime313_weighted.pkl"
+        },
+        "accept025_gray2_holdout": {
+          "candidate_top1_avg_regret": 10.0257,
+          "candidate_top3_best_avg_regret": 5.9137,
+          "candidate_top5_best_avg_regret": 3.9723,
+          "baseline_top1_avg_regret": 5.8491,
+          "baseline_top3_best_avg_regret": 3.3448,
+          "baseline_top5_best_avg_regret": 2.1959
+        },
+        "accept2_gray5_holdout": {
+          "candidate_top1_avg_regret": 10.0450,
+          "candidate_top3_best_avg_regret": 5.8136,
+          "candidate_top5_best_avg_regret": 3.9636,
+          "baseline_top1_avg_regret": 5.8491,
+          "baseline_top3_best_avg_regret": 3.3448,
+          "baseline_top5_best_avg_regret": 2.1959
+        },
+        "interpretation": "Both Stage1e HGB candidate-generator variants are substantially worse than the existing w20_100 baseline on the same holdout split."
+      },
+      "safe_selector": {
+        "status": "diagnostic_only_no_go_for_runtime",
+        "input": "outputs/evals/hu_turn1_topk_confirm_replayready_firetarget_gcp/stage9f_p2_relabel_combined313_full/relabel_targets_stage9f_p2_merged.jsonl",
+        "comparison_csv": "outputs/training/hu_turn1_safe_selector_stage1e_runtime313/selector_comparison.csv",
+        "models": {
+          "accept025_gray1_delta_plus_meta": "models/hu_turn1_safe_selector_stage1e_runtime313_accept025_gray1_delta_plus_meta.pkl",
+          "accept025_gray1_candidate_delta_plus_meta": "models/hu_turn1_safe_selector_stage1e_runtime313_accept025_gray1_candidate_delta_plus_meta.pkl",
+          "accept2_gray5_delta_plus_meta": "models/hu_turn1_safe_selector_stage1e_runtime313_accept2_gray5_delta_plus_meta.pkl",
+          "accept2_gray5_candidate_delta_plus_meta": "models/hu_turn1_safe_selector_stage1e_runtime313_accept2_gray5_candidate_delta_plus_meta.pkl"
+        },
+        "best_val_average_precision": {
+          "accept025_gray1_delta_plus_meta": 0.4819880063289407,
+          "accept025_gray1_candidate_delta_plus_meta": 0.41438265409464153,
+          "accept2_gray5_delta_plus_meta": 0.43035125798366586,
+          "accept2_gray5_candidate_delta_plus_meta": 0.4367313843923366
+        },
+        "best_config": "accept025_gray1_delta_plus_meta",
+        "best_config_test_thresholds": {
+          "threshold_0p3": {
+            "fires": 5,
+            "precision_positive": 0.4
+          },
+          "threshold_0p5": {
+            "fires": 1,
+            "precision_positive": 0.0
+          },
+          "threshold_0p8": {
+            "fires": 0,
+            "precision_positive": 0.0
+          }
+        },
+        "interpretation": "AP improves over the older combined296 selector family, but test-set precision and fire count are too weak for runtime gating."
+      },
+      "decision": "Use runtime313 as relabel/hard-negative evidence only. Do not adopt Stage1e candidate-generator or safe-selector artifacts at runtime. Do not run a large T1 seat-swap with these artifacts.",
+      "next_gate": "Move to T1 model/objective redesign or a larger teacher relabel pass; avoid another simple HGB candidate-generator or safe-score threshold sweep."
+    },
+    "observed_t1_stage1f_objective_probe": {
+      "status": "no_go",
+      "purpose": "Check whether Stage1e failed because of the binary near-best objective by adding direct teacher-score regression candidate-generator models.",
+      "code_change": "train_hu_turn1_candidate_generator supports hgb_regressor, extra_trees_regressor, and random_forest_regressor model types.",
+      "comparison_csv": "outputs/training/hu_turn1_stage1f_candidate_generator_runtime313_regression/stage1f_candidate_model_comparison.csv",
+      "classification_weight_sweep_dir": "outputs/training/hu_turn1_stage1f_candidate_generator_runtime313_weight_sweep",
+      "regression_sweep_dir": "outputs/training/hu_turn1_stage1f_candidate_generator_runtime313_regression",
+      "best_classification_probe": {
+        "name": "w50_hgb_leaf3_lr01_l2_1",
+        "model": "models/hu_turn1_stage1f_stage1e_runtime313_w50_hgb_leaf3_lr01_l2_1.pkl",
+        "metrics": "outputs/training/hu_turn1_stage1f_candidate_generator_runtime313_weight_sweep/w50_hgb_leaf3_lr01_l2_1_metrics.json",
+        "source_weight": {
+          "stage9f_p2": 50
+        },
+        "holdout_top1_avg_regret": 7.8262,
+        "holdout_top3_best_avg_regret": 5.5545,
+        "holdout_top5_best_avg_regret": 4.3423,
+        "baseline_top1_avg_regret": 5.5930,
+        "baseline_top3_best_avg_regret": 2.9181,
+        "baseline_top5_best_avg_regret": 1.9745
+      },
+      "best_regression_probe": {
+        "name": "regressor_w50_hgb_leaf3_lr01_l2_1",
+        "model": "models/hu_turn1_stage1f_stage1e_runtime313_regressor_w50_hgb_leaf3_lr01_l2_1.pkl",
+        "metrics": "outputs/training/hu_turn1_stage1f_candidate_generator_runtime313_regression/regressor_w50_hgb_leaf3_lr01_l2_1_metrics.json",
+        "source_weight": {
+          "stage9f_p2": 50
+        },
+        "holdout_top1_avg_regret": 8.6479,
+        "holdout_top3_best_avg_regret": 5.6929,
+        "holdout_top5_best_avg_regret": 4.3075,
+        "baseline_top3_best_avg_regret": 3.2301
+      },
+      "decision": "No-Go. Direct score regression did not solve the Stage1e candidate-generator failure, and the existing baseline remains better than every Stage1e/Stage1f probe.",
+      "next_gate": "Do not run a large T1 seat-swap with these probes. Move to a larger cleaner T1 teacher/relabel set or a richer model/representation for state-level action ranking."
+    },
+    "observed_t1_stage1g_pairwise_ranking_probe": {
+      "status": "no_go",
+      "purpose": "Check whether within-state pairwise ranking can learn T1 action ordering from the current mixed teacher/relabel data better than binary classification or score regression.",
+      "code_change": "train_hu_turn1_candidate_generator supports pairwise_logistic and saves a runtime-compatible per-action utility scorer.",
+      "comparison_csv": "outputs/training/hu_turn1_stage1g_candidate_generator_pairwise_runtime313/stage1f_stage1g_candidate_model_comparison.csv",
+      "output_dir": "outputs/training/hu_turn1_stage1g_candidate_generator_pairwise_runtime313",
+      "best_pairwise_probe": {
+        "name": "pairwise_w50_gap025_pairs64",
+        "model": "models/hu_turn1_stage1g_pairwise_runtime313_w50_gap025_pairs64.pkl",
+        "metrics": "outputs/training/hu_turn1_stage1g_candidate_generator_pairwise_runtime313/pairwise_w50_gap025_pairs64_metrics.json",
+        "source_weight": {
+          "stage9f_p2": 50
+        },
+        "pairwise_min_gap": 0.25,
+        "pairwise_max_pairs_per_sample": 64,
+        "holdout_top1_avg_regret": 9.8255,
+        "holdout_top3_best_avg_regret": 5.5454,
+        "holdout_top5_best_avg_regret": 3.8874,
+        "baseline_top3_best_avg_regret": 3.1578
+      },
+      "larger_pairwise_probe": {
+        "name": "pairwise_w100_gap025",
+        "model": "models/hu_turn1_stage1g_pairwise_runtime313_w100_gap025.pkl",
+        "metrics": "outputs/training/hu_turn1_stage1g_candidate_generator_pairwise_runtime313/pairwise_w100_gap025_metrics.json",
+        "source_weight": {
+          "stage9f_p2": 100
+        },
+        "pairwise_min_gap": 0.25,
+        "pairwise_max_pairs_per_sample": 256,
+        "holdout_top1_avg_regret": 11.3539,
+        "holdout_top3_best_avg_regret": 6.5797,
+        "holdout_top5_best_avg_regret": 4.2123,
+        "baseline_top3_best_avg_regret": 3.6174
+      },
+      "decision": "No-Go. Pairwise ranking does not beat the existing baseline and does not rescue the current T1 mixed teacher/relabel dataset.",
+      "next_gate": "Stop local sklearn objective sweeps. Move to cleaner higher-MC T1 teacher data or a richer listwise neural model with state-level heldout evaluation."
+    },
+    "observed_t1_stage1h_listwise_neural_probe": {
+      "status": "no_go",
+      "purpose": "Check whether a modest state-level listwise neural model can learn T1 action ordering from the current mixed teacher/relabel data.",
+      "code_change": "Added train_hu_turn1_listwise_torch, which trains a state-level softmax/listwise objective and saves a runtime-compatible HuTorchActionValueModel.",
+      "output_dir": "outputs/training/hu_turn1_stage1h_listwise_torch_runtime313",
+      "comparison_csv": "outputs/training/hu_turn1_stage1h_listwise_torch_runtime313/stage1h_listwise_comparison.csv",
+      "models": {
+        "weighted_w50_128x64_e10": "models/hu_turn1_stage1h_listwise_runtime313_w50_128x64_e10.pt",
+        "unweighted_128x64_e10": "models/hu_turn1_stage1h_listwise_runtime313_unweighted_128x64_e10.pt"
+      },
+      "weighted_w50": {
+        "source_weight": {
+          "stage9f_p2": 50
+        },
+        "epochs": 10,
+        "hidden_sizes": [
+          128,
+          64
+        ],
+        "holdout_top1_avg_regret": 10.9668,
+        "holdout_top3_best_avg_regret": 6.1768,
+        "holdout_top5_best_avg_regret": 4.2106,
+        "baseline_top3_best_avg_regret": 3.1005
+      },
+      "unweighted": {
+        "epochs": 10,
+        "hidden_sizes": [
+          128,
+          64
+        ],
+        "holdout_top1_avg_regret": 10.6942,
+        "holdout_top3_best_avg_regret": 5.6865,
+        "holdout_top5_best_avg_regret": 4.1195,
+        "baseline_top3_best_avg_regret": 2.7106
+      },
+      "decision": "No-Go. Listwise neural training loss decreases, but holdout topK regret remains far worse than the existing baseline.",
+      "next_gate": "Treat the T1 blocker as data/target quality. Build a cleaner high-MC replay-ready T1 teacher/relabel set before more model work."
+    },
+    "observed_t1_stage1i_clean_higher_mc_teacher_pilot": {
+      "status": "mc32_pilot_completed_go_for_stratified_clean_teacher_dataset_design",
+      "purpose": "Build a cleaner higher-MC replay-ready HU T1 teacher path after Stage1e/f/g/h failed to beat the existing T1 baseline.",
+      "continuation": {
+        "profile": "stage9f_p2",
+        "opponent_profile": "stage9f_p2",
+        "turn3_continuation": "stage7_m5_r10",
+        "full_replacement_enabled": false
+      },
+      "local_smokes": {
+        "mc2_full_actions": {
+          "output": "outputs/hu_turn1_stage1i_clean_teacher_pilot/local_full_actions_mc2_smoke.jsonl",
+          "summary": "outputs/hu_turn1_stage1i_clean_teacher_pilot/local_full_actions_mc2_smoke_summary.json",
+          "records": 1,
+          "future_samples": 2,
+          "legal_actions": 27,
+          "seconds_per_sample": 13.2698,
+          "actions_truncated": false
+        },
+        "mc4_full_actions": {
+          "output": "outputs/hu_turn1_stage1i_clean_teacher_pilot/local_full_actions_mc4_smoke.jsonl",
+          "summary": "outputs/hu_turn1_stage1i_clean_teacher_pilot/local_full_actions_mc4_smoke_summary.json",
+          "records": 1,
+          "future_samples": 4,
+          "legal_actions": 27,
+          "seconds_per_sample": 25.2244,
+          "actions_truncated": false
+        }
+      },
+      "gcp_mc4_pilot20": {
+        "run_name": "regular-hu-t1-clean-mc4-pilot20-20260624-2128",
+        "output_dir": "outputs/hu_turn1_stage1i_clean_teacher_pilot/gcp_clean_mc4_pilot20",
+        "merged_output": "outputs/hu_turn1_stage1i_clean_teacher_pilot/gcp_clean_mc4_pilot20/hu_turn1_stage1_pilot.jsonl",
+        "summary": "outputs/hu_turn1_stage1i_clean_teacher_pilot/gcp_clean_mc4_pilot20/summary.json",
+        "quality": "outputs/hu_turn1_stage1i_clean_teacher_pilot/gcp_clean_mc4_pilot20/clean_teacher_pilot20_quality.json",
+        "records": 20,
+        "missing_shards": 0,
+        "future_samples": 4,
+        "mean_seconds_per_sample": 39.1928,
+        "max_seconds_per_sample": 72.2492,
+        "mean_action_count": 26.25,
+        "action_se_mean": 5.6884,
+        "action_se_p90": 8.1477,
+        "baseline_top1_avg_regret": 2.3602,
+        "baseline_top3_best_avg_regret": 1.8017,
+        "baseline_top5_best_avg_regret": 0.4807,
+        "baseline_top3_teacher_best_recall": 0.55,
+        "baseline_top3_accepted_action_recall": 0.65
+      },
+      "gcp_mc16_pilot20": {
+        "run_name": "regular-hu-t1-clean-mc16-pilot20-20260624-2138",
+        "output_dir": "outputs/hu_turn1_stage1i_clean_teacher_pilot/gcp_clean_mc16_pilot20",
+        "merged_output": "outputs/hu_turn1_stage1i_clean_teacher_pilot/gcp_clean_mc16_pilot20/hu_turn1_stage1_pilot.jsonl",
+        "summary": "outputs/hu_turn1_stage1i_clean_teacher_pilot/gcp_clean_mc16_pilot20/summary.json",
+        "quality": "outputs/hu_turn1_stage1i_clean_teacher_pilot/gcp_clean_mc16_pilot20/clean_teacher_pilot20_quality.json",
+        "records": 20,
+        "missing_shards": 0,
+        "future_samples": 16,
+        "mean_seconds_per_sample": 131.5474,
+        "max_seconds_per_sample": 257.5066,
+        "mean_action_count": 26.4,
+        "action_se_mean": 3.1417,
+        "action_se_p90": 4.1725,
+        "baseline_top1_avg_regret": 1.6116,
+        "baseline_top3_best_avg_regret": 0.8143,
+        "baseline_top5_best_avg_regret": 0.7206,
+        "baseline_top3_teacher_best_recall": 0.7,
+        "baseline_top3_accepted_action_recall": 0.75
+      },
+      "gcp_mc32_first_only_pilot20": {
+        "run_name": "regular-hu-t1-clean-mc32-pilot20-20260624",
+        "output_dir": "outputs/hu_turn1_stage1i_clean_teacher_pilot/gcp_clean_mc32_pilot20",
+        "merged_output": "outputs/hu_turn1_stage1i_clean_teacher_pilot/gcp_clean_mc32_pilot20/hu_turn1_stage1_pilot.jsonl",
+        "summary": "outputs/hu_turn1_stage1i_clean_teacher_pilot/gcp_clean_mc32_pilot20/summary.json",
+        "quality": "outputs/hu_turn1_stage1i_clean_teacher_pilot/gcp_clean_mc32_pilot20/clean_teacher_pilot20_quality.json",
+        "records": 20,
+        "missing_shards": 0,
+        "distribution_caveat": "ShardSamples=1 generated first=20 second=0; use only as speed and quality reference, not as balanced training distribution.",
+        "seat_counts": {
+          "first": 20,
+          "second": 0
+        },
+        "spot_rerun_shards": [
+          15
+        ],
+        "future_samples": 32,
+        "mean_seconds_per_sample": 282.0202,
+        "max_seconds_per_sample": 492.5121,
+        "mean_action_count": 26.4,
+        "action_se_mean": 2.3289,
+        "action_se_p90": 2.8597,
+        "baseline_top1_avg_regret": 1.4439,
+        "baseline_top3_best_avg_regret": 0.2087,
+        "baseline_top5_best_avg_regret": 0.0116,
+        "baseline_top3_teacher_best_recall": 0.85,
+        "baseline_top3_accepted_action_recall": 0.9
+      },
+      "gcp_mc32_balanced_pilot20_combined": {
+        "primary_run_name": "regular-hu-t1-clean-mc32-balanced-pilot20-20260624",
+        "supplement_run_name": "regular-hu-t1-clean-mc32-balanced-supplement2-20260624",
+        "output_dir": "outputs/hu_turn1_stage1i_clean_teacher_pilot/gcp_clean_mc32_balanced_pilot20_combined",
+        "merged_output": "outputs/hu_turn1_stage1i_clean_teacher_pilot/gcp_clean_mc32_balanced_pilot20_combined/hu_turn1_stage1_pilot.jsonl",
+        "analysis_summary": "outputs/hu_turn1_stage1i_clean_teacher_pilot/gcp_clean_mc32_balanced_pilot20_combined/analysis/summary.json",
+        "combined_summary": "outputs/hu_turn1_stage1i_clean_teacher_pilot/gcp_clean_mc32_balanced_pilot20_combined/combined_summary.json",
+        "records": 20,
+        "source_note": "Primary run contributed shards 0-4 and 6-9; primary shard 5 seed 2031063001 was stopped as an extreme slow shard and replaced by a separate two-record supplement run.",
+        "future_samples": 32,
+        "seat_counts": {
+          "first": 10,
+          "second": 10
+        },
+        "player_counts": {
+          "0": 10,
+          "1": 10
+        },
+        "mean_seconds_per_sample": 250.8291,
+        "max_seconds_per_sample": 376.6534,
+        "mean_action_count": 26.4,
+        "action_se_mean": 2.3775,
+        "action_se_p90": 2.9297,
+        "best_action_se_mean": 2.7888,
+        "score_gap_mean": 1.1772,
+        "score_gap_median": 0.9212,
+        "score_gap_lt_0p50": 7,
+        "invalid_state_rows": 0,
+        "invalid_action_rows": 0,
+        "actions_truncated": 0,
+        "duplicate_state_keys": 0
+      },
+      "comparison": {
+        "artifact": "outputs/hu_turn1_stage1i_clean_teacher_pilot/stage1i_clean_teacher_pilot_comparison.json",
+        "seconds_mc16_over_mc4": 3.3564,
+        "seconds_mc32_over_mc16": 2.1439,
+        "seconds_mc32_over_mc4": 7.1957,
+        "action_se_mean_mc16_over_mc4": 0.5523,
+        "action_se_mean_mc32_over_mc16": 0.7413,
+        "action_se_mean_mc32_over_mc4": 0.4094,
+        "action_se_p90_mc16_over_mc4": 0.5121,
+        "top3_regret_mc32_over_mc16": 0.2563,
+        "interpretation": "MC32 materially improves label quality versus MC16 while remaining feasible on GCP. The first-only MC32 run is speed/quality evidence only; the balanced 20-record combined run validates first/second coverage. Use MC32 as the broad clean-teacher baseline and reserve selected MC64/128 refinement for close, high-regret, disagreement, or high-SE states."
+      },
+      "decision": "Go for designing a stratified MC32 clean teacher dataset with selected MC64/128 refinement; T1 production-scale generation and runtime adoption remain No-Go.",
+      "next_gate": "Create the clean T1 teacher dataset plan: MC32 broad labels, selected MC64/128 refinement for close or high-risk states, source-preserving state-level splits, then train/evaluate against the existing T1 baseline before any runtime seat-swap."
+    },
+    "observed_t1_stage1j_natural_mc32_partial110": {
+      "status": "partial_broad_run_analyzed_go_for_refinement_targets_no_go_for_naive_mc32_scale",
+      "purpose": "Test whether the Stage1i MC32 clean teacher setup scales beyond 20 balanced records on natural T1 states.",
+      "run_name": "regular-hu-t1-stage1j-natural-mc32-200-20260625",
+      "output_dir": "outputs/hu_turn1_stage1j_stratified_teacher/gcp_natural_mc32_partial110",
+      "merged_output": "outputs/hu_turn1_stage1j_stratified_teacher/gcp_natural_mc32_partial110/hu_turn1_stage1_pilot.jsonl",
+      "aggregate_summary": "outputs/hu_turn1_stage1j_stratified_teacher/gcp_natural_mc32_partial110/summary.json",
+      "analysis_summary": "outputs/hu_turn1_stage1j_stratified_teacher/gcp_natural_mc32_partial110/analysis/summary.json",
+      "refinement_targets": "outputs/hu_turn1_stage1j_stratified_teacher/gcp_natural_mc32_partial110/refinement_targets/targets.jsonl",
+      "refinement_summary": "outputs/hu_turn1_stage1j_stratified_teacher/gcp_natural_mc32_partial110/refinement_targets/summary.json",
+      "requested_records": 200,
+      "records": 110,
+      "expected_shards": 100,
+      "completed_shards": 55,
+      "missing_shards": 45,
+      "allow_partial": true,
+      "slow_worker_action": "Remaining workers were deleted and the partial output was analyzed to avoid further cost.",
+      "future_samples": 32,
+      "source_bucket": "natural_mc32_stage1j",
+      "seat_counts": {
+        "first": 55,
+        "second": 55
+      },
+      "player_counts": {
+        "0": 55,
+        "1": 55
+      },
+      "mean_seconds_per_sample": 226.6547,
+      "max_seconds_per_sample": 362.9421,
+      "mean_action_count": 26.5091,
+      "action_se_mean": 2.2585,
+      "action_se_p90": 2.7832,
+      "action_se_p95": 2.9186,
+      "best_action_se_mean": 2.6160,
+      "best_action_se_p95": 3.0868,
+      "max_action_se_mean": 2.8128,
+      "max_action_se_p95": 3.3121,
+      "score_gap_mean": 1.2278,
+      "score_gap_median": 0.6875,
+      "score_gap_p90": 3.2240,
+      "score_gap_lt_0p50": 47,
+      "invalid_state_rows": 0,
+      "invalid_action_rows": 0,
+      "actions_truncated": 0,
+      "duplicate_state_keys": 0,
+      "refinement_target_count": 100,
+      "refinement_target_seat_counts": {
+        "first": 50,
+        "second": 50
+      },
+      "refinement_reason_counts": {
+        "high_model_regret": 40,
+        "high_action_se": 32,
+        "high_score_gap": 30,
+        "low_score_gap": 30,
+        "random_cover": 20,
+        "fill_cover": 10
+      },
+      "decision": "Use the 110 records and 100 extracted targets as Stage1j evidence/refinement input. Do not scale the same MC32 broad run shape blindly because the slow-shard tail is too large.",
+      "next_gate": "Prefer MC16 broad plus MC32/64 selected refinement, or MC32 one-sample shards with explicit timeout/replacement, before training a new T1 model."
+    },
+    "observed_t1_stage1j_mc64_refinement_relabel_partial14": {
+      "status": "partial_completed_no_go_for_broad_mc64_relabel",
+      "purpose": "Relabel the 100 Stage1j refinement targets with MC64 Stage9f P2 continuation to improve selected high-uncertainty T1 labels.",
+      "smoke_run_name": "regular-hu-t1-stage1j-relabel-gcp-smoke-mc2-20260625",
+      "smoke_output_dir": "outputs/hu_turn1_stage1j_stratified_teacher/gcp_refinement_relabel_smoke_mc2",
+      "smoke_records": 4,
+      "smoke_future_samples": 2,
+      "run_name": "regular-hu-t1-stage1j-refinement-relabel-mc64-100-20260625",
+      "output_dir": "outputs/hu_turn1_stage1j_stratified_teacher/gcp_refinement_relabel_mc64_partial14",
+      "merged_output": "outputs/hu_turn1_stage1j_stratified_teacher/gcp_refinement_relabel_mc64_partial14/hu_turn1_refinement_relabel.jsonl",
+      "summary": "outputs/hu_turn1_stage1j_stratified_teacher/gcp_refinement_relabel_mc64_partial14/summary.json",
+      "target_input": "outputs/hu_turn1_stage1j_stratified_teacher/gcp_natural_mc32_partial110/refinement_targets/targets.jsonl",
+      "intended_targets": 100,
+      "records": 14,
+      "expected_shards": 50,
+      "completed_shards": 7,
+      "future_samples": 64,
+      "best_action_changed": 8,
+      "best_action_changed_rate": 0.5714,
+      "source_best_new_regret_mean": 1.0047,
+      "source_best_new_regret_max": 3.7194,
+      "mean_relabel_seconds_per_record": 319.5687,
+      "seat_counts": {
+        "first": 4,
+        "second": 10
+      },
+      "target_ids": [
+        26,
+        27,
+        44,
+        45,
+        48,
+        49,
+        64,
+        65,
+        74,
+        75,
+        92,
+        93,
+        94,
+        95
+      ],
+      "action_taken": "Deleted remaining running workers after completion count stopped growing to avoid further cost.",
+      "decision": "Use partial14 as diagnostic high-MC support only. Do not use MC64 full-action Stage9f P2 relabeling as the broad 100-target refinement path.",
+      "next_gate": "Use MC16 broad plus MC32 selected refinement, or improve T2 continuation speed before attempting another broad MC64 relabel."
+    },
+    "observed_t1_stage1j_mc16_broad500": {
+      "status": "completed_clean_go_for_selected_refinement_input",
+      "run_name": "regular-hu-t1-stage1j-natural-mc16-broad500-20260625",
+      "output_dir": "outputs/hu_turn1_stage1j_stratified_teacher/gcp_natural_mc16_broad500",
+      "merged_output": "outputs/hu_turn1_stage1j_stratified_teacher/gcp_natural_mc16_broad500/hu_turn1_stage1_pilot.jsonl",
+      "summary": "outputs/hu_turn1_stage1j_stratified_teacher/gcp_natural_mc16_broad500/summary.json",
+      "analysis_summary": "outputs/hu_turn1_stage1j_stratified_teacher/gcp_natural_mc16_broad500/analysis/summary.json",
+      "refinement_targets": "outputs/hu_turn1_stage1j_stratified_teacher/gcp_natural_mc16_broad500/refinement_targets/targets.jsonl",
+      "refinement_summary": "outputs/hu_turn1_stage1j_stratified_teacher/gcp_natural_mc16_broad500/refinement_targets/summary.json",
+      "records": 500,
+      "expected_shards": 250,
+      "completed_shards": 250,
+      "missing_shards": 0,
+      "future_samples": 16,
+      "mean_seconds_per_sample": 147.0101,
+      "max_seconds_per_sample": 365.1915,
+      "mean_action_count": 26.412,
+      "seat_counts": {
+        "first": 250,
+        "second": 250
+      },
+      "player_counts": {
+        "0": 250,
+        "1": 250
+      },
+      "action_se_mean": 3.2722,
+      "action_se_p90": 4.2115,
+      "action_se_p95": 4.5068,
+      "best_action_se_mean": 3.8221,
+      "best_action_se_p95": 4.96,
+      "score_gap_mean": 1.5557,
+      "score_gap_median": 0.9517,
+      "score_gap_p90": 3.8295,
+      "score_gap_lt_0p50": 163,
+      "invalid_state_rows": 0,
+      "invalid_action_rows": 0,
+      "actions_truncated": 0,
+      "duplicate_state_keys": 0,
+      "refinement_target_count": 250,
+      "refinement_target_seat_counts": {
+        "first": 130,
+        "second": 120
+      },
+      "refinement_reason_counts": {
+        "high_model_regret": 100,
+        "high_action_se": 92,
+        "high_score_gap": 60,
+        "low_score_gap": 47,
+        "random_cover": 55
+      },
+      "decision": "Use this as the clean Stage1j broad teacher base. MC16 labels are complete and balanced but still noisy; use selected MC32 refinement before model adoption."
+    },
+    "observed_t1_stage1j_mc32_refinement_relabel_partial124": {
+      "status": "partial_completed_go_for_diagnostic_labels_no_go_for_full_selected_mc32_without_timeouts",
+      "run_name": "r-t1j-mc32-refine250-20260625",
+      "output_dir": "outputs/hu_turn1_stage1j_stratified_teacher/gcp_refinement_relabel_mc32_partial124",
+      "merged_output": "outputs/hu_turn1_stage1j_stratified_teacher/gcp_refinement_relabel_mc32_partial124/hu_turn1_refinement_relabel.jsonl",
+      "summary": "outputs/hu_turn1_stage1j_stratified_teacher/gcp_refinement_relabel_mc32_partial124/summary.json",
+      "analysis_summary": "outputs/hu_turn1_stage1j_stratified_teacher/gcp_refinement_relabel_mc32_partial124/analysis/summary.json",
+      "missing_target_summary": "outputs/hu_turn1_stage1j_stratified_teacher/gcp_refinement_relabel_mc32_partial124/analysis/missing_target_summary.json",
+      "target_input": "outputs/hu_turn1_stage1j_stratified_teacher/gcp_natural_mc16_broad500/refinement_targets/targets.jsonl",
+      "intended_targets": 250,
+      "records": 124,
+      "expected_shards": 125,
+      "completed_shards": 62,
+      "missing_shards": 63,
+      "missing_targets": 126,
+      "future_samples": 32,
+      "best_action_changed": 83,
+      "best_action_changed_rate": 0.6694,
+      "source_best_new_regret_mean": 1.8413,
+      "source_best_new_regret_median": 1.2415,
+      "source_best_new_regret_p95": 6.0635,
+      "source_best_new_regret_max": 7.6888,
+      "mean_relabel_seconds_per_record": 221.5906,
+      "seat_counts": {
+        "first": 62,
+        "second": 62
+      },
+      "reason_counts": {
+        "high_model_regret": 70,
+        "high_action_se": 40,
+        "high_score_gap": 31,
+        "low_score_gap": 22,
+        "random_cover": 27
+      },
+      "missing_target_source_bucket_counts": {
+        "high_action_se": 45,
+        "high_model_regret": 30,
+        "high_score_gap": 20,
+        "low_score_gap": 16,
+        "random_cover": 15
+      },
+      "action_taken": "Deleted stalled running workers after completion count stopped growing; no residual workers should remain.",
+      "decision": "MC32 selected relabeling materially changes labels but still has a severe slow-target tail. Use completed rows as diagnostic support; add target-level timeout/skip handling before rerunning missing targets."
+    },
+    "observed_t1_stage1j_mc16_broad500_plus_mc32_partial124_training_smoke": {
+      "status": "completed_no_go_for_model_adoption",
+      "merged_teacher": "outputs/hu_turn1_stage1j_stratified_teacher/stage1j_mc16_broad500_plus_mc32_partial124/hu_turn1_stage1j_merged_teacher.jsonl",
+      "merge_summary": "outputs/hu_turn1_stage1j_stratified_teacher/stage1j_mc16_broad500_plus_mc32_partial124/merge_summary.json",
+      "records": 500,
+      "label_source_counts": {
+        "base_fast_t2": 376,
+        "stage9f_p2_refinement": 124
+      },
+      "models": {
+        "hgb_leaf31_lr005_l2_1": {
+          "model": "models/hu_turn1_stage1j_mc16_broad500_plus_mc32_partial124_hgb_leaf31_lr005_l2_1.pkl",
+          "metrics": "outputs/training/hu_turn1_stage1j_mc16_broad500_plus_mc32_partial124_hgb/metrics.json",
+          "holdout_top1_avg_regret": 2.0459,
+          "baseline_top1_avg_regret": 1.295,
+          "holdout_top3_best_avg_regret": 0.7163,
+          "baseline_top3_best_avg_regret": 0.8208,
+          "holdout_top5_best_avg_regret": 0.4058,
+          "baseline_top5_best_avg_regret": 0.5242,
+          "decision": "TopK diagnostic only; top1 worsened."
+        },
+        "listwise_torch_256_128_e30": {
+          "model": "models/hu_turn1_stage1j_mc16_broad500_plus_mc32_partial124_listwise_torch.pt",
+          "metrics": "outputs/training/hu_turn1_stage1j_mc16_broad500_plus_mc32_partial124_listwise_torch/metrics.json",
+          "holdout_top1_avg_regret": 2.3191,
+          "baseline_top1_avg_regret": 1.2547,
+          "holdout_top3_best_avg_regret": 0.7709,
+          "baseline_top3_best_avg_regret": 0.6642,
+          "decision": "No-Go."
+        },
+        "hgb_leaf3_lr01_l2_1": {
+          "model": "models/hu_turn1_stage1j_mc16_broad500_plus_mc32_partial124_hgb_leaf3_lr01_l2_1.pkl",
+          "metrics": "outputs/training/hu_turn1_stage1j_mc16_broad500_plus_mc32_partial124_hgb_leaf3/metrics.json",
+          "holdout_top1_avg_regret": 1.2491,
+          "baseline_top1_avg_regret": 0.8148,
+          "holdout_top3_best_avg_regret": 0.56,
+          "baseline_top3_best_avg_regret": 0.3451,
+          "decision": "No-Go."
+        },
+        "extra_trees_n600_leaf5": {
+          "model": "models/hu_turn1_stage1j_mc16_broad500_plus_mc32_partial124_extra_trees_n600_leaf5.pkl",
+          "metrics": "outputs/training/hu_turn1_stage1j_mc16_broad500_plus_mc32_partial124_extra_trees/metrics.json",
+          "holdout_top1_avg_regret": 2.8164,
+          "baseline_top1_avg_regret": 1.098,
+          "holdout_top3_best_avg_regret": 1.2249,
+          "baseline_top3_best_avg_regret": 0.5579,
+          "decision": "No-Go."
+        },
+        "pairwise_logistic": {
+          "model": "models/hu_turn1_stage1j_mc16_broad500_plus_mc32_partial124_pairwise_logistic.pkl",
+          "metrics": "outputs/training/hu_turn1_stage1j_mc16_broad500_plus_mc32_partial124_pairwise_logistic/metrics.json",
+          "holdout_top1_avg_regret": 1.912,
+          "baseline_top1_avg_regret": 0.9213,
+          "holdout_top3_best_avg_regret": 0.5583,
+          "baseline_top3_best_avg_regret": 0.3867,
+          "holdout_top5_best_avg_regret": 0.2972,
+          "baseline_top5_best_avg_regret": 0.301,
+          "decision": "No-Go overall; top5 is only roughly tied."
+        }
+      },
+      "decision": "No model beats the existing T1 baseline on strict holdout. Do not run runtime seat-swap or adopt any Stage1j model from this 500-row smoke."
+    },
+    "next_t1_stage1j_timeout_aware_refinement_path": {
+      "status": "gcp_smoke_passed_ready_for_missing126_mc32_run",
+      "purpose": "Recover selected MC32 refinement labels without allowing slow targets to stall whole shards.",
+      "python_module": "ofc_regular.relabel_hu_turn1_refinement_targets",
+      "new_cli_options": [
+        "--target-timeout-seconds",
+        "--skip-output",
+        "--continue-on-target-error"
+      ],
+      "local_runner": "scripts/Run-HuTurn1RefinementRelabelChunksParallel.ps1",
+      "local_runner_new_options": [
+        "-TargetTimeoutSeconds",
+        "-PartTimeoutSeconds",
+        "-ContinueOnTargetError"
+      ],
+      "gcp_launcher": "scripts/Start-GcpHuTurn1RefinementRelabelRun.ps1",
+      "gcp_launcher_new_options": [
+        "-TargetTimeoutSeconds",
+        "-ShardTimeoutSeconds",
+        "-ContinueOnTargetError"
+      ],
+      "gcp_receiver": "scripts/Receive-GcpHuTurn1RefinementRelabelRun.ps1",
+      "receiver_aggregate_fields": [
+        "target_attempts",
+        "skipped_targets",
+        "timed_out_targets",
+        "failed_targets",
+        "skip_reason_counts"
+      ],
+      "recommended_missing126_command_shape": {
+        "target_input": "outputs/hu_turn1_stage1j_stratified_teacher/gcp_refinement_relabel_mc32_partial124/analysis/missing_targets.jsonl",
+        "total_targets": 126,
+        "shard_targets": 1,
+        "vm_count": 126,
+        "future_samples": 32,
+        "target_timeout_seconds": 420,
+        "shard_timeout_seconds": 540,
+        "profile": "stage9f_p2",
+        "opponent_profile": "stage9f_p2"
+      },
+      "gcp_smoke": {
+        "status": "passed_timeout_skip_path",
+        "run_name": "r-t1j-mc32-timeout-smoke2-20260625-063424",
+        "output_dir": "outputs/hu_turn1_stage1j_stratified_teacher/gcp_refinement_relabel_mc32_timeout_smoke2",
+        "summary": "outputs/hu_turn1_stage1j_stratified_teacher/gcp_refinement_relabel_mc32_timeout_smoke2/summary.json",
+        "total_targets": 2,
+        "shard_targets": 1,
+        "vm_count": 2,
+        "future_samples": 32,
+        "target_timeout_seconds": 180,
+        "shard_timeout_seconds": 300,
+        "completed_shards": 2,
+        "missing_shards": 0,
+        "target_attempts": 2,
+        "records": 0,
+        "skipped_targets": 2,
+        "timed_out_targets": 2,
+        "failed_targets": 0,
+        "skip_reason_counts": {
+          "target_timeout": 2
+        },
+        "interpretation": "GCP startup, target timeout skip-output, self-delete, receive aggregation, and skipped-target summary all work. Use a higher 420s target cap for the real missing-126 run."
+      },
+      "decision_rule": "Completed relabel rows are usable selected MC32 labels. Timed-out targets are kept as skip artifacts and should not block the dataset; revisit only with lower MC or tiny audit if repeatedly important."
+    },
+    "observed_t1_stage1j_mc32_timeout_missing126_completion": {
+      "status": "completed_with_timeout_skips",
+      "run_name": "r-t1j-mc32-timeout-missing126-20260625-064554",
+      "output_dir": "outputs/hu_turn1_stage1j_stratified_teacher/gcp_refinement_relabel_mc32_timeout_missing126_final",
+      "merged_output": "outputs/hu_turn1_stage1j_stratified_teacher/gcp_refinement_relabel_mc32_timeout_missing126_final/hu_turn1_refinement_relabel.jsonl",
+      "summary": "outputs/hu_turn1_stage1j_stratified_teacher/gcp_refinement_relabel_mc32_timeout_missing126_final/summary.json",
+      "target_input": "outputs/hu_turn1_stage1j_stratified_teacher/gcp_refinement_relabel_mc32_partial124/analysis/missing_targets.jsonl",
+      "intended_targets": 126,
+      "future_samples": 32,
+      "target_timeout_seconds": 420,
+      "shard_timeout_seconds": 540,
+      "expected_shards": 126,
+      "completed_shards": 126,
+      "missing_shards": 0,
+      "records": 104,
+      "target_attempts": 126,
+      "skipped_targets": 22,
+      "timed_out_targets": 22,
+      "failed_targets": 0,
+      "skip_reason_counts": {
+        "target_timeout": 21,
+        "shard_timeout": 1
+      },
+      "best_action_changed": 71,
+      "best_action_changed_rate": 0.6827,
+      "seat_counts": {
+        "first": 60,
+        "second": 44
+      },
+      "combined_refinement_output": "outputs/hu_turn1_stage1j_stratified_teacher/stage1j_mc16_broad500_plus_mc32_timeout_refinement/hu_turn1_refinement_relabel_mc32_combined.jsonl",
+      "combined_refinement_records": 228,
+      "decision": "Timeout-aware selected MC32 refinement completed without residual workers. Timed-out targets are skipped rather than blocking the dataset."
+    },
+    "observed_t1_stage1j_mc16_broad500_plus_mc32_timeout228_training_smoke": {
+      "status": "completed_topk_diagnostic_no_go_for_direct_model_adoption",
+      "merged_teacher": "outputs/hu_turn1_stage1j_stratified_teacher/stage1j_mc16_broad500_plus_mc32_timeout_refinement/hu_turn1_stage1j_merged_teacher.jsonl",
+      "merge_summary": "outputs/hu_turn1_stage1j_stratified_teacher/stage1j_mc16_broad500_plus_mc32_timeout_refinement/merge_summary.json",
+      "records": 500,
+      "label_source_counts": {
+        "base_fast_t2": 272,
+        "stage9f_p2_refinement": 228
+      },
+      "models": {
+        "hgb_leaf31_lr005_l2_1": {
+          "model": "models/hu_turn1_stage1j_mc16_broad500_plus_mc32_timeout_hgb_leaf31_lr005_l2_1.pkl",
+          "metrics": "outputs/training/hu_turn1_stage1j_mc16_broad500_plus_mc32_timeout_hgb/metrics.json",
+          "holdout_top1_avg_regret": 1.6607,
+          "baseline_top1_avg_regret": 1.0297,
+          "holdout_top3_best_avg_regret": 0.5829,
+          "baseline_top3_best_avg_regret": 0.6711,
+          "holdout_top5_best_avg_regret": 0.3553,
+          "baseline_top5_best_avg_regret": 0.4443,
+          "decision": "TopK diagnostic only; top3/top5 candidate coverage improves but top1 worsens."
+        },
+        "hgb_leaf3_lr01_l2_1": {
+          "model": "models/hu_turn1_stage1j_mc16_broad500_plus_mc32_timeout_hgb_leaf3_lr01_l2_1.pkl",
+          "metrics": "outputs/training/hu_turn1_stage1j_mc16_broad500_plus_mc32_timeout_hgb_leaf3/metrics.json",
+          "holdout_top1_avg_regret": 1.2355,
+          "baseline_top1_avg_regret": 0.7054,
+          "holdout_top3_best_avg_regret": 0.4998,
+          "baseline_top3_best_avg_regret": 0.3325,
+          "holdout_top5_best_avg_regret": 0.3855,
+          "baseline_top5_best_avg_regret": 0.2053,
+          "decision": "No-Go."
+        },
+        "extra_trees_n600_leaf5": {
+          "model": "models/hu_turn1_stage1j_mc16_broad500_plus_mc32_timeout_extra_trees_n600_leaf5.pkl",
+          "metrics": "outputs/training/hu_turn1_stage1j_mc16_broad500_plus_mc32_timeout_extra_trees/metrics.json",
+          "holdout_top1_avg_regret": 2.7667,
+          "baseline_top1_avg_regret": 1.1003,
+          "holdout_top3_best_avg_regret": 1.188,
+          "baseline_top3_best_avg_regret": 0.5088,
+          "holdout_top5_best_avg_regret": 0.4399,
+          "baseline_top5_best_avg_regret": 0.2706,
+          "decision": "No-Go."
+        },
+        "pairwise_logistic": {
+          "model": "models/hu_turn1_stage1j_mc16_broad500_plus_mc32_timeout_pairwise_logistic.pkl",
+          "metrics": "outputs/training/hu_turn1_stage1j_mc16_broad500_plus_mc32_timeout_pairwise_logistic/metrics.json",
+          "holdout_top1_avg_regret": 1.7378,
+          "baseline_top1_avg_regret": 1.0403,
+          "holdout_top3_best_avg_regret": 0.6074,
+          "baseline_top3_best_avg_regret": 0.3325,
+          "holdout_top5_best_avg_regret": 0.2927,
+          "baseline_top5_best_avg_regret": 0.2405,
+          "decision": "No-Go."
+        },
+        "listwise_torch_256_128_e30": {
+          "model": "models/hu_turn1_stage1j_mc16_broad500_plus_mc32_timeout_listwise_torch.pt",
+          "metrics": "outputs/training/hu_turn1_stage1j_mc16_broad500_plus_mc32_timeout_listwise_torch/metrics.json",
+          "holdout_top1_avg_regret": 2.1663,
+          "baseline_top1_avg_regret": 0.7065,
+          "holdout_top3_best_avg_regret": 0.654,
+          "baseline_top3_best_avg_regret": 0.4146,
+          "holdout_top5_best_avg_regret": 0.3681,
+          "baseline_top5_best_avg_regret": 0.3804,
+          "decision": "No-Go."
+        }
+      },
+      "decision": "No model beats the current T1 baseline on top1 holdout regret. HGB leaf31 is useful only as a TopK candidate-generator diagnostic because top3/top5 improve while top1 worsens. Do not run T1 production seat-swap or adopt this model."
+    },
+    "observed_t1_stage1j_leaf31_topk_confirm_smoke20": {
+      "status": "completed_wiring_smoke_underfired_not_quality_evidence",
+      "profile_a": "stage9f_p2_hu_t1_topk_confirm",
+      "profile_b": "stage9f_p2",
+      "candidate_model": "models/hu_turn1_stage1j_mc16_broad500_plus_mc32_timeout_hgb_leaf31_lr005_l2_1.pkl",
+      "config": "k3/mc4/d0/confirm8/cse1/pd0/seat=first+second",
+      "output": "outputs/evals/hu_turn1_stage1j_mc32_timeout_leaf31_topk_smoke20/summary.json",
+      "decision_log": "outputs/evals/hu_turn1_stage1j_mc32_timeout_leaf31_topk_smoke20/hu_turn1_decisions.jsonl",
+      "audit_dir": "outputs/evals/hu_turn1_stage1j_mc32_timeout_leaf31_topk_smoke20/hu_turn1_topk_confirm_audit",
+      "paired_seeds": 20,
+      "hands": 40,
+      "ev_per_hand": 0.0,
+      "hu_turn1_decisions": 40,
+      "hu_turn1_realized_override_count": 2,
+      "hu_turn1_realized_override_delta_mean": 0.0,
+      "hu_turn1_non_fired_final_mismatch_count": 0,
+      "decision": "Wiring and non-fired cancellation are clean, but fire count is too low for quality evidence. Larger fired-count diagnostics are required before any T1 runtime decision."
+    },
+    "observed_t1_stage1j_leaf31_topk_confirm_fire500": {
+      "status": "completed_no_go",
+      "run_name": "r-t1j-leaf31-topk-fire500-20260625",
+      "profile_a": "stage9f_p2_hu_t1_topk_confirm",
+      "profile_b": "stage9f_p2",
+      "candidate_model": "models/hu_turn1_stage1j_mc16_broad500_plus_mc32_timeout_hgb_leaf31_lr005_l2_1.pkl",
+      "config": "k3/mc4/d0/confirm8/cse1/pd0/seat=first+second",
+      "output": "outputs/evals/hu_turn1_stage1j_mc32_timeout_leaf31_topk_fire500/summary.json",
+      "decision_log": "outputs/evals/hu_turn1_stage1j_mc32_timeout_leaf31_topk_fire500/hu_turn1_decisions.jsonl",
+      "audit_dir": "outputs/evals/hu_turn1_stage1j_mc32_timeout_leaf31_topk_fire500/hu_turn1_topk_confirm_audit",
+      "paired_seeds": 500,
+      "hands": 1000,
+      "ev_per_hand": -0.010091917541266184,
+      "hu_turn1_decisions": 1000,
+      "hu_turn1_valid_decisions": 929,
+      "hu_turn1_valid_override_count": 71,
+      "hu_turn1_valid_override_rate": 0.07642626480086114,
+      "realized_per_fire_delta_mean": -0.18439320480656599,
+      "realized_per_fire_delta_se": 1.270068183184697,
+      "realized_per_fire_ci95_low": -2.6737268438485717,
+      "realized_per_fire_ci95_high": 2.30494043423544,
+      "estimated_ev_per_decision": -0.014092483898026031,
+      "p95_loss": 16.5,
+      "hu_turn1_non_fired_final_mismatch_count": 0,
+      "hu_turn1_non_fired_counterfactual_nonzero_count": 8,
+      "no_override_reason_counts": {
+        "below_confirm_delta": 124,
+        "below_confirm_se": 72,
+        "mc_best_is_baseline": 259,
+        "override_fired": 71,
+        "topk_empty": 474
+      },
+      "confirm_delta_metric_role": "gate_diagnostic_only",
+      "confirm_delta_performance_claim_allowed": false,
+      "residual_gcp_vms": 0,
+      "decision": "No-Go. Fire-count diagnostic reached 71 valid overrides, but realized whole-game per-fire delta is slightly negative and aggregate EV/hand is negative. Do not promote leaf31 TopK to T1 runtime or production seat-swap."
+    },
+    "receive_command_template": "powershell -ExecutionPolicy Bypass -File scripts/Receive-GcpHuTurn1PilotRun.ps1 -RunName <run_name> -OutputDir outputs/hu_turn1_stage1c_natural_teacher_expansion/<run_name>",
+    "aggregate_command_template": "python -m ofc_regular.aggregate_hu_turn1_pilot --results-root outputs/hu_turn1_stage1c_natural_teacher_expansion/<run_name>/results --shard-manifest outputs/gcp_runs/<run_name>/shards_manifest.jsonl --output-dir outputs/hu_turn1_stage1c_natural_teacher_expansion/<run_name>/aggregate",
+    "go_no_go": {
+      "gcp_smoke_go": [
+        "all shards complete",
+        "records equal requested samples",
+        "summary schema is hu_turn1_stage1_pilot_summary_v1",
+        "no residual GCP VMs",
+        "hidden-discard metadata remains present"
+      ],
+      "broad_go_after_smoke": [
+        "mean seconds/sample is feasible on spot VMs",
+        "action_count distribution is not degenerate",
+        "teacher labels contain enough nonzero regret and near-best alternatives",
+        "Stage9f P2 continuation stays fixed"
+      ]
+    },
+    "production_status": "No-Go",
+    "t1_runtime_status": "No-Go",
+    "next_decision": "T1 runtime/model adoption remains No-Go. Stage1j MC16 broad500 completed cleanly, timeout-aware MC32 selected refinement recovered 228 usable labels out of 250 selected targets, and the merged 500-row training smoke still does not beat the existing T1 baseline on top1 holdout regret. HGB leaf31/lr0.05/l2=1 improves top3/top5 candidate coverage, but the 500-paired-seed independent TopK confirm fire-count diagnostic produced negative aggregate EV/hand and slightly negative realized per-fire delta across 71 valid overrides. Do not spend more on this exact leaf31 TopK gate; if T1 is resumed, change the objective/model/gate design rather than extending this diagnostic."
+  }
+}

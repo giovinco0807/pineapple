@@ -2,7 +2,8 @@ param(
     [int[]]$Samples = @(20, 100),
     [int[]]$FutureSamples = @(64, 128),
     [int]$Seed = 20260602,
-    [double]$FlEv = 12.196164,
+    # configs/fl_ev_regular_v3_direct2.json (armA, 2026-08-03).
+    [double]$FlEv = 9.109,
     [double]$MinScoreGap = 0.25,
     [string]$OutputDir = "outputs/benchmarks"
 )

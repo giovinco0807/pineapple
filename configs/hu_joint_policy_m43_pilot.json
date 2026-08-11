@@ -1,0 +1,223 @@
+{
+  "schema": "hu_m43_bounded_pilot_plan_v1",
+  "milestone": "M4.3",
+  "status_date": "2026-07-13",
+  "status": "frozen_pre_generation",
+  "purpose": "baseline_paired_delta_risk_ensemble_pre_promotion_signal",
+  "rule_set": "heads_up_regular_ofc_pineapple_hidden_opponent_discards",
+  "fixed_baseline_profile": "stage18_p1",
+  "fixed_continuation": {
+    "t2_profile": "stage9f_p2",
+    "t3_selector": "m3_rust_evaluate_t3",
+    "t4_selector": "m3_rust_evaluate_t4"
+  },
+  "budget": {
+    "kind": "bounded_pre_promotion_pilot",
+    "roots": 200,
+    "max_roots": 1000,
+    "roots_per_shard": 10,
+    "shards": 20,
+    "spot_allowed_after_local_correctness_and_speed_gates": true,
+    "large_scale_allowed": false
+  },
+  "splits": {
+    "train": {
+      "roots": 100,
+      "seed_start": 2306071901,
+      "seed_stride": 1000003,
+      "allowed_use": "ranker_fit_and_nested_oof_only"
+    },
+    "calibration": {
+      "roots": 60,
+      "seed_start": 2506071901,
+      "seed_stride": 1000003,
+      "allowed_use": "safety_fit_and_threshold_lock_only"
+    },
+    "locked_holdout": {
+      "roots": 40,
+      "seed_start": 2706071901,
+      "seed_stride": 1000003,
+      "allowed_use": "one_shot_after_model_and_threshold_freeze"
+    }
+  },
+  "teacher_search": {
+    "candidate_samples": 2,
+    "evaluation_samples": 16,
+    "common_random_futures": true,
+    "candidate_evaluation_rng_disjoint": true,
+    "candidate_seed_namespace": "hu-m43-candidate-v1",
+    "evaluation_seed_namespace": "hu-m43-evaluation-v1",
+    "child_policy_seed_namespace": "hu-m43-child-policy-v1",
+    "batch_child_selectors": true,
+    "native_batch_threads": 4
+  },
+  "root_population": [
+    {
+      "profile": "stage19_p0",
+      "policy_family": "selective_opening_fixed_chain",
+      "roots": {"train": 20, "calibration": 12, "locked_holdout": 8}
+    },
+    {
+      "profile": "stage9f_p2",
+      "policy_family": "selective_t2_fixed_chain",
+      "roots": {"train": 20, "calibration": 12, "locked_holdout": 8}
+    },
+    {
+      "profile": "stage7_m5_r10",
+      "policy_family": "conservative_t3_margin",
+      "roots": {"train": 20, "calibration": 12, "locked_holdout": 8}
+    },
+    {
+      "profile": "stage3_baseline",
+      "policy_family": "baseline",
+      "roots": {"train": 20, "calibration": 12, "locked_holdout": 8}
+    },
+    {
+      "profile": "random_exact_final",
+      "policy_family": "random_off_policy_exact_final",
+      "roots": {"train": 20, "calibration": 12, "locked_holdout": 8}
+    }
+  ],
+  "calibration_partition": {
+    "schema": "hu_m43_calibration_partition_v1",
+    "method": "profile_stratified_identity_hash_v1",
+    "identity_hash_salt": "regular-hu-m43-calibration-role-v1-20260713",
+    "safety_fit_roots": 30,
+    "threshold_lock_roots": 30,
+    "roots_per_profile_per_role": 6,
+    "safety_calibrator_sources": ["train_oof", "calibration.safety_fit"],
+    "threshold_selection_source": "calibration.threshold_lock",
+    "locked_holdout_used": false,
+    "minimum_threshold_lock_fires_for_positive_pilot_signal": 10,
+    "insufficient_fires_decision": "no_go_insufficient_pilot_signal"
+  },
+  "paired_label_contract": {
+    "schema": "hu_m43_paired_candidate_baseline_targets_v1",
+    "baseline_action_score_exact_zero": true,
+    "common_evaluation_futures_required": true,
+    "targets": {
+      "paired_delta_mean": "paired_delta_vs_baseline.mean",
+      "paired_delta_se": "paired_delta_vs_baseline.standard_error",
+      "downside_loss_p95": "max(0,-paired_delta_vs_baseline.p05)",
+      "downside_loss_p99": "max(0,-paired_delta_vs_baseline.p01)",
+      "downside_loss_max": "max(0,-paired_delta_vs_baseline.min)"
+    },
+    "teacher_values_runtime_allowed": false,
+    "teacher_lcb_runtime_allowed": false,
+    "teacher_metrics_are_realized_match_ev": false
+  },
+  "model_contract": {
+    "name": "baseline_paired_delta_risk_ensemble",
+    "ranker_training_sources": ["train"],
+    "ranker_crossfit_source": "train",
+    "runtime_predictor": "crossfit_fold_ensemble",
+    "full_refit_distribution_switch_allowed": false,
+    "safety_calibrator_sources": ["train_oof", "calibration.safety_fit"],
+    "threshold_selection_source": "calibration.threshold_lock",
+    "model_selection_sources": ["train"],
+    "locked_holdout_access_before_freeze_allowed": false
+  },
+  "freshness_exclusions": {
+    "reject_hand_seed_or_fingerprint_overlap": true,
+    "scope": "all_available_m4_m41_m42_teacher_splits",
+    "sources": [
+      {
+        "milestone": "M4",
+        "split": "train",
+        "path": "outputs/hu_joint_policy/m4_complete/pilot112/train.jsonl",
+        "records": 64,
+        "sha256": "6e5a7d4543c4602ca5048802ed76d95f2095629dff07badfe3e40882d66300bf"
+      },
+      {
+        "milestone": "M4",
+        "split": "calibration",
+        "path": "outputs/hu_joint_policy/m4_complete/pilot112/calibration.jsonl",
+        "records": 24,
+        "sha256": "ca0f73358f67b2059c71c190aebfe8709f8ecc5387e78c8a208f946e49bc8c78"
+      },
+      {
+        "milestone": "M4",
+        "split": "locked_holdout",
+        "path": "outputs/hu_joint_policy/m4_complete/pilot112/locked_holdout.jsonl",
+        "records": 24,
+        "sha256": "653409f0ba6119cbaf158a57a28e975c6d8e8bf15df34a7b8b6a0f0cdecda94c"
+      },
+      {
+        "milestone": "M4.1",
+        "split": "train",
+        "path": "outputs/hu_joint_policy/m41_complete/pilot100/train_a.jsonl",
+        "records": 25,
+        "sha256": "adc6c3d2e09710ced1fb216f8f235c7a156d69d9d337f92a55059454c16a39f6"
+      },
+      {
+        "milestone": "M4.1",
+        "split": "train",
+        "path": "outputs/hu_joint_policy/m41_complete/pilot100/train_b.jsonl",
+        "records": 25,
+        "sha256": "7e2d4ba8700b14703030e7a06ff33594a0e50d0cc7771b6ea0006e2ccc1276fc"
+      },
+      {
+        "milestone": "M4.1",
+        "split": "calibration",
+        "path": "outputs/hu_joint_policy/m41_complete/pilot100/calibration.jsonl",
+        "records": 30,
+        "sha256": "3628c4addd6321278ef14bf7213385fdf458ef051d2f554b2eb597d744d16d2d"
+      },
+      {
+        "milestone": "M4.1",
+        "split": "locked_holdout",
+        "path": "outputs/hu_joint_policy/m41_complete/pilot100/locked.jsonl",
+        "records": 20,
+        "sha256": "149683c6593776d79fea3532f850521fd1456f1af1db03bd73ce74facfdd13cd"
+      },
+      {
+        "milestone": "M4.2",
+        "split": "train",
+        "path": "outputs/hu_joint_policy/m42_spot/regular-hu-m42-c2e8-gate40-20260713-1335/train.jsonl",
+        "records": 20,
+        "sha256": "e8347f1053361ca817bff8b1733e4806aaa6a504c277521af33af12b61c35647"
+      },
+      {
+        "milestone": "M4.2",
+        "split": "calibration",
+        "path": "outputs/hu_joint_policy/m42_spot/regular-hu-m42-c2e8-gate40-20260713-1335/calibration.jsonl",
+        "records": 10,
+        "sha256": "916e98f1d068b7c00aed7d2a6b383f5840bf084a6daa053555f27958172598f0"
+      },
+      {
+        "milestone": "M4.2",
+        "split": "locked_holdout",
+        "path": "outputs/hu_joint_policy/m42_spot/regular-hu-m42-c2e8-gate40-20260713-1335/locked_holdout.jsonl",
+        "records": 10,
+        "sha256": "c0771ea6b4f608a3b7e76287d89e20347968991f9f30d5bb6aae7480202fe7b3"
+      }
+    ]
+  },
+  "locked_holdout_protocol": {
+    "structural_identity_audit_allowed": true,
+    "training_or_threshold_label_access_before_freeze_allowed": false,
+    "required_freeze_schema": "hu_m43_model_threshold_freeze_v1",
+    "evaluation_pass_count": 1,
+    "threshold_or_model_reselection_after_result_allowed": false,
+    "fresh_locked_data_required_after_any_reselection": true
+  },
+  "promotion_boundary": {
+    "pilot_can_promote_policy": false,
+    "minimum_population_valid_overrides": 300,
+    "fresh_separately_seeded_population_evaluation": true,
+    "paired_seat_swap_required": true,
+    "first_and_second_seat_metrics_required": true,
+    "multiple_opponent_policies_required": true,
+    "nonfire_counterfactual_cancellation_required": true,
+    "teacher_metrics_are_diagnostic_only": true,
+    "top1_accuracy_is_diagnostic_only": true,
+    "acceptance_gates_may_be_lowered": false
+  },
+  "activation_guards": {
+    "current_profile_changed": false,
+    "runtime_policy_activated": false,
+    "full_replacement_enabled": false,
+    "large_scale_authorized": false,
+    "m5_authorized": false
+  }
+}

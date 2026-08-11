@@ -4,12 +4,37 @@
   "deck_cards": 52,
   "fl_entry_cards": {"qq": 14, "kk": 14, "aa": 14, "trips": 14},
   "fl_stay_cards": 14,
-  "opponent_avg_royalty": 5.0,
-  "line_scoop_advantage": 4.0,
-  "reward_mode": "chain",
-  "fl_stats": {
-    "14": {"R": 12.129, "stay_rate": 0.0875, "count": 2000}
+  "reward_mode": "direct_hu_fixed_point",
+  "fl_ev": {"14": 10.227020614683454},
+  "direct_hu_estimate": {
+    "run_name": "regular-hu-fl-ev-direct-20260612-161630",
+    "total_solved": 10000,
+    "shards": 5,
+    "std_error": 0.1357117713956127,
+    "ci95_low": 9.961025542748054,
+    "ci95_high": 10.493015686618854,
+    "hero_avg_royalty": 12.3477,
+    "hero_stay_rate": 0.1034,
+    "opponent_avg_royalty": 4.0413,
+    "opponent_fl_entry_rate": 0.2394,
+    "opponent_bust_rate": 0.3892
   },
-  "fl_ev": {"14": 12.196164},
-  "source": "regular_fl_solver --trials 2000 --iterations 8 --seed 20260602; adjusted with line_scoop_advantage=4.0"
+  "normal_policy_sanity_check": {
+    "source": "outputs/fl_ev_direct_hu_gcp/normal_current_vs_current_500_trace.jsonl",
+    "hands": 1000,
+    "boards_counted": 2000,
+    "bust_rate": 0.358,
+    "fl_entry_rate": 0.249,
+    "avg_royalty_with_bust_zero": 4.269
+  },
+  "legacy_chain_estimate": {
+    "fl_ev_14": 12.196164,
+    "opponent_avg_royalty": 5.0,
+    "line_scoop_advantage": 4.0,
+    "fl_stats": {
+      "14": {"R": 12.129, "stay_rate": 0.0875, "count": 2000}
+    },
+    "source": "regular_fl_solver --trials 2000 --iterations 8 --seed 20260602; adjusted with line_scoop_advantage=4.0"
+  },
+  "source": "Direct FL-vs-normal HU fixed-point simulation with current baseline opponent policy. The old chain estimate 12.196164 is retained only as legacy metadata."
 }

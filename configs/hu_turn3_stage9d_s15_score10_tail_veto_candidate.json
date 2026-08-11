@@ -1,0 +1,38 @@
+{
+  "name": "hu_turn3_stage9d_s15_score10_tail_veto_candidate",
+  "status": "evaluation_only_tail_veto_smoke",
+  "rule_set": "regular",
+  "schema": "hu_stage1",
+  "phase": "hu_turn3_9card",
+  "objective": "hu_t3_selective_override_over_stage3_with_stage9d_support_and_model_score_floor",
+  "primary_model": {
+    "path": "models/hu_turn3_joint_exact_stage9_mixed1200_mc128_extra_trees.pkl",
+    "type": "extra_trees_joint_exact_stage9"
+  },
+  "support_model": {
+    "path": "models/hu_turn3_stage9d_mixed_runtime_hn245_mc128_extra_trees.pkl",
+    "type": "extra_trees_stage9d_support"
+  },
+  "reference_model": {
+    "path": "models/hu_turn3_stage3_mc32_500k_plus_m8_12_f128_100k_w2_cached_rank_wide.pt"
+  },
+  "baseline_models": {
+    "opening": "models/opening_stage7_torch_wide.pt",
+    "turn1": "models/turn1_stage6_torch_wide.pt",
+    "turn2": "models/turn2_stage8.pkl",
+    "turn3": "models/turn3_stage6.pkl"
+  },
+  "runtime": {
+    "hu_turn3_stage7_enabled": true,
+    "hu_turn3_min_margin": 1.0,
+    "hu_turn3_reference_min_margin": 0.0,
+    "hu_turn3_min_support_margin": 1.5,
+    "hu_turn3_min_model_score": 10.0,
+    "stage9_full_replacement_enabled": false
+  },
+  "diagnostic_basis": {
+    "tail_veto_summary": "outputs/evals/hu_turn3_stage9d_s15_larger_vs_stage7/stage9d_s15_tail_veto_summary.md",
+    "tail_veto_candidates": "outputs/evals/hu_turn3_stage9d_s15_larger_vs_stage7/stage9d_s15_tail_veto_candidates.csv",
+    "expected_tradeoff": "Most conservative simple score floor from fired replay diagnostic; smoke only."
+  }
+}

@@ -1,0 +1,61 @@
+{
+  "schema": "hu_joint_policy_m30_t4_rebuild_candidate_status_v1",
+  "status_date": "2026-07-18",
+  "status": "complete_no_go_fresh_pilot100_second_seat_latency",
+  "decision": "do_not_replace_historical_m30_pinned_runtime",
+  "historical_runtime": {
+    "config": "configs/hu_joint_policy_m30_t4_runtime.json",
+    "library": "target/m30_build/release/ofc_hu_m3_engine.dll",
+    "expected_sha256": "03d27825ccdf37ff52107207d8008df5b51235431c7274c604f922bc23c84d69",
+    "library_present": false,
+    "config_changed": false
+  },
+  "candidate": {
+    "library": "target/m30_rebuild_20260718/release/ofc_hu_m3_engine.dll",
+    "sha256": "faf1eec9a86a4c2278b6e2d323d6df2dbf9fa1050911d6807894d9b4e6566261",
+    "engine_version": "ofc_hu_m3_engine/0.1.0",
+    "rustc": "1.93.0 (254b59607 2026-01-19)",
+    "accepted": false
+  },
+  "focused_validation": {
+    "test_file": "tests/test_hu_m3_t4_runtime.py",
+    "passed": 20,
+    "failed": 0,
+    "exact_first_and_second": true,
+    "python_reference_parity": true,
+    "scalar_batch_parity": true,
+    "card_permutation_invariance": true,
+    "hidden_truth_rejection": true,
+    "fail_closed_hash_and_version": true
+  },
+  "pilot100": {
+    "artifact": "outputs/hu_joint_policy/m30_t4_rebuild_20260718/pilot_100.json",
+    "artifact_sha256": "ed7c749d86593a8ede4f73c6644643fb4e752157b2a29771090e3d059378013e",
+    "rows_digest": "bb4d58896865f7f34c8c360bb02266eda508c6e79da3d238adfc3e6aae8f05e5",
+    "states": 100,
+    "seed": 2026071801,
+    "seed_stride": 1000003,
+    "status": "fail",
+    "failed_gates": [
+      "second_p99_latency"
+    ],
+    "second_p99_latency_ms": 2.348699956201017,
+    "second_p99_gate_ms": 2.0,
+    "all_semantic_integrity_gates_passed": true,
+    "seed_consumed": true,
+    "rerun_same_seed_authorized": false
+  },
+  "pilot1000": {
+    "opened": false,
+    "authorized": false,
+    "reason": "pilot100_no_go"
+  },
+  "release_boundary": {
+    "current_profile_changed": false,
+    "named_profile_added": false,
+    "runtime_policy_activated": false,
+    "full_replacement_enabled": false,
+    "promotion_evidence": false,
+    "mathematical_optimality_claimed": false
+  }
+}

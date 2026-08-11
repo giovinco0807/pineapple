@@ -1,0 +1,106 @@
+{
+  "schema": "hu_joint_policy_m31_t3_step3_status_v1",
+  "status_date": "2026-07-16",
+  "status": "step3_local100_complete",
+  "decision": "local100_correctness_and_performance_boundary_only",
+  "m31_complete": false,
+  "current_profile_changed": false,
+  "named_profile_added": false,
+  "runtime_policy_activated": false,
+  "full_replacement_enabled": false,
+  "spot_vm_started": false,
+  "search_contract": {
+    "root_t3": "common_random_monte_carlo",
+    "downstream_t4": "exact_native_enumeration",
+    "candidate_samples": 4,
+    "evaluation_samples": 8,
+    "downstream_t3_samples": 2,
+    "downstream_t4_samples": 0,
+    "run_id": "hu-m31-step3-local100-v1",
+    "seed_start": 2026073201,
+    "seed_stride": 1000003,
+    "candidate_seed": 2026073101,
+    "evaluation_seed": 2026073102,
+    "teacher_value_status": "diagnostic_not_match_EV"
+  },
+  "native_anchor": {
+    "engine_version": "ofc_hu_m3_engine/0.1.0",
+    "accepted_m30_library": "target/m30_build/release/ofc_hu_m3_engine.dll",
+    "accepted_m30_library_sha256": "03d27825ccdf37ff52107207d8008df5b51235431c7274c604f922bc23c84d69",
+    "step3_optimized_library": "target/m31_opt_build/release/ofc_hu_m3_engine.dll",
+    "step3_optimized_library_sha256": "d2d8f66ae56d978297a9228ca8b271622bb1b73cd2437237de8ef89915ea73e4",
+    "optimization": "order_preserving_rayon_parallel_exact_t4_response_and_action_scoring",
+    "old_new_action_value_rows_exact": true,
+    "old_new_decisions_compared": 6,
+    "old_library_preserved": true,
+    "strict_no_fallback": true
+  },
+  "local100": {
+    "status": "pass",
+    "root_count": 100,
+    "first_seat_roots": 50,
+    "second_seat_roots": 50,
+    "worker_processes": 2,
+    "rayon_threads_per_worker": 8,
+    "checkpoint_tasks": 70,
+    "wall_seconds": 3498.656890153885,
+    "peak_process_rss_bytes": 83664896,
+    "unique_observation_fingerprints": 100,
+    "candidate_rng_keys": 400,
+    "evaluation_rng_keys": 800,
+    "candidate_evaluation_rng_overlap": 0,
+    "scalar_batch_parity_roots": 100,
+    "deterministic_rerun_roots": 20,
+    "permutation_roots": 10,
+    "permutations_per_root": 6,
+    "summary": "outputs/hu_joint_policy/m31_t3_step3/local100_v1/summary.json",
+    "summary_sha256": "c59fb28e3d5f407715e1688376537da44741c4c1221de12cbb88c5ccc3ac6f68"
+  },
+  "performance": {
+    "first_mean_seconds": 43.658268363999376,
+    "first_p95_seconds": 139.640582299995,
+    "first_p99_seconds": 158.19033830000262,
+    "second_mean_seconds": 1.654029165999964,
+    "second_p95_seconds": 3.5692573999986053,
+    "second_p99_seconds": 3.6777361999993445
+  },
+  "artifacts": {
+    "optimized_local10": {
+      "path": "outputs/hu_joint_policy/m31_t3_step3/local10_profile_rayon.json",
+      "sha256": "e4caa2130c844b90289feacb4d58ff3ee1ea013dc9905554cb3ea40ea6399e43"
+    },
+    "optimized_convergence": {
+      "path": "outputs/hu_joint_policy/m31_t3_step3/convergence_2root_rayon_v2.json",
+      "sha256": "9b0883d723ac15846ee13b1f7feb22386a585970bdf6d8b0c06a89f198d4beb1"
+    },
+    "parallel_authorization": {
+      "path": "outputs/hu_joint_policy/m31_t3_step3/parallel2x8_profile_v3.json",
+      "sha256": "fb995ee4eb944d4ac9dcb4c61bf306f8e1efe894e7910a1814acb85fe7f35ffa",
+      "projected_seconds": 3431.4550253374514
+    },
+    "completion_audit": "docs/hu_joint_policy_m31_t3_step3_completion_audit.md"
+  },
+  "validation": {
+    "focused_python_passed": 104,
+    "focused_python_seconds": 84.37,
+    "full_python_passed": 2444,
+    "full_python_skipped": 2,
+    "full_python_warnings": 50,
+    "full_python_seconds": 864.95,
+    "rust_library_tests_passed": 36,
+    "rust_runner_tests_passed": 2,
+    "rust_fmt_check": true,
+    "rust_release_clippy_warnings_denied": true,
+    "policy_registry_sha256": "d2eb02669e27426623c70af21f1af4d7002db2a7eab77efd3319f8fb65b868d3"
+  },
+  "remaining_no_go": [
+    "claim that the T3 Monte Carlo teacher is exact full-deck T3",
+    "claim that teacher values are realized match EV",
+    "model or policy strength claims from the local100 artifact",
+    "named profile or current activation",
+    "full replacement",
+    "Spot VM expansion before the local1000 gate",
+    "claim of mathematical full-game optimality"
+  ],
+  "next_step": "M3.1 local1000 profiling pilot with the same hidden-discard-safe observation, frozen 4/8/2/0 budget, and optimized exact-T4 native engine"
+}

@@ -1,0 +1,74 @@
+{
+  "schema": "hu_m43_attempt07_preflight_plan_v1",
+  "status": "frozen_bounded_preflight_only",
+  "source": {
+    "path": "outputs/hu_joint_policy/m43_attempt06_search_quality/regular-hu-m43-attempt06-preflight-final-20260714-1154/merged/teacher.jsonl",
+    "sha256": "6b1063589aa2ee4f3e65d9489384176a85c69abe1dfefe30ffb4474f96964903",
+    "wrapper_schema": "hu_m43_attempt06_t1_second_shard_row_v1",
+    "teacher_schema": "hu_m43_attempt06_t1_second_top8_c8_e128_teacher_v3",
+    "plan_sha256": "4844fb970780c04ff093eb43b1672e403f006515c47b287e6abdbea17867f5b8",
+    "allowed_source_root_indices": [
+      0,
+      1,
+      2
+    ],
+    "new_root_generation_allowed": false
+  },
+  "target": {
+    "plan_path": "configs/hu_joint_policy_m43_attempt07.json",
+    "plan_sha256": "8bf15f8d109a2e441e1c240e533c56df42a7e65d2eefd3b2750d1bd63758b189",
+    "teacher_schema": "hu_m43_attempt07_t1_second_s8_r64_v128_a128_v1",
+    "model_path": "outputs/hu_joint_policy/m43_attempt05_old_dev900_architecture_once/lambda_rank_candidate.pkl",
+    "model_sha256": "e7fa728308c8973e2e202baf79309e30b9b6f58c37431d8ea55850390abc28c3",
+    "ai_profiles_path": "src/ofc_regular/ai_profiles.py",
+    "ai_profiles_sha256": "d2eb02669e27426623c70af21f1af4d7002db2a7eab77efd3319f8fb65b868d3",
+    "t2_policy_id": "stage9f_p2",
+    "t2_resolution": "explicit_profile_never_current"
+  },
+  "seed_contract": {
+    "seed_stride": 1000003,
+    "source_root_index_formula": "namespace_seed_base + seed_stride * source_root_index",
+    "screen_seed_base": 71106071901,
+    "rerank_seed_base": 72106071901,
+    "veto_seed_base": 73106071901,
+    "assessment_seed_base": 74106071901,
+    "child_policy_seed_base": 75106071901,
+    "all_preflight_slices_pairwise_disjoint": true,
+    "attempt06_schedules_disjoint": true,
+    "attempt07_development_and_future_audit_schedules_disjoint": true
+  },
+  "execution": {
+    "cli_roots_per_invocation": 1,
+    "native_batch_threads": 4,
+    "scalar_and_batch_modes_allowed": true,
+    "current_profile_resolution_allowed": false,
+    "fresh_seed_or_root_open_allowed": false
+  },
+  "operational_go_no_go": {
+    "all_five_done_metadata_required": true,
+    "proof_aggregate_go_required": true,
+    "batch_elapsed_seconds_per_root_max": 900.0,
+    "scalar_elapsed_seconds_root0_max": 3600.0,
+    "scalar_to_root0_batch_median_speedup_min": 1.25,
+    "root0_batch_replicate_elapsed_ratio_max": 2.0,
+    "peak_rss_bytes_per_job_max": 12884901888,
+    "operational_metrics_are_policy_science_input": false,
+    "threshold_reselection_after_results_allowed": false
+  },
+  "output_contract": {
+    "schema": "hu_m43_attempt07_preflight_row_v1",
+    "canonical_json": true,
+    "trailing_newline": true,
+    "atomic_create_no_clobber": true,
+    "timestamps_allowed": false,
+    "teacher_values_exported": false,
+    "arm_details_exported": false,
+    "opaque_teacher_sha256_purpose": "determinism_only_not_arm_selection",
+    "semantic_parity_sha256_purpose": "scalar_batch_exact_parity_after_normalizing_only_batch_execution_metadata",
+    "arm_selection_allowed": false,
+    "fit_allowed": false,
+    "threshold_selection_allowed": false,
+    "runtime_activation_allowed": false,
+    "current_profile_mutation_allowed": false
+  }
+}

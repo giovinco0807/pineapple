@@ -1,0 +1,11 @@
+[package]
+name = "ofc_webapp_decision_inspector"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+ofc_hu_m3_engine = { path = "../../../rust/hu_m3_engine" }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+[workspace]

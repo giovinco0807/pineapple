@@ -1,0 +1,112 @@
+{
+  "schema": "hu_joint_policy_m43_attempt02_status_v1",
+  "milestone": "M4.3",
+  "attempt": "attempt02",
+  "status_date": "2026-07-14",
+  "status": "complete_no_go_precalibration",
+  "decision": "no_go_precalibration",
+  "run_name": "regular-hu-m43-attempt02-v4-model-r2-20260714-0117",
+  "artifacts": {
+    "receive_receipt": {
+      "path": "outputs/hu_joint_policy/m43_attempt02_model_runs/regular-hu-m43-attempt02-v4-model-r2-20260714-0117/receipt.json",
+      "schema": "hu_m43_attempt02_v4_model_receive_receipt_v1",
+      "status": "no_go_precalibration",
+      "file_sha256": "6d04af784850fe7c8fa38087e93d96c584bc1091132eae41eee4d13083d22654"
+    },
+    "training_manifest": {
+      "path": "outputs/hu_joint_policy/m43_attempt02_model_runs/regular-hu-m43-attempt02-v4-model-r2-20260714-0117/training_manifest.json",
+      "schema": "hu_m43_attempt02_v4_assembly_decision_v1",
+      "status": "no_go_precalibration",
+      "file_sha256": "6b061a690006ec21d4f52305bc21a2fd7c8ec0cd374fe47ad22dced1d7ce84ae",
+      "assembler_pre_final_receipt_sha256": "795345844cd07dca4ff424f76b8d9e820f679f09cda325abf91d61980254fa1d"
+    }
+  },
+  "precalibration_gate": {
+    "schema": "hu_m43_t1_precalibration_oof_gate_v4",
+    "status": "no_go",
+    "config_sha256": "80b302e10ec074e099773aeb1f98194c1b66b44f37bf01b77fd7e9863003069e",
+    "gates_total": 13,
+    "gates_passed": 11,
+    "gates_failed": 2,
+    "failed_gates": [
+      {
+        "name": "minimum_proposal_positive_rate",
+        "positive_count": 69,
+        "states": 200,
+        "observed": 0.345,
+        "required_minimum": 0.4,
+        "comparison": ">="
+      },
+      {
+        "name": "positive_mean_teacher_delta",
+        "observed": -1.1242242603887602,
+        "required_minimum_exclusive": 0.0,
+        "comparison": ">",
+        "ci95_normal": {
+          "method": "unweighted_sample_mean_plus_or_minus_1.96_sample_standard_error",
+          "states": 200,
+          "low": -1.49426013635728,
+          "high": -0.754188384420238,
+          "rounded_4dp": [
+            -1.4943,
+            -0.7542
+          ]
+        }
+      }
+    ],
+    "passed_gates": [
+      "all_oof_identities_excluded_from_fit",
+      "baseline_score_exact_zero",
+      "exact_state_count",
+      "expected_fold_set",
+      "minimum_all_action_safe_rows",
+      "minimum_all_action_unsafe_rows",
+      "minimum_states_per_fold",
+      "minimum_tail_safe_proposals",
+      "minimum_tail_unsafe_proposals",
+      "nonbaseline_proposal_every_state",
+      "oof_state_coverage_exactly_once"
+    ]
+  },
+  "unopened_boundaries": {
+    "calibration": {
+      "data_contract_opened": false,
+      "fresh_rows_opened": false,
+      "safety_fit_performed": false,
+      "threshold_selection_performed": false
+    },
+    "inherited_locked_holdout": {
+      "content_opened": false,
+      "input_accepted": false,
+      "status": "unopened"
+    }
+  },
+  "model": {
+    "written": false,
+    "artifact_present": false,
+    "sha256": null
+  },
+  "teacher_value_status": "offline_diagnostic_only_not_realized_match_ev_not_runtime_gate",
+  "baseline_hash_audit": {
+    "policy_registry_path": "src/ofc_regular/ai_profiles.py",
+    "policy_registry_expected_sha256": "d2eb02669e27426623c70af21f1af4d7002db2a7eab77efd3319f8fb65b868d3",
+    "current_mapping_changed": false
+  },
+  "guards": {
+    "current_profile_changed": false,
+    "runtime_policy_activated": false,
+    "full_replacement_enabled": false,
+    "calibration_opened_after_no_go": false,
+    "locked_holdout_opened_after_no_go": false,
+    "population_evaluation_started": false,
+    "large_scale_authorized": false
+  },
+  "no_go_actions": [
+    "do_not_open_calibration",
+    "do_not_open_inherited_locked_holdout",
+    "do_not_fit_safety_or_select_threshold",
+    "do_not_emit_or_activate_model",
+    "do_not_start_population_scale",
+    "do_not_change_current_profile"
+  ]
+}

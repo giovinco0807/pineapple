@@ -10,6 +10,13 @@ from dataclasses import dataclass
 from functools import lru_cache
 from typing import Any, Iterable
 
+from .action_key import (
+    ACTION_KEY_SCHEMA,
+    action_key,
+    legal_action_set_digest,
+    ordered_action_mapping_digest,
+    resolve_action_key,
+)
 from .action_space import Action, generate_turn_actions
 from .cards import ALL_CARDS, RANK_VALUE, validate_cards
 from .evaluator import (
@@ -29,7 +36,7 @@ from .state import Board
 from .teacher import DEFAULT_FL_EV
 
 
-FINAL_TURN_CACHE_VERSION = "final_turn_exact_v1"
+FINAL_TURN_CACHE_VERSION = "final_turn_exact_v2_action_key_tiebreak"
 
 
 @dataclass(frozen=True)
@@ -161,6 +168,15 @@ def decide_final_turn_exact(
     cached = cache.get(key) if use_cache and cache is not None else None
     profile.cache_lookup_seconds = time.perf_counter() - lookup_started_at
     if cached is not None:
+        legal_started_at = time.perf_counter()
+        cached_actions = generate_turn_actions(board, dealt)
+        profile.legal_action_generation_seconds = time.perf_counter() - legal_started_at
+        try:
+            cached_action_index = resolve_action_key(
+                cached_actions, action_key(cached.action)
+            )
+        except (KeyError, ValueError) as exc:
+            raise RuntimeError("cached final-turn action is not legal at this root") from exc
         profile.cache_hit = True
         profile.legal_action_count = cached.legal_action_count
         profile.final_action = cached.action
@@ -170,6 +186,11 @@ def decide_final_turn_exact(
             "key_hash": key_hash,
             "canonical_key": _jsonable(key),
             "cache_hit": True,
+            "action_key_schema": ACTION_KEY_SCHEMA,
+            "legal_action_set_digest": legal_action_set_digest(cached_actions),
+            "legal_action_order_digest": ordered_action_mapping_digest(cached_actions),
+            "final_action_index": cached_action_index,
+            "final_action_key": action_key(cached.action).to_token(),
         }
 
     legal_started_at = time.perf_counter()
@@ -217,7 +238,14 @@ def decide_final_turn_exact(
         hand_eval_seconds += score_parts["hand_eval_seconds"]
         royalty_seconds += score_parts["royalty_scoring_seconds"]
         foul_seconds += score_parts["foul_check_seconds"]
-        if best is None or score > best[0]:
+        if (
+            best is None
+            or score > best[0]
+            or (
+                score == best[0]
+                and action_key(action).sort_key() < action_key(best[1]).sort_key()
+            )
+        ):
             best = (float(score), action, next_board)
 
     profile.exact_enumeration_seconds = enumeration_seconds
@@ -256,6 +284,11 @@ def decide_final_turn_exact(
         "key_hash": key_hash,
         "canonical_key": _jsonable(key),
         "cache_hit": False,
+        "action_key_schema": ACTION_KEY_SCHEMA,
+        "legal_action_set_digest": legal_action_set_digest(actions),
+        "legal_action_order_digest": ordered_action_mapping_digest(actions),
+        "final_action_index": resolve_action_key(actions, action_key(decision.action)),
+        "final_action_key": action_key(decision.action).to_token(),
     }
 
 
@@ -291,6 +324,12 @@ def final_turn_slow_state_record(
         "cards_to_place": list(dealt_cards),
         "dead_cards": list(dead_cards),
         "final_action": _action_json(profile.final_action),
+        "action_key_schema": ACTION_KEY_SCHEMA,
+        "final_action_key": (
+            action_key(profile.final_action).to_token()
+            if profile.final_action is not None
+            else None
+        ),
         "score": profile.score,
         "metadata": metadata or {},
     }

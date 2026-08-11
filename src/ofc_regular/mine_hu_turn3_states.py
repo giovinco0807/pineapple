@@ -26,7 +26,7 @@ from .hu_self_play_teacher_data import (
     to_act_order_for,
 )
 from .hu_turn3_model import load_hu_action_value_model
-from .play_ai import _prediction_thread_context
+from .play_ai import _prediction_thread_context, _visible_dead_cards_for
 from .policy import board_to_json
 from .state import Board
 
@@ -42,15 +42,28 @@ def build_hu_turn3_state_record(
     opponent_board: Board,
     dealt_cards: Iterable[str],
     discarded_cards: Iterable[str],
+    visible_dead_cards: Iterable[str] | None = None,
+    hero_private_discards: Iterable[str] = (),
+    opponent_private_discards: Iterable[str] = (),
     hero_seat: str,
     selection: dict[str, Any],
 ) -> dict[str, Any]:
     discarded = tuple(discarded_cards)
+    visible_dead = (
+        tuple(visible_dead_cards)
+        if visible_dead_cards is not None
+        else (
+            *opponent_board.all_cards(),
+            *(tuple(hero_private_discards) if tuple(hero_private_discards) else discarded),
+        )
+    )
     return {
         "rule_set": "regular",
         "schema": "hu_stage1_state",
         "phase": "hu_turn3_9card",
         "source": "self_play_state_mining",
+        "visibility_model": "hidden_discard",
+        "discard_visibility": "own_private_only",
         "state_id": state_id,
         "seed": seed,
         "hand_seed": hand_seed,
@@ -62,7 +75,9 @@ def build_hu_turn3_state_record(
         "opponent_board": board_to_json(opponent_board),
         "dealt": list(dealt_cards),
         "discarded_cards": list(discarded),
-        "visible_dead_cards": [*opponent_board.all_cards(), *discarded],
+        "visible_dead_cards": list(visible_dead),
+        "hero_private_discards": list(hero_private_discards),
+        "opponent_private_discards": list(opponent_private_discards),
         "selection": selection,
     }
 
@@ -103,6 +118,7 @@ def mine_hu_turn3_states(
             cursor = 0
             boards = [Board.from_rows(), Board.from_rows()]
             discarded_cards: list[str] = []
+            private_discards: list[list[str]] = [[], []]
             policies = [
                 build_policy(
                     "current",
@@ -126,11 +142,12 @@ def mine_hu_turn3_states(
                 action = policies[player].choose_action(
                     boards[player],
                     dealt,
-                    dead_cards=(*boards[1 - player].all_cards(), *discarded_cards),
+                    dead_cards=_visible_dead_cards_for(player, boards, private_discards),
                     opponent_board=boards[1 - player],
                 )
                 boards[player] = boards[player].place(action.placements)
                 discarded_cards.extend(action.discards)
+                private_discards[player].extend(action.discards)
 
             for _round in range(1, 5):
                 for player in (0, 1):
@@ -144,6 +161,7 @@ def mine_hu_turn3_states(
                             dealt_cards=dealt,
                             opponent_board=boards[1 - player],
                             dead_cards=discarded_cards,
+                            visible_dead_cards=_visible_dead_cards_for(player, boards, private_discards),
                             hero_seat=hero_seat,
                             baseline_turn3_model=policy_bundle.turn3,
                             selection_hu_model=selection_hu_model,
@@ -166,6 +184,9 @@ def mine_hu_turn3_states(
                                 opponent_board=boards[1 - player],
                                 dealt_cards=dealt,
                                 discarded_cards=discarded_cards,
+                                visible_dead_cards=_visible_dead_cards_for(player, boards, private_discards),
+                                hero_private_discards=private_discards[player],
+                                opponent_private_discards=private_discards[1 - player],
                                 hero_seat=hero_seat,
                                 selection=selection,
                             )
@@ -178,11 +199,12 @@ def mine_hu_turn3_states(
                     action = policies[player].choose_action(
                         boards[player],
                         dealt,
-                        dead_cards=(*boards[1 - player].all_cards(), *discarded_cards),
+                        dead_cards=_visible_dead_cards_for(player, boards, private_discards),
                         opponent_board=boards[1 - player],
                     )
                     boards[player] = boards[player].place(action.placements)
                     discarded_cards.extend(action.discards)
+                    private_discards[player].extend(action.discards)
 
             if progress_every > 0 and hands % progress_every == 0:
                 print(

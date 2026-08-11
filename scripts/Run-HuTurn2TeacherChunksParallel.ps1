@@ -1,22 +1,29 @@
 param(
-    [int]$TotalSamples = 50000,
+    [int]$TotalSamples = 5000,
     [int]$Chunks = 100,
-    [int]$FutureSamples = 4096,
+    [int]$FutureSamples = 16,
+    [int]$PrefilterFutureSamples = 4,
+    [int]$MaxHands = 1000000,
     [int]$MaxParallel = 4,
     [int]$PredictionThreads = 1,
+    [Alias("SeedBase")]
     [int]$Seed = 2026061101,
-    [string]$OutputDir = "outputs/hu_turn2_stage1/chunks"
+    [int]$ProgressEvery = 10,
+    [string]$Stage3FeatureEncoderMode = "rust_direct",
+    [ValidateSet("stage3_reference_default", "stage7_m5_r10")]
+    [string]$T3Continuation = "stage3_reference_default",
+    [switch]$EnableM2T4Search,
+    [string]$OutputDir = "outputs/hu_turn2_current_fl_ev_stage8c_mixed5k_mc16/shards"
 )
 
 $ErrorActionPreference = "Stop"
 
 $buckets = @(
-    @{ Name = "natural"; Weight = 0.40 },
-    @{ Name = "teacher_disagreement"; Weight = 0.30 },
-    @{ Name = "high_regret"; Weight = 0.10 },
+    @{ Name = "natural"; Weight = 0.50 },
+    @{ Name = "teacher_disagreement"; Weight = 0.15 },
+    @{ Name = "high_regret"; Weight = 0.15 },
     @{ Name = "low_margin"; Weight = 0.10 },
-    @{ Name = "high_margin"; Weight = 0.05 },
-    @{ Name = "random_off_policy"; Weight = 0.05 }
+    @{ Name = "random_off_policy"; Weight = 0.10 }
 )
 
 New-Item -ItemType Directory -Force -Path $OutputDir | Out-Null
@@ -25,6 +32,41 @@ New-Item -ItemType Directory -Force -Path $summaryDir | Out-Null
 $jobs = @()
 $chunkIndex = 0
 $repoRoot = (Get-Location).Path
+
+function Receive-HuTurn2ShardJob {
+    param(
+        [Parameter(Mandatory = $true)]
+        [System.Management.Automation.Job]$Job
+    )
+
+    $receiveErrors = @()
+    $result = Receive-Job -Job $Job -Wait -ErrorAction SilentlyContinue -ErrorVariable receiveErrors
+    if ($null -ne $result) {
+        $result
+    }
+
+    $childErrors = @()
+    foreach ($child in $Job.ChildJobs) {
+        foreach ($errorRecord in $child.Error) {
+            $childErrors += $errorRecord.ToString()
+        }
+    }
+    foreach ($errorRecord in $receiveErrors) {
+        $childErrors += $errorRecord.ToString()
+    }
+
+    $failed = ($Job.State -eq "Failed") -or ($childErrors.Count -gt 0)
+    $jobName = $Job.Name
+    Remove-Job -Job $Job -Force
+
+    if ($failed) {
+        $message = ($childErrors | Select-Object -First 5) -join "`n"
+        if ($message -eq "") {
+            $message = "Job state: $($Job.State)"
+        }
+        throw "HU T2 teacher shard job failed: $jobName`n$message"
+    }
+}
 
 foreach ($bucket in $buckets) {
     $bucketSamples = [int][Math]::Round($TotalSamples * [double]$bucket.Weight)
@@ -41,28 +83,93 @@ foreach ($bucket in $buckets) {
             Start-Sleep -Seconds 5
             $finished = $jobs | Where-Object { $_.State -ne "Running" }
             foreach ($job in $finished) {
-                Receive-Job $job -Wait
-                Remove-Job $job
+                Receive-HuTurn2ShardJob -Job $job
             }
-            $jobs = $jobs | Where-Object { $_.State -eq "Running" }
+            $jobs = @($jobs | Where-Object { $_.State -eq "Running" })
         }
-        $jobs += Start-Job -ScriptBlock {
-            param($repoRoot, $sourceBucket, $samples, $futureSamples, $seed, $predictionThreads, $output, $summaryOutput)
+        $jobName = "hu_t2_{0}_{1:D4}" -f $bucket.Name, $i
+        $jobArgs = @(
+            $repoRoot,
+            $bucket.Name,
+            $samples,
+            $FutureSamples,
+            $PrefilterFutureSamples,
+            $MaxHands,
+            $shardSeed,
+            $PredictionThreads,
+            $ProgressEvery,
+            $Stage3FeatureEncoderMode,
+            $T3Continuation,
+            $path,
+            $summaryPath,
+            ([bool]$EnableM2T4Search)
+        )
+        $jobs += @(Start-Job -ScriptBlock {
+            param(
+                $repoRoot,
+                $sourceBucket,
+                $samples,
+                $futureSamples,
+                $prefilterFutureSamples,
+                $maxHands,
+                $seed,
+                $predictionThreads,
+                $progressEvery,
+                $stage3FeatureEncoderMode,
+                $t3Continuation,
+                $output,
+                $summaryOutput,
+                $enableM2T4Search
+            )
             Set-Location $repoRoot
+            $m2Args = @{}
+            if ($enableM2T4Search) {
+                $m2Args["EnableM2T4Search"] = $true
+            }
             .\scripts\Run-HuTurn2TeacherShard.ps1 `
                 -SourceBucket $sourceBucket `
                 -Samples $samples `
                 -FutureSamples $futureSamples `
+                -PrefilterFutureSamples $prefilterFutureSamples `
+                -MaxHands $maxHands `
                 -Seed $seed `
                 -PredictionThreads $predictionThreads `
+                -ProgressEvery $progressEvery `
+                -Stage3FeatureEncoderMode $stage3FeatureEncoderMode `
+                -T3Continuation $t3Continuation `
                 -Output $output `
-                -SummaryOutput $summaryOutput
-        } -ArgumentList $repoRoot, $bucket.Name, $samples, $FutureSamples, $shardSeed, $PredictionThreads, $path, $summaryPath
+                -SummaryOutput $summaryOutput `
+                @m2Args
+        } -ArgumentList $jobArgs -Name $jobName)
         $chunkIndex++
     }
 }
 
+if ($chunkIndex -le 0) {
+    throw "No shard jobs were scheduled. Increase TotalSamples or adjust bucket weights."
+}
+
 foreach ($job in $jobs) {
-    Receive-Job $job -Wait
-    Remove-Job $job
+    Receive-HuTurn2ShardJob -Job $job
+}
+
+$missingSummaries = @()
+$emptyOutputs = @()
+Get-ChildItem -LiteralPath $OutputDir -Filter "hu_turn2_teacher_*.jsonl" -File |
+    Where-Object { $_.Name -notlike "*_final_turn_slow_states_top50.jsonl" } |
+    ForEach-Object {
+        if ($_.Length -le 0) {
+            $emptyOutputs += $_.FullName
+        }
+        $summaryName = $_.BaseName + ".summary.json"
+        $summaryPath = Join-Path $summaryDir $summaryName
+        if (-not (Test-Path -LiteralPath $summaryPath)) {
+            $missingSummaries += $summaryPath
+        }
+    }
+if ($emptyOutputs.Count -gt 0) {
+    throw "One or more shard outputs are empty:`n$($emptyOutputs -join "`n")"
+}
+if ($missingSummaries.Count -gt 0) {
+    throw "One or more shard summaries are missing:`n$($missingSummaries -join "`n")"
 }

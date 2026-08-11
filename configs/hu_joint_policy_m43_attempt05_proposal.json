@@ -1,0 +1,154 @@
+{
+  "schema": "hu_m43_attempt05_architecture_proposal_v1",
+  "status": "development_smoke_only_not_runtime_authorized",
+  "attempt": "M4.3 Attempt05",
+  "scope": {
+    "street": "T1",
+    "seat": "second",
+    "runtime_authorization": "T1-second-only",
+    "first_seat_behavior": "baseline_fallback",
+    "baseline_profile": "stage18_p1",
+    "current_profile_mutated": false,
+    "existing_attempt04_outputs_mutated": false,
+    "full_replacement_enabled": false
+  },
+  "architecture_comparison": {
+    "families_pre_registered": [
+      {
+        "id": "lambda_rank",
+        "ranker": "LightGBM LambdaRank on paired candidate-vs-baseline action features",
+        "gain_head": "LightGBM binary classifier",
+        "tail_heads": "three LightGBM q0.80 pinball regressors for downside p95/p99/max"
+      },
+      {
+        "id": "deepsets",
+        "ranker": "compact permutation-invariant card/action DeepSets ListNet",
+        "gain_head": "binary logit",
+        "tail_heads": "three positive q0.80 pinball outputs for downside p95/p99/max",
+        "seat_token_present": true,
+        "baseline_action_tokens_explicit": true
+      }
+    ],
+    "additional_family_search_allowed": false,
+    "old_dev900": {
+      "states": 900,
+      "use": "single architecture comparison only",
+      "identity_grouped_folds": 5,
+      "profile_stratified": true,
+      "consumed_attempt03_precal200_separate_threshold_or_family_selection": false,
+      "fresh_generalization_claim": false
+    },
+    "winner_raw_gate": {
+      "overall_positive_rate_min": 0.40,
+      "each_profile_positive_rate_min": 0.30
+    },
+    "winner_selection_order": [
+      "max_min_profile_positive_rate",
+      "max_overall_positive_rate",
+      "max_mean_selected_paired_delta",
+      "min_mean_regret_to_best_nonbaseline",
+      "family_id_lexicographic"
+    ],
+    "runtime_threshold_sweep": false
+  },
+  "feature_contract": {
+    "policy_inputs": [
+      "canonical policy_observation",
+      "complete legal action set",
+      "baseline ActionKey and index"
+    ],
+    "profile": "training weight and group metric only; forbidden as runtime feature",
+    "opponent_private_discards": "forbidden",
+    "teacher_ev": "offline target only; forbidden as runtime gate",
+    "teacher_lcb": "offline diagnostic only; forbidden as runtime gate",
+    "action_identity": "regular_ofc_action_key_v1",
+    "illegal_action_masking": "complete legal-set regeneration; reject missing, duplicate, or illegal action"
+  },
+  "losses": {
+    "lambda_rank": [
+      "state-group LambdaRank",
+      "class-balanced binary gain logloss",
+      "three q0.80 pinball tail losses"
+    ],
+    "deepsets": {
+      "listwise_temperature": 2.0,
+      "gain_loss_weight": 0.35,
+      "tail_pinball_weight": 0.50,
+      "tail_pinball_quantile": 0.80
+    },
+    "training_profile_weighting": "inverse profile frequency from training folds only"
+  },
+  "uncertainty_and_tail": {
+    "epistemic_uncertainty": "standard deviation across five identity-fold rank predictions",
+    "distributional_tail_targets": [
+      "downside_loss_p95",
+      "downside_loss_p99",
+      "downside_loss_max"
+    ],
+    "conformal": {
+      "schema": "hu_m43_attempt05_oof_upper_residual_conformal_v1",
+      "quantile": 0.95,
+      "source": "strict held-out-fold candidate residuals",
+      "one_sided": true,
+      "tail_limits": [25.0, 40.0, 50.0]
+    }
+  },
+  "search_integration": {
+    "proposal_source": "Rust top-K/search winner",
+    "model_rank_top1_is_diagnostic_only": true,
+    "runtime_api": "select_external_candidate_index(sample, candidate_index, candidate_action_key, baseline_index)",
+    "gate_applies_to_search_selected_action": [
+      "gain_probability",
+      "upper_downside_p95",
+      "upper_downside_p99",
+      "upper_downside_max",
+      "rank_fold_disagreement"
+    ],
+    "failed_or_ineligible_gate": "exact baseline fallback"
+  },
+  "lifecycle": {
+    "classification": "historical_pre_contract_smoke_snapshot",
+    "authority": "non_authoritative_superseded_by_main_plan",
+    "historical_smoke": "old dev900 balanced subset only",
+    "historical_architecture_compare": "old dev900 five-fold once",
+    "authoritative_main_plan": {
+      "path": "configs/hu_joint_policy_m43_attempt05.json",
+      "schema": "hu_m43_attempt05_plan_v1",
+      "status": "frozen_pre_pilot_generation",
+      "sha256_at_reconciliation": "546159c2f33831c7ad0d7c7d2436f730bf2758bc7d26793ffc001633eeb21a98",
+      "seed_authority": "development_roles",
+      "precedence": "main_plan_overrides_this_historical_proposal"
+    },
+    "new_development_seed_schedule": "bound_in_authoritative_main_plan_development_roles",
+    "historical_unbound_audit_statement": "superseded_not_authoritative",
+    "fresh_generation_authorized_by_this_proposal": false,
+    "current_registration_authorized_by_this_proposal": false
+  },
+  "go_no_go": {
+    "smoke_go": [
+      "focused correctness tests pass",
+      "both family small fits complete",
+      "finite rank/gain/tail outputs",
+      "identity intersection is zero",
+      "deterministic rerun digests match"
+    ],
+    "architecture_go": [
+      "one family passes the frozen raw gate",
+      "all five profiles represented in every validation fold",
+      "no identity leakage",
+      "conformal provenance is OOF only"
+    ],
+    "audit_no_go": [
+      "raw overall positive rate below 0.40",
+      "any profile positive rate below 0.30",
+      "non-finite or mapping mismatch",
+      "tail or false-positive acceptance gate fails"
+    ]
+  },
+  "commands": {
+    "focused_tests": "python -m pytest tests/test_hu_m43_attempt05_model.py tests/test_hu_m43_attempt05_training.py -q",
+    "tree_smoke": "python -m ofc_regular.hu_m43_attempt05_training smoke-fit --family lambda_rank --max-states 50 --output outputs/hu_joint_policy/m43_attempt05_smoke/lambda_rank.json",
+    "gpu_smoke": "python -m ofc_regular.hu_m43_attempt05_training smoke-fit --family deepsets --max-states 50 --epochs 2 --device auto --output outputs/hu_joint_policy/m43_attempt05_smoke/deepsets.json",
+    "full_old_dev_comparison": "python -m ofc_regular.hu_m43_attempt05_training architecture-compare --deepsets-epochs 12 --device auto --output-dir outputs/hu_joint_policy/m43_attempt05_dev900"
+  }
+}

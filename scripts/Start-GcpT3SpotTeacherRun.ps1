@@ -20,7 +20,8 @@ param(
         "us-west1-c"
     ),
     [int]$BaseSeed = 2026060300,
-    [double]$FlEv = 12.196164,
+    # configs/fl_ev_regular_v3_direct2.json (armA, 2026-08-03).
+    [double]$FlEv = 9.109,
     [double]$MinScoreGap = 0.25,
     [int]$BootDiskGb = 30,
     [string[]]$StartShards = @(),

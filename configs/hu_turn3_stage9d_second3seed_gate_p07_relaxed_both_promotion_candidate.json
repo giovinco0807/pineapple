@@ -1,0 +1,83 @@
+{
+  "name": "hu_turn3_stage9d_second3seed_gate_p07_relaxed_both_promotion_candidate",
+  "status": "production_default_current_profile",
+  "rule_set": "regular",
+  "schema": "hu_stage1",
+  "phase": "hu_turn3_9card",
+  "fl_ev": 10.227020614683454,
+  "objective": "HU T3 selective override over Stage7 m5/r10 baseline using Stage9 value model, Stage9d support model, and runtime-pred accept gate.",
+  "production_baseline": {
+    "model": "models/hu_turn3_stage7_reference_override_cached_rank_wide.pt",
+    "hu_turn3_min_margin": 5.0,
+    "hu_turn3_reference_min_margin": 10.0,
+    "stage7_full_replacement_enabled": false
+  },
+  "candidate_models": {
+    "hu_turn3": "models/hu_turn3_joint_exact_stage9_mixed1200_mc128_extra_trees.pkl",
+    "hu_turn3_support": "models/hu_turn3_stage9d_mixed_runtime_hn245_mc128_extra_trees.pkl",
+    "hu_turn3_gate": "models/hu_turn3_stage9_accept_gate_rf_265fired_runtimepred_second3seed.pkl",
+    "hu_turn3_reference": "models/hu_turn3_stage3_mc32_500k_plus_m8_12_f128_100k_w2_cached_rank_wide.pt"
+  },
+  "runtime": {
+    "hu_turn3_stage7_enabled": true,
+    "hu_turn3_min_margin": 0.5,
+    "hu_turn3_reference_min_margin": 0.0,
+    "hu_turn3_min_support_margin": 0.5,
+    "hu_turn3_min_model_score": 5.0,
+    "hu_turn3_min_gate_probability": 0.7,
+    "hu_turn3_allowed_seats": [],
+    "stage9_full_replacement_enabled": false,
+    "mode": "selective_override_only"
+  },
+  "evaluation": {
+    "fresh10_seat_swap": {
+      "summary": "outputs/evals/hu_turn3_stage9d_accept_gate_second3seed_t07_relaxed_both_fresh/fresh10_summary.md",
+      "paired_seeds": 10000,
+      "hands": 20000,
+      "seed_stride": 17,
+      "ev_per_hand": 0.0315,
+      "ci95_low": 0.022321,
+      "ci95_high": 0.040679,
+      "wins_losses_ties": "37/7/9956",
+      "fires": 95,
+      "fire_rate_per_decision": 0.00475,
+      "first_fires": 55,
+      "second_fires": 40,
+      "nonzero_mean": 7.159028,
+      "nonzero_min": -11.11351,
+      "nonzero_max": 23.727021
+    },
+    "fresh10_fired_mc512_replay": {
+      "summary": "outputs/evals/hu_turn3_stage9d_second3seed_fresh10_fire_replay_mc512/summary.md",
+      "samples": 95,
+      "mean_delta": 4.525119,
+      "ci95_low": 3.549927,
+      "ci95_high": 5.500311,
+      "median_delta": 2.484375,
+      "min_delta": -2.703103,
+      "p05_delta": 0.021875,
+      "p95_delta": 13.562337,
+      "max_delta": 19.383271,
+      "positive_negative_gray": "85/2/8",
+      "first_mean_delta": 5.178512,
+      "first_positive_negative_gray": "52/1/2",
+      "second_mean_delta": 3.626702,
+      "second_positive_negative_gray": "33/1/6"
+    }
+  },
+  "promotion_readiness": {
+    "seat_swap_status": "pass",
+    "fired_replay_status": "pass",
+    "test_status": "targeted_pytest_passed",
+    "production_status": "applied_to_current_profile",
+    "remaining_before_production": [
+      "Monitor fresh production-style canary runs against stage7_m5_r10 rollback.",
+      "Keep Stage7 m5/r10 as rollback while Stage9d current is canaried."
+    ]
+  },
+  "warnings": [
+    "This is a promotion candidate, not a full replacement.",
+    "Do not use the older both-seat p0.7 accept gate without the second3seed gate; it had a heavy realized tail.",
+    "Teacher/regret metrics are secondary; fresh paired seat-swap and fired MC512 replay are the adoption evidence."
+  ]
+}

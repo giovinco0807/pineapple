@@ -1,0 +1,177 @@
+{
+  "schema": "hu_joint_policy_m31_t3_step6b_status_v1",
+  "status_date": "2026-07-17",
+  "status": "step6b_infrastructure_canary_complete",
+  "decision": "infrastructure_canary_500_roots_pass_production_label_pilot_and_fanout_no_go",
+  "m31_complete": false,
+  "current_profile_changed": false,
+  "named_profile_added": false,
+  "runtime_policy_activated": false,
+  "full_replacement_enabled": false,
+  "spot_canary_shards_1_through_9_complete": true,
+  "spot_instances_started": 9,
+  "spot_instances_deleted": 9,
+  "spot_instances_remaining": 0,
+  "spot_production_fanout_authorized": false,
+  "canary_rows_eligible_for_training": false,
+  "teacher_value_status": "diagnostic_not_match_EV",
+  "accepted_step6a_anchor": {
+    "run_name": "regular-hu-m31-step6a-s0-20260717-004",
+    "source_sha256": "224506d27a15f237baaa5c200b4ef41bc2a8c61b817edac4b5a2f9c71d704be8",
+    "manifest_sha256": "a2d7cf23ed22fb4bbf3fee6fdecd6df807439117093e92783edb72d4fc665188",
+    "done_sha256": "45928bbd0c1938506e33c7e15fa7053f82436f1da9b445cd58701ff8f2bfe852",
+    "summary_sha256": "4cdde3f061ef67354236e3297b7d40511550c7a00daf028bbc45b234c685717d"
+  },
+  "accepted_step6b_run": {
+    "run_name": "regular-hu-m31-step6b-canary-20260717-001",
+    "project": "ofc-solver-485418",
+    "bucket": "pokerhu-ofc-solver-485418-training",
+    "zones": [
+      "asia-northeast1-b",
+      "asia-northeast1-c"
+    ],
+    "machine_type": "c4-standard-16",
+    "provisioning_model": "SPOT",
+    "authorized_shards": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9
+    ],
+    "launch_waves": [
+      [
+        1,
+        2,
+        3
+      ],
+      [
+        4,
+        5,
+        6
+      ],
+      [
+        7,
+        8,
+        9
+      ]
+    ],
+    "paired_hands_per_shard": 25,
+    "roots_per_shard": 50,
+    "workers_per_shard": 2,
+    "rayon_threads_per_worker": 8,
+    "source_bytes": 63831933,
+    "source_sha256": "4dc166990ff2c0015870aabcadf428151c02e13fcfe6d6515ba90352d57b4645",
+    "manifest_sha256": "e24811edf22605f3b7acb7fcbc3507a2da157de8cefe8dffd9ae8e4755f0c855",
+    "schedule_sha256": "13923bb934e651a277673ac174f94079f7792df2433018615d3ed9854ff815e1",
+    "authorization_sha256": "def2fa90b34f0699133ce6c3945946811c6d8b6d7bd8af37b989614c019ad309",
+    "startup_sha256": "e3e81c6825057ee03dc88229cfb1d10d3372c2e0369b7320475c88c5ecf5edf5",
+    "native_library_sha256": "3f831615d9e751b8e1f266f14dd2009903b3ac2a4094f7e47616e0aa372a01b0",
+    "feature_encoder_sha256": "82510e563ee290cd536e7aebe6bcf0efefac061af5488851f0a582bb4ef83411",
+    "receive_receipt_sha256": "63b289f3f436662ac56c74b1b16b58054a8e95e44362e9077179f6c2e5cf70cf"
+  },
+  "merged_canary": {
+    "validation_path": "outputs/hu_joint_policy/m31_t3_step6b/canary500_validation_v1.json",
+    "validation_sha256": "f95445cc71b402d97eb120cde2cfdbd1235ee57ca7c83b9227bcf5f9c3a238da",
+    "shards": 10,
+    "paired_hands": 250,
+    "roots": 500,
+    "first_roots": 250,
+    "second_roots": 250,
+    "profile_hand_counts": {
+      "stage19_p0": 50,
+      "stage9f_p2": 50,
+      "stage7_m5_r10": 50,
+      "stage3_baseline": 50,
+      "random_exact_final": 50
+    },
+    "profile_root_counts": {
+      "stage19_p0": 100,
+      "stage9f_p2": 100,
+      "stage7_m5_r10": 100,
+      "stage3_baseline": 100,
+      "random_exact_final": 100
+    },
+    "unique_observation_fingerprints": 500,
+    "namespace_seed_values": 1500,
+    "unique_namespace_seed_values": 1500,
+    "candidate_rng_keys": 2000,
+    "evaluation_rng_keys": 4000,
+    "candidate_evaluation_rng_overlap": 0,
+    "all_ten_shards_recovered_resume_task": true,
+    "opponent_private_discards_used": false,
+    "all_gates_passed": true
+  },
+  "performance": {
+    "first": {
+      "count": 250,
+      "mean_seconds": 25.832490494388,
+      "p50_seconds": 22.757666088999997,
+      "p95_seconds": 53.979232161,
+      "p99_seconds": 61.65010461899999,
+      "max_seconds": 64.06230043099998,
+      "p95_gate_seconds": 180.0
+    },
+    "second": {
+      "count": 250,
+      "mean_seconds": 0.7573915081840007,
+      "p50_seconds": 0.775360438000007,
+      "p95_seconds": 1.3149078000000145,
+      "p99_seconds": 1.4756919710000034,
+      "max_seconds": 1.5298120279999807,
+      "p95_gate_seconds": 6.0
+    },
+    "peak_process_rss_bytes": 720109568,
+    "peak_process_rss_gate_bytes": 1073741824
+  },
+  "validation": {
+    "step6b_related_passed": 47,
+    "step6b_related_seconds": 36.56,
+    "focused_m3_passed": 173,
+    "focused_m3_seconds": 68.27,
+    "full_python_passed": 2523,
+    "full_python_skipped": 2,
+    "full_python_warnings": 50,
+    "full_python_seconds": 816.03,
+    "black_check": true,
+    "bash_5_2_syntax_check": true,
+    "git_diff_check": true,
+    "local_linux_resume_smoke": true
+  },
+  "source": {
+    "ai_profiles_sha256": "d2eb02669e27426623c70af21f1af4d7002db2a7eab77efd3319f8fb65b868d3",
+    "shard_runner": "src/ofc_regular/run_hu_m31_t3_step6b_shard.py",
+    "shard_runner_sha256": "0d9d8e6c2d24258e0d149039dd2eec5522c425122e85a96b9f6037c51764cd1a",
+    "spot_lifecycle": "src/ofc_regular/hu_m31_t3_step6b_spot.py",
+    "spot_lifecycle_sha256": "0241be9a0014ca6a8818023c1e26db8f5f05b5af9ae968e7b026df440e97e73d",
+    "canary_validator": "src/ofc_regular/validate_hu_m31_t3_step6b_canary.py",
+    "canary_validator_sha256": "2ec2278405f9d02373f80daa67a334c033c0d3abb8cbcbdbdcb2a85bd51f046a",
+    "startup": "scripts/startup_hu_m31_t3_step6b.sh",
+    "startup_sha256": "e3e81c6825057ee03dc88229cfb1d10d3372c2e0369b7320475c88c5ecf5edf5",
+    "runner_test_sha256": "ef76a42c00ec8baa359b42fa61cb17a327777cd6270da9d794e24c70b6305e32",
+    "spot_test_sha256": "f5eac5d2844ee76e98c4ff79d864e2bc74f07d61ca3fee7e75ff3ec2a026a871",
+    "startup_test_sha256": "47d5b43ff5e1f971917ff12dc15767c5b55d976309707ab4364c24e63f4cd640",
+    "canary_test_sha256": "8c41e36bd4b44f09cab703e600ec2c82a33f388d96dfe3d551e9a01fd7d395d8"
+  },
+  "known_contract_gap": {
+    "step5_declared_schedule": "equal_quota_seeded_shuffle_v1",
+    "canary_implemented_schedule": "fixed_profile_cycle_by_global_hand_index_v1",
+    "canary_impact": "none_for_infrastructure_balance_and_restart_validation",
+    "production_label_pilot_action": "resolve_and_version_before_authorization"
+  },
+  "remaining_no_go": [
+    "Step 6c production-label quality pilot before a separately frozen authorization",
+    "production teacher fanout before the 100-root 8/32/4/0 quality pilot and confirmation-regret gates pass",
+    "using infrastructure-canary rows for training",
+    "model training before versioned production teacher rows pass data gates",
+    "teacher values as realized match EV",
+    "named profile or current activation",
+    "full replacement",
+    "Nash or mathematical full-game optimality claim"
+  ],
+  "next_step": "M3.1 Step 6c freeze and explicitly authorize only a 100-root 8/32/4/0 production-label quality pilot with independent RNG, 128-sample confirmation on a frozen 10 percent subset, and confirmation-regret gates; do not train or fan out unless it passes"
+}

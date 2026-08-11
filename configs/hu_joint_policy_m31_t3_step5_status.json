@@ -1,0 +1,108 @@
+{
+  "schema": "hu_joint_policy_m31_t3_step5_status_v1",
+  "status_date": "2026-07-16",
+  "status": "step5_contract_complete",
+  "decision": "spot_shard_0_canary_authorized_production_fanout_no_go",
+  "m31_complete": false,
+  "current_profile_changed": false,
+  "named_profile_added": false,
+  "runtime_policy_activated": false,
+  "full_replacement_enabled": false,
+  "spot_vm_started": false,
+  "spot_canary_shard_0_authorized": true,
+  "spot_remaining_canary_shards_authorized": false,
+  "spot_production_fanout_authorized": false,
+  "contract": {
+    "path": "configs/hu_joint_policy_m31_t3_step5_contract.json",
+    "byte_sha256": "5f9fab4d844f1a7411a99f9dada2fe289314d4dea578d0c0f6a6d14918263c93",
+    "canonical_sha256": "04c4298feaed78f327f7fb6601f70a6821c3a91dcd2996cc34becbc4bb38e0b4",
+    "validator": "src/ofc_regular/validate_hu_m31_t3_step5_contract.py",
+    "validator_sha256": "6b1cce48a4749b9d656527e9f7666e456020e0eb5a14307afffc325aaf9db5b5",
+    "validation_artifact": "outputs/hu_joint_policy/m31_t3_step5/contract_validation_v2.json",
+    "validation_artifact_sha256": "055b900e06db174f69d3ecb25fd1466f9e812d272222529121a40b71dd003bcc"
+  },
+  "seed_audit": {
+    "seed_stride": 1000003,
+    "historical_config_files_scanned": 109,
+    "historical_config_seed_max": 256108071901,
+    "planned_seed_count": 66000,
+    "unique_planned_seed_count": 66000,
+    "planned_seed_min": 300108071901,
+    "planned_seed_max": 470607073398,
+    "planned_seed_set_sha256": "6610c740fbb1b22405a0eb960fd3beff5f1c747328ed140187a8f8a277385b24",
+    "overlap_count": 0
+  },
+  "teacher_plan": {
+    "infrastructure_canary_roots": 500,
+    "train_roots": 12000,
+    "safety_fit_roots": 2000,
+    "threshold_lock_roots": 2000,
+    "diagnostic_teacher_holdout_roots": 2000,
+    "infrastructure_canary_budget": "4/8/2/0",
+    "production_label_budget": "8/32/4/0",
+    "independent_confirmation_evaluation_samples": 128,
+    "independent_confirmation_fraction": 0.1,
+    "canary_rows_eligible_for_training": false
+  },
+  "locked_promotion_plan": {
+    "opponents": [
+      "stage19_p0",
+      "stage9f_p2",
+      "stage7_m5_r10",
+      "stage3_baseline",
+      "random_exact_final"
+    ],
+    "paired_seeds_per_opponent": 1000,
+    "valid_overrides_min": 300,
+    "valid_overrides_each_seat_min": 100,
+    "overall_and_each_seat_positive_ci_required": true,
+    "realized_gain_per_override_positive_ci_required": true,
+    "false_positive_override_rate_max": 0.3,
+    "false_positive_override_rate_each_seat_max": 0.35,
+    "override_loss_p95_p99_max": "25/40/50",
+    "nonfire_full_trajectory_identity_required": true,
+    "teacher_values_as_match_ev": false,
+    "threshold_reselection_allowed": false,
+    "posthoc_seed_extension_allowed": false
+  },
+  "exploitability_proxy": {
+    "method": "frozen_local_approximate_best_response_population_v1",
+    "response_policy_count": 3,
+    "paired_seeds_per_response": 500,
+    "nash_or_mathematical_optimality_claimed": false
+  },
+  "spot_shard_0": {
+    "machine_type": "c4-standard-16",
+    "provisioning_model": "SPOT",
+    "paired_hands": 25,
+    "roots": 50,
+    "preemption_resume_drill_required": true,
+    "heartbeat_interval_seconds": 60,
+    "immutable_package_required": true,
+    "done_marker_committed_last": true
+  },
+  "validation": {
+    "step5_tests_passed": 11,
+    "step5_tests_seconds": 0.41,
+    "focused_python_passed": 124,
+    "focused_python_seconds": 32.80,
+    "full_python_passed": 2464,
+    "full_python_skipped": 2,
+    "full_python_warnings": 50,
+    "full_python_seconds": 831.79,
+    "black_check": true,
+    "policy_registry_sha256": "d2eb02669e27426623c70af21f1af4d7002db2a7eab77efd3319f8fb65b868d3"
+  },
+  "remaining_no_go": [
+    "remaining infrastructure canary shards before verified shard 0 DONE",
+    "production teacher fanout before the production-label quality pilot",
+    "model training before versioned teacher rows pass data gates",
+    "opening diagnostic or locked holdouts before model and threshold freeze",
+    "teacher EV or teacher LCB as runtime or match EV",
+    "named profile or current activation",
+    "full replacement",
+    "Nash or mathematical full-game optimality claim"
+  ],
+  "next_step": "M3.1 Step 6a immutable Linux package and resumable Spot runner dry-run, followed by shard 0 only"
+}
+

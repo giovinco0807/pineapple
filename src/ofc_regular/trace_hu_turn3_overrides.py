@@ -16,7 +16,7 @@ from .ai_profiles import DEFAULT_OPENING_MODEL, DEFAULT_TURN1_MODEL, DEFAULT_TUR
 from .cards import create_deck
 from .evaluator import score_board
 from .hu_turn3_model import hu_policy_sample, load_hu_action_value_model
-from .play_ai import _prediction_thread_context
+from .play_ai import _prediction_thread_context, _visible_dead_cards_for
 from .policy import RegularAiPolicy, action_to_json, board_to_json, policy_sample
 from .rules import check_fl_entry
 from .state import Board
@@ -200,7 +200,7 @@ def play_traced_hand(
     deck = create_deck(shuffle=True, rng=__import__("random").Random(seed))
     cursor = 0
     boards = [Board.from_rows(), Board.from_rows()]
-    dead_cards: list[str] = []
+    private_discards: list[list[str]] = [[], []]
     decisions: list[dict[str, Any]] = []
     candidate_t3_decision_count = 0
 
@@ -210,11 +210,11 @@ def play_traced_hand(
         action = policies[player].choose_action(
             boards[player],
             dealt,
-            dead_cards=(*boards[1 - player].all_cards(), *dead_cards),
+            dead_cards=_visible_dead_cards_for(player, boards, private_discards),
             opponent_board=boards[1 - player],
         )
         boards[player] = boards[player].place(action.placements)
-        dead_cards.extend(action.discards)
+        private_discards[player].extend(action.discards)
 
     for round_index in range(1, 5):
         for player in (0, 1):
@@ -227,7 +227,7 @@ def play_traced_hand(
                     board=boards[player],
                     dealt=dealt,
                     opponent_board=boards[1 - player],
-                    dead_cards=(*boards[1 - player].all_cards(), *dead_cards),
+                    dead_cards=_visible_dead_cards_for(player, boards, private_discards),
                 )
                 chosen_score = rollout_from_t3_action(
                     boards=boards,
@@ -237,7 +237,7 @@ def play_traced_hand(
                     round_index=round_index,
                     action=action,
                     policies=policies,
-                    dead_cards=dead_cards,
+                    private_discards=private_discards,
                     candidate_player=candidate_player,
                 )
                 baseline_action = _action_from_json(decision["baseline_action"])
@@ -249,7 +249,7 @@ def play_traced_hand(
                     round_index=round_index,
                     action=baseline_action,
                     policies=policies,
-                    dead_cards=dead_cards,
+                    private_discards=private_discards,
                     candidate_player=candidate_player,
                 )
                 decision.update(
@@ -269,11 +269,11 @@ def play_traced_hand(
                 action = policies[player].choose_action(
                     boards[player],
                     dealt,
-                    dead_cards=(*boards[1 - player].all_cards(), *dead_cards),
+                    dead_cards=_visible_dead_cards_for(player, boards, private_discards),
                     opponent_board=boards[1 - player],
                 )
             boards[player] = boards[player].place(action.placements)
-            dead_cards.extend(action.discards)
+            private_discards[player].extend(action.discards)
 
     score_p0, _score = terminal_score(boards[0], boards[1], fl_ev=DEFAULT_FL_EV)
     candidate_score = score_p0 if candidate_player == 0 else -score_p0
@@ -312,14 +312,14 @@ def rollout_from_t3_action(
     round_index: int,
     action: Action,
     policies: list[RegularAiPolicy],
-    dead_cards: list[str],
+    private_discards: list[list[str]],
     candidate_player: int,
 ) -> float:
     local_boards = list(boards)
-    local_dead = list(dead_cards)
+    local_private_discards = [list(cards) for cards in private_discards]
     local_cursor = cursor
     local_boards[current_player] = local_boards[current_player].place(action.placements)
-    local_dead.extend(action.discards)
+    local_private_discards[current_player].extend(action.discards)
 
     for player in range(current_player + 1, 2):
         local_cursor = play_rollout_turn(
@@ -328,7 +328,7 @@ def rollout_from_t3_action(
             cursor=local_cursor,
             player=player,
             policies=policies,
-            dead_cards=local_dead,
+            private_discards=local_private_discards,
         )
     for next_round in range(round_index + 1, 5):
         for player in (0, 1):
@@ -338,7 +338,7 @@ def rollout_from_t3_action(
                 cursor=local_cursor,
                 player=player,
                 policies=policies,
-                dead_cards=local_dead,
+                private_discards=local_private_discards,
             )
     score_p0, _score = terminal_score(local_boards[0], local_boards[1], fl_ev=DEFAULT_FL_EV)
     return score_p0 if candidate_player == 0 else -score_p0
@@ -351,7 +351,7 @@ def play_rollout_turn(
     cursor: int,
     player: int,
     policies: list[RegularAiPolicy],
-    dead_cards: list[str],
+    private_discards: list[list[str]],
 ) -> int:
     if boards[player].card_count() >= 13:
         return cursor
@@ -360,11 +360,11 @@ def play_rollout_turn(
     action = policies[player].choose_action(
         boards[player],
         dealt,
-        dead_cards=(*boards[1 - player].all_cards(), *dead_cards),
+        dead_cards=_visible_dead_cards_for(player, boards, private_discards),
         opponent_board=boards[1 - player],
     )
     boards[player] = boards[player].place(action.placements)
-    dead_cards.extend(action.discards)
+    private_discards[player].extend(action.discards)
     return next_cursor
 
 

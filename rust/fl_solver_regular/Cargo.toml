@@ -1,0 +1,56 @@
+[package]
+name = "fl_solver_regular"
+version = "0.1.0"
+edition = "2021"
+description = "Exact regular-rule (52-card, no joker) Fantasyland placement solver, opponent-FL board distribution machinery, and the T4-vs-FL teacher."
+
+# Deliberately standalone: the repo root Cargo.toml owns a workspace whose only
+# member is rust/hu_m3_engine. Declaring an empty workspace here keeps this
+# crate out of that workspace so builds never contend over the shared target
+# directory, and so nothing in this crate can perturb the engine's build plan.
+[workspace]
+
+[lib]
+name = "fl_solver_regular"
+path = "src/lib.rs"
+
+[[bin]]
+name = "fl_solver_regular"
+path = "src/main.rs"
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+rayon = "1.10"
+# Continuation models are pinned by digest the way every other input here is,
+# so the labeller can refuse an image that is not the one the plan named.
+sha2 = "0.10"
+
+# Runtime dependency as of the T1 teacher, deliberately and with a reason.
+#
+# The engine used to be a dev-dependency only, so that nothing here could
+# perturb its build plan. The T1 labeller continues its candidates with the
+# distilled T2/T3 rankers, and those rankers eat engine fast features computed
+# at states that are *generated inside the rollout* -- 27 candidates x t2_draws
+# x t3_draws deep, none of which exist before the draws are made. Precomputing
+# them offline is therefore not an option, and a sidecar process would buy
+# fragility and an unauditable boundary rather than isolation.
+#
+# The isolation that actually mattered is kept: this crate still declares its
+# own empty workspace and still builds into its own target directory, so the
+# two builds cannot contend. What changes is that the shipped solver binary now
+# links the engine, which is why the label provenance records
+# `engine_features_rev` alongside the solver version -- a package diff shows
+# exactly which engine generation is inside the binary.
+ofc_hu_m3_engine = { path = "../hu_m3_engine" }
+
+[dev-dependencies]
+# Parity target. The engine crate is the authority on hand ranking, royalty
+# tables and heads-up scoring; this crate carries a packed re-implementation for
+# the hot loop and pins it to the engine with randomized differential tests.
+ofc_hu_m3_engine = { path = "../hu_m3_engine" }
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1

@@ -1,0 +1,27 @@
+[package]
+name = "ofc_hu_rl_engine"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "ofc_hu_rl_engine"
+path = "src/lib.rs"
+crate-type = ["rlib", "cdylib"]
+
+[features]
+default = []
+python = ["dep:pyo3"]
+
+[dependencies]
+ofc_hu_m3_engine = { path = "../hu_m3_engine" }
+pyo3 = { version = "0.27", optional = true, features = ["extension-module"] }
+rayon = "1.10"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+sha2 = "0.10"
+
+# This crate is intentionally testable without changing the already-dirty
+# repository workspace manifest. It can be added to the parent workspace only
+# after the scalar contract is accepted.
+[workspace]
+resolver = "2"

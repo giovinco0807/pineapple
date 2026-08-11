@@ -1,0 +1,156 @@
+{
+  "schema": "hu_joint_policy_m4_status_v1",
+  "status_date": "2026-07-13",
+  "status": "complete_no_go_policy_not_promoted",
+  "decision": "m4_redesign_required_before_m5",
+  "rule_set": "heads_up_regular_ofc_pineapple_hidden_opponent_discards",
+  "scope": "t1_second_seat_selective_override",
+  "fixed_legacy_baseline_chain": [
+    "stage19_p0",
+    "stage18_p1",
+    "stage9f_p2",
+    "stage7_m5_r10",
+    "t4_exact_solver"
+  ],
+  "current_profile_changed": false,
+  "runtime_policy_activated": false,
+  "policy_promoted": false,
+  "full_replacement_enabled": false,
+  "spot_vm_started": false,
+  "cloud_cost_usd": 0.0,
+  "implemented_components": [
+    "t1_second_actor_observation_teacher",
+    "disjoint_candidate_and_locked_evaluation_beliefs",
+    "infoset_fingerprint_child_policy_cache",
+    "m3_rust_t3_t4_continuation",
+    "restart_safe_small_shards",
+    "strict_hidden_discard_and_action_mapping_audit",
+    "shared_seat_aware_policy_value_delta_uncertainty_safety_artifact",
+    "second_seat_selective_baseline_composition",
+    "single_joint_artifact_and_frozen_threshold_runtime_lock",
+    "fresh_population_paired_seat_swap_counterfactual_evaluation",
+    "seed_clustered_population_confidence_intervals",
+    "fixed_acceptance_gate"
+  ],
+  "correctness_smoke": {
+    "roots": 1,
+    "legal_actions": 27,
+    "candidate_samples": 1,
+    "evaluation_samples": 1,
+    "candidate_evaluation_rng_overlap": 0,
+    "first_seconds": 59.109993499703705,
+    "deterministic_rerun_seconds": 49.413691100198776,
+    "byte_identical_sha256": "b2230b646d3059d72b01fcaca6ee6e68aa2720239b3b8eea1172ddfef74e1cfe"
+  },
+  "pilot": {
+    "roots": 112,
+    "train_roots": 64,
+    "calibration_roots": 24,
+    "locked_holdout_roots": 24,
+    "candidate_samples": 1,
+    "evaluation_samples": 1,
+    "parallel_shards": 4,
+    "wall_seconds_approx": 850,
+    "seed_stride": 1000003,
+    "cross_split_seed_overlap": 0,
+    "cross_split_observation_fingerprint_overlap": 0,
+    "hidden_truth_records": 0,
+    "all_legal_actions_mapped": true,
+    "candidate_evaluation_rng_disjoint": true,
+    "data_audit_status": "pass"
+  },
+  "training": {
+    "model_id": "hu-m4-t1-joint-pilot112",
+    "feature_dim": 1076,
+    "heads": [
+      "policy",
+      "value",
+      "delta_vs_baseline",
+      "uncertainty",
+      "safety"
+    ],
+    "train_top1_accuracy_diagnostic": 0.71875,
+    "locked_holdout_top1_accuracy_diagnostic": 0.25,
+    "calibration_candidate_overrides": 22,
+    "calibration_safe_label_rate": 0.18181818181818182,
+    "calibration_status": "no_go",
+    "frozen_threshold": 1.0,
+    "safety_enabled": false,
+    "model_sha256": "849c08624a88ce67c7a148050c576177822ddfa9a8508a2a65193bb35997824f",
+    "teacher_value_used_as_realized_match_ev": false,
+    "teacher_value_used_as_direct_runtime_lcb_gate": false,
+    "locked_holdout_used_for_threshold_search": false
+  },
+  "calibration_no_go_evidence": {
+    "threshold_0_to_0_1_fires": 22,
+    "threshold_0_to_0_1_teacher_mean_delta_per_fire_diagnostic": -3.5103191188492477,
+    "threshold_0_to_0_1_false_positive_rate_diagnostic": 0.8181818181818182,
+    "threshold_0_to_0_1_p95_loss_diagnostic": 25.915669583949278,
+    "threshold_0_2_and_above_fires": 0
+  },
+  "fresh_population_smoke": {
+    "paired_seeds_per_opponent": 2,
+    "opponents": [
+      "stage19_p0",
+      "stage9f_p2",
+      "stage7_m5_r10",
+      "random_exact_final"
+    ],
+    "candidate_hands": 16,
+    "trace_hands": 32,
+    "overrides": 0,
+    "invalid_counterfactuals": 0,
+    "nonfire_cancellation_mismatches": 0,
+    "nonfire_nonzero_deltas": 0,
+    "nonfire_cancellation_unknown": 0,
+    "first_seat_delta_ev_per_hand": 0.0,
+    "second_seat_delta_ev_per_hand": 0.0,
+    "paired_delta_ev_per_hand": 0.0,
+    "ci_independence_unit": "hand_seed_cluster_after_opponent_average"
+  },
+  "acceptance": {
+    "status": "complete_no_go",
+    "gates_passed": 17,
+    "gates_total": 23,
+    "failed_gates": [
+      "minimum_valid_overrides",
+      "realized_gain_per_override_ci95_low",
+      "paired_seat_swap_delta_ci95_low",
+      "second_seat_delta_ci95_low",
+      "false_positive_override_rate",
+      "override_loss_tail"
+    ],
+    "minimum_valid_overrides_required": 300,
+    "teacher_metrics_used_for_promotion": false,
+    "top1_accuracy_used_for_promotion": false
+  },
+  "validation": {
+    "focused_m4_and_related_tests_passed": 86,
+    "full_python_tests_passed": 993,
+    "full_python_tests_seconds": 53.91,
+    "rust_library_tests_passed": 36,
+    "rust_runner_tests_passed": 2,
+    "rust_clippy_warnings_denied": true
+  },
+  "baseline_hash_audit": {
+    "policy_registry_expected_m1_sha256": "d2eb02669e27426623c70af21f1af4d7002db2a7eab77efd3319f8fb65b868d3",
+    "policy_registry_actual_sha256": "d2eb02669e27426623c70af21f1af4d7002db2a7eab77efd3319f8fb65b868d3",
+    "current_mapping_changed": false
+  },
+  "artifacts": {
+    "data_audit": "outputs/hu_joint_policy/m4_complete/pilot112/data_audit.json",
+    "training_manifest": "outputs/hu_joint_policy/m4_complete/pilot112/training_manifest.json",
+    "model": "outputs/hu_joint_policy/m4_complete/pilot112/hu_m4_t1_joint_pilot112.pkl",
+    "population_smoke": "outputs/hu_joint_policy/m4_complete/pilot112/population_smoke.json",
+    "acceptance_config": "outputs/hu_joint_policy/m4_complete/pilot112/acceptance_config.json",
+    "acceptance_status": "outputs/hu_joint_policy/m4_complete/pilot112/acceptance_status.json"
+  },
+  "no_go_actions": [
+    "do_not_activate_the_pilot_model",
+    "do_not_change_current",
+    "do_not_start_m5",
+    "do_not_start_spot_scale_from_this_candidate",
+    "redesign_m4_teacher_sample_quality_and_safety_calibration_before_repeating_pilot"
+  ],
+  "next_milestone": "M4_1_T1_second_teacher_quality_and_safety_redesign"
+}

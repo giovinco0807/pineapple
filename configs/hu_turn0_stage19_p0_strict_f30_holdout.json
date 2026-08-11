@@ -1,0 +1,75 @@
+{
+  "name": "hu_turn0_stage19_p0_strict_f30_holdout",
+  "status": "preregistered_postmortem_candidate_holdout",
+  "rule_set": "regular",
+  "schema": "hu_turn0_stage19_p0_final_holdout_v1",
+  "created_date_jst": "2026-07-12",
+  "purpose": "Independently test the only strict T0 margin region that remained positive after the failed Stage19 final holdout.",
+  "fixed_chain": {
+    "fallback_profile": "stage18_p1",
+    "t1": "stage18_p1",
+    "t2": "stage9f_p2",
+    "t3": "stage7_m5_r10",
+    "fl_ev": 10.227020614683454
+  },
+  "candidate_model": "models/hu_turn0_stage3_top60_mc32_1000_hgb_baseline-delta_sew1_aug3.pkl",
+  "candidate_topk": 60,
+  "mode": "selective_override_only",
+  "full_replacement_enabled": false,
+  "candidates": [
+    {
+      "id": "p0_strict_f30",
+      "priority": 1,
+      "min_margin_by_seat": {
+        "first": 3.0,
+        "second": 999.0
+      },
+      "allowed_seats": [
+        "first"
+      ],
+      "development_artifact": "outputs/evals/hu_turn0_stage19_p0_final_holdout/events_merged.jsonl",
+      "development_status": "post_selection_diagnostic_only",
+      "development_metrics": {
+        "paired_seeds": 5000,
+        "fires": 23,
+        "avg_delta_per_hand": 0.0177908,
+        "ci95_low": 0.00224539,
+        "ci95_high": 0.0333362,
+        "avg_delta_per_fire": 7.73513,
+        "per_fire_ci95_low": 1.6237,
+        "per_fire_ci95_high": 13.8466
+      }
+    }
+  ],
+  "evaluation": {
+    "paired_seeds_per_config": 50000,
+    "games_per_shard": 100,
+    "base_seed": 2026507001,
+    "seed_stride": 1000003,
+    "non_overlapping_with_all_prior_t0_evaluations": true,
+    "vm_count": 80,
+    "machine_type": "c4-highmem-2",
+    "spot": true,
+    "opening_lookahead_samples": 1,
+    "no_threshold_adaptation_after_holdout": true
+  },
+  "acceptance": {
+    "selection_order": "The sole p0_strict_f30 candidate must pass every gate; otherwise Stage19 P0 remains No-Go.",
+    "aggregate_avg_delta_per_hand_min_exclusive": 0.0,
+    "aggregate_ci95_low_min": 0.0,
+    "avg_delta_per_fire_min_exclusive": 0.0,
+    "per_fire_ci95_low_min": 0.0,
+    "minimum_fires": 150,
+    "non_fired_nonzero_count": 0,
+    "p99_fire_loss_max": 30.0,
+    "max_fire_loss_max": 40.0,
+    "enabled_seat_point_estimates_must_be_nonnegative": true,
+    "duplicate_event_count": 0,
+    "seed_set_mismatch_configs": []
+  },
+  "prior_no_go": {
+    "artifact": "outputs/evals/hu_turn0_stage19_p0_final_holdout/acceptance/acceptance.json",
+    "main_avg_delta_per_hand": -0.10650265461012591,
+    "conservative_avg_delta_per_hand": -0.06386267833579712
+  }
+}

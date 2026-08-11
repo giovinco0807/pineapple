@@ -1819,6 +1819,19 @@ def execute_prepared(
                 )
             except BaseException:
                 phase2_failure_receipt = None
+        worker_diagnostic_receipt: dict[str, Any] | None = None
+        if isinstance(primary, result_receiver.WorkerDiagnosticFailure):
+            try:
+                worker_diagnostic_receipt = _validated_sealed_receipt(
+                    primary.receipt,
+                    label="worker diagnostic failure",
+                )
+                _exclusive_write_json(
+                    root / "worker_diagnostic_failure_receipt.json",
+                    worker_diagnostic_receipt,
+                )
+            except BaseException:
+                worker_diagnostic_receipt = None
         profile_after = _policy_registry_sha256()
         outer_cleanup_verified = (
             validated_cleanup is not None
@@ -1841,6 +1854,9 @@ def execute_prepared(
         outer_cleanup_path = root / "outer_failure_cleanup_receipt.json"
         pair_failure_path = root / "pair_controller_failure_receipt.json"
         token_failure_path = root / "token_barrier_failure_receipt.json"
+        worker_diagnostic_path = (
+            root / "worker_diagnostic_failure_receipt.json"
+        )
         failure_body = {
             "schema": FAILURE_RECEIPT_SCHEMA,
             "status": "step12b_exact_pair_stopped_without_retry",
@@ -1901,6 +1917,20 @@ def execute_prepared(
             "token_barrier_failure_receipt_sha256": (
                 token_failure_receipt.get("receipt_sha256")
                 if token_failure_receipt is not None
+                else None
+            ),
+            "worker_diagnostic_failure_receipt_path": (
+                "worker_diagnostic_failure_receipt.json"
+                if worker_diagnostic_receipt is not None
+                else None
+            ),
+            "worker_diagnostic_failure_receipt_exists": (
+                worker_diagnostic_receipt is not None
+                and worker_diagnostic_path.is_file()
+            ),
+            "worker_diagnostic_failure_receipt_sha256": (
+                worker_diagnostic_receipt.get("receipt_sha256")
+                if worker_diagnostic_receipt is not None
                 else None
             ),
             "automatic_retry_performed": False,

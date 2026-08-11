@@ -26,7 +26,7 @@ def _sample(score_a=3.0, score_b=1.0):
         "sample_id": 0,
         "rule_set": "regular",
         "phase": "turn3_9card",
-        "fl_ev": 12.196164,
+        "fl_ev": 10.227020614683454,
         "board": {
             "top": ["Qh"],
             "middle": ["Kh", "Kd", "6c", "8s"],

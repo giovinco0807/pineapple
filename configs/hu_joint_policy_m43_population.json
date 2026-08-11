@@ -1,0 +1,243 @@
+{
+  "schema": "hu_m43_population_acceptance_plan_v1",
+  "milestone": "M4.3-final-population",
+  "status": "frozen_before_population_evaluation",
+  "purpose": "fresh_realized_match_ev_acceptance_after_positive_bounded_pilot",
+  "policy_attempt": "attempt02_v4",
+  "attempt02_training_plan": {
+    "path": "configs/hu_joint_policy_m43_attempt02.json",
+    "file_sha256": "7b321604b14bc4c448a8140a772c5365f44e94172153524a42c1bcb91f78e025"
+  },
+  "runtime_contract": {
+    "model_schema": "hu_m43_t1_joint_model_v4",
+    "action_score_mode": "centered_fold_mean_delta_then_safety_gate_v4",
+    "runtime_teacher_inputs": false,
+    "runtime_lcb_gate": false
+  },
+  "fixed_baseline_profile": "stage18_p1",
+  "opponents": [
+    "stage19_p0",
+    "stage9f_p2",
+    "stage7_m5_r10",
+    "random_exact_final"
+  ],
+  "paired_seat_swap": true,
+  "paired_seeds_per_opponent": 1000,
+  "seed": 6106071901,
+  "seed_stride": 1000003,
+  "shards": 20,
+  "paired_seeds_per_shard": 50,
+  "candidate_records": 8000,
+  "baseline_records": 8000,
+  "terminal_trace_hands": 16000,
+  "second_seat_override_opportunities": 4000,
+  "minimum_valid_overrides": 300,
+  "minimum_population_fire_rate_needed": 0.075,
+  "sizing_rule": {
+    "formula": "paired_seeds_required = ceil(minimum_valid_overrides / (opponents * independent_fire_rate_lower_bound))",
+    "fixed_before_realized_population_labels": true,
+    "optional_stopping_or_posthoc_extension_allowed": false,
+    "insufficient_overrides_decision": "complete_no_go"
+  },
+  "freshness": {
+    "exclude_all_m4_m41_m42_m43_teacher_hand_seeds": true,
+    "exclude_prior_population_smoke_seeds": true,
+    "excluded_population_schedules": [
+      {
+        "milestone": "M4",
+        "seed": 7026072001,
+        "seed_stride": 1000003,
+        "paired_seeds": 2
+      },
+      {
+        "milestone": "M4.1",
+        "seed": 50026072001,
+        "seed_stride": 1000003,
+        "paired_seeds": 2
+      },
+      {
+        "milestone": "M4.2",
+        "seed": 2126071901,
+        "seed_stride": 1000003,
+        "paired_seeds": 2
+      }
+    ],
+    "planned_overlap_count_at_freeze": 0,
+    "acceptance_validator_rechecks_teacher_seed_overlap": true,
+    "excluded_teacher_schedules": [
+      {
+        "milestone": "M4",
+        "split": "correctness_smoke",
+        "seed": 2026071401,
+        "seed_stride": 1000003,
+        "roots": 1
+      },
+      {
+        "milestone": "M4",
+        "split": "train_a",
+        "seed": 3026072001,
+        "seed_stride": 1000003,
+        "roots": 32
+      },
+      {
+        "milestone": "M4",
+        "split": "train_b",
+        "seed": 4026072001,
+        "seed_stride": 1000003,
+        "roots": 32
+      },
+      {
+        "milestone": "M4",
+        "split": "calibration",
+        "seed": 5026072001,
+        "seed_stride": 1000003,
+        "roots": 24
+      },
+      {
+        "milestone": "M4",
+        "split": "locked_holdout",
+        "seed": 6026072001,
+        "seed_stride": 1000003,
+        "roots": 24
+      },
+      {
+        "milestone": "M4.1",
+        "split": "correctness_smoke",
+        "seed": 9026072001,
+        "seed_stride": 1000003,
+        "roots": 1
+      },
+      {
+        "milestone": "M4.1",
+        "split": "train_a",
+        "seed": 10026072001,
+        "seed_stride": 1000003,
+        "roots": 25
+      },
+      {
+        "milestone": "M4.1",
+        "split": "train_b",
+        "seed": 20026072001,
+        "seed_stride": 1000003,
+        "roots": 25
+      },
+      {
+        "milestone": "M4.1",
+        "split": "calibration",
+        "seed": 30026072001,
+        "seed_stride": 1000003,
+        "roots": 30
+      },
+      {
+        "milestone": "M4.1",
+        "split": "locked_holdout",
+        "seed": 40026072001,
+        "seed_stride": 1000003,
+        "roots": 20
+      },
+      {
+        "milestone": "M4.2",
+        "split": "correctness_smoke",
+        "seed": 50026072001,
+        "seed_stride": 1000003,
+        "roots": 1
+      },
+      {
+        "milestone": "M4.2",
+        "split": "train",
+        "seed": 1706071901,
+        "seed_stride": 1000003,
+        "roots": 20
+      },
+      {
+        "milestone": "M4.2",
+        "split": "calibration",
+        "seed": 1806071901,
+        "seed_stride": 1000003,
+        "roots": 10
+      },
+      {
+        "milestone": "M4.2",
+        "split": "locked_holdout",
+        "seed": 1906071901,
+        "seed_stride": 1000003,
+        "roots": 10
+      },
+      {
+        "milestone": "M4.3-attempt01",
+        "split": "train",
+        "seed": 2306071901,
+        "seed_stride": 1000003,
+        "roots": 100
+      },
+      {
+        "milestone": "M4.3-attempt01",
+        "split": "calibration",
+        "seed": 2506071901,
+        "seed_stride": 1000003,
+        "roots": 60
+      },
+      {
+        "milestone": "M4.3-attempt01",
+        "split": "locked_holdout",
+        "seed": 2706071901,
+        "seed_stride": 1000003,
+        "roots": 40
+      },
+      {
+        "milestone": "M4.3-attempt02",
+        "split": "train",
+        "seed": 7106071901,
+        "seed_stride": 1000003,
+        "roots": 200
+      },
+      {
+        "milestone": "M4.3-attempt02",
+        "split": "calibration",
+        "seed": 7506071901,
+        "seed_stride": 1000003,
+        "roots": 100
+      }
+    ]
+  },
+  "evaluation_contract": {
+    "candidate_and_baseline_same_hand_seed": true,
+    "candidate_and_baseline_same_physical_seat": true,
+    "candidate_and_baseline_same_opponent_policy_seed": true,
+    "first_and_second_seat_metrics": true,
+    "nonfire_full_trajectory_digest_cancellation": true,
+    "invalid_counterfactuals_excluded": true,
+    "false_positive_override_definition": "realized_delta_le_zero",
+    "confidence_interval_unit": "hand_seed_cluster_after_opponent_average",
+    "teacher_values_are_realized_match_ev": false,
+    "threshold_reselection_allowed": false
+  },
+  "fixed_acceptance_gates": {
+    "valid_overrides_min": 300,
+    "realized_gain_per_override_ci95_low_exclusive": 0.0,
+    "paired_seat_swap_delta_ci95_low_exclusive": 0.0,
+    "second_seat_delta_ci95_low_exclusive": 0.0,
+    "first_seat_delta_exact": 0.0,
+    "false_positive_override_rate_max": 0.3,
+    "override_loss_p95_max": 25.0,
+    "override_loss_p99_max": 40.0,
+    "override_loss_max": 50.0,
+    "each_opponent_delta_ev_per_hand_min": -0.005,
+    "each_opponent_delta_ci95_low_min": -0.02,
+    "nonfire_cancellation_mismatches_max": 0
+  },
+  "spot_execution": {
+    "small_shards": true,
+    "checkpoint_unit": "completed_shard",
+    "heartbeat_required": true,
+    "resume_missing_shards_only": true,
+    "done_commit_last": true,
+    "merge_recomputes_metrics_from_records": true
+  },
+  "activation_guards": {
+    "current_profile_changed": false,
+    "runtime_policy_activated": false,
+    "full_replacement_enabled": false,
+    "threshold_changed_after_lock": false
+  }
+}

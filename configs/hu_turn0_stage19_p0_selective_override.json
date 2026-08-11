@@ -1,0 +1,131 @@
+{
+  "name": "hu_turn0_stage19_p0_selective_override",
+  "status": "p0_accepted_for_explicit_runtime_not_current_default",
+  "rule_set": "regular",
+  "schema": "hu_turn0_stage19_p0_v1",
+  "phase": "hu_turn0_opening_5card",
+  "ai_profile": "stage19_p0",
+  "p0_fixed": true,
+  "production_default": false,
+  "current_profile_changed": false,
+  "full_replacement_enabled": false,
+  "selective_override_only": true,
+  "allowed_seats": [
+    "first"
+  ],
+  "models": {
+    "candidate": "models/hu_turn0_stage3_top60_mc32_1000_hgb_baseline-delta_sew1_aug3.pkl",
+    "safe_selector": "models/hu_turn0_stage19_safe_selector_highmc_candidate_delta_plus_meta.pkl"
+  },
+  "runtime": {
+    "candidate_topk": 60,
+    "min_margin_by_seat": {
+      "first": 0.5,
+      "second": 999.0
+    },
+    "safe_selector_threshold_by_seat": {
+      "first": 0.6,
+      "second": 1.0
+    },
+    "fallback_policy": "stage18_p1"
+  },
+  "continuations": {
+    "t1": {
+      "profile": "stage18_p1",
+      "status": "p1_fixed"
+    },
+    "t2": {
+      "profile": "stage9f_p2",
+      "status": "p2_fixed"
+    },
+    "t3": {
+      "profile": "stage7_m5_r10",
+      "hu_turn3_min_margin": 5.0,
+      "hu_turn3_reference_min_margin": 10.0
+    },
+    "fl_ev": 10.227020614683454,
+    "visibility_model": "hidden_discard",
+    "discard_visibility": "own_private_only"
+  },
+  "safety": {
+    "second_seat_falls_back_to_stage18_p1": true,
+    "candidate_model_load_failure_falls_back_to_stage18_p1": true,
+    "safe_selector_load_failure_falls_back_to_stage18_p1": true,
+    "feature_or_prediction_failure_falls_back_to_stage18_p1": true,
+    "illegal_or_non_finite_candidate_falls_back_to_stage18_p1": true,
+    "threshold_failure_falls_back_to_stage18_p1": true,
+    "performance_metric": "fresh_same_seed_whole_game_counterfactual_delta",
+    "max_single_future_loss_is_report_only": true,
+    "tail_gate": "p99 realized loss plus independent top30 MC512 replay"
+  },
+  "acceptance_evidence": {
+    "run_name": "hu-t0-stage19-selector-holdout-v2-100k-20260712-001",
+    "paired_seeds": 100000,
+    "decisions": 200000,
+    "realized_fires": 3747,
+    "override_rate_all_seats": 0.018735,
+    "override_rate_first_seat": 0.03747,
+    "avg_delta_per_hand": 0.01730284665481025,
+    "ci95_low": 0.008291762138210985,
+    "ci95_high": 0.026313931171409517,
+    "avg_delta_per_fire": 0.9235573341238458,
+    "per_fire_ci95_low": 0.4433955268971331,
+    "per_fire_ci95_high": 1.4037191413505585,
+    "first_seat_avg_delta_per_hand": 0.0346056933096205,
+    "first_seat_ci95_low": 0.01658352427642197,
+    "first_seat_ci95_high": 0.052627862342819035,
+    "non_fired_counterfactual_nonzero_count": 0,
+    "duplicate_event_count": 0,
+    "seed_set_mismatch_configs": [],
+    "p95_loss": 25.227020614683454,
+    "p99_loss": 35.76702061468342,
+    "max_loss_report_only": 59.45404122936691,
+    "canonical_summary": "outputs/evals/hu_turn0_stage19_selector_holdout_v2_100k/summary.json",
+    "canonical_acceptance": "outputs/evals/hu_turn0_stage19_selector_holdout_v2_100k/acceptance/acceptance.json",
+    "acceptance_passed": true
+  },
+  "independent_tail_audit": {
+    "artifact": "outputs/evals/hu_turn0_stage19_selector_holdout_50k/replay/top30_tail_mc512_aggregate/summary.json",
+    "records": 30,
+    "future_samples": 512,
+    "common_random_futures": true,
+    "action_mapping_valid": true,
+    "delta_mean": 0.8254535876353553,
+    "negative_rate": 0.13333333333333333,
+    "acceptance_passed": true
+  },
+  "post_wiring_smoke": {
+    "artifact": "outputs/evals/hu_turn0_stage19_p0_smoke10/",
+    "paired_seeds": 10,
+    "hands": 20,
+    "t0_decisions": 20,
+    "first_seat_rows": 10,
+    "second_seat_rows": 10,
+    "second_seat_disabled_rows": 10,
+    "runtime_profile_rows": 20,
+    "runtime_status_rows": 20,
+    "replay_ready_rows": 20,
+    "non_fired_counterfactual_nonzero_count": 0,
+    "non_fired_final_mismatch_count": 0
+  },
+  "final_validation": {
+    "pytest": "779 passed",
+    "gcp_running_instances_after_cleanup": 0
+  },
+  "model_integrity": {
+    "candidate_sha256": "8F360BC4C326F0D8D20710A4EFC7C42C62A80CCA11341B34A41A72A4C6AADF71",
+    "safe_selector_sha256": "7CD85B3A824816223CEB0D84870FEB62E43D827452031E6F51DE0EE452514ABE"
+  },
+  "scope": {
+    "accepted": "fixed first-seat T0 selective override over stage18_p1",
+    "not_accepted": [
+      "second-seat T0 override",
+      "T0 full replacement",
+      "automatic replacement of the current profile"
+    ]
+  },
+  "rollback": {
+    "profile": "stage18_p1",
+    "preset": "stage19_p0_off"
+  }
+}

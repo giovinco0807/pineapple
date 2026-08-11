@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import ctypes
+import hashlib
 import sys
 import time
+from contextlib import contextmanager
+from contextvars import ContextVar
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any, Iterator, Sequence
 
 import numpy as np
 
@@ -20,6 +23,10 @@ from .hu_turn3_stage3_feature_fast import (
 
 ENCODER_MODE_RUST_DIRECT = "rust_direct"
 ROW_INDEX = {"top": 0, "middle": 1, "bottom": 2}
+_PINNED_LIBRARY: ContextVar[tuple[Path, str] | None] = ContextVar(
+    "hu_turn3_stage3_pinned_feature_encoder_library",
+    default=None,
+)
 
 
 class _RustProfile(ctypes.Structure):
@@ -206,6 +213,27 @@ def rust_direct_available() -> bool:
         return False
 
 
+@contextmanager
+def pinned_feature_encoder_library(
+    path: str | Path,
+    *,
+    expected_sha256: str,
+) -> Iterator[Path]:
+    """Temporarily bind the Rust encoder to one exact native library.
+
+    This is intended for immutable scientific materialization outside the
+    repository checkout.  The binding is context-local, nestable, and restored
+    even when generation fails.  The file is revalidated when it is loaded.
+    """
+
+    target = _validate_pinned_library(path, expected_sha256=expected_sha256)
+    token = _PINNED_LIBRARY.set((target, expected_sha256))
+    try:
+        yield target
+    finally:
+        _PINNED_LIBRARY.reset(token)
+
+
 def _load_library() -> ctypes.CDLL:
     path = _library_path()
     if path is None:
@@ -213,6 +241,9 @@ def _load_library() -> ctypes.CDLL:
             "Rust Stage3 feature encoder library is not built. Run `cargo build --release` first."
         )
     lib = ctypes.CDLL(str(path))
+    binding = _PINNED_LIBRARY.get()
+    if binding is not None:
+        _validate_pinned_library(path, expected_sha256=binding[1])
     lib.ofc_stage3_encode.argtypes = [
         ctypes.c_size_t,
         ctypes.c_size_t,
@@ -238,6 +269,12 @@ def _load_library() -> ctypes.CDLL:
 
 
 def _library_path() -> Path | None:
+    binding = _PINNED_LIBRARY.get()
+    if binding is not None:
+        return _validate_pinned_library(
+            binding[0],
+            expected_sha256=binding[1],
+        )
     root = Path(__file__).resolve().parents[2]
     if sys.platform.startswith("win"):
         name = "ofc_stage3_feature_encoder.dll"
@@ -253,6 +290,27 @@ def _library_path() -> Path | None:
         if candidate.exists():
             return candidate
     return None
+
+
+def _validate_pinned_library(
+    path: str | Path,
+    *,
+    expected_sha256: str,
+) -> Path:
+    if (
+        not isinstance(expected_sha256, str)
+        or len(expected_sha256) != 64
+        or any(character not in "0123456789abcdef" for character in expected_sha256)
+    ):
+        raise ValueError("feature encoder pin must be a lowercase SHA-256")
+    target = Path(path)
+    if not target.is_absolute() or target.is_symlink() or not target.is_file():
+        raise ValueError("pinned feature encoder must be an absolute non-symlink file")
+    target = target.resolve()
+    digest = hashlib.sha256(target.read_bytes()).hexdigest()
+    if digest != expected_sha256:
+        raise PermissionError("pinned feature encoder SHA-256 changed")
+    return target
 
 
 def _ptr(array: np.ndarray, ctype: Any) -> Any:

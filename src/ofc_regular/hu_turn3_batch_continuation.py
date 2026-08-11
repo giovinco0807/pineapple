@@ -5,14 +5,22 @@ from __future__ import annotations
 import math
 import time
 from collections import OrderedDict
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any, Iterable, Sequence
 
 import numpy as np
 
 from .action_space import Action, generate_turn_actions
+from .action_key import (
+    ACTION_KEY_SCHEMA,
+    action_key,
+    legal_action_set_digest,
+    ordered_action_mapping_digest,
+    resolve_action_key,
+)
 from .cards import ALL_CARDS
 from .hu_turn3_model import HU_FEATURE_DIM, hu_policy_sample, sample_to_matrix as hu_sample_to_matrix
+from .hu_turn3_gate_model import HuTurn3GateModel, decision_gate_features
 from .hu_turn3_stage3_feature_fast import (
     FEATURE_SCHEMA_VERSION,
     Stage3StateFeatureCache,
@@ -23,6 +31,10 @@ from .state import Board
 from .turn3_model import sample_to_matrix as self_sample_to_matrix
 
 CARD_ORDER = {card: index for index, card in enumerate(ALL_CARDS)}
+T3_STATE_SCHEMA = "regular_hu_t3_state_v2"
+T3_DECISION_CACHE_SCHEMA = "regular_hu_t3_decision_cache_v2"
+T3_REFERENCE_CACHE_SCHEMA = "regular_hu_t3_reference_cache_v2"
+T3_ACTION_CACHE_SCHEMA = "regular_hu_t3_action_cache_v2"
 
 
 @dataclass(frozen=True)
@@ -44,6 +56,9 @@ class HuTurn3Stage7BatchConfig:
     stage7_enabled: bool = True
     hu_turn3_min_margin: float = 5.0
     hu_turn3_reference_min_margin: float = 10.0
+    hu_turn3_min_support_margin: float = 0.0
+    hu_turn3_min_model_score: float | None = None
+    hu_turn3_min_gate_probability: float = 0.0
     batch_size: int = 8192
     use_cache: bool = True
     use_stage3_feature_fast_path: bool = True
@@ -61,6 +76,8 @@ class HuTurn3BatchModels:
     fallback_turn3_model: object | None
     stage7_model: object | None
     stage3_reference_model: object | None
+    support_model: object | None = None
+    gate_model: HuTurn3GateModel | None = None
 
 
 @dataclass
@@ -183,6 +200,7 @@ class HuTurn3Stage3ReferenceBatchResult:
 class _PreparedState:
     state: HuTurn3State
     key: tuple[Any, ...]
+    decision_cache_key: tuple[Any, ...]
     actions: list[Action]
     fallback_sample: dict[str, Any] | None = None
     hu_sample: dict[str, Any] | None = None
@@ -193,7 +211,10 @@ class _PreparedState:
     reference_score: float | None = None
     stage7_index: int | None = None
     stage7_predicted_margin: float | None = None
+    hu_predictions: np.ndarray | None = None
+    self_predictions: np.ndarray | None = None
     model_score: float | None = None
+    gate_probability: float | None = None
     legality_check_result: str = "not_evaluated"
     no_override_reason: str = ""
 
@@ -284,6 +305,13 @@ def decide_hu_turn3_stage7_batch(
         "stage7_feature_batch_seconds": 0.0,
         "stage7_model_inference_seconds": 0.0,
         "stage7_sample_generation_seconds": 0.0,
+        "support_feature_batch_seconds": 0.0,
+        "support_model_inference_seconds": 0.0,
+        "support_model_called_count": 0,
+        "gate_self_feature_batch_seconds": 0.0,
+        "gate_self_model_inference_seconds": 0.0,
+        "gate_probability_seconds": 0.0,
+        "gate_model_called_count": 0,
         "t3_postprocess_gate_seconds": 0.0,
         "cache_hits": 0,
         "cache_misses": 0,
@@ -306,16 +334,24 @@ def decide_hu_turn3_stage7_batch(
     cache_misses_before = cache.misses if cache_enabled else 0
     for raw_index, state in enumerate(t3_states):
         key = canonical_t3_state_key(state)
+        decision_cache_key = _decision_cache_key(key, config, models)
         if cache_enabled:
-            cached = cache.get(key)  # type: ignore[union-attr]
+            cached = cache.get(decision_cache_key)  # type: ignore[union-attr]
             if cached is not None:
                 resolved[raw_index] = cached
                 continue
-        unique_index = first_by_key.get(key)
+        unique_index = first_by_key.get(decision_cache_key)
         if unique_index is None:
             unique_index = len(unique)
-            first_by_key[key] = unique_index
-            unique.append(_PreparedState(state=state, key=key, actions=[]))
+            first_by_key[decision_cache_key] = unique_index
+            unique.append(
+                _PreparedState(
+                    state=state,
+                    key=key,
+                    decision_cache_key=decision_cache_key,
+                    actions=[],
+                )
+            )
         inverse.setdefault(unique_index, []).append(raw_index)
 
     profile["cache_hits"] = (cache.hits - cache_hits_before) if cache_enabled else 0
@@ -329,14 +365,17 @@ def decide_hu_turn3_stage7_batch(
     action_cache_hits_before = action_cache.hits if action_cache is not None else 0
     action_cache_misses_before = action_cache.misses if action_cache is not None else 0
     for unique_index, prepared in enumerate(unique):
-        cached_actions = action_cache.get(prepared.key) if action_cache is not None else None
+        action_cache_key = _action_cache_key(prepared.key, prepared.state)
+        cached_actions = (
+            action_cache.get(action_cache_key) if action_cache is not None else None
+        )
         if cached_actions is None:
             try:
                 prepared.actions = generate_turn_actions(prepared.state.board, prepared.state.dealt_cards)
             except Exception:
                 prepared.actions = []
             if action_cache is not None:
-                action_cache.put(prepared.key, prepared.actions)
+                action_cache.put(action_cache_key, prepared.actions)
         else:
             prepared.actions = cached_actions
         if not prepared.actions:
@@ -451,7 +490,7 @@ def decide_hu_turn3_stage7_batch(
             profile["stage3_fallback_model_inference_seconds"] = fallback_result.inference_seconds
             profile["stage3_fallback_recomputed_count"] = len(fallback_needed)
             for prepared, predictions in zip(fallback_needed, fallback_result.predictions):
-                fallback_index = _safe_argmax(predictions, len(prepared.actions))
+                fallback_index = _safe_argmax(predictions, prepared.actions)
                 if fallback_index is None:
                     prepared.no_override_reason = prepared.no_override_reason or "model_load_failed"
                     prepared.stage3_index = 0
@@ -530,7 +569,7 @@ def decide_hu_turn3_stage7_batch(
             if prediction_issue:
                 prepared.no_override_reason = prediction_issue
                 continue
-            action_index = _safe_argmax(predictions, len(prepared.actions))
+            action_index = _safe_argmax(predictions, prepared.actions)
             if action_index is None:
                 prepared.no_override_reason = "nan_prediction"
                 continue
@@ -544,13 +583,129 @@ def decide_hu_turn3_stage7_batch(
                 predictions[prepared.stage3_index]  # type: ignore[index]
             )
             prepared.model_score = float(predictions[action_index])
+            prepared.hu_predictions = predictions
             if prepared.legality_check_result != "legal":
                 prepared.no_override_reason = "illegal_candidate"
             elif action_index == prepared.stage3_index:
                 prepared.no_override_reason = "same_as_stage3"
             elif prepared.stage7_predicted_margin < config.hu_turn3_min_margin:
                 prepared.no_override_reason = "below_stage7_margin"
+            elif (
+                config.hu_turn3_min_model_score is not None
+                and prepared.model_score < config.hu_turn3_min_model_score
+            ):
+                prepared.no_override_reason = "below_model_score"
         profile["t3_postprocess_gate_seconds"] = time.perf_counter() - gate_started_at
+
+    support_ready = [
+        prepared
+        for prepared in stage7_ready
+        if prepared.no_override_reason == ""
+        and prepared.stage7_index is not None
+        and prepared.stage3_index is not None
+        and prepared.hu_sample is not None
+        and config.hu_turn3_min_support_margin > 0.0
+        and models.support_model is not None
+    ]
+    if support_ready:
+        support_result = _predict_samples_batched(
+            models.support_model,
+            [prepared.hu_sample for prepared in support_ready],
+            hu_sample_to_matrix,
+            effective_batch_size,
+        )
+        profile["support_feature_batch_seconds"] = support_result.feature_seconds
+        profile["support_model_inference_seconds"] = support_result.inference_seconds
+        profile["support_model_called_count"] = len(support_ready)
+        support_gate_started_at = time.perf_counter()
+        for prepared, predictions in zip(support_ready, support_result.predictions):
+            prediction_issue = _prediction_issue(predictions, len(prepared.actions))
+            if prediction_issue:
+                prepared.no_override_reason = prediction_issue
+                continue
+            support_margin = float(predictions[prepared.stage7_index]) - float(
+                predictions[prepared.stage3_index]
+            )
+            if support_margin < config.hu_turn3_min_support_margin:
+                prepared.no_override_reason = "below_support_margin"
+        profile["t3_postprocess_gate_seconds"] = (
+            float(profile["t3_postprocess_gate_seconds"])
+            + time.perf_counter()
+            - support_gate_started_at
+        )
+
+    gate_ready = [
+        prepared
+        for prepared in stage7_ready
+        if prepared.no_override_reason == ""
+        and prepared.stage7_index is not None
+        and prepared.stage3_index is not None
+        and prepared.hu_sample is not None
+        and prepared.hu_predictions is not None
+        and config.hu_turn3_min_gate_probability > 0.0
+        and models.gate_model is not None
+    ]
+    if gate_ready:
+        self_samples: list[dict[str, Any] | None] = []
+        self_sample_started_at = time.perf_counter()
+        for prepared in gate_ready:
+            try:
+                prepared.fallback_sample = policy_sample(
+                    prepared.state.board,
+                    prepared.state.dealt_cards,
+                    prepared.actions,
+                )
+            except Exception:
+                prepared.fallback_sample = None
+            self_samples.append(prepared.fallback_sample)
+        profile["gate_self_feature_batch_seconds"] = time.perf_counter() - self_sample_started_at
+        self_result = _predict_samples_batched(
+            models.fallback_turn3_model,
+            self_samples,
+            self_sample_to_matrix,
+            effective_batch_size,
+        )
+        profile["gate_self_feature_batch_seconds"] = (
+            float(profile["gate_self_feature_batch_seconds"]) + self_result.feature_seconds
+        )
+        profile["gate_self_model_inference_seconds"] = self_result.inference_seconds
+        gate_started_at = time.perf_counter()
+        gate_feature_rows: list[np.ndarray] = []
+        gate_prepared: list[_PreparedState] = []
+        for prepared, self_predictions in zip(gate_ready, self_result.predictions):
+            prediction_issue = _prediction_issue(self_predictions, len(prepared.actions))
+            if prediction_issue:
+                prepared.no_override_reason = prediction_issue
+                continue
+            prepared.self_predictions = self_predictions
+            try:
+                gate_feature_rows.append(
+                    decision_gate_features(
+                        prepared.hu_sample,
+                        chosen_index=prepared.stage7_index,
+                        baseline_index=prepared.stage3_index,
+                        hu_predictions=prepared.hu_predictions,
+                        self_predictions=self_predictions,
+                    )
+                )
+                gate_prepared.append(prepared)
+            except Exception:
+                prepared.no_override_reason = "fallback_to_stage3"
+        probabilities = _predict_gate_probabilities_batched(
+            models.gate_model,
+            gate_feature_rows,
+        )
+        for prepared, probability in zip(gate_prepared, probabilities):
+            if probability is None:
+                prepared.no_override_reason = "fallback_to_stage3"
+                continue
+            prepared.gate_probability = float(probability)
+            if not math.isfinite(prepared.gate_probability):
+                prepared.no_override_reason = "nan_prediction"
+            elif prepared.gate_probability < config.hu_turn3_min_gate_probability:
+                prepared.no_override_reason = "fallback_to_stage3"
+        profile["gate_probability_seconds"] = time.perf_counter() - gate_started_at
+        profile["gate_model_called_count"] = len(gate_prepared)
 
     for unique_index, prepared in enumerate(unique):
         if any(resolved[index] is not None for index in inverse.get(unique_index, [])):
@@ -580,13 +735,54 @@ def decide_hu_turn3_stage7_batch(
             cache if cache_enabled else None,
         )
 
-    decisions = [decision for decision in resolved if decision is not None]
+    decisions = [
+        _rebind_turn3_decision(decision, t3_states[index])
+        for index, decision in enumerate(resolved)
+        if decision is not None
+    ]
     total_seconds = time.perf_counter() - started_at
     profile["t3_continuation_total_seconds"] = total_seconds
     profile["ms_per_raw_t3_decision"] = (total_seconds * 1000.0 / raw_count) if raw_count else 0.0
     unique_count = int(profile["unique_t3_states"])
     profile["ms_per_unique_t3_state"] = (total_seconds * 1000.0 / unique_count) if unique_count else 0.0
     return HuTurn3BatchResult(decisions=decisions, profile=profile)
+
+
+def _predict_gate_probabilities_batched(
+    gate_model: HuTurn3GateModel | None,
+    feature_rows: Sequence[np.ndarray],
+) -> list[float | None]:
+    if gate_model is None:
+        return [None for _row in feature_rows]
+    if not feature_rows:
+        return []
+    matrix = np.vstack(feature_rows).astype(np.float32, copy=False)
+    estimator = gate_model.estimator
+    try:
+        if hasattr(estimator, "predict_proba"):
+            probabilities = estimator.predict_proba(matrix)
+            classes = list(getattr(estimator, "classes_", [0, 1]))
+            positive_index = classes.index(1) if 1 in classes else len(classes) - 1
+            return [float(value) for value in probabilities[:, positive_index]]
+        if hasattr(estimator, "decision_function"):
+            scores = np.asarray(estimator.decision_function(matrix), dtype=np.float64).reshape(-1)
+            return [float(1.0 / (1.0 + math.exp(-float(score)))) for score in scores]
+        predictions = np.asarray(estimator.predict(matrix), dtype=np.float64).reshape(-1)
+        return [float(min(1.0, max(0.0, value))) for value in predictions]
+    except Exception:
+        outputs: list[float | None] = []
+        for row in feature_rows:
+            try:
+                if hasattr(estimator, "predict_proba"):
+                    probabilities = estimator.predict_proba(row.reshape(1, -1))
+                    classes = list(getattr(estimator, "classes_", [0, 1]))
+                    positive_index = classes.index(1) if 1 in classes else len(classes) - 1
+                    outputs.append(float(probabilities[0][positive_index]))
+                else:
+                    outputs.append(float(np.asarray(estimator.predict(row.reshape(1, -1))).reshape(-1)[0]))
+            except Exception:
+                outputs.append(None)
+        return outputs
 
 
 def decide_hu_turn3_stage3_reference_batch(
@@ -652,32 +848,65 @@ def decide_hu_turn3_stage3_reference_batch(
     if raw_count == 0:
         return HuTurn3Stage3ReferenceBatchResult(decisions=[], profile=profile)
 
+    if precomputed_actions_by_state is not None and len(precomputed_actions_by_state) != raw_count:
+        raise ValueError("states/precomputed actions length mismatch")
+    if state_keys is not None and len(state_keys) != raw_count:
+        raise ValueError("states/state keys length mismatch")
+
     resolved: list[Stage3ReferenceDecision | None] = [None] * raw_count
+    raw_actions: list[list[Action]] = []
+    action_generation_seconds = 0.0
+    for raw_index, state in enumerate(t3_states):
+        actions = (
+            precomputed_actions_by_state[raw_index]
+            if precomputed_actions_by_state is not None
+            else None
+        )
+        if actions is None:
+            action_started_at = time.perf_counter()
+            try:
+                actions = generate_turn_actions(state.board, state.dealt_cards)
+            except Exception:
+                actions = []
+            action_generation_seconds += time.perf_counter() - action_started_at
+        raw_actions.append(actions)
+
     unique_states: list[HuTurn3State] = []
-    unique_keys: list[tuple[Any, ...]] = []
-    unique_precomputed_actions: list[list[Action] | None] = []
+    unique_state_keys: list[tuple[Any, ...]] = []
+    unique_reference_keys: list[tuple[Any, ...]] = []
+    unique_actions: list[list[Action]] = []
     first_by_key: dict[tuple[Any, ...], int] = {}
     inverse: dict[int, list[int]] = {}
     cache_hits_before = cache.hits if cache is not None else 0
     cache_misses_before = cache.misses if cache is not None else 0
     for raw_index, state in enumerate(t3_states):
-        key = state_keys[raw_index] if state_keys is not None else canonical_t3_state_key(state)
+        state_key = (
+            state_keys[raw_index]
+            if state_keys is not None
+            else canonical_t3_state_key(state)
+        )
+        reference_key = _reference_cache_key(
+            state_key,
+            stage3_model,
+            use_fast_feature_path=use_fast_feature_path,
+            encoder_mode=encoder_mode,
+        )
         if cache is not None:
-            cached = cache.get(key)
+            cached = cache.get(reference_key)
             if cached is not None:
-                resolved[raw_index] = cached
+                resolved[raw_index] = _remap_reference_decision(
+                    cached,
+                    raw_actions[raw_index],
+                )
                 continue
-        unique_index = first_by_key.get(key)
+        unique_index = first_by_key.get(reference_key)
         if unique_index is None:
             unique_index = len(unique_states)
-            first_by_key[key] = unique_index
+            first_by_key[reference_key] = unique_index
             unique_states.append(state)
-            unique_keys.append(key)
-            unique_precomputed_actions.append(
-                precomputed_actions_by_state[raw_index]
-                if precomputed_actions_by_state is not None
-                else None
-            )
+            unique_state_keys.append(state_key)
+            unique_reference_keys.append(reference_key)
+            unique_actions.append(raw_actions[raw_index])
         inverse.setdefault(unique_index, []).append(raw_index)
 
     profile["stage3_reference_cache_hit"] = (cache.hits - cache_hits_before) if cache is not None else 0
@@ -686,27 +915,15 @@ def decide_hu_turn3_stage3_reference_batch(
     )
 
     samples: list[dict[str, Any] | None] = []
-    actions_by_unique: list[list[Action]] = []
-    keys_by_unique: list[tuple[Any, ...]] = []
+    actions_by_unique = unique_actions
+    keys_by_unique = unique_state_keys
     fast_stage3 = (
         use_fast_feature_path
         and stage3_model is not None
         and hasattr(stage3_model, "predict_matrix")
     )
-    action_generation_seconds = 0.0
     sample_generation_seconds = 0.0
-    for state_index, state in enumerate(unique_states):
-        key = unique_keys[state_index]
-        keys_by_unique.append(key)
-        actions = unique_precomputed_actions[state_index]
-        if actions is None:
-            action_started_at = time.perf_counter()
-            try:
-                actions = generate_turn_actions(state.board, state.dealt_cards)
-            except Exception:
-                actions = []
-            action_generation_seconds += time.perf_counter() - action_started_at
-        actions_by_unique.append(actions)
+    for state, actions in zip(unique_states, actions_by_unique):
         if not actions:
             samples.append(None)
             continue
@@ -775,15 +992,23 @@ def decide_hu_turn3_stage3_reference_batch(
         )
 
     unique_decisions: list[Stage3ReferenceDecision] = []
-    for unique_index, (state, actions, predictions, key) in enumerate(
-        zip(unique_states, actions_by_unique, prediction_result.predictions, keys_by_unique)
+    for unique_index, (state, actions, predictions, reference_key) in enumerate(
+        zip(
+            unique_states,
+            actions_by_unique,
+            prediction_result.predictions,
+            unique_reference_keys,
+        )
     ):
         decision = _stage3_reference_decision_from_predictions(actions, predictions)
         unique_decisions.append(decision)
         for raw_index in inverse.get(unique_index, []):
-            resolved[raw_index] = decision
+            resolved[raw_index] = _remap_reference_decision(
+                decision,
+                raw_actions[raw_index],
+            )
         if cache is not None:
-            cache.put(key, decision)
+            cache.put(reference_key, decision)
 
     if replay_path:
         try:
@@ -816,9 +1041,180 @@ def decide_hu_turn3_stage3_reference_batch(
     return HuTurn3Stage3ReferenceBatchResult(decisions=decisions, profile=profile)
 
 
+def _model_cache_identity(model: object | None) -> tuple[Any, ...]:
+    """Process-local identity for an in-memory cache namespace."""
+    if model is None:
+        return ("none",)
+    model_type = type(model)
+    return (
+        "python_object_v1",
+        model_type.__module__,
+        model_type.__qualname__,
+        id(model),
+    )
+
+
+def _config_cache_identity(config: HuTurn3Stage7BatchConfig) -> tuple[Any, ...]:
+    return (
+        bool(config.stage7_enabled),
+        float(config.hu_turn3_min_margin),
+        float(config.hu_turn3_reference_min_margin),
+        float(config.hu_turn3_min_support_margin),
+        (
+            None
+            if config.hu_turn3_min_model_score is None
+            else float(config.hu_turn3_min_model_score)
+        ),
+        float(config.hu_turn3_min_gate_probability),
+        bool(config.use_stage3_feature_fast_path),
+        str(config.stage3_feature_encoder_mode),
+    )
+
+
+def _decision_cache_key(
+    state_key: tuple[Any, ...],
+    config: HuTurn3Stage7BatchConfig,
+    models: HuTurn3BatchModels,
+) -> tuple[Any, ...]:
+    return (
+        T3_DECISION_CACHE_SCHEMA,
+        ACTION_KEY_SCHEMA,
+        _config_cache_identity(config),
+        (
+            ("fallback", _model_cache_identity(models.fallback_turn3_model)),
+            ("stage7", _model_cache_identity(models.stage7_model)),
+            ("reference", _model_cache_identity(models.stage3_reference_model)),
+            ("support", _model_cache_identity(models.support_model)),
+            ("gate", _model_cache_identity(models.gate_model)),
+        ),
+        state_key,
+    )
+
+
+def _reference_cache_key(
+    state_key: tuple[Any, ...],
+    model: object | None,
+    *,
+    use_fast_feature_path: bool,
+    encoder_mode: str,
+) -> tuple[Any, ...]:
+    return (
+        T3_REFERENCE_CACHE_SCHEMA,
+        ACTION_KEY_SCHEMA,
+        FEATURE_SCHEMA_VERSION,
+        bool(use_fast_feature_path),
+        str(encoder_mode),
+        _model_cache_identity(model),
+        state_key,
+    )
+
+
+def _action_cache_key(
+    state_key: tuple[Any, ...],
+    state: HuTurn3State,
+) -> tuple[Any, ...]:
+    # The legacy generator order depends on the incoming dealt-card order.
+    return (
+        T3_ACTION_CACHE_SCHEMA,
+        ACTION_KEY_SCHEMA,
+        state_key,
+        tuple(state.dealt_cards),
+    )
+
+
+def _remap_reference_decision(
+    decision: Stage3ReferenceDecision,
+    actions: list[Action],
+) -> Stage3ReferenceDecision:
+    if decision.stage3_action is None:
+        return replace(decision, action_index=None, action_count=len(actions))
+    try:
+        index = resolve_action_key(actions, action_key(decision.stage3_action))
+    except (KeyError, ValueError):
+        return Stage3ReferenceDecision(
+            stage3_action=None,
+            action_index=None,
+            reference_margin=None,
+            score=None,
+            rank_score=None,
+            action_count=len(actions),
+            legality_status="not_evaluated",
+            fallback_reason="cached_action_not_legal",
+        )
+    return replace(
+        decision,
+        stage3_action=actions[index],
+        action_index=index,
+        action_count=len(actions),
+    )
+
+
+def _rebind_turn3_decision(
+    decision: Turn3Decision,
+    state: HuTurn3State,
+) -> Turn3Decision:
+    actions = generate_turn_actions(state.board, state.dealt_cards)
+
+    def current_index(action: Action | None) -> int | None:
+        if action is None:
+            return None
+        try:
+            return resolve_action_key(actions, action_key(action))
+        except (KeyError, ValueError):
+            return None
+
+    record = dict(decision.record)
+    record.update(
+        {
+            "hand_id": state.hand_id,
+            "game_id": state.game_id,
+            "seed": state.decision_seed,
+            "street": state.street,
+            "turn": state.street,
+            "seat": state.seat,
+            "hero_board": board_to_json(state.board),
+            "opponent_board": board_to_json(state.opponent_board),
+            "cards_to_place": list(state.dealt_cards),
+            "dead_cards": list(state.dead_cards),
+            "visibility_model": "actor_observation_v1",
+            "discard_visibility": "own_private_only",
+            "replay_ready": False,
+            "action_key_schema": ACTION_KEY_SCHEMA,
+            "legal_action_set_digest": legal_action_set_digest(actions),
+            "legal_action_order_digest": ordered_action_mapping_digest(actions),
+            "fallback_action_index": current_index(decision.fallback_action),
+            "stage3_action_index": current_index(decision.stage3_action),
+            "stage7_action_index": current_index(decision.stage7_action),
+            "final_action_index": current_index(decision.final_action),
+            "stage3_action": (
+                action_to_json(state.board, decision.stage3_action)
+                if decision.stage3_action is not None
+                else None
+            ),
+            "stage7_action": (
+                action_to_json(state.board, decision.stage7_action)
+                if decision.stage7_action is not None
+                else None
+            ),
+            "fallback_action": (
+                action_to_json(state.board, decision.fallback_action)
+                if decision.fallback_action is not None
+                else None
+            ),
+            "final_action": (
+                action_to_json(state.board, decision.final_action)
+                if decision.final_action is not None
+                else None
+            ),
+            "runtime_latency_ms": 0.0,
+        }
+    )
+    return replace(decision, record=record)
+
+
 def canonical_t3_state_key(state: HuTurn3State) -> tuple[Any, ...]:
     return (
-        "regular_hu_t3_stage7_m5_r10",
+        T3_STATE_SCHEMA,
         "T3",
         _canonical_board(state.board),
         _canonical_board(state.opponent_board),
@@ -951,7 +1347,7 @@ def _stage3_reference_decision_from_predictions(
             fallback_reason=issue,
         )
     values = [float(value) for value in predictions]  # type: ignore[union-attr]
-    action_index = int(max(range(len(values)), key=lambda index: values[index]))
+    action_index = _canonical_argmax_index(values, actions)
     best = values[action_index]
     if len(values) <= 1:
         margin = 0.0
@@ -1076,11 +1472,22 @@ def _predict_single(model: object, sample: dict[str, Any] | None) -> np.ndarray 
         return None
 
 
-def _safe_argmax(predictions: np.ndarray | None, expected_len: int) -> int | None:
-    if _prediction_issue(predictions, expected_len):
+def _canonical_argmax_index(values: Sequence[float], actions: Sequence[Action]) -> int:
+    if not values or len(values) != len(actions):
+        raise ValueError("values/actions length mismatch")
+    best = max(float(value) for value in values)
+    tied = [index for index, value in enumerate(values) if float(value) == best]
+    return min(tied, key=lambda index: action_key(actions[index]).sort_key())
+
+
+def _safe_argmax(
+    predictions: np.ndarray | None,
+    actions: Sequence[Action],
+) -> int | None:
+    if _prediction_issue(predictions, len(actions)):
         return None
     values = [float(value) for value in predictions]
-    return int(max(range(len(values)), key=lambda index: values[index]))
+    return _canonical_argmax_index(values, actions)
 
 
 def _prediction_issue(predictions: np.ndarray | None, expected_len: int) -> str:
@@ -1132,6 +1539,29 @@ def _decision_from_indices(
         "hero_board": board_to_json(prepared.state.board),
         "opponent_board": board_to_json(prepared.state.opponent_board),
         "cards_to_place": list(prepared.state.dealt_cards),
+        "dead_cards": list(prepared.state.dead_cards),
+        "visibility_model": "actor_observation_v1",
+        "discard_visibility": "own_private_only",
+        "replay_ready": False,
+        "action_key_schema": ACTION_KEY_SCHEMA,
+        "legal_action_set_digest": legal_action_set_digest(actions),
+        "legal_action_order_digest": ordered_action_mapping_digest(actions),
+        "fallback_action_index": fallback_index,
+        "stage3_action_index": stage3_index,
+        "stage7_action_index": stage7_index,
+        "final_action_index": final_index,
+        "fallback_action_key": (
+            action_key(fallback_action).to_token() if fallback_action is not None else None
+        ),
+        "stage3_action_key": (
+            action_key(stage3_action).to_token() if stage3_action is not None else None
+        ),
+        "stage7_action_key": (
+            action_key(stage7_action).to_token() if stage7_action is not None else None
+        ),
+        "final_action_key": (
+            action_key(final_action).to_token() if final_action is not None else None
+        ),
         "stage3_action": action_to_json(prepared.state.board, stage3_action) if stage3_action is not None else None,
         "stage7_action": action_to_json(prepared.state.board, stage7_action) if stage7_action is not None else None,
         "fallback_action": action_to_json(prepared.state.board, fallback_action) if fallback_action is not None else None,
@@ -1140,7 +1570,11 @@ def _decision_from_indices(
         "no_override_reason": no_override_reason or "",
         "hu_turn3_min_margin": config.hu_turn3_min_margin,
         "hu_turn3_reference_min_margin": config.hu_turn3_reference_min_margin,
+        "hu_turn3_min_support_margin": config.hu_turn3_min_support_margin,
+        "hu_turn3_min_model_score": config.hu_turn3_min_model_score,
+        "hu_turn3_min_gate_probability": config.hu_turn3_min_gate_probability,
         "stage7_predicted_margin": prepared.stage7_predicted_margin,
+        "gate_probability": prepared.gate_probability,
         "reference_margin": prepared.reference_margin,
         "model_score": prepared.model_score,
         "ev": prepared.model_score,
@@ -1177,4 +1611,4 @@ def _store_prepared_decision(
     for raw_index in inverse.get(unique_index, []):
         resolved[raw_index] = decision
     if cache is not None:
-        cache.put(prepared.key, decision)
+        cache.put(prepared.decision_cache_key, decision)

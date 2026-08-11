@@ -99,6 +99,50 @@ class HuSklearnActionValueModel:
         return model
 
 
+@dataclass(frozen=True)
+class PredictProbaAsScoreEstimator:
+    """Adapter that exposes classifier confidence through ``predict``.
+
+    HU action-value runtime only needs a sortable score per legal action.  For
+    candidate-generator models trained as classifiers, the positive-class
+    probability is a better score than the hard class label.
+    """
+
+    estimator: Any
+    positive_class: int = 1
+
+    def predict(self, features: np.ndarray) -> np.ndarray:
+        if hasattr(self.estimator, "predict_proba"):
+            probabilities = np.asarray(self.estimator.predict_proba(features), dtype=np.float64)
+            classes = list(getattr(self.estimator, "classes_", ()))
+            if self.positive_class in classes:
+                index = classes.index(self.positive_class)
+            else:
+                index = probabilities.shape[1] - 1
+            return probabilities[:, index]
+        if hasattr(self.estimator, "decision_function"):
+            raw = np.asarray(self.estimator.decision_function(features), dtype=np.float64)
+            return 1.0 / (1.0 + np.exp(-raw))
+        return np.asarray(self.estimator.predict(features), dtype=np.float64)
+
+
+@dataclass(frozen=True)
+class DecisionFunctionAsScoreEstimator:
+    """Adapter that exposes a pairwise ranker's decision function as utility.
+
+    Keep this in an importable model module so pairwise Turn1 candidate
+    generators remain loadable when trained through ``python -m``.
+    """
+
+    estimator: Any
+
+    def predict(self, features: np.ndarray) -> np.ndarray:
+        feature_array = features.astype(np.float32, copy=False)
+        if hasattr(self.estimator, "decision_function"):
+            return np.asarray(self.estimator.decision_function(feature_array), dtype=np.float64).reshape(-1)
+        return np.asarray(self.estimator.predict(feature_array), dtype=np.float64).reshape(-1)
+
+
 @dataclass
 class HuTorchActionValueModel:
     state_dict: dict[str, Any]
@@ -314,7 +358,7 @@ def evaluate_model(
             true_best_score = float(np.max(block_targets))
             correct += int(block_targets[predicted_idx] >= true_best_score - tie_tolerance)
             top_k = min(3, block_size)
-            top_indices = np.argpartition(block_predictions, -top_k)[-top_k:]
+            top_indices = np.argsort(-block_predictions, kind="mergesort")[:top_k]
             top3_correct += int(
                 np.any(block_targets[top_indices] >= true_best_score - tie_tolerance)
             )

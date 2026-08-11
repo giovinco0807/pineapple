@@ -29,10 +29,16 @@ from .ai_profiles import (
     load_model_bundle,
 )
 from .final_turn_decision_cache import FinalTurnDecisionCache
+from .hu_belief import sample_hidden_card_particles, turn2_actor_observation
 from .hu_turn2_teacher_data import (
+    DEFAULT_T3_CONTINUATION,
+    T3ContinuationMode,
     _build_policy_for_profile,
+    _build_t3_continuation_policy,
     _stage3_feature_replay_source,
     _stage3_feature_teacher_run_hash,
+    _t3_continuation_metadata,
+    _t3_continuation_policy_name,
     evaluate_hu_turn2_actions,
 )
 from .hu_turn3_batch_continuation import (
@@ -87,6 +93,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--prediction-threads", type=int, default=1)
     parser.add_argument("--continuation-profile", default="current")
     parser.add_argument("--opponent-profile", default="current")
+    parser.add_argument(
+        "--t3-continuation",
+        choices=("stage3_reference_default", "stage7_m5_r10"),
+        default=DEFAULT_T3_CONTINUATION,
+        help=(
+            "T3 continuation used for replay rollouts. Hidden-discard default "
+            "is stage3_reference_default; stage7_m5_r10 is legacy opt-in."
+        ),
+    )
     parser.add_argument("--opening-lookahead-samples", type=int, default=128)
     parser.add_argument("--disable-batched-continuation", action="store_true")
     parser.add_argument("--batched-continuation-batch-size", type=int, default=8192)
@@ -276,11 +291,15 @@ def build_replay_events(
             missing.append("teacher_original_index")
 
         if isinstance(sample_row, dict):
-            for field in ("board", "opponent_board", "dead_cards", "future_rollout_seed"):
+            for field in ("board", "opponent_board", "future_rollout_seed"):
                 if field not in sample_row:
                     missing.append(field)
             if "dealt" not in sample_row and "dealt_cards" not in sample_row:
                 missing.append("dealt")
+            if not sample_row.get("hero_private_discards") and not sample_row.get(
+                "visible_dead_cards"
+            ):
+                missing.append("hero_visible_discard")
 
         unique_missing = tuple(sorted(set(missing)))
         failure_reason = "ready" if not unique_missing else "missing_" + "|".join(unique_missing)
@@ -400,9 +419,13 @@ def build_batched_config(args: argparse.Namespace) -> HuTurn3Stage7BatchConfig:
         source_bucket="event_replay",
         stage3_feature_encoder_mode=args.stage3_feature_encoder_mode,
         disable_stage3_feature_fast_path=args.disable_stage3_feature_fast_path,
+        t3_continuation=args.t3_continuation,
     )
+    stage7_enabled = args.t3_continuation == "stage7_m5_r10"
     return HuTurn3Stage7BatchConfig(
-        stage7_enabled=True,
+        stage7_enabled=stage7_enabled,
+        hu_turn3_min_margin=5.0 if stage7_enabled else 0.0,
+        hu_turn3_reference_min_margin=10.0 if stage7_enabled else 0.0,
         batch_size=args.batched_continuation_batch_size,
         use_cache=not args.disable_continuation_cache,
         use_stage3_feature_fast_path=not args.disable_stage3_feature_fast_path,
@@ -414,16 +437,44 @@ def build_batched_config(args: argparse.Namespace) -> HuTurn3Stage7BatchConfig:
     )
 
 
-def board_payloads(event: ReplayEvent) -> tuple[Board, Board, tuple[str, ...], tuple[str, ...]]:
+def build_replay_policy(
+    profile: str,
+    bundle: object,
+    *,
+    args: argparse.Namespace,
+    seed: int,
+    seat: str,
+) -> object:
+    if profile == "random_exact_final":
+        return _build_policy_for_profile(
+            profile,
+            bundle,
+            seed=seed,
+            seat=seat,
+            opening_lookahead_samples=args.opening_lookahead_samples,
+        )
+    return _build_t3_continuation_policy(
+        args.t3_continuation,
+        bundle,
+        seed=seed,
+        seat=seat,
+        opening_lookahead_samples=args.opening_lookahead_samples,
+    )
+
+
+def board_payloads(
+    event: ReplayEvent,
+) -> tuple[Board, Board, tuple[str, ...], tuple[str, ...], tuple[str, ...]]:
     assert event.sample_row is not None
     missing: list[str] = []
     board = board_from_json(event.sample_row.get("board"), "board", missing)
     opponent = board_from_json(event.sample_row.get("opponent_board"), "opponent_board", missing)
     dealt = tuple(event.sample_row.get("dealt") or event.sample_row.get("dealt_cards") or ())
-    dead = tuple(event.sample_row.get("dead_cards") or ())
+    visible_dead = tuple(event.sample_row.get("visible_dead_cards") or ())
+    hero_private = tuple(event.sample_row.get("hero_private_discards") or ())
     if board is None or opponent is None or len(dealt) != 3:
         raise ValueError(f"invalid replay state: {','.join(missing) or 'dealt'}")
-    return board, opponent, dealt, dead
+    return board, opponent, dealt, visible_dead, hero_private
 
 
 def replay_event(
@@ -440,30 +491,46 @@ def replay_event(
 ) -> dict[str, Any]:
     if not event.replay_ready:
         raise ValueError(event.failure_reason)
-    board, opponent_board, dealt, dead = board_payloads(event)
+    board, opponent_board, dealt, visible_dead, hero_private = board_payloads(event)
     seed = replay_seed(event, args.mc_samples, args.seed_mode)
     hero_seat = event.position if event.position in {"first", "second"} else str(event.sample_row.get("seat", "first"))
-    hero_policy = _build_policy_for_profile(
+    observation = turn2_actor_observation(
+        hero_board=board,
+        opponent_public_board=opponent_board,
+        dealt_cards=dealt,
+        hero_seat=hero_seat,
+        hero_private_discards=hero_private,
+        visible_dead_cards=visible_dead or None,
+    )
+    belief_batch = sample_hidden_card_particles(
+        observation,
+        base_seed=seed,
+        run_id=(
+            "replay_hu_turn2_event_high_mc"
+            f"|state={event.state_index}|sample={event.sample_id}"
+        ),
+        sample_count=args.mc_samples,
+    )
+    hero_policy = build_replay_policy(
         args.continuation_profile,
         bundle,
+        args=args,
         seed=seed * 4 + 2,
         seat=hero_seat,
-        opening_lookahead_samples=args.opening_lookahead_samples,
     )
     opponent_seat = "second" if hero_seat == "first" else "first"
-    opponent_policy = _build_policy_for_profile(
+    opponent_policy = build_replay_policy(
         args.opponent_profile,
         bundle,
+        args=args,
         seed=seed * 4 + 3,
         seat=opponent_seat,
-        opening_lookahead_samples=args.opening_lookahead_samples,
     )
     started_at = time.perf_counter()
     sample = evaluate_hu_turn2_actions(
         board=board,
         dealt_cards=dealt,
         opponent_board=opponent_board,
-        dead_cards=dead,
         hero_seat=hero_seat,
         continuation_policy=hero_policy,
         opponent_policy=opponent_policy,
@@ -479,6 +546,10 @@ def replay_event(
         batched_continuation_batch_size=args.batched_continuation_batch_size,
         final_turn_cache=final_turn_cache,
         use_final_turn_cache=final_turn_cache is not None,
+        continuation_policy_name=_t3_continuation_policy_name(args.t3_continuation),
+        continuation_metadata=_t3_continuation_metadata(args.t3_continuation),
+        observation=observation,
+        belief_batch=belief_batch,
     )
     elapsed = time.perf_counter() - started_at
     if sample is None:
@@ -520,6 +591,8 @@ def replay_event(
         "candidate_original_index": event.candidate_original_index,
         "teacher_original_index": event.teacher_original_index,
         "mc_n": args.mc_samples,
+        "t3_continuation": args.t3_continuation,
+        "t3_continuation_policy": _t3_continuation_policy_name(args.t3_continuation),
         "gain_mean": gain,
         "gain_stderr": stderr,
         "lower_bound_90": lower90,
@@ -547,6 +620,9 @@ def replay_event(
         "elapsed_seconds": elapsed,
         "future_rollout_seed": seed,
         "common_random_future_digest": sample.get("common_random_future_digest", ""),
+        "belief_conditioned": bool_int(bool(sample.get("belief_conditioned"))),
+        "observation_fingerprint": sample.get("observation_fingerprint", ""),
+        "belief_batch_digest": sample.get("belief_batch_digest", ""),
         "stage7_t3_eval_count": candidate_action.get("stage7_t3_eval_count", ""),
         "stage7_t3_fired_count": candidate_action.get("stage7_t3_fired_count", ""),
         "stage7_t3_override_rate": candidate_action.get("stage7_t3_override_rate", ""),
@@ -618,6 +694,7 @@ def write_high_mc_summary(
     results: list[dict[str, Any]],
     failures: list[dict[str, Any]],
     mc_samples: int,
+    t3_continuation: T3ContinuationMode,
     readiness_only: bool,
     elapsed_seconds: float,
 ) -> None:
@@ -649,6 +726,8 @@ def write_high_mc_summary(
         "",
         f"- mode: `{'readiness_only' if readiness_only else 'high_mc_replay'}`",
         f"- requested MC samples: `{mc_samples}`",
+        f"- T3 continuation: `{_t3_continuation_policy_name(t3_continuation)}`",
+        f"- t3_continuation: `{t3_continuation}`",
         f"- candidates: `{len(events)}`",
         f"- replay successes: `{len(successes)}`",
         f"- replay failures: `{len(failures)}`",
@@ -794,6 +873,7 @@ def main() -> int:
         results=results,
         failures=failures,
         mc_samples=args.mc_samples,
+        t3_continuation=args.t3_continuation,
         readiness_only=args.readiness_only,
         elapsed_seconds=time.perf_counter() - started_at,
     )

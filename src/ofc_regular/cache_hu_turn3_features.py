@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import sys
 import time
@@ -14,6 +15,10 @@ from typing import Any
 import numpy as np
 
 from .hu_turn3_model import HU_FEATURE_DIM, sample_to_matrix
+from .hu_infoset import policy_feature_sample_from_record
+
+
+FEATURE_CACHE_SCHEMA = "hu_turn3_actor_observation_feature_cache_v2"
 
 
 def parse_args() -> argparse.Namespace:
@@ -51,6 +56,7 @@ def _count_samples(path: Path, max_samples: int | None) -> dict[str, Any]:
         actions = sample.get("actions", ())
         if not actions:
             raise ValueError("HU teacher sample has no actions")
+        policy_feature_sample_from_record(sample)
         action_counts.append(len(actions))
         source_counts[str(sample.get("source", "unknown"))] += 1
     offsets = np.zeros(len(action_counts) + 1, dtype=np.int64)
@@ -71,7 +77,8 @@ def _encode_chunk(start_sample: int, lines: list[str], dtype_name: str) -> dict[
     source_counts: Counter[str] = Counter()
     for line in lines:
         sample = json.loads(line)
-        features, targets = sample_to_matrix(sample)
+        safe_sample = policy_feature_sample_from_record(sample)
+        features, targets = sample_to_matrix(safe_sample)
         feature_blocks.append(features.astype(dtype_name, copy=False))
         target_blocks.append(targets.astype(np.float32, copy=False))
         action_counts.append(int(targets.shape[0]))
@@ -201,7 +208,10 @@ def main() -> None:
     features.flush()
     targets.flush()
     metadata = {
+        "schema": FEATURE_CACHE_SCHEMA,
         "input": str(args.input),
+        "input_sha256": hashlib.sha256(args.input.read_bytes()).hexdigest(),
+        "visibility_contract": "actor_observation_only_v1",
         "cache_dir": str(cache_dir),
         "features_path": str(features_path),
         "targets_path": str(targets_path),

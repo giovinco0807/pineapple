@@ -4,15 +4,27 @@
 
 Current T2 baseline is `models/turn2_stage8.pkl`, the self-board Turn2 action-value model used at 7-card boards.
 
-T3 continuation is fixed:
+Legacy/original open-discard T3 continuation was:
 
 - policy: `Stage7_candidate_A_m5_r10`
 - model: `models/hu_turn3_stage7_reference_override_cached_rank_wide.pt`
 - `hu_turn3_min_margin = 5.0`
 - `hu_turn3_reference_min_margin = 10.0`
-- fallback/default: Stage3 HU margin10 policy
+- fallback inside that legacy selective override: Stage3 HU margin10 policy
 - full replacement: disabled
 - margin0.25: excluded
+
+Current hidden-discard caution:
+
+- The plan above was written before the hidden-discard information-model fix.
+- New hidden-discard T2 teacher generation must not silently assume Stage7
+  `m5_r10` is fixed.
+- The current `hu_turn2_teacher_data` default is
+  `--t3-continuation stage3_reference_default`, which records
+  `continuation_policy_T3 = Stage3_HU_reference_default`.
+- Stage7 `m5_r10` is still available only by explicitly passing
+  `--t3-continuation stage7_m5_r10`, and those artifacts should be labeled as
+  Stage7 opt-in / legacy-continuation experiments.
 
 ## Teacher Generation
 
@@ -33,26 +45,30 @@ Bucket mix:
 - 5% high-margin
 - 5% random off-policy
 
-Each teacher row stores full action EVs, standard errors, baseline/reference/fallback actions, deltas, Stage7 continuation metadata, scoring/royalty versions, and source bucket.
+Each teacher row stores full action EVs, standard errors,
+baseline/reference/fallback actions, deltas, explicit T3 continuation metadata,
+scoring/royalty versions, and source bucket. Hidden-discard artifacts should use
+`Stage3_HU_reference_default` unless a run is intentionally labeled as Stage7
+`m5_r10` opt-in.
 
 ## Commands
 
 Smoke:
 
 ```powershell
-python -m ofc_regular.hu_turn2_teacher_data --samples 1 --future-samples 4 --seed 2026061001 --source-bucket natural --prediction-threads 1 --output outputs/hu_turn2_stage1_smoke_mc4.jsonl
+python -m ofc_regular.hu_turn2_teacher_data --samples 1 --future-samples 4 --seed 2026061001 --source-bucket natural --prediction-threads 1 --t3-continuation stage3_reference_default --output outputs/hu_turn2_stage1_smoke_mc4.jsonl
 ```
 
 Shard:
 
 ```powershell
-.\scripts\Run-HuTurn2TeacherShard.ps1 -SourceBucket natural -Samples 100 -FutureSamples 4096 -Seed 2026061101 -PredictionThreads 1 -Output outputs/hu_turn2_stage1/chunks/hu_turn2_teacher_natural_0000.jsonl
+.\scripts\Run-HuTurn2TeacherShard.ps1 -SourceBucket natural -Samples 100 -FutureSamples 4096 -Seed 2026061101 -PredictionThreads 1 -T3Continuation stage3_reference_default -Output outputs/hu_turn2_stage1/chunks/hu_turn2_teacher_natural_0000.jsonl
 ```
 
 Full local chunk plan:
 
 ```powershell
-.\scripts\Run-HuTurn2TeacherChunksParallel.ps1 -TotalSamples 50000 -Chunks 100 -FutureSamples 4096 -MaxParallel 4 -PredictionThreads 1
+.\scripts\Run-HuTurn2TeacherChunksParallel.ps1 -TotalSamples 50000 -Chunks 100 -FutureSamples 4096 -MaxParallel 4 -PredictionThreads 1 -T3Continuation stage3_reference_default
 ```
 
 Merge chunks:

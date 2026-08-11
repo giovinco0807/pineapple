@@ -23,6 +23,8 @@ param(
     [int]$PredictionThreads = 1,
     [int]$BootDiskGb = 50,
     [string]$PoolDir = "outputs/hu_turn2_stage1_batch9_3_pilot_2000_mc512/pools",
+    [ValidateSet("stage3_reference_default", "stage7_m5_r10")]
+    [string]$T3Continuation = "stage3_reference_default",
     [string[]]$StartShards = @(),
     [switch]$CreateInstances,
     [switch]$SkipExistingInstances,
@@ -244,6 +246,7 @@ START_SHARD="$(meta START_SHARD)"
 SOURCE_URI="$(meta SOURCE_URI)"
 SELF_DELETE="$(meta SELF_DELETE)"
 PREDICTION_THREADS="$(meta PREDICTION_THREADS)"
+T3_CONTINUATION="$(meta T3_CONTINUATION)"
 INSTANCE_NAME="$(instance_meta name)"
 ZONE_PATH="$(instance_meta zone)"
 ZONE="${ZONE_PATH##*/}"
@@ -376,6 +379,7 @@ for (( shard=START_SHARD; shard<TOTAL_SHARDS; shard+=VM_COUNT )); do
     --seed "$seed" \
     --future-samples "$FUTURE_SAMPLES" \
     --prediction-threads "$PREDICTION_THREADS" \
+    --t3-continuation "$T3_CONTINUATION" \
     --use-batched-continuation \
     --stage3-feature-encoder-mode rust_direct \
     --output "$local_path" \
@@ -407,7 +411,7 @@ for (( shard=START_SHARD; shard<TOTAL_SHARDS; shard+=VM_COUNT )); do
       gcloud storage cp "$log_path" "$log_remote" || true
     fi
     cat > "$status_path" <<EOF
-{"run_name":"$RUN_NAME","phase":"hu_t2_pilot","shard":$shard,"bucket":"$bucket_name","mode":"$mode","status":"complete","instance":"$INSTANCE_NAME","zone":"$ZONE","seed":$seed,"samples":$samples,"future_samples":$FUTURE_SAMPLES,"lines":$lines,"elapsed_seconds":$elapsed,"started_at":"$started_at","finished_at":"$finished_at","output":"$remote","summary":"$summary_remote","log":"$log_remote"}
+{"run_name":"$RUN_NAME","phase":"hu_t2_pilot","shard":$shard,"bucket":"$bucket_name","mode":"$mode","status":"complete","instance":"$INSTANCE_NAME","zone":"$ZONE","seed":$seed,"samples":$samples,"future_samples":$FUTURE_SAMPLES,"t3_continuation":"$T3_CONTINUATION","lines":$lines,"elapsed_seconds":$elapsed,"started_at":"$started_at","finished_at":"$finished_at","output":"$remote","summary":"$summary_remote","log":"$log_remote"}
 EOF
     gcloud storage cp "$status_path" "$status_remote" || true
   else
@@ -417,7 +421,7 @@ EOF
     fi
     log "failed shard=$shard exit=$exit_code lines=$lines expected=$samples"
     cat > "$status_path" <<EOF
-{"run_name":"$RUN_NAME","phase":"hu_t2_pilot","shard":$shard,"bucket":"$bucket_name","mode":"$mode","status":"failed","instance":"$INSTANCE_NAME","zone":"$ZONE","seed":$seed,"samples":$samples,"future_samples":$FUTURE_SAMPLES,"lines":$lines,"exit_code":$exit_code,"elapsed_seconds":$elapsed,"started_at":"$started_at","finished_at":"$finished_at","log":"$log_remote"}
+{"run_name":"$RUN_NAME","phase":"hu_t2_pilot","shard":$shard,"bucket":"$bucket_name","mode":"$mode","status":"failed","instance":"$INSTANCE_NAME","zone":"$ZONE","seed":$seed,"samples":$samples,"future_samples":$FUTURE_SAMPLES,"t3_continuation":"$T3_CONTINUATION","lines":$lines,"exit_code":$exit_code,"elapsed_seconds":$elapsed,"started_at":"$started_at","finished_at":"$finished_at","log":"$log_remote"}
 EOF
     gcloud storage cp "$status_path" "$status_remote" || true
     exit "$exit_code"
@@ -444,6 +448,7 @@ $manifest = [ordered]@{
     shard_samples = $ShardSamples
     total_shards = $totalShards
     future_samples = $FutureSamples
+    t3_continuation = $T3Continuation
     vm_count = $VmCount
     machine_type = $MachineType
     zones = $Zones
@@ -481,6 +486,7 @@ foreach ($i in $workerIndices) {
         "START_SHARD=$i",
         "SOURCE_URI=$sourceUri",
         "PREDICTION_THREADS=$PredictionThreads",
+        "T3_CONTINUATION=$T3Continuation",
         ("SELF_DELETE=" + ($(if ($NoSelfDelete) { "0" } else { "1" })))
     ) -join ","
 
@@ -528,6 +534,7 @@ foreach ($i in $workerIndices) {
     shard_samples = $ShardSamples
     total_shards = $totalShards
     future_samples = $FutureSamples
+    t3_continuation = $T3Continuation
     vm_count = $VmCount
     machine_type = $MachineType
     package = $packagePath

@@ -14,6 +14,8 @@ from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
 from .action_space import generate_turn_actions
+from .action_key import resolve_action_index
+from .hu_infoset import actor_observation_from_record
 from .hu_turn3_gate_model import (
     GATE_FEATURE_NAMES,
     HuTurn3GateModel,
@@ -118,15 +120,26 @@ def trace_row_to_training_row(row: dict[str, Any]) -> tuple[np.ndarray, int, flo
     opponent_board = Board.from_rows(**row["opponent_board"])
     dealt = tuple(row["dealt"])
     actions = generate_turn_actions(board, dealt)
-    action_index_by_key = {generated_action_key(action): index for index, action in enumerate(actions)}
-    chosen_index = action_index_by_key.get(action_key(row["chosen_action"]), int(row["chosen_index"]))
-    baseline_index = action_index_by_key.get(action_key(row["baseline_action"]), int(row["baseline_index"]))
+    observation = actor_observation_from_record(row)
+    if (
+        observation.hero_board != board
+        or observation.opponent_public_board != opponent_board
+        or observation.dealt_cards != dealt
+        or observation.street != "T3"
+    ):
+        raise ValueError("T3 gate row disagrees with ActorObservation")
+    chosen_index = resolve_action_index(
+        actions, payload=row["chosen_action"]
+    ).index
+    baseline_index = resolve_action_index(
+        actions, payload=row["baseline_action"]
+    ).index
     sample = hu_policy_sample(
         board,
         dealt,
         actions,
         opponent_board=opponent_board,
-        dead_cards=row.get("dead_cards", ()),
+        dead_cards=observation.legacy_dead_cards(),
         seat=row.get("seat", "first"),
         to_act_order=row.get("to_act_order", row.get("seat", "first")),
     )

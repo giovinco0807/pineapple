@@ -1,0 +1,91 @@
+{
+  "schema": "hu_m43_attempt07_status_v1",
+  "milestone": "M4.3",
+  "attempt": "attempt07",
+  "status_date": "2026-07-14",
+  "status": "frozen_pre_development",
+  "decision": "finite_four_arm_development_only",
+  "plan": {
+    "path": "configs/hu_joint_policy_m43_attempt07.json",
+    "schema": "hu_m43_attempt07_development_plan_v1",
+    "sha256": "8bf15f8d109a2e441e1c240e533c56df42a7e65d2eefd3b2750d1bd63758b189"
+  },
+  "attempt06_boundary": {
+    "status": "complete_no_go_search_quality",
+    "closeout_path": "configs/hu_joint_policy_m43_attempt06_closeout.json",
+    "data_use": "development_postmortem_only",
+    "threshold_or_seed_retry_allowed": false,
+    "promotion_allowed": false
+  },
+  "frozen_development_protocol": {
+    "roots": 100,
+    "roots_per_profile": 20,
+    "candidate_set": "rank8_plus_explicit_baseline",
+    "screen": "S8",
+    "shortlist": "K3_nonbaseline_plus_explicit_baseline",
+    "nested_rerank_budgets": [
+      32,
+      64
+    ],
+    "nested_veto_budgets": [
+      64,
+      128
+    ],
+    "assessment": "disjoint_A128_all_rank8_plus_explicit_baseline",
+    "shard_layout": "one_root_per_shard",
+    "batch_child_selectors_required": true,
+    "native_batch_threads": 4,
+    "finite_arms": [
+      "r32_v64",
+      "r64_v64",
+      "r32_v128",
+      "r64_v128"
+    ],
+    "winner": null,
+    "generation_status": "not_started"
+  },
+  "future_audit": {
+    "classification": "declared_disjoint_one_shot_not_authorized",
+    "roots": 50,
+    "roots_per_profile": 10,
+    "root_index_first": 100,
+    "root_index_last": 149,
+    "winner_freeze_required": true,
+    "authorized": false,
+    "started": false,
+    "content_opened": false
+  },
+  "preflight": {
+    "local_correctness": "not_started",
+    "determinism": "not_started",
+    "scalar_batch_exact_parity": "not_started",
+    "latency_profile": "not_started"
+  },
+  "execution": {
+    "local_pilot_started": false,
+    "spot_authorized": false,
+    "spot_started": false,
+    "fit_performed": false,
+    "threshold_selected": false,
+    "runtime_model_frozen": false,
+    "runtime_enabled": false
+  },
+  "baseline_hash_audit": {
+    "policy_registry_path": "src/ofc_regular/ai_profiles.py",
+    "policy_registry_expected_sha256": "d2eb02669e27426623c70af21f1af4d7002db2a7eab77efd3319f8fb65b868d3",
+    "current_mapping_changed": false
+  },
+  "guards": {
+    "development_generation_started": false,
+    "winner_frozen": false,
+    "future_audit_authorized": false,
+    "future_audit_started": false,
+    "fit_started": false,
+    "threshold_selection_started": false,
+    "runtime_policy_activated": false,
+    "current_profile_changed": false,
+    "full_replacement_enabled": false,
+    "large_scale_authorized": false
+  },
+  "next_action": "implement_and_preflight_attempt07_teacher_without_opening_future_audit"
+}

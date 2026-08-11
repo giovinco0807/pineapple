@@ -198,13 +198,23 @@ def classify_runtime_failure(row: dict[str, Any]) -> str:
     return "other"
 
 
+def manifest_t3_continuation_label(manifest: dict[str, Any]) -> str:
+    mode = str(manifest.get("t3_continuation", "") or "")
+    if mode == "stage3_reference_default":
+        return "Stage3_HU_reference_default"
+    if mode == "stage7_m5_r10":
+        return "Stage7_candidate_A_m5_r10 opt-in"
+    return "legacy_unspecified"
+
+
 def write_summary(path: Path, grid_rows: list[dict[str, Any]], manifest: dict[str, Any], *, elapsed_status: dict[str, Any]) -> None:
     lines = [
         "# HU Turn2 Stage8 C3 Larger Seat-Swap Validation",
         "",
         "C3 is validation-only. It does not authorize 50k teacher, T1, production training, or production runtime changes.",
         "",
-        "- T3 continuation: `Stage7_candidate_A_m5_r10`",
+        "- T3 continuation: `{}`".format(manifest_t3_continuation_label(manifest)),
+        "- t3_continuation: `{}`".format(manifest.get("t3_continuation", "legacy_unspecified")),
         "- Stage8 mode: `HU T2 selective override`, not full replacement",
         "- seed_stride: `{}`".format(manifest.get("seed_stride", "")),
         "- games_per_seed: `{}`".format(manifest.get("games_per_seed", "")),

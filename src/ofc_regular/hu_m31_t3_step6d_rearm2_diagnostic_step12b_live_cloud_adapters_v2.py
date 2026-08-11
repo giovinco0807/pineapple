@@ -55,6 +55,7 @@ SCHEMA = (
     "step12b_live_cloud_adapters_v2"
 )
 MAX_RESPONSE_BYTES = 8 * 1024 * 1024
+MAX_SERIAL_OUTPUT_BYTES = 1 * 1024 * 1024
 REQUEST_TIMEOUT_SECONDS = 60
 OPERATION_WAIT_SECONDS = 600
 ABSENCE_WAIT_SECONDS = 600
@@ -1060,6 +1061,58 @@ class ExactPairComputeClient:
                 "instance_get_failed", status_code=response.status_code
             )
         return _json_object(response, operation="instance_get")
+
+    def get_serial_port_output(
+        self, *, instance_name: str, start: int = -65_536
+    ) -> Mapping[str, Any] | None:
+        """Read a bounded tail of serial port 1 without exposing credentials."""
+
+        if (
+            instance_name not in self._names
+            or type(start) is not int
+            or not -MAX_SERIAL_OUTPUT_BYTES <= start <= 0
+        ):
+            raise ValueError("exact pair serial read escaped allowlist")
+        response = self._request(
+            method="GET",
+            suffix=f"instances/{instance_name}/serialPort",
+            query={"port": "1", "start": str(start)},
+        )
+        if response.status_code == 404:
+            return None
+        if response.status_code != 200:
+            raise LiveCloudAdapterError(
+                "serial_port_output_get_failed",
+                status_code=response.status_code,
+                operation="get_serial_port_output",
+            )
+        record = _json_object(
+            response, operation="get_serial_port_output"
+        )
+        contents = record.get("contents")
+        start_raw = record.get("start")
+        next_raw = record.get("next")
+        if (
+            record.get("kind") != "compute#serialPortOutput"
+            or not isinstance(contents, str)
+            or len(contents.encode("utf-8")) > MAX_SERIAL_OUTPUT_BYTES
+            or not isinstance(start_raw, str)
+            or not start_raw.isdigit()
+            or not isinstance(next_raw, str)
+            or not next_raw.isdigit()
+            or int(next_raw) < int(start_raw)
+        ):
+            raise LiveCloudAdapterError(
+                "serial_port_output_shape_changed",
+                operation="get_serial_port_output",
+            )
+        return {
+            "instance_name": instance_name,
+            "port": 1,
+            "start": int(start_raw),
+            "next": int(next_raw),
+            "contents": contents,
+        }
 
     def set_metadata(
         self,

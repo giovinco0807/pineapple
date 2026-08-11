@@ -112,12 +112,30 @@ def c3_decision(rows: list[dict[str, Any]]) -> tuple[str, list[str], dict[str, A
     return "No-Go", blockers or ["no_viable_c3_candidate"], rows[0]
 
 
+def t3_continuation_fields(rows: list[dict[str, Any]]) -> tuple[str, str]:
+    modes = sorted({str(row.get("t3_continuation", "") or "") for row in rows if row.get("t3_continuation")})
+    policies = sorted(
+        {
+            str(row.get("t3_continuation_policy", "") or "")
+            for row in rows
+            if row.get("t3_continuation_policy")
+        }
+    )
+    return (
+        ",".join(modes) if modes else "legacy_unspecified",
+        ",".join(policies) if policies else "legacy_unspecified",
+    )
+
+
 def write_summary(output_dir: Path, rows: list[dict[str, Any]], decision: str, blockers: list[str], recommended: dict[str, Any] | None) -> None:
+    t3_mode, t3_policy = t3_continuation_fields(rows)
     lines = [
         "# HU Turn2 Stage8 C3 Larger Seat-Swap",
         "",
         "C3 is validation-only. It does not start 50k teacher, T1 training, production training, or production runtime changes.",
         "",
+        f"- T3 continuation: `{t3_policy}`",
+        f"- t3_continuation: `{t3_mode}`",
         f"- selected refinement / C4 preparation: `{decision}`",
         f"- blockers: `{';'.join(blockers) if blockers else 'none'}`",
         "- 50k teacher: `No-Go`",
@@ -165,6 +183,8 @@ def write_summary(output_dir: Path, rows: list[dict[str, Any]], decision: str, b
             [
                 "# Go / No-Go For C3 Follow-Up",
                 "",
+                f"- T3 continuation: `{t3_policy}`",
+                f"- t3_continuation: `{t3_mode}`",
                 f"- selected refinement / C4 preparation: `{decision}`",
                 f"- blockers: `{';'.join(blockers) if blockers else 'none'}`",
                 "- 50k teacher: `No-Go`",

@@ -1,0 +1,342 @@
+{
+  "schema": "hu_joint_policy_m31_t3_step6d_contract_v1",
+  "status_date": "2026-07-17",
+  "status": "frozen_before_performance_development",
+  "decision": "freeze_disjoint_performance_repair_quality_artifact_model_and_promotion_ladder_without_reopening_step6c",
+  "scope": "m31_t3_step6d_contract_only_no_search_cloud_training_profile_or_activation",
+  "anchors": {
+    "step5_contract": {
+      "path": "configs/hu_joint_policy_m31_t3_step5_contract.json",
+      "byte_sha256": "5f9fab4d844f1a7411a99f9dada2fe289314d4dea578d0c0f6a6d14918263c93",
+      "canonical_sha256": "04c4298feaed78f327f7fb6601f70a6821c3a91dcd2996cc34becbc4bb38e0b4"
+    },
+    "step6c_contract": {
+      "path": "configs/hu_joint_policy_m31_t3_step6c_contract.json",
+      "byte_sha256": "6d9cc9f0bb79423ead58eea24b84474085071f9dd0dbda8cfc5acf89648fb8ce",
+      "canonical_sha256": "0a745fb746766423424f71a00292dac86e6102d15187ef763cc0e7d30ed49123"
+    },
+    "step6c_quality": {
+      "path": "outputs/hu_joint_policy/m31_t3_step6c/quality100_validation_v1.json",
+      "byte_sha256": "66ddae312ee9561a0101ba94deb5e5e867d407dda78af00b03da10fc96739731"
+    },
+    "step6c_completion_audit": {
+      "path": "docs/hu_joint_policy_m31_t3_step6c_completion_audit.md",
+      "byte_sha256": "148b6839572d29e065d5bce7118eb8a5c9d245594363d92f689c2734d6937b85"
+    },
+    "policy_registry": {
+      "path": "src/ofc_regular/ai_profiles.py",
+      "byte_sha256": "d2eb02669e27426623c70af21f1af4d7002db2a7eab77efd3319f8fb65b868d3"
+    },
+    "accepted_step6c_native": {
+      "path": "outputs/gcp_runs/regular-hu-m31-step6c-quality-20260717-003/package_src/native/release/libofc_hu_m3_engine.so",
+      "byte_sha256": "3f831615d9e751b8e1f266f14dd2009903b3ac2a4094f7e47616e0aa372a01b0"
+    },
+    "accepted_feature_encoder": {
+      "path": "outputs/gcp_runs/regular-hu-m31-step6c-quality-20260717-003/package_src/target/release/libofc_stage3_feature_encoder.so",
+      "byte_sha256": "82510e563ee290cd536e7aebe6bcf0efefac061af5488851f0a582bb4ef83411"
+    }
+  },
+  "step6c_fixed_outcome": {
+    "status": "complete_no_go",
+    "run_name": "regular-hu-m31-step6c-quality-20260717-003",
+    "decision": "production_label_quality_pilot_no_go_no_same_data_reselection",
+    "failed_gate": "first_primary_p95_within_180_seconds",
+    "dependent_failed_gate": "all_shard_summaries_pass",
+    "observed_first_p95_seconds": 326.2574110039998,
+    "frozen_first_p95_limit_seconds": 180.0,
+    "confirmation_and_integrity_gates_passed": true,
+    "reopened": false,
+    "reseed_allowed": false,
+    "extension_allowed": false,
+    "threshold_reselection_allowed": false,
+    "rows_training_eligible": false,
+    "quality_evidence_reused_by_step6d": false
+  },
+  "immutable_boundaries": {
+    "step5_numeric_gates_reused": true,
+    "step5_seed_ranges_retired_from_step6d": true,
+    "step6c_no_go_preserved": true,
+    "m30_exact_t4_semantics_preserved": true,
+    "hidden_opponent_discards_allowed": false,
+    "sample_budget_reduction_allowed": false,
+    "legal_action_pruning_allowed": false,
+    "approximate_t4_allowed": false,
+    "teacher_values_are_realized_match_ev": false,
+    "current_profile_resolution_allowed": false,
+    "named_profile_addition_allowed": false,
+    "runtime_activation_allowed": false,
+    "production_fanout_authorized": false,
+    "training_authorized": false
+  },
+  "seed_contract": {
+    "schema": "hu_m31_t3_step6d_disjoint_seed_schedule_v1",
+    "seed_stride": 1000003,
+    "formula": "namespace_seed_base + seed_stride * index",
+    "historical_config_seed_max_at_freeze": 470607073398,
+    "planned_seed_min": 480108071901,
+    "planned_seed_max": 680607073398,
+    "planned_seed_count": 67500,
+    "planned_seed_set_sha256": "34e94c132a77de70409e684ddfa64f2d77c6cba38ab90a5868f0ace6c46ef392",
+    "all_namespaces_globally_disjoint": true,
+    "all_roles_globally_disjoint": true,
+    "alternate_seed_after_results_allowed": false,
+    "posthoc_extension_allowed": false,
+    "step5_seed_values_reused": false,
+    "schedules": [
+      {
+        "name": "performance_development",
+        "role": "repeatable_performance_engineering_only",
+        "index_count": 100,
+        "unit": "paired_hand",
+        "namespace_kind": "teacher",
+        "namespace_bases": {"hand": 480108071901, "behavior": 481108071901, "candidate": 482108071901, "evaluation": 483108071901, "child": 484108071901, "confirmation": 485108071901},
+        "training_eligible": false,
+        "locked_before_content_read": false
+      },
+      {
+        "name": "performance_lock",
+        "role": "one_shot_performance_qualification_only",
+        "index_count": 100,
+        "unit": "paired_hand",
+        "namespace_kind": "teacher",
+        "namespace_bases": {"hand": 490108071901, "behavior": 491108071901, "candidate": 492108071901, "evaluation": 493108071901, "child": 494108071901, "confirmation": 495108071901},
+        "training_eligible": false,
+        "locked_before_content_read": true
+      },
+      {
+        "name": "quality_pilot",
+        "role": "one_shot_production_label_quality_authorization_only",
+        "index_count": 50,
+        "unit": "paired_hand",
+        "namespace_kind": "teacher",
+        "namespace_bases": {"hand": 500108071901, "behavior": 501108071901, "candidate": 502108071901, "evaluation": 503108071901, "child": 504108071901, "confirmation": 505108071901},
+        "training_eligible": false,
+        "locked_before_content_read": true
+      },
+      {
+        "name": "train",
+        "role": "teacher_training",
+        "index_count": 6000,
+        "unit": "paired_hand",
+        "namespace_kind": "teacher",
+        "namespace_bases": {"hand": 520108071901, "behavior": 527108071901, "candidate": 534108071901, "evaluation": 541108071901, "child": 548108071901, "confirmation": 555108071901},
+        "training_eligible": true,
+        "locked_before_content_read": false
+      },
+      {
+        "name": "safety_fit",
+        "role": "teacher_safety_estimator_fit",
+        "index_count": 1000,
+        "unit": "paired_hand",
+        "namespace_kind": "teacher",
+        "namespace_bases": {"hand": 570108071901, "behavior": 572108071901, "candidate": 574108071901, "evaluation": 576108071901, "child": 578108071901, "confirmation": 580108071901},
+        "training_eligible": true,
+        "locked_before_content_read": false
+      },
+      {
+        "name": "threshold_lock",
+        "role": "teacher_threshold_selection_only",
+        "index_count": 1000,
+        "unit": "paired_hand",
+        "namespace_kind": "teacher",
+        "namespace_bases": {"hand": 590108071901, "behavior": 592108071901, "candidate": 594108071901, "evaluation": 596108071901, "child": 598108071901, "confirmation": 600108071901},
+        "training_eligible": false,
+        "locked_before_content_read": true
+      },
+      {
+        "name": "diagnostic_teacher_holdout",
+        "role": "teacher_diagnostic_only_after_model_and_threshold_freeze",
+        "index_count": 1000,
+        "unit": "paired_hand",
+        "namespace_kind": "teacher",
+        "namespace_bases": {"hand": 610108071901, "behavior": 612108071901, "candidate": 614108071901, "evaluation": 616108071901, "child": 618108071901, "confirmation": 620108071901},
+        "training_eligible": false,
+        "locked_before_content_read": true
+      },
+      {
+        "name": "development_population",
+        "role": "realized_match_development_only",
+        "index_count": 250,
+        "unit": "paired_seed_per_opponent",
+        "namespace_kind": "population",
+        "namespace_bases": {"hand": 630108071901, "actor_policy": 631108071901, "opponent_policy": 632108071901, "evaluation": 633108071901, "child": 634108071901, "confirmation": 635108071901},
+        "training_eligible": false,
+        "locked_before_content_read": false
+      },
+      {
+        "name": "locked_population",
+        "role": "realized_match_promotion_holdout",
+        "index_count": 1000,
+        "unit": "paired_seed_per_opponent",
+        "namespace_kind": "population",
+        "namespace_bases": {"hand": 640108071901, "actor_policy": 642108071901, "opponent_policy": 644108071901, "evaluation": 646108071901, "child": 648108071901, "confirmation": 650108071901},
+        "training_eligible": false,
+        "locked_before_content_read": true
+      },
+      {
+        "name": "abr_development",
+        "role": "response_policy_training_and_development_only",
+        "index_count": 250,
+        "unit": "paired_seed_per_response",
+        "namespace_kind": "population",
+        "namespace_bases": {"hand": 660108071901, "actor_policy": 661108071901, "opponent_policy": 662108071901, "evaluation": 663108071901, "child": 664108071901, "confirmation": 665108071901},
+        "training_eligible": false,
+        "locked_before_content_read": false
+      },
+      {
+        "name": "locked_abr",
+        "role": "approximate_best_response_promotion_holdout",
+        "index_count": 500,
+        "unit": "paired_seed_per_response",
+        "namespace_kind": "population",
+        "namespace_bases": {"hand": 670108071901, "actor_policy": 672108071901, "opponent_policy": 674108071901, "evaluation": 676108071901, "child": 678108071901, "confirmation": 680108071901},
+        "training_eligible": false,
+        "locked_before_content_read": true
+      }
+    ]
+  },
+  "substeps": {
+    "contract_freeze": {
+      "status": "frozen",
+      "go_requires": ["all_anchors_exact", "all_67500_seed_values_unique", "step6c_no_go_unchanged", "current_registry_unchanged"],
+      "authorizes": "performance_development_only"
+    },
+    "performance_development": {
+      "schedule": "performance_development",
+      "paired_hands": 100,
+      "roots": 200,
+      "hands_per_behavior_profile": 20,
+      "first_roots": 100,
+      "second_roots": 100,
+      "search_budget": {"candidate_samples": 8, "evaluation_samples": 32, "downstream_t3_samples": 4, "downstream_t4_samples": 0},
+      "confirmation_executed": false,
+      "repeatable": true,
+      "allowed_allocations": ["1x16", "2x8", "4x4"],
+      "candidate_freeze_gates": {"portable_semantic_parity_fraction": 1.0, "first_p95_seconds_max": 150.0, "first_p99_and_max_seconds_max": 240.0, "second_p95_seconds_max": 5.0, "peak_rss_bytes_max": 858993459},
+      "training_eligible": false,
+      "failure_action": "continue_engineering_on_same_development_set_without_opening_performance_lock"
+    },
+    "performance_lock": {
+      "schedule": "performance_lock",
+      "paired_hands": 100,
+      "roots": 200,
+      "one_shot": true,
+      "candidate_and_reference_run_separately": true,
+      "source_native_image_and_allocation_frozen_before_open": true,
+      "go_gates": {"missing_or_censored_roots_max": 0, "portable_semantic_parity_fraction": 1.0, "first_p95_hard_seconds_max": 180.0, "first_p95_quality_launch_guard_seconds_max": 150.0, "first_p99_and_max_seconds_max": 240.0, "second_p95_hard_seconds_max": 6.0, "second_p95_quality_launch_guard_seconds_max": 5.0, "peak_rss_hard_bytes_max": 1073741824, "peak_rss_quality_launch_guard_bytes_max": 858993459},
+      "rerun_after_content_read_allowed": false,
+      "failure_action": "complete_candidate_no_go_new_contract_and_locked_seeds_required",
+      "authorizes": "fresh_quality_pilot_only"
+    },
+    "quality_pilot": {
+      "schedule": "quality_pilot",
+      "paired_hands": 50,
+      "roots": 100,
+      "hands_per_behavior_profile": 10,
+      "first_roots": 50,
+      "second_roots": 50,
+      "primary_budget": {"candidate_samples": 8, "evaluation_samples": 32, "downstream_t3_samples": 4, "downstream_t4_samples": 0},
+      "confirmation_budget": {"candidate_samples": 8, "evaluation_samples": 128, "downstream_t3_samples": 4, "downstream_t4_samples": 0},
+      "confirmation_paired_hands": 5,
+      "confirmation_roots": 10,
+      "confirmation_one_paired_hand_per_profile": true,
+      "confirmation_selected_regret_gates": {"mean_max": 0.75, "p95_max": 3.0, "p99_max": 6.0, "max_max": 15.0},
+      "operational_gates": {"first_p95_seconds_max": 180.0, "second_p95_seconds_max": 6.0, "peak_rss_bytes_max": 1073741824},
+      "integrity_gates": {"hidden_truth_rows_max": 0, "unknown_field_rows_max": 0, "invalid_action_mapping_rows_max": 0, "nonfinite_action_value_rows_max": 0, "duplicate_fingerprints_max": 0, "rng_overlap_max": 0, "complete_legal_action_value_fraction_min": 1.0, "exact_t4_fraction_min": 1.0},
+      "training_eligible": false,
+      "reseed_extension_or_threshold_change_allowed": false,
+      "failure_action": "complete_no_go_no_artifact_fanout",
+      "authorizes": "artifact_rebuild_initial_shard_only"
+    },
+    "artifact_rebuild": {
+      "schedules": ["train", "safety_fit", "threshold_lock", "diagnostic_teacher_holdout"],
+      "paired_hands": {"train": 6000, "safety_fit": 1000, "threshold_lock": 1000, "diagnostic_teacher_holdout": 1000},
+      "primary_budget": {"candidate_samples": 8, "evaluation_samples": 32, "downstream_t3_samples": 4, "downstream_t4_samples": 0},
+      "confirmation_fraction_each_split": 0.1,
+      "initial_authorization_paired_hands": 25,
+      "full_fanout_requires_verified_initial_shard": true,
+      "data_gates": {"hidden_truth_rows_max": 0, "unknown_field_rows_max": 0, "invalid_action_mapping_rows_max": 0, "nonfinite_action_value_rows_max": 0, "duplicate_fingerprints_max": 0, "rng_overlap_max": 0, "complete_legal_action_value_fraction_min": 1.0, "exact_t4_fraction_min": 1.0, "first_second_ratio_exact": 1.0, "confirmation_regret_mean_max": 0.75, "confirmation_regret_p95_max": 3.0, "confirmation_regret_p99_max": 6.0, "confirmation_regret_max_max": 15.0},
+      "row_drop_or_replacement_allowed": false,
+      "failure_action": "split_no_go_training_forbidden"
+    },
+    "model_and_threshold_freeze": {
+      "fit_roles": {"train": "policy_value_action_value_delta", "safety_fit": "uncertainty_and_safe_calibration", "threshold_lock": "threshold_selection_only", "diagnostic_teacher_holdout": "diagnostic_after_model_and_threshold_freeze_only"},
+      "shared_seat_aware_model_default": true,
+      "seat_specific_calibration_required": true,
+      "model_gates": {"all_legal_action_q_coverage_min": 1.0, "teacher_regret_mean_max": 0.75, "teacher_regret_p95_max": 3.0, "teacher_regret_p99_max": 6.0, "each_seat_teacher_regret_p95_max": 4.0, "safe_head_ece_each_seat_max": 0.05, "safe_head_brier_each_seat_max": 0.2},
+      "split_seat_interference_gates": {"relative_p95_regret_improvement_min": 0.1, "absolute_p95_regret_improvement_min": 0.5, "other_seat_regret_degradation_max": 0.25},
+      "top1_accuracy_is_promotion_gate": false,
+      "teacher_ev_lcb_is_runtime_gate": false,
+      "model_change_after_threshold_open_requires_new_threshold_and_diagnostic_seeds": true,
+      "current_profile_changed": false
+    },
+    "development_population": {
+      "schedules": ["development_population", "abr_development"],
+      "opponents": ["stage19_p0", "stage9f_p2", "stage7_m5_r10", "stage3_baseline", "random_exact_final"],
+      "paired_seeds_per_opponent": 250,
+      "paired_seat_swap": true,
+      "candidate_and_baseline_common_randomness": true,
+      "response_families": ["greedy_search_response", "foul_pressure_response", "royalty_denial_response"],
+      "response_training_uses_locked_abr_seeds": false,
+      "promotion_evidence": false,
+      "failure_action": "close_candidate_version_and_require_new_threshold_lock_before_changed_model"
+    },
+    "locked_promotion": {
+      "schedules": ["locked_population", "locked_abr"],
+      "baseline_profile": "stage7_m5_r10",
+      "paired_seeds_per_opponent": 1000,
+      "paired_seeds_per_response": 500,
+      "paired_seat_swap": true,
+      "confidence_interval_unit": "hand_seed_cluster_after_opponent_average",
+      "promotion_gates": {"invalid_counterfactuals_max": 0, "nonfire_cancellation_mismatches_max": 0, "nonfire_nonzero_deltas_max": 0, "nonfire_cancellation_unknown_max": 0, "valid_overrides_min": 300, "valid_overrides_each_seat_min": 100, "realized_gain_per_override_ci95_low_min_exclusive": 0.0, "paired_delta_ev_per_hand_ci95_low_min_exclusive": 0.0, "first_seat_delta_ev_per_hand_ci95_low_min_exclusive": 0.0, "second_seat_delta_ev_per_hand_ci95_low_min_exclusive": 0.0, "false_positive_override_rate_max": 0.3, "false_positive_override_rate_each_seat_max": 0.35, "override_loss_p95_max": 25.0, "override_loss_p99_max": 40.0, "override_loss_max": 50.0, "each_opponent_delta_ev_per_hand_min": -0.005, "each_opponent_delta_ev_per_hand_ci95_low_min": -0.02},
+      "exploitability_proxy_gates": {"candidate_minus_baseline_ev_per_hand_min": -0.005, "candidate_minus_baseline_ci95_low_min": -0.02, "worst_response_ev_per_hand_min": -0.01},
+      "threshold_model_response_or_seed_change_after_open_allowed": false,
+      "posthoc_extension_allowed": false,
+      "go_authorizes": "m31_scientific_promotion_and_separate_explicit_opt_in_profile_change_only",
+      "current_profile_changed": false
+    }
+  },
+  "reuse_matrix": {
+    "step5_contract": {"allowed_use": "numeric_gates_and_opponent_list_only", "training_eligible": false, "threshold_eligible": false, "quality_evidence": false, "promotion_evidence": false},
+    "step5_seed_ranges": {"allowed_use": "permanently_reserved_and_retired_from_step6d", "training_eligible": false, "threshold_eligible": false, "quality_evidence": false, "promotion_evidence": false},
+    "step6a_step6b_rows": {"allowed_use": "infrastructure_parity_and_resume_regression_only", "training_eligible": false, "threshold_eligible": false, "quality_evidence": false, "promotion_evidence": false},
+    "step6c_rows": {"allowed_use": "immutable_no_go_anchor_aggregate_performance_diagnosis_and_old_binary_reference_only", "training_eligible": false, "threshold_eligible": false, "quality_evidence": false, "promotion_evidence": false},
+    "performance_development": {"allowed_use": "repeatable_performance_engineering_only", "training_eligible": false, "threshold_eligible": false, "quality_evidence": false, "promotion_evidence": false},
+    "performance_lock": {"allowed_use": "one_shot_performance_qualification_only", "training_eligible": false, "threshold_eligible": false, "quality_evidence": false, "promotion_evidence": false},
+    "quality_pilot": {"allowed_use": "artifact_fanout_authorization_only", "training_eligible": false, "threshold_eligible": false, "quality_evidence": true, "promotion_evidence": false},
+    "train": {"allowed_use": "policy_value_action_value_delta_fit_only", "training_eligible": true, "threshold_eligible": false, "quality_evidence": false, "promotion_evidence": false},
+    "safety_fit": {"allowed_use": "uncertainty_and_safe_head_fit_only", "training_eligible": true, "threshold_eligible": false, "quality_evidence": false, "promotion_evidence": false},
+    "threshold_lock": {"allowed_use": "threshold_selection_only", "training_eligible": false, "threshold_eligible": true, "quality_evidence": false, "promotion_evidence": false},
+    "diagnostic_teacher_holdout": {"allowed_use": "post_freeze_teacher_diagnostics_only", "training_eligible": false, "threshold_eligible": false, "quality_evidence": false, "promotion_evidence": false},
+    "development_population": {"allowed_use": "realized_development_evaluation_only", "training_eligible": false, "threshold_eligible": false, "quality_evidence": false, "promotion_evidence": false},
+    "abr_development": {"allowed_use": "response_policy_training_and_development_only", "training_eligible": false, "threshold_eligible": false, "quality_evidence": false, "promotion_evidence": false},
+    "locked_population": {"allowed_use": "one_shot_realized_promotion_holdout_only", "training_eligible": false, "threshold_eligible": false, "quality_evidence": false, "promotion_evidence": true},
+    "locked_abr": {"allowed_use": "one_shot_approximate_best_response_holdout_only", "training_eligible": false, "threshold_eligible": false, "quality_evidence": false, "promotion_evidence": true},
+    "legacy_t3_models": {"allowed_use": "behavior_opponent_and_rollback_comparator_only", "training_eligible": false, "threshold_eligible": false, "quality_evidence": false, "promotion_evidence": false},
+    "m30_exact_t4": {"allowed_use": "exact_downstream_teacher_and_runtime_semantics", "training_eligible": false, "threshold_eligible": false, "quality_evidence": false, "promotion_evidence": false}
+  },
+  "activation_guards": {
+    "performance_execution_authorized": false,
+    "quality_pilot_authorized": false,
+    "artifact_fanout_authorized": false,
+    "training_authorized": false,
+    "named_profile_added": false,
+    "current_profile_changed": false,
+    "runtime_policy_activated": false,
+    "full_replacement_enabled": false,
+    "m31_complete": false
+  },
+  "forbidden": [
+    "reopening extending reseeding or threshold-selecting the completed Step 6c No-Go",
+    "using Step 6a Step 6b Step 6c performance or quality-pilot rows for training",
+    "using performance sets for model quality threshold or promotion evidence",
+    "sample-budget reduction legal-action pruning or approximate downstream T4 as a performance repair",
+    "opponent private discards realized hidden deck or cross-information-set strategy fusion",
+    "opening a locked set before its source model threshold response policy binary and allocation are frozen",
+    "dropping replacing or extending failed rows or locked seeds",
+    "teacher EV teacher LCB or top1 placement accuracy as runtime or promotion authorization",
+    "named profile current runtime activation or full replacement before locked population and locked ABR Go",
+    "Nash mathematical optimality or complete-optimality claims without proof"
+  ],
+  "next_step": "validate this contract and then authorize only repeatable performance-development instrumentation on its disjoint 100-paired-hand set"
+}

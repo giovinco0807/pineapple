@@ -1,0 +1,123 @@
+{
+  "schema": "hu_m43_attempt08_preflight_plan_v1",
+  "status": "frozen_bounded_correctness_preflight_only",
+  "source": {
+    "path": "outputs/hu_joint_policy/m43_attempt06_search_quality/regular-hu-m43-attempt06-preflight-final-20260714-1154/merged/teacher.jsonl",
+    "sha256": "6b1063589aa2ee4f3e65d9489384176a85c69abe1dfefe30ffb4474f96964903",
+    "wrapper_schema": "hu_m43_attempt06_t1_second_shard_row_v1",
+    "teacher_schema": "hu_m43_attempt06_t1_second_top8_c8_e128_teacher_v3",
+    "plan_sha256": "4844fb970780c04ff093eb43b1672e403f006515c47b287e6abdbea17867f5b8",
+    "allowed_source_root_indices": [
+      0,
+      1,
+      2
+    ],
+    "source_already_consumed_development_evidence": true,
+    "new_root_generation_allowed": false
+  },
+  "target": {
+    "plan_path": "configs/hu_joint_policy_m43_attempt08.json",
+    "plan_sha256": "f0b8d7c2af40aeeb9b1a1c4e446237afb70ba04713b3d4bce555f26e4617ba51",
+    "teacher_schema": "hu_m43_attempt08_t1_second_r128_k4_v256_x512_a256_v1",
+    "model_path": "outputs/hu_joint_policy/m43_attempt05_old_dev900_architecture_once/lambda_rank_candidate.pkl",
+    "model_sha256": "e7fa728308c8973e2e202baf79309e30b9b6f58c37431d8ea55850390abc28c3",
+    "ai_profiles_path": "src/ofc_regular/ai_profiles.py",
+    "ai_profiles_sha256": "d2eb02669e27426623c70af21f1af4d7002db2a7eab77efd3319f8fb65b868d3",
+    "t2_policy_id": "stage9f_p2",
+    "t2_resolution": "explicit_profile_never_current"
+  },
+  "seed_contract": {
+    "seed_stride": 1000003,
+    "source_root_index_formula": "namespace_seed_base + seed_stride * source_root_index",
+    "hand_seed_base": 90108071901,
+    "rerank_seed_base": 91108071901,
+    "veto_seed_base": 92108071901,
+    "stress_seed_base": 93108071901,
+    "assessment_seed_base": 94108071901,
+    "child_policy_seed_base": 95108071901,
+    "hand_seed_purpose": "external_teacher_namespace_only_not_root_generation",
+    "all_six_preflight_slices_pairwise_disjoint": true,
+    "attempt06_known_schedules_disjoint": true,
+    "attempt07_development_audit_schedules_disjoint": true,
+    "attempt07_opened_preflight_schedules_disjoint": true,
+    "attempt08_development_audit_schedules_disjoint": true
+  },
+  "execution": {
+    "machine_type": "c4-highmem-4",
+    "cli_roots_per_invocation": 1,
+    "native_batch_threads": 4,
+    "slots": [
+      {
+        "name": "root0_batch_a",
+        "source_root_index": 0,
+        "batch_child_selectors": true
+      },
+      {
+        "name": "root0_batch_b",
+        "source_root_index": 0,
+        "batch_child_selectors": true
+      },
+      {
+        "name": "root0_scalar",
+        "source_root_index": 0,
+        "batch_child_selectors": false
+      },
+      {
+        "name": "root1_batch",
+        "source_root_index": 1,
+        "batch_child_selectors": true
+      },
+      {
+        "name": "root2_batch",
+        "source_root_index": 2,
+        "batch_child_selectors": true
+      }
+    ],
+    "current_profile_resolution_allowed": false,
+    "fresh_seed_or_root_open_allowed": false,
+    "development200_authorized": false
+  },
+  "correctness_go_no_go": {
+    "all_five_canonical_proofs_required": true,
+    "root0_batch_a_b_exact_teacher_hash_match_required": true,
+    "root0_scalar_batch_semantic_parity_required": true,
+    "exact_actionkey_reference_parity_required_each_run": true,
+    "hidden_information_safety_required_each_run": true,
+    "rng_domain_separation_required_each_run": true,
+    "conditional_X_A_skip_contract_required_each_run": true,
+    "teacher_elapsed_seconds_each_run_max": 2400.0,
+    "process_peak_rss_bytes_each_run_max": 30064771072,
+    "root0_scalar_to_batch_speedup_reported_diagnostic_only": true,
+    "operational_metrics_are_policy_science_input": false,
+    "threshold_reselection_after_results_allowed": false
+  },
+  "output_contract": {
+    "proof_schema": "hu_m43_attempt08_preflight_proof_v1",
+    "aggregate_schema": "hu_m43_attempt08_preflight_aggregate_v1",
+    "finalization_schema": "hu_m43_attempt08_preflight_finalization_v1",
+    "canonical_json": true,
+    "trailing_newline": true,
+    "atomic_create_no_clobber": true,
+    "timestamps_allowed": false,
+    "teacher_action_or_value_details_exported": false,
+    "aggregate_opaque_teacher_hashes_exported": false,
+    "aggregate_teacher_action_or_value_details_exported": false,
+    "fit_allowed": false,
+    "threshold_selection_allowed": false,
+    "runtime_activation_allowed": false,
+    "current_profile_mutation_allowed": false,
+    "development200_authorization_only_after_finalizer_go": true
+  },
+  "finalization_contract": {
+    "go_status": "pass_correctness_preflight_and_authorize_development200_only",
+    "no_go_status": "complete_preflight_no_go_development_not_authorized",
+    "go_authorization_schema": "hu_m43_attempt08_development_open_authorization_v1",
+    "go_authorization_scope": "exact_development_roots_0_through_199_only",
+    "go_authorization_binds_plan_preflight_result_and_proof_evidence_sha256": true,
+    "no_go_authorization_emitted": false,
+    "future_audit_authorized": false,
+    "fit_started": false,
+    "runtime_policy_activated": false,
+    "current_profile_changed": false
+  }
+}

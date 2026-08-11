@@ -1,0 +1,90 @@
+{
+  "schema": "hu_m43_attempt12_closeout_v1",
+  "milestone": "M4.3-attempt12",
+  "status_date": "2026-07-15",
+  "status": "consumed_architecture_diagnostic_only",
+  "attempt12_plan": {
+    "path": "configs/hu_joint_policy_m43_attempt12.json",
+    "sha256": "6a862e355d6136f488b6190fd74d1ec87b896d3c07ba6c48d97442cea2ac48c9"
+  },
+  "development_run": {
+    "run_name": "regular-hu-m43-attempt12-development200-20260715-172824",
+    "roots": 200,
+    "profiles": {
+      "stage19_p0": 40,
+      "stage9f_p2": 40,
+      "stage7_m5_r10": 40,
+      "stage3_baseline": 40,
+      "random_exact_final": 40
+    }
+  },
+  "immutable_artifacts": {
+    "decision": {
+      "path": "outputs/hu_joint_policy/m43_attempt12_development/regular-hu-m43-attempt12-development200-20260715-172824/selector/decision.json",
+      "sha256": "c829cf35d53eb24bc9201564f789ee4598c8cb91b3ac5311a41643af14549ac5"
+    },
+    "decision_receipt": {
+      "path": "outputs/hu_joint_policy/m43_attempt12_development/regular-hu-m43-attempt12-development200-20260715-172824/selector/decision_receipt.json",
+      "sha256": "abfec493b3b57e2a756bbe3e39f663ba90b80d60a81fc99975308faee6611eee"
+    },
+    "merged_teacher": {
+      "path": "outputs/hu_joint_policy/m43_attempt12_development/regular-hu-m43-attempt12-development200-20260715-172824/merged/teacher.jsonl",
+      "sha256": "504dfad760f1d5bf139fa94a16f92e66330ba8113b4ce8db77df398eb8c8c305"
+    },
+    "receive_receipt": {
+      "path": "outputs/hu_joint_policy/m43_attempt12_development/regular-hu-m43-attempt12-development200-20260715-172824/merged/receive_receipt.json",
+      "sha256": "4f630882f0e4867ee24afe4f16203696607996c243e349a438e94c287ddfc819"
+    }
+  },
+  "frozen_result": {
+    "decision": "no_go",
+    "decision_status": "no_go_close_attempt12_development",
+    "fires_total": 35,
+    "fires_by_profile": {
+      "stage19_p0": 3,
+      "stage9f_p2": 4,
+      "stage7_m5_r10": 2,
+      "stage3_baseline": 2,
+      "random_exact_final": 24
+    },
+    "mean_delta_per_state": 0.12179967622634498,
+    "mean_delta_per_fire": 0.6959981498648284,
+    "false_positive_rate_per_fire": 0.14285714285714285,
+    "maximum_per_fired_root_loss": {
+      "p95": 24.677020614683453,
+      "p99": 35.227020614683454,
+      "max": 53.45404122936691
+    },
+    "failed_gates": [
+      "fires_total",
+      "fires_each_profile",
+      "maximum_per_fired_root_max_loss"
+    ],
+    "all_integrity_violation_counts_zero": true,
+    "nonfire_exact_baseline_action_fallback_verified": true
+  },
+  "science_boundary": {
+    "fresh_claim": false,
+    "fresh_generalization_evidence": false,
+    "teacher_values_are_realized_match_ev": false,
+    "allowed_future_use": [
+      "attempt13_architecture_diagnosis",
+      "attempt13_training_only",
+      "attempt13_root_grouped_oof_threshold_selection_only"
+    ],
+    "forbidden_future_use": [
+      "attempt12_gate_reinterpretation",
+      "attempt12_threshold_reselection",
+      "attempt12_fresh_evaluation_claim",
+      "attempt13_development_or_audit_evaluation",
+      "teacher_ev_or_lcb_runtime_gate"
+    ],
+    "attempt12_future_audit_authorized": false,
+    "attempt12_fit_authorized": false,
+    "attempt12_runtime_authorized": false,
+    "attempt12_population_authorized": false,
+    "attempt12_current_profile_mutated": false,
+    "attempt12_full_replacement_enabled": false,
+    "attempt12_seed_reuse_allowed": false
+  }
+}

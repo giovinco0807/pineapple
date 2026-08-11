@@ -22,6 +22,8 @@ from ofc_regular.action_space import generate_turn_actions
 from ofc_regular.label_hu_turn3_states import (
     discarded_cards_from_state,
     label_hu_turn3_state,
+    private_discards_from_state,
+    visible_dead_cards_from_state,
 )
 from ofc_regular.hu_self_play_teacher_data import (
     _rollout_after_hero_t3_action,
@@ -340,6 +342,117 @@ def test_hu_self_play_turn3_sample_uses_partial_opponent_board():
     assert sample["actions"]
 
 
+def test_hu_self_play_turn3_sample_hides_opponent_private_discards_from_features():
+    hero = Board.from_rows(
+        top=["Qh"],
+        middle=["Kh", "Kd", "6c", "8s"],
+        bottom=["9c", "9d", "9s", "Kc"],
+    )
+    opponent = Board.from_rows(
+        top=["2h"],
+        middle=["3h", "4h", "5h", "6h"],
+        bottom=["7h", "8h", "Th", "Jh"],
+    )
+    visible_dead = [*opponent.all_cards(), "2c"]
+
+    sample = build_hu_self_play_turn3_sample(
+        sample_id=5,
+        board=hero,
+        dealt_cards=["Qs", "Ah", "7d"],
+        opponent_board=opponent,
+        dead_cards=["2c", "3c"],
+        visible_dead_cards=visible_dead,
+        hero_private_discards=["2c"],
+        opponent_private_discards=["3c"],
+        hero_seat="first",
+        hero_policy=RegularAiPolicy(seed=1),
+        opponent_policy=RegularAiPolicy(seed=2),
+        future_samples=1,
+        rng=random.Random(9),
+    )
+
+    assert sample is not None
+    assert sample["dead_cards"] == visible_dead
+    assert "2c" in sample["dead_cards"]
+    assert "3c" not in sample["dead_cards"]
+
+
+def test_hu_self_play_turn3_sample_fallback_hides_opponent_private_discards():
+    hero = Board.from_rows(
+        top=["Qh"],
+        middle=["Kh", "Kd", "6c", "8s"],
+        bottom=["9c", "9d", "9s", "Kc"],
+    )
+    opponent = Board.from_rows(
+        top=["2h"],
+        middle=["3h", "4h", "5h", "6h"],
+        bottom=["7h", "8h", "Th", "Jh"],
+    )
+
+    sample = build_hu_self_play_turn3_sample(
+        sample_id=5,
+        board=hero,
+        dealt_cards=["Qs", "Ah", "7d"],
+        opponent_board=opponent,
+        dead_cards=["2c", "3c"],
+        hero_private_discards=["2c"],
+        opponent_private_discards=["3c"],
+        hero_seat="first",
+        hero_policy=RegularAiPolicy(seed=1),
+        opponent_policy=RegularAiPolicy(seed=2),
+        future_samples=1,
+        rng=random.Random(9),
+    )
+
+    assert sample is not None
+    assert "2c" in sample["dead_cards"]
+    assert "3c" not in sample["dead_cards"]
+
+
+def test_hu_turn3_selection_metadata_fallback_hides_opponent_private_discards():
+    class BaselineModel:
+        def choose_action_index(self, sample):
+            return 0
+
+    class CaptureModel:
+        def __init__(self):
+            self.sample = None
+
+        def predict_sample(self, sample):
+            self.sample = sample
+            predictions = np.zeros(len(sample["actions"]), dtype=np.float64)
+            predictions[0] = 1.0
+            return predictions
+
+    hero = Board.from_rows(
+        top=["Qh"],
+        middle=["Kh", "Kd", "6c", "8s"],
+        bottom=["9c", "9d", "9s", "Kc"],
+    )
+    opponent = Board.from_rows(
+        top=["2h"],
+        middle=["3h", "4h", "5h", "6h"],
+        bottom=["7h", "8h", "Th", "Jh"],
+    )
+    selection_model = CaptureModel()
+
+    selection = hu_turn3_selection_metadata(
+        board=hero,
+        dealt_cards=["Qs", "Ah", "7d"],
+        opponent_board=opponent,
+        dead_cards=["2c", "3c"],
+        hero_private_discards=["2c"],
+        hero_seat="first",
+        baseline_turn3_model=BaselineModel(),
+        selection_hu_model=selection_model,
+    )
+
+    assert selection is not None
+    assert selection_model.sample is not None
+    assert "2c" in selection_model.sample["dead_cards"]
+    assert "3c" not in selection_model.sample["dead_cards"]
+
+
 def test_hu_self_play_turn3_teacher_applies_self_regret_penalty():
     class DescendingSelfModel:
         def predict_sample(self, sample):
@@ -484,17 +597,50 @@ def test_hu_turn3_state_record_keeps_discards_separate_from_visible_dead():
         board=hero,
         opponent_board=opponent,
         dealt_cards=["Qs", "Ah", "7d"],
-        discarded_cards=["2c"],
+        discarded_cards=["2c", "3c"],
+        visible_dead_cards=[*opponent.all_cards(), "2c"],
+        hero_private_discards=["2c"],
+        opponent_private_discards=["3c"],
         hero_seat="second",
         selection=selection,
     )
 
     assert record["schema"] == "hu_stage1_state"
+    assert record["visibility_model"] == "hidden_discard"
+    assert record["discard_visibility"] == "own_private_only"
     assert record["hero_seat"] == "second"
-    assert record["discarded_cards"] == ["2c"]
+    assert record["discarded_cards"] == ["2c", "3c"]
     assert "2h" in record["visible_dead_cards"]
+    assert "2c" in record["visible_dead_cards"]
+    assert "3c" not in record["visible_dead_cards"]
     assert "2h" not in record["discarded_cards"]
+    assert record["hero_private_discards"] == ["2c"]
+    assert record["opponent_private_discards"] == ["3c"]
     assert record["selection"] == selection
+
+
+def test_hu_turn3_state_record_fallback_uses_hero_private_discards_for_visible_dead():
+    hero = Board.from_rows(top=["Qh"], middle=["Kh", "Kd", "6c", "8s"], bottom=["9c", "9d", "9s", "Kc"])
+    opponent = Board.from_rows(top=["2h"], middle=["3h", "4h", "5h", "6h"], bottom=["7h", "8h", "Th", "Jh"])
+
+    record = build_hu_turn3_state_record(
+        state_id=4,
+        seed=10,
+        hand_seed=12,
+        hand_index=2,
+        player=0,
+        board=hero,
+        opponent_board=opponent,
+        dealt_cards=["Qs", "Ah", "7d"],
+        discarded_cards=["2c", "3c"],
+        hero_private_discards=["2c"],
+        opponent_private_discards=["3c"],
+        hero_seat="first",
+        selection={"hu_index": 0, "baseline_index": 0, "disagreement": False},
+    )
+
+    assert "2c" in record["visible_dead_cards"]
+    assert "3c" not in record["visible_dead_cards"]
 
 
 def test_label_hu_turn3_state_builds_teacher_sample_from_mined_state():
@@ -544,6 +690,8 @@ def test_label_hu_turn3_state_builds_teacher_sample_from_mined_state():
     assert sample["schema"] == "hu_stage1"
     assert sample["source"] == "mined_state_rollout"
     assert sample["mined_state"]["state_id"] == 3
+    assert sample["mined_state"]["visibility_model"] == "hidden_discard"
+    assert sample["mined_state"]["discard_visibility"] == "own_private_only"
     assert sample["selection"]["predicted_margin_vs_baseline"] == 8.0
     assert sample["reference_actions"]["baseline"]["original_index"] == 0
     assert sample["reference_actions"]["selection_hu"]["original_index"] == 1
@@ -556,6 +704,30 @@ def test_discarded_cards_from_legacy_state_removes_opponent_board_cards():
     state = {"dead_cards": ["2h", "3h", "4h", "9c", "Tc"]}
 
     assert discarded_cards_from_state(state, opponent) == ("9c", "Tc")
+
+
+def test_label_state_helpers_preserve_hidden_discard_visibility():
+    opponent = Board.from_rows(
+        top=["2h"],
+        middle=["3h", "4h", "5h", "6h"],
+        bottom=["7h", "8h", "Th", "Jh"],
+    )
+    state = {
+        "discarded_cards": ["2c", "3c"],
+        "visible_dead_cards": [*opponent.all_cards(), "2c"],
+        "hero_private_discards": ["2c"],
+        "opponent_private_discards": ["3c"],
+    }
+    discarded = discarded_cards_from_state(state, opponent)
+
+    assert discarded == ("2c", "3c")
+    assert "3c" not in visible_dead_cards_from_state(
+        state,
+        opponent_board=opponent,
+        discarded_cards=discarded,
+    )
+    assert private_discards_from_state(state, "hero_private_discards", fallback=discarded) == ("2c",)
+    assert private_discards_from_state(state, "opponent_private_discards", fallback=discarded) == ("3c",)
 
 
 def test_remaining_for_hu_teacher_removes_dead_cards():
@@ -613,4 +785,45 @@ def test_rollout_final_turn_order_respects_hero_seat():
     )
 
     assert [entry[0] for entry in log[:2]] == ["opponent", "hero"]
-    assert "9c" in log[0][1]
+    assert "9c" not in log[0][1]
+
+
+def test_rollout_final_turn_explicit_private_discards_are_visible_to_owner():
+    class LoggingPolicy:
+        def __init__(self, label, log):
+            self.label = label
+            self.log = log
+
+        def choose_action(self, board, dealt, *, dead_cards=(), opponent_board=None):
+            self.log.append((self.label, tuple(dead_cards)))
+            return generate_turn_actions(board, dealt)[0]
+
+    hero = Board.from_rows(
+        top=["Ah", "Kh"],
+        middle=["Qh", "Jh", "Th", "9h"],
+        bottom=["8h", "7h", "6h", "5h", "4h"],
+    )
+    opponent = Board.from_rows(
+        top=["Ad", "Kd"],
+        middle=["Qd", "Jd", "Td", "9d"],
+        bottom=["8d", "7d", "6d", "5d", "4d"],
+    )
+    log = []
+
+    _rollout_after_hero_t3_action(
+        hero_board=hero,
+        opponent_board=opponent,
+        dead_cards=["9c", "Tc"],
+        hero_private_discards=["9c"],
+        opponent_private_discards=["Tc"],
+        hero_seat="second",
+        future_cards=["2c", "3c", "4c", "5c", "6c", "7c"],
+        hero_policy=LoggingPolicy("hero", log),
+        opponent_policy=LoggingPolicy("opponent", log),
+    )
+
+    assert [entry[0] for entry in log[:2]] == ["opponent", "hero"]
+    assert "Tc" in log[0][1]
+    assert "9c" not in log[0][1]
+    assert "9c" in log[1][1]
+    assert "Tc" not in log[1][1]

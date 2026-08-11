@@ -1,0 +1,64 @@
+{
+  "schema": "hu_joint_policy_m2_status_v1",
+  "status_date": "2026-07-13",
+  "status": "complete_python_correctness_reference",
+  "decision": "m2_go_m3_large_scale_no_go",
+  "rule_set": "heads_up_regular_ofc_pineapple_hidden_opponent_discards",
+  "fixed_legacy_baseline_chain": [
+    "stage19_p0",
+    "stage18_p1",
+    "stage9f_p2",
+    "stage7_m5_r10"
+  ],
+  "current_profile_changed": false,
+  "runtime_policy_activated": false,
+  "policy_promoted": false,
+  "large_scale_generation_allowed": false,
+  "spot_vm_started": false,
+  "safe_components": {
+    "t4_second": "terminal_exhaustive",
+    "t4_first": "exact_uniform_exchangeable_marginal_with_exact_second_response",
+    "t3_reduced_support": "exact_over_declared_finite_support_and_fixed_infoset_policy",
+    "t3_normal_52_card": "disjoint_candidate_evaluation_crn_monte_carlo",
+    "t2_continuation": "enable_m2_t4_search_opt_in",
+    "hidden_belief_streets": ["T1", "T2", "T3", "T4"]
+  },
+  "required_runtime_or_generation_contract": {
+    "policy_input": "ActorObservation_only",
+    "opponent_private_discards_allowed": false,
+    "realized_future_deck_allowed_at_child_decision": false,
+    "canonical_action_key_required": true,
+    "candidate_evaluation_rng_domains_disjoint": true,
+    "t2_cli_flag": "--enable-m2-t4-search",
+    "teacher_value_status": "diagnostic_not_match_EV"
+  },
+  "belief_scope": {
+    "prior": "uniform_exchangeable_hidden_cards_v1",
+    "opponent_action_posterior_reweighting": false,
+    "scope_warning": "T4 first is exact under the stated uniform-restart abstraction, not a globally exact Bayesian posterior"
+  },
+  "validation": {
+    "full_tests_passed": 921,
+    "focused_tests_passed": 181,
+    "t4_first_exact_future_count": 2024,
+    "t3_finite_support_both_seats": true,
+    "fresh_pilot_roots": 8,
+    "fresh_pilot_first_roots": 4,
+    "fresh_pilot_second_roots": 4,
+    "fresh_pilot_rng_overlap_count": 0,
+    "fresh_pilot_deterministic_rerun": true,
+    "nonfire_trajectory_identity": true,
+    "fixed_artifact_hash_matches": "16/16",
+    "policy_registry_matches_m1": true
+  },
+  "supersedes_m1_quarantine_for": [
+    "src/ofc_regular/hu_turn3_joint_exact_teacher.py"
+  ],
+  "still_quarantined": [
+    "all legacy hu_turn3_joint_exact_v1 artifacts",
+    "T2 artifacts generated without --enable-m2-t4-search",
+    "legacy audit and replay CLIs that do not opt into the M2 T4 selector",
+    "stage19_p0/stage18_p1/stage9f_p2/stage7_m5_r10 promotion evidence derived from hidden-discard-leaking artifacts"
+  ],
+  "next_milestone": "M3_Rust_HU_rollout_and_search_engine"
+}

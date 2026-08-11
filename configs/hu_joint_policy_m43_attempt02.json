@@ -1,0 +1,175 @@
+{
+  "schema": "hu_m43_attempt02_plan_v1",
+  "milestone": "M4.3-attempt02",
+  "status_date": "2026-07-13",
+  "status": "frozen_pre_generation",
+  "purpose": "fresh_c2e64_retry_with_inherited_unopened_locked_holdout",
+  "rule_set": "heads_up_regular_ofc_pineapple_hidden_opponent_discards",
+  "fixed_baseline_profile": "stage18_p1",
+  "fixed_continuation": {
+    "t2_profile": "stage9f_p2",
+    "t3_selector": "m3_rust_evaluate_t3",
+    "t4_selector": "m3_rust_evaluate_t4"
+  },
+  "budget": {
+    "kind": "bounded_pre_go_pilot",
+    "fresh_roots": 300,
+    "max_fresh_roots": 1000,
+    "roots_per_shard": 10,
+    "fresh_shards": 30,
+    "inherited_locked_roots": 40,
+    "spot_allowed_after_preflight": true,
+    "large_scale_allowed": false
+  },
+  "fresh_splits": {
+    "train": {
+      "roots": 200,
+      "seed_start": 7106071901,
+      "seed_stride": 1000003,
+      "candidate_seed_start": 7906071901,
+      "evaluation_seed_start": 8306071901,
+      "child_policy_seed_start": 8706071901,
+      "phase_seed_stride_scope": "split_shard",
+      "allowed_use": "ranker_fit_and_nested_oof_only"
+    },
+    "calibration": {
+      "roots": 100,
+      "seed_start": 7506071901,
+      "seed_stride": 1000003,
+      "candidate_seed_start": 8106071901,
+      "evaluation_seed_start": 8506071901,
+      "child_policy_seed_start": 8906071901,
+      "phase_seed_stride_scope": "split_shard",
+      "allowed_use": "safety_fit_and_threshold_lock_only"
+    }
+  },
+  "teacher_search": {
+    "candidate_samples": 2,
+    "evaluation_samples": 64,
+    "common_random_futures": true,
+    "candidate_evaluation_rng_disjoint": true,
+    "candidate_seed_namespace": "hu-m43-attempt02-candidate-v1",
+    "evaluation_seed_namespace": "hu-m43-attempt02-evaluation-v1",
+    "child_policy_seed_namespace": "hu-m43-attempt02-child-policy-v1",
+    "batch_child_selectors": true,
+    "native_batch_threads": 4
+  },
+  "root_population": [
+    {
+      "profile": "stage19_p0",
+      "policy_family": "selective_opening_fixed_chain",
+      "roots": {"train": 40, "calibration": 20, "inherited_locked": 8}
+    },
+    {
+      "profile": "stage9f_p2",
+      "policy_family": "selective_t2_fixed_chain",
+      "roots": {"train": 40, "calibration": 20, "inherited_locked": 8}
+    },
+    {
+      "profile": "stage7_m5_r10",
+      "policy_family": "conservative_t3_margin",
+      "roots": {"train": 40, "calibration": 20, "inherited_locked": 8}
+    },
+    {
+      "profile": "stage3_baseline",
+      "policy_family": "baseline",
+      "roots": {"train": 40, "calibration": 20, "inherited_locked": 8}
+    },
+    {
+      "profile": "random_exact_final",
+      "policy_family": "random_off_policy_exact_final",
+      "roots": {"train": 40, "calibration": 20, "inherited_locked": 8}
+    }
+  ],
+  "calibration_partition": {
+    "schema": "hu_m43_attempt02_calibration_partition_v1",
+    "method": "profile_stratified_identity_hash_v1",
+    "identity_hash_salt": "regular-hu-m43-attempt02-calibration-role-v1-20260713",
+    "safety_fit_roots": 50,
+    "threshold_lock_roots": 50,
+    "roots_per_profile_per_role": 10,
+    "safety_calibrator_sources": ["train_oof", "calibration.safety_fit"],
+    "threshold_selection_source": "calibration.threshold_lock",
+    "inherited_locked_used": false,
+    "minimum_threshold_lock_fires_for_positive_pilot_signal": 10,
+    "insufficient_fires_decision": "no_go_insufficient_pilot_signal"
+  },
+  "freshness_exclusions": {
+    "reject_hand_seed_or_fingerprint_overlap": true,
+    "base_plan": {
+      "path": "configs/hu_joint_policy_m43_pilot.json",
+      "file_sha256": "ae148c2df8787f654384ffcc171680c064cb579fe8d884209f1cc87aa23cca70",
+      "records": 252,
+      "identity_sha256": "55cb458ad2fa6773c9f40a6b6663953beee187c863e9d716684fb88f930a6afc"
+    },
+    "attempt01_sources": [
+      {
+        "split": "train",
+        "path": "outputs/hu_joint_policy/m43_spot/regular-hu-m43-c2e16-pilot200-20260713-1810/train.jsonl",
+        "records": 100,
+        "file_sha256": "59b00b12ace2639f1e0cd11abdcfcdb2eaf74506094f17b55fd21efc54c16e6a",
+        "identity_sha256": "c992fbaeea0752db79fd481fe7da7e025c11e7d44123a740a7ee25c87343cc61"
+      },
+      {
+        "split": "calibration",
+        "path": "outputs/hu_joint_policy/m43_spot/regular-hu-m43-c2e16-pilot200-20260713-1810/calibration.jsonl",
+        "records": 60,
+        "file_sha256": "40a16164b710853132b53c7bc55790f1c591bf96876ec523938b74817091eb45",
+        "identity_sha256": "df32b384e43e8b4acd8d551c0a5f97d057211c6f901b5e79fb87aedc99dc0929"
+      }
+    ],
+    "expected_union": {
+      "source_records": 412,
+      "unique_identities": 412,
+      "unique_hand_seeds": 412,
+      "unique_observation_fingerprints": 412,
+      "identity_sha256": "c7598ba0f74528562b79966e53dd843fe2225f23033b791377327f6ea6ab3b3e"
+    }
+  },
+  "attempt01_provenance": {
+    "data_contract": {
+      "path": "outputs/hu_joint_policy/m43_spot/regular-hu-m43-c2e16-pilot200-20260713-1810/m43_t1_second_attempt01/data_contract.json",
+      "file_sha256": "1c79da05b85564d4c72314cc7dbbcc353155f7b963f70a19fcc7fbba583c371a",
+      "canonical_sha256": "f612ed36f9a371854e990c4214e0728d78b0d144937106527d83de38440391cf"
+    },
+    "training_manifest": {
+      "path": "outputs/hu_joint_policy/m43_fold_model_runs/regular-hu-m43-fold-model-20260713-2052/training_manifest.json",
+      "file_sha256": "70698a4ec2adb096616c4368c74c04b7f92b303cc11643f5a17028f9a2d5a3ff",
+      "required_promotion_status": "no_go_calibration",
+      "required_calibration_status": "no_go",
+      "required_candidate_overrides": 0,
+      "required_locked_status": "not_evaluated_pre_freeze"
+    },
+    "local_aborted_receipt_file_sha256": "9313bdc6ffa33335032ee3d98e279d123d2f3aa70571114e75ee5f38e2594bea"
+  },
+  "inherited_locked": {
+    "classification": "inherited_unopened",
+    "path": "outputs/hu_joint_policy/m43_spot/regular-hu-m43-c2e16-pilot200-20260713-1810/locked_holdout.jsonl",
+    "records": 40,
+    "bytes": 1144214,
+    "file_sha256": "0a88e1cc8b079906e0ca14ddf4a8c3df7b108a09d0f363c7cb665cab89b40a1e",
+    "canonical_rows_sha256": "fa99408bc4be031a7b4f2a8dfe05f4af07d90ebb7450e1eb03ba1fa596a87890",
+    "identity_sha256": "3946c110de49831359316439fa230d9096fc41046b0cb07a92506eb931e0e629",
+    "ordered_shards_sha256": "6c351acd69cf0ce546fa3ff74e397d0091f4e0cd2ffc5b2ce95fc22a418bcaf2",
+    "source_data_contract_canonical_sha256": "f612ed36f9a371854e990c4214e0728d78b0d144937106527d83de38440391cf",
+    "source_search": {"candidate_samples": 2, "evaluation_samples": 16},
+    "fresh_search_budget_mismatch": "allowed_immutable_provenance_c2e16_locked_vs_c2e64_fresh",
+    "content_open_before_frozen_model_and_threshold_allowed": false,
+    "structural_byte_hash_audit_only": true,
+    "global_consumption_marker": "outputs/hu_joint_policy/m43_locked_consumption/3946c110de49831359316439fa230d9096fc41046b0cb07a92506eb931e0e629/M43_LOCKED_CONSUMED.json"
+  },
+  "locked_lifecycle": {
+    "one_shot_only": true,
+    "claim_marker_before_content_open": true,
+    "marker_is_consumed_even_if_evaluation_crashes": true,
+    "fresh_locked_required_after_any_model_threshold_or_feature_reselection": true,
+    "may_inherit_again_after_calibration_no_go_if_unconsumed": true
+  },
+  "activation_guards": {
+    "current_profile_changed": false,
+    "runtime_policy_activated": false,
+    "full_replacement_enabled": false,
+    "large_scale_authorized": false,
+    "m5_authorized": false
+  }
+}

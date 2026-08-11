@@ -18,14 +18,19 @@ python -m venv .venv
 .\.venv\Scripts\python -m pytest
 ```
 
-Run a small Fantasyland EV smoke calculation:
+Run a small legacy Fantasyland royalty/stay-rate smoke calculation:
 
 ```powershell
 python -m ofc_regular.fl_ev --trials 10 --seed 42
 ```
 
-The Python FL solver is primarily for validation. Use the Rust solver for
-larger EV runs:
+The current default FL EV is the direct HU fixed-point value in
+`configs/fl_ev_regular_2k.json`. The Python `fl_ev` command is a legacy chain
+estimator and will not write JSON output unless
+`--allow-legacy-chain-output` is explicitly provided.
+
+Use the direct HU estimator for current calibration runs. The Rust solver is
+still useful for standalone FL hand solving and legacy chain diagnostics:
 
 ```powershell
 cargo run --release -- --trials 1000 --iterations 8 --seed 42 --line-scoop-advantage 4
@@ -37,7 +42,7 @@ Solve one explicit 14-card Fantasyland hand:
 cargo run --release -- --solve "Ah,Kh,Qh,Jh,Th,9h,8h,7h,6h,5h,4h,3h,2h,As" --stay-bonus 100
 ```
 
-Write a regular-mode FL EV config:
+Write a legacy regular-mode FL EV diagnostic config:
 
 ```powershell
 cargo run --release -- --trials 10000 --iterations 8 --seed 42 --line-scoop-advantage 4 --output outputs/fl_ev_regular.json
@@ -92,8 +97,11 @@ python -m ofc_regular.teacher_data --samples 1000 --seed 42 --min-score-gap 1 --
 Generate Turn3 9-card teacher data with Rust:
 
 ```powershell
-cargo run --release -- --teacher-output outputs/turn3_teacher.jsonl --teacher-samples 10000 --future-samples 128 --seed 42 --teacher-fl-ev 12.196164 --teacher-min-score-gap 1
+cargo run --release -- --teacher-output outputs/turn3_teacher.jsonl --teacher-samples 10000 --future-samples 128 --seed 42 --teacher-fl-ev 10.227020614683454 --teacher-min-score-gap 1
 ```
+
+Keep `--teacher-fl-ev` aligned with `configs/fl_ev_regular_2k.json` unless the
+run is intentionally labeled as a legacy/scoring-sensitivity experiment.
 
 Use `--future-samples 0` only for exact enumeration of all final-turn deals;
 it is much heavier than sampled teacher generation. Teacher rows where every

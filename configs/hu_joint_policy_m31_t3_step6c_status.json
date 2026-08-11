@@ -1,0 +1,164 @@
+{
+  "schema": "hu_joint_policy_m31_t3_step6c_status_v1",
+  "status_date": "2026-07-17",
+  "status": "step6c_quality_pilot_complete_no_go",
+  "decision": "confirmation_quality_pass_first_seat_primary_latency_no_go_no_same_data_reselection",
+  "m31_complete": false,
+  "current_profile_changed": false,
+  "named_profile_added": false,
+  "runtime_policy_activated": false,
+  "full_replacement_enabled": false,
+  "training_authorized": false,
+  "production_fanout_authorized": false,
+  "pilot_rows_training_eligible": false,
+  "teacher_value_status": "diagnostic_not_match_EV",
+  "accepted_run": {
+    "run_name": "regular-hu-m31-step6c-quality-20260717-003",
+    "project": "ofc-solver-485418",
+    "bucket": "pokerhu-ofc-solver-485418-training",
+    "zones": [
+      "asia-northeast1-b",
+      "asia-northeast1-c"
+    ],
+    "machine_type": "c4-standard-16",
+    "provisioning_model": "SPOT",
+    "authorized_shards": [
+      0,
+      1
+    ],
+    "paired_hands_per_shard": 25,
+    "roots_per_shard": 50,
+    "workers_per_shard": 2,
+    "rayon_threads_per_worker": 8,
+    "source_sha256": "b603a174120074508e45b98a8ff2a534a692c5357bc86c29373c3e29bacc16eb",
+    "manifest_sha256": "467246d002abbb5e27e22aa0d96ced8919616c7321af2b133d2960aafb6de75b",
+    "schedule_sha256": "9a2d55892e32acc4345430ccb94fd72588d79661f8de937f47a7341064d8f9ec",
+    "dry_run_receipt_sha256": "06de27ed315c206ae0152f4bac1ed5d19b39da4cb108fcd835082f08544b929c",
+    "authorization_sha256": "e5d64771e250fc5bc764d18725ea6f3464fba95d4be6408847305a7d10aea488",
+    "native_library_sha256": "3f831615d9e751b8e1f266f14dd2009903b3ac2a4094f7e47616e0aa372a01b0",
+    "feature_encoder_sha256": "82510e563ee290cd536e7aebe6bcf0efefac061af5488851f0a582bb4ef83411",
+    "receive_receipt_sha256": "755d44f67a33a3470e14f0c4ece790f86f3dd3dbf9c51374761ef6670a51e71f",
+    "spot_instances_started": 2,
+    "spot_instances_deleted": 2,
+    "spot_instances_remaining": 0
+  },
+  "superseded_local_packages": [
+    {
+      "run_name": "regular-hu-m31-step6c-quality-20260717-001",
+      "published": false,
+      "authorized": false,
+      "reason": "superseded_before_launch_by_fail_closed_RSS_resume_and_partial_upload_hardening"
+    },
+    {
+      "run_name": "regular-hu-m31-step6c-quality-20260717-002",
+      "published": false,
+      "authorized": false,
+      "reason": "superseded_before_launch_by_bounded_nonconfirmation_resume_drill_order"
+    }
+  ],
+  "formal_linux_dry_run": {
+    "fresh_source_zip_extract": true,
+    "parity_status": "pass",
+    "first_seconds": 119.75735802701092,
+    "second_seconds": 3.1051534909929615,
+    "first_limit_seconds": 180.0,
+    "second_limit_seconds": 6.0,
+    "completed_tasks": 2,
+    "pending_tasks": 23,
+    "resumed_task_count": 1,
+    "resume_status": "interrupted_for_resume_drill"
+  },
+  "received_shards": {
+    "000": {
+      "status": "no_go",
+      "paired_hands": 25,
+      "roots": 50,
+      "resumed_task_count": 1,
+      "done_sha256": "4e1bf037d04437963b324a91718d4765729a9978b78869442289d62b4ffb7ed6",
+      "summary_sha256": "fcff070b56be013d910d178133949e8ef7b5a1a38edf5474bb4fd8fea523cf21"
+    },
+    "001": {
+      "status": "no_go",
+      "paired_hands": 25,
+      "roots": 50,
+      "resumed_task_count": 1,
+      "done_sha256": "cd4b6a75a8b05e79cb63414c6c6fe10968d5d65697d405e7047665e730c0a2da",
+      "summary_sha256": "9e3ccc1b4459fd3e66387ccac73ab4fcb2ebb4ba6fbb5bd53cca61705b11d923"
+    }
+  },
+  "merged_quality": {
+    "validation_path": "outputs/hu_joint_policy/m31_t3_step6c/quality100_validation_v1.json",
+    "validation_sha256": "66ddae312ee9561a0101ba94deb5e5e867d407dda78af00b03da10fc96739731",
+    "status": "no_go",
+    "paired_hands": 50,
+    "roots": 100,
+    "first_roots": 50,
+    "second_roots": 50,
+    "profile_hands_each": 10,
+    "profile_roots_each": 20,
+    "unique_observation_fingerprints": 100,
+    "candidate_rng_keys": 800,
+    "evaluation_rng_keys": 3200,
+    "confirmation_rng_keys": 1280,
+    "all_rng_domain_overlaps": 0,
+    "confirmation_roots": 10,
+    "confirmation_regret": {
+      "mean": 0.28021957956566396,
+      "p95": 2.3298985985522105,
+      "p99": 2.3298985985522105,
+      "max": 2.3298985985522105,
+      "mean_limit": 0.75,
+      "p95_limit": 3.0,
+      "p99_limit": 6.0,
+      "max_limit": 15.0,
+      "all_gates_passed": true
+    },
+    "performance": {
+      "first_mean_seconds": 157.29966188515996,
+      "first_p95_seconds": 326.2574110039998,
+      "first_p99_seconds": 353.05942656600007,
+      "first_max_seconds": 353.05942656600007,
+      "first_p95_limit_seconds": 180.0,
+      "first_p95_passed": false,
+      "second_p95_seconds": 3.730027116000201,
+      "second_p95_limit_seconds": 6.0,
+      "second_p95_passed": true,
+      "peak_process_rss_bytes": 504397824,
+      "peak_process_rss_limit_bytes": 1073741824,
+      "peak_process_rss_passed": true
+    },
+    "failed_gates": [
+      "all_shard_summaries_pass",
+      "first_primary_p95_within_180_seconds"
+    ]
+  },
+  "validation": {
+    "step6c_focused_passed": 113,
+    "combined_m3_m31_focused_passed": 286,
+    "combined_m3_m31_focused_seconds": 75.08,
+    "full_python_passed": 2636,
+    "full_python_skipped": 2,
+    "full_python_warnings": 50,
+    "full_python_seconds": 912.06,
+    "black_check": true,
+    "bash_5_2_syntax_check": true,
+    "independent_launch_audits": 3,
+    "full_python_regression_pending": false
+  },
+  "source": {
+    "ai_profiles_sha256": "d2eb02669e27426623c70af21f1af4d7002db2a7eab77efd3319f8fb65b868d3",
+    "shard_runner_sha256": "162bbc228c66fd6b87e4c92b612be9924b8c0735e848c35edc3badd6f97ee87d",
+    "quality_validator_sha256": "951aa0a5c40d33e7376fb7355a20048d5a9bf0458b09fda61a2f85100ec6d0b5",
+    "spot_lifecycle_sha256": "f4496109453bf7da259ce07e383f6b0aa359e74cf2327c4fb3f3588848341920",
+    "startup_sha256": "162f9ffb73951ef3a3f0971756ddfd6b99d5f50b5462b03e03185121dc6c83c1"
+  },
+  "remaining_no_go": [
+    "same-data threshold reselection reseeding extension or quality rerun to reverse this decision",
+    "production teacher fanout or training from Step 6c pilot rows",
+    "named profile or current activation",
+    "full replacement",
+    "teacher values as realized match EV",
+    "Nash or mathematical full-game optimality claim"
+  ],
+  "next_step": "Freeze a separate M3.1 performance-repair contract, profile first-seat primary latency without changing the Step 6c quality decision, and optimize engine or operational parallelism before any new disjoint quality pilot"
+}

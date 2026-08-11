@@ -1,0 +1,41 @@
+{
+  "schema": "hu_joint_policy_m43_attempt_status_v1",
+  "milestone": "M4.3",
+  "attempt": "attempt01",
+  "status_date": "2026-07-13",
+  "status": "complete_no_go_calibration_zero_candidates",
+  "teacher_run": "regular-hu-m43-c2e16-pilot200-20260713-1810",
+  "fold_model_run": "regular-hu-m43-fold-model-20260713-2052",
+  "model_sha256": "a17119badf8efe31e78b18d04dbbe873ce3db9c2d36c0b9b06895d32ed0ce657",
+  "training_manifest_sha256": "70698a4ec2adb096616c4368c74c04b7f92b303cc11643f5a17028f9a2d5a3ff",
+  "candidate_overrides": 0,
+  "selected_threshold": 1.0,
+  "safety_enabled": false,
+  "promotion_status": "no_go_calibration",
+  "locked_holdout": {
+    "rows": 40,
+    "content_evaluated": false,
+    "consumption_marker_claimed": false,
+    "freeze_manifest_written": false,
+    "file_sha256": "0a88e1cc8b079906e0ca14ddf4a8c3df7b108a09d0f363c7cb665cab89b40a1e",
+    "canonical_rows_sha256": "fa99408bc4be031a7b4f2a8dfe05f4af07d90ebb7450e1eb03ba1fa596a87890",
+    "identity_sha256": "3946c110de49831359316439fa230d9096fc41046b0cb07a92506eb931e0e629"
+  },
+  "attempt02": {
+    "fresh_train_roots": 200,
+    "fresh_calibration_roots": 100,
+    "inherited_locked_roots": 40,
+    "candidate_samples": 2,
+    "evaluation_samples": 64,
+    "prior_exclusion_identities": 412,
+    "prior_exclusion_identity_sha256": "c7598ba0f74528562b79966e53dd843fe2225f23033b791377327f6ea6ab3b3e",
+    "large_scale_authorized": false
+  },
+  "guards": {
+    "current_profile_changed": false,
+    "runtime_policy_activated": false,
+    "full_replacement_enabled": false,
+    "locked_holdout_opened": false,
+    "m5_authorized": false
+  }
+}

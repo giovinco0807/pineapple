@@ -11,6 +11,10 @@
   },
   "continuation_policy_T3": {
     "name": "Stage7_candidate_A_m5_r10",
+    "status": "legacy_original_plan_requires_explicit_opt_in_after_hidden_discard_fix",
+    "hidden_discard_default": "Stage3_HU_reference_default",
+    "hidden_discard_default_cli": "--t3-continuation stage3_reference_default",
+    "stage7_opt_in_cli": "--t3-continuation stage7_m5_r10",
     "model": "models/hu_turn3_stage7_reference_override_cached_rank_wide.pt",
     "hu_turn3_min_margin": 5.0,
     "hu_turn3_reference_min_margin": 10.0,

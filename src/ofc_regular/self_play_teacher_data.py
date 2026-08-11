@@ -20,6 +20,7 @@ from .ai_profiles import (
 )
 from .cards import ALL_CARDS, create_deck, validate_cards
 from .early_teacher_data import evaluate_bootstrap_actions
+from .play_ai import _visible_dead_cards_for
 from .policy import board_to_json, phase_for_card_count
 from .state import Board
 from .teacher import ExpectedAction, evaluate_two_turn_actions
@@ -119,6 +120,9 @@ def evaluate_self_play_turn3_actions(
     rng: random.Random,
 ) -> list[dict]:
     max_future_deals = None if future_samples == 0 else future_samples
+    # This self-board exact teacher has no opponent/dead-card feature input.
+    # The dead cards here are true-unavailable cards used only to remove
+    # impossible future deals from the deck.
     ranked = evaluate_two_turn_actions(
         board,
         dealt_cards,
@@ -170,6 +174,7 @@ def collect_self_play_teacher_data(
             cursor = 0
             boards = [Board.from_rows(), Board.from_rows()]
             dead_cards: list[str] = []
+            private_discards: list[list[str]] = [[], []]
             policies = [
                 build_policy(
                     "current",
@@ -211,11 +216,12 @@ def collect_self_play_teacher_data(
                 action = policies[player].choose_action(
                     boards[player],
                     dealt,
-                    dead_cards=(*boards[1 - player].all_cards(), *dead_cards),
+                    dead_cards=_visible_dead_cards_for(player, boards, private_discards),
                     opponent_board=boards[1 - player],
                 )
                 boards[player] = boards[player].place(action.placements)
                 dead_cards.extend(action.discards)
+                private_discards[player].extend(action.discards)
 
             for _round in range(1, 5):
                 for player in (0, 1):
@@ -248,11 +254,12 @@ def collect_self_play_teacher_data(
                     action = policies[player].choose_action(
                         boards[player],
                         dealt,
-                        dead_cards=(*boards[1 - player].all_cards(), *dead_cards),
+                        dead_cards=_visible_dead_cards_for(player, boards, private_discards),
                         opponent_board=boards[1 - player],
                     )
                     boards[player] = boards[player].place(action.placements)
                     dead_cards.extend(action.discards)
+                    private_discards[player].extend(action.discards)
 
     if collected < samples:
         raise RuntimeError(f"collected {collected}/{samples} samples after {hands} hands")

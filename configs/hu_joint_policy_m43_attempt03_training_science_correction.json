@@ -1,0 +1,64 @@
+{
+  "schema": "hu_m43_attempt03_training_science_correction_v1",
+  "milestone": "M4.3-attempt03",
+  "status": "frozen_pre_fit_without_row_valued_evidence",
+  "frozen_at": "2026-07-14T03:26:29+09:00",
+  "decision_boundary": {
+    "cloud_teacher_rows_may_exist": true,
+    "attempt03_fit_rows_structurally_inspected": 1,
+    "attempt03_fit_row_valued_labels_or_metrics_used": 0,
+    "attempt03_model_fit_started": false,
+    "precalibration_rows_opened": 0,
+    "sealed_calibration_rows_opened": 0,
+    "inherited_locked_rows_opened": 0,
+    "correction_selected_from_result_values": false
+  },
+  "parent_plan": {
+    "path": "configs/hu_joint_policy_m43_attempt03.json",
+    "file_sha256": "2bd1666596ec6e7bf2cab7578006c96587977a8277969edb9cecdb54e24ef6d5"
+  },
+  "parent_model_freeze": {
+    "path": "configs/hu_joint_policy_m43_attempt03_model_freeze.json",
+    "file_sha256": "8aed10b143172c9d3b2a98fca199e4fbe4324f5956406fea51c2d17fcb614b9d"
+  },
+  "corrections": {
+    "meta_validation": {
+      "invalid_claim_removed": "five_way_meta_oof_from_globally_cached_base_oof_rows",
+      "reason": "meta-training covariates depended on held-out identities through upstream base fits",
+      "replacement": "identity_clean_five_head_base_oof_fit_plus_independent_precalibration_model_gate",
+      "internal_meta_oof_performance_claimed": false,
+      "base_fold_job_count": 30
+    },
+    "safety_row_scope": {
+      "governing_parent_field": "model_contract.safety_calibrator.fit_after_hard_eligibility_only",
+      "fit_rows": "hard_eligible_nonbaseline_actions_only",
+      "state_weight_sum_if_any_eligible": 1.0,
+      "state_weight_sum_if_zero_eligible": 0.0,
+      "applies_to": [
+        "fit_base_oof",
+        "sealed_calibration.safety_fit"
+      ]
+    },
+    "weighted_standardization": {
+      "standard_scaler_sample_weight": "same_state_balanced_weights_as_logistic",
+      "reason": "preserve state balance under L2 regularization"
+    },
+    "profile_gate": {
+      "missing_profile_counts": "fail_exact_profile_balance_gate"
+    }
+  },
+  "unchanged_frozen_semantics": {
+    "v5_core_path": "src/ofc_regular/hu_m43_joint_model_v5.py",
+    "v5_core_file_sha256": "64c5da4b694796dd0804c8e3fcc3578e6ceca9d99ff9453d162facd2c3940695",
+    "base_worker_hyperparameters_changed": false,
+    "meta_ranker_hyperparameters_changed": false,
+    "positive_vote_gate_changed": false,
+    "precalibration_gate_changed": false,
+    "threshold_grid_changed": false,
+    "safety_logistic_c_or_seed_changed": false,
+    "current_profile_mutated": false,
+    "runtime_policy_activated": false,
+    "full_replacement_enabled": false
+  },
+  "correction_sha256": "ebaf7b8054880c12e3ed57f3af758d2b03fc94c74111c9285d3155b05db7facd"
+}
