@@ -1811,7 +1811,7 @@ fn main() {
                 };
                 let mut t3_line = String::new();
                 let mut t4_lines = String::new();
-                let stream = root.wrapping_add(stream_offset);
+                let stream = pool::stream_of(root, stream_offset);
                 match t3_labels::solve_harvesting(&request, &loaded, &table, stream, root, t4_per_root) {
                     Ok((values, decisions)) => {
                         let actions: Vec<String> = values

@@ -275,6 +275,33 @@ pub fn deserialize(bytes: &[u8], wanted_width: u32, wanted: FlEvTable) -> Result
 /// an entry's hand does not depend on how many threads built it or on where in
 /// a batch it fell -- the property the regular pool learned to want the hard
 /// way.
+/// SplitMix64 finalizer.
+///
+/// `draw` turns its stream into a cursor and a stride by taking it modulo the
+/// pool size, so two streams that differ by a multiple of that size walk the
+/// **same** entries in the same order.  Callers that build a stream by adding
+/// an offset must therefore mix it first; `stream_of` below is that mixer, and
+/// `draw_collides_on_a_multiple_of_the_pool_size` pins the sharp edge.
+pub fn mix64(value: u64) -> u64 {
+    let mut z = value.wrapping_add(0x9E37_79B9_7F4A_7C15);
+    z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
+    z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
+    z ^ (z >> 31)
+}
+
+/// The opponent stream for one root under an offset.
+///
+/// Offset zero is the identity, so the first labeling pass stays exactly
+/// reproducible; any other offset goes through the mixer, so no choice of
+/// offset can land back on the pass it was meant to be independent of.
+pub fn stream_of(root: u64, offset: u64) -> u64 {
+    if offset == 0 {
+        root
+    } else {
+        mix64(root ^ offset)
+    }
+}
+
 pub fn deal(seed: u64, index: u64, width: usize) -> Vec<Card> {
     let mut deck: Vec<Card> = Vec::with_capacity(54);
     for rank in 2..=14u8 {
@@ -606,5 +633,48 @@ mod tests {
             }
             Ok(entries) => panic!("a 4-entry pool returned {} of 99", entries.len()),
         }
+    }
+
+    /// `draw` is periodic in its stream with period `pool.entries.len()`.
+    ///
+    /// This is asserted AS the behaviour, not fixed: the first FL14 teacher --
+    /// 30,000 roots, 98 minutes -- was labelled through this exact mapping, and
+    /// changing it would make that run irreproducible for no gain.  What it
+    /// cost was a floor pass run at `--stream-offset 1000000` against a
+    /// 200,000-entry pool, which reproduced the first pass bit for bit and
+    /// reported a noise floor of exactly zero.  Callers mix with `stream_of`.
+    #[test]
+    fn draw_collides_on_a_multiple_of_the_pool_size() {
+        let table = [0.0f64, 10.7, 29.9, 63.5];
+        let pool = Pool {
+            width: 14,
+            fl_ev: table,
+            seed: 0x7011_0001,
+            entries: (0..64u64)
+                .map(|index| build_entry(0x7011_0001, index, 14, table[0]))
+                .collect(),
+        };
+        let total = pool.entries.len() as u64;
+        let hero = deal(0x7011_9000, 0, 13);
+        let (naturals, jokers) = mask_of(&hero);
+        let want = 3;
+        let Ok(base) = draw(&pool, naturals, jokers, want, 5) else {
+            return;
+        };
+        let shifted = draw(&pool, naturals, jokers, want, 5 + total).expect("shifted draw");
+        let same = |a: &[&PoolEntry], b: &[&PoolEntry]| {
+            a.len() == b.len()
+                && a.iter().zip(b).all(|(x, y)| x.naturals == y.naturals && x.jokers == y.jokers)
+        };
+        assert!(
+            same(&base, &shifted),
+            "draw stopped being periodic in the pool size -- if that was              deliberate, the FL14 teacher's opponents are no longer reproducible"
+        );
+        // And the mixer is what makes an offset actually independent.
+        let mixed = draw(&pool, naturals, jokers, want, stream_of(5, total)).expect("mixed draw");
+        assert!(
+            !same(&base, &mixed),
+            "stream_of did not move the draw off the unmixed stream"
+        );
     }
 }
