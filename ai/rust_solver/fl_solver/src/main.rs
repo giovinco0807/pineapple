@@ -1765,6 +1765,7 @@ fn main() {
         let mut opponents = 240usize;
         let mut seed = 0xD00D_0001u64;
         let mut stream_offset = 0u64;
+        let mut own_only = false;
         let mut t4_per_root = 2usize;
         let mut out_dir = String::from(".");
         let mut index = 2;
@@ -1784,6 +1785,9 @@ fn main() {
                 // against -- a model cannot be asked to beat the teacher's
                 // own disagreement with itself.
                 "--stream-offset" => { index += 1; stream_offset = args[index].parse().expect("stream-offset"); }
+                // Prices leaves by hero's own worth instead of the score
+                // against a best response.  A diagnostic pass, not a teacher.
+                "--own-only" => { own_only = true; }
                 _ => {}
             }
             index += 1;
@@ -1812,7 +1816,7 @@ fn main() {
                 let mut t3_line = String::new();
                 let mut t4_lines = String::new();
                 let stream = pool::stream_of(root, stream_offset);
-                match t3_labels::solve_harvesting(&request, &loaded, &table, stream, root, t4_per_root) {
+                match t3_labels::solve_harvesting(&request, &loaded, &table, stream, root, t4_per_root, own_only) {
                     Ok((values, decisions)) => {
                         let actions: Vec<String> = values
                             .iter()
@@ -1908,7 +1912,7 @@ fn main() {
                 opponents,
                 t4_draws: 0,
             };
-            match t3_labels::solve_with_t4(&request, &loaded, &table, root, true) {
+            match t3_labels::solve_with_t4(&request, &loaded, &table, root, true, false) {
                 Ok((values, leaves)) => {
                     actions += values.len();
                     leaves_total += leaves.len();

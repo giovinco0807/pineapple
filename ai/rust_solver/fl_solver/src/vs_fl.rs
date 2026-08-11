@@ -53,6 +53,26 @@ pub struct HeroTerminal {
 }
 
 /// Hero's score against one Fantasyland hand, the opponent best-responding.
+/// Hero's terminal worth with the opponent deleted: royalty plus the
+/// Fantasyland entry it earns, or the foul.
+///
+/// This is not a score anyone plays for -- it is the diagnostic half of
+/// `hero_score`.  Labelling a street twice, once with this and once with the
+/// real thing, says how much of the ranking a teacher teaches is about hero's
+/// own board and how much is about what the opponent does to it, which is the
+/// question that decides whether an encoder needs opponent-side features.
+pub fn hero_own(hero: &HeroTerminal, fl_ev: &[f64; 4]) -> f64 {
+    if hero.busted {
+        return -6.0;
+    }
+    let entry_ev = if hero.entry_width >= 14 && hero.entry_width <= 17 {
+        fl_ev[(hero.entry_width - 14) as usize]
+    } else {
+        0.0
+    };
+    hero.royalty as f64 + entry_ev
+}
+
 pub fn hero_score(hero: &HeroTerminal, frontier: &[FrontierEntry], fl_ev: &[f64; 4]) -> f64 {
     debug_assert!(
         !frontier.is_empty(),

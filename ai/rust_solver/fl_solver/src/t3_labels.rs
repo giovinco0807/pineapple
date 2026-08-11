@@ -164,6 +164,7 @@ pub fn solve_with_t4(
     fl_ev: &[f64; 4],
     stream: u64,
     keep_leaves: bool,
+    own_only: bool,
 ) -> Result<(Vec<T3ActionValue>, Vec<T4Leaf>), ShortDraw> {
     // Hero's seen cards are action-independent, so one draw serves every
     // action and cancels in their differences.
@@ -221,11 +222,15 @@ pub fn solve_with_t4(
                         final_rows[pattern[0]].push(unseen[first]);
                         final_rows[pattern[1]].push(unseen[second]);
                         let hero = hero_terminal(&final_rows);
-                        let total: f64 = opponents
-                            .iter()
-                            .map(|entry| hero_score(&hero, &entry.rows, fl_ev))
-                            .sum();
-                        let value = total / opponents.len() as f64;
+                        let value = if own_only {
+                            crate::vs_fl::hero_own(&hero, fl_ev)
+                        } else {
+                            let total: f64 = opponents
+                                .iter()
+                                .map(|entry| hero_score(&hero, &entry.rows, fl_ev))
+                                .sum();
+                            total / opponents.len() as f64
+                        };
                         table[pair_index * patterns.len() + slot] = value;
                         if keep_leaves {
                             leaves.push(T4Leaf {
@@ -286,7 +291,7 @@ pub fn solve(
     fl_ev: &[f64; 4],
     stream: u64,
 ) -> Result<Vec<T3ActionValue>, ShortDraw> {
-    solve_with_t4(request, pool, fl_ev, stream, false).map(|(values, _)| values)
+    solve_with_t4(request, pool, fl_ev, stream, false, false).map(|(values, _)| values)
 }
 
 /// One T4 decision harvested from a T3 root: hero's eleven-card board, the
@@ -319,8 +324,9 @@ pub fn solve_harvesting(
     stream: u64,
     harvest_stream: u64,
     t4_per_root: usize,
+    own_only: bool,
 ) -> Result<(Vec<T3ActionValue>, Vec<T4Decision>), ShortDraw> {
-    let (values, leaves) = solve_with_t4(request, pool, fl_ev, stream, t4_per_root > 0)?;
+    let (values, leaves) = solve_with_t4(request, pool, fl_ev, stream, t4_per_root > 0, own_only)?;
     if t4_per_root == 0 || leaves.is_empty() {
         return Ok((values, Vec::new()));
     }
@@ -472,7 +478,7 @@ mod tests {
     fn harvested_t4_leaves_match_the_table_the_expectation_used() {
         let pool = tiny_pool(300);
         let request = request_from(0x7311_2000, 3);
-        let Ok((values, leaves)) = solve_with_t4(&request, &pool, &TABLE, 7, true) else {
+        let Ok((values, leaves)) = solve_with_t4(&request, &pool, &TABLE, 7, true, false) else {
             return;
         };
         assert!(!leaves.is_empty());
@@ -545,7 +551,7 @@ mod tests {
                 continue;
             }
             jokerless += 1;
-            let Ok((_, decisions)) = solve_harvesting(&request, &pool, &TABLE, 7, 7, 6) else {
+            let Ok((_, decisions)) = solve_harvesting(&request, &pool, &TABLE, 7, 7, 6, false) else {
                 continue;
             };
             solved += 1;
