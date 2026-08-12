@@ -4,10 +4,8 @@
 //!   Uses COMBINATIONS instead of permutations for O(C(5,k)) vs O(5!)
 //! T1-T4: 3 cards → discard 1, place 2
 //!
-//! T0 constraint filters (domain knowledge):
-//! 1. Ace → top or middle only (never bottom)
-//! 2. Joker → top or bottom only (never middle)
-//! 3. Two jokers must be in different rows
+//! T0 has no rank- or Joker-specific placement restrictions. Strategic pruning
+//! belongs in candidate ranking, not in the legal action generator.
 
 use ofc_core::Card;
 
@@ -89,24 +87,6 @@ pub struct Action {
 #[inline(always)]
 fn is_card_row_valid(_card: &Card, _row: Row) -> bool {
     // No card-row restrictions: any card can go to any row per OFC rules.
-    true
-}
-
-/// Check 2-joker constraint: can't be in same row.
-#[inline(always)]
-fn check_joker_pair_constraint(cards: &[Card], assignments: &[Row]) -> bool {
-    let mut first_joker_row: Option<Row> = None;
-    for (i, card) in cards.iter().enumerate() {
-        if card.is_joker() {
-            if let Some(prev_row) = first_joker_row {
-                if prev_row == assignments[i] {
-                    return false;
-                }
-            } else {
-                first_joker_row = Some(assignments[i]);
-            }
-        }
-    }
     true
 }
 
@@ -216,11 +196,6 @@ fn enumerate_mid(
             if !is_card_row_valid(&hand[i], Row::Bottom) {
                 return;
             }
-        }
-
-        // Check 2-joker constraint
-        if !check_joker_pair_constraint(hand, &assignments) {
-            return;
         }
 
         actions.push(Action {
@@ -354,48 +329,34 @@ mod tests {
     }
 
     #[test]
-    fn test_t0_with_aces_filtered() {
-        // 2 Aces: should filter out actions with Ace on bottom
+    fn test_t0_with_aces_keeps_all_legal_actions() {
         let hand = [
             make_card(14, 0), make_card(14, 1), make_card(3, 2),
             make_card(7, 3), make_card(13, 0),
         ];
         let board = Board::new();
         let actions = generate_t0_actions(&hand, &board);
-        assert!(actions.len() < 232, "Aces should reduce action count, got {}", actions.len());
-        // Verify no Ace on bottom
-        for a in &actions {
-            for (i, &r) in a.row_assignments.iter().enumerate() {
-                if hand[i].rank == 14 {
-                    assert_ne!(r, Row::Bottom, "Ace must not be on bottom");
-                }
-            }
-        }
+        assert_eq!(actions.len(), 232, "Aces are legal in every row");
+        assert!(actions.iter().any(|action| {
+            hand.iter().enumerate().any(|(index, card)| {
+                card.rank == 14 && action.row_assignments[index] == Row::Bottom
+            })
+        }));
     }
 
     #[test]
-    fn test_t0_with_jokers_filtered() {
-        // 2 Jokers: should filter aggressively
+    fn test_t0_with_jokers_keeps_all_legal_actions() {
         let hand = [
             joker(), joker(), make_card(13, 0),
             make_card(7, 3), make_card(3, 2),
         ];
         let board = Board::new();
         let actions = generate_t0_actions(&hand, &board);
-        assert!(actions.len() < 100, "2 Jokers should heavily reduce actions, got {}", actions.len());
-        // Verify no joker on middle & no 2 jokers same row
-        for a in &actions {
-            let mut joker_rows = Vec::new();
-            for (i, &r) in a.row_assignments.iter().enumerate() {
-                if hand[i].is_joker() {
-                    assert_ne!(r, Row::Middle, "Joker must not be on middle");
-                    joker_rows.push(r);
-                }
-            }
-            if joker_rows.len() >= 2 {
-                assert_ne!(joker_rows[0], joker_rows[1], "2 jokers must be in different rows");
-            }
-        }
+        assert_eq!(actions.len(), 232, "Jokers are legal in every row");
+        assert!(actions.iter().any(|action| {
+            action.row_assignments[0] == Row::Middle
+                && action.row_assignments[1] == Row::Middle
+        }));
     }
 
     #[test]

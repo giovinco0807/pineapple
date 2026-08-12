@@ -1,0 +1,18 @@
+[package]
+name = "t3_generator"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+ofc_core = { path = "../ofc_core" }
+fl_solver = { path = "../fl_solver" }
+ort = { version = "2.0.0-rc.12", features = ["ndarray"] }
+anyhow = "1"
+ndarray = "0.17"
+rayon = { workspace = true }
+rand = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+clap = { workspace = true }
+itertools = { workspace = true }
+indicatif = "0.17"

@@ -4,7 +4,9 @@
 //! by enumerating all possible card combinations from the remaining deck.
 //! Supports bust approximation, FL rate, royalty estimation, and EV calculation.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
+use std::fs::File;
+use std::io::{self, BufRead, BufReader, BufWriter, Write};
 
 use clap::Parser;
 use itertools::Itertools;
@@ -14,20 +16,20 @@ use rand::rngs::StdRng;
 use rayon::prelude::*;
 use ofc_core::{
     Card, HandRank3,
-    evaluate_5_card, evaluate_3_card,
+    evaluate_5_card, evaluate_3_card, evaluate_hand_value,
     create_deck, rank_to_char, SUIT_CHARS,
     get_top_royalty, get_middle_royalty, get_bottom_royalty,
-    check_fl_entry, count_ranks, compare_5_hands,
+    check_fl_entry, count_ranks,
 };
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 // ============================================================
 //  Hand value: combined (category, strength) into single u32
 // ============================================================
 
 fn hand_value_5(cards: &[Card]) -> u32 {
-    let (rank, strength) = evaluate_5_card(cards);
-    (rank as u32) * 1_000_000 + strength
+    let value = evaluate_hand_value(cards, 5);
+    (value / 759_375) * 1_000_000 + value % 759_375
 }
 
 fn hand_value_3(cards: &[Card]) -> u32 {
@@ -36,14 +38,11 @@ fn hand_value_3(cards: &[Card]) -> u32 {
 }
 
 /// Map 3-card hand to a value comparable with 5-card hand_value_5.
-/// Trips maps to 2.5 on the category scale (between TwoPair=2 and Trips=3).
+/// Uses the same category and tie breakers as Python. In particular, top trips
+/// and middle trips share category 3 so their trip ranks are compared.
 fn top_comparable_value_5(cards: &[Card]) -> u32 {
-    let (rank, strength) = evaluate_3_card(cards);
-    match rank {
-        HandRank3::HighCard => strength,               // category 0
-        HandRank3::OnePair => 1_000_000 + strength,    // category 1
-        HandRank3::Trips   => 2_500_000 + strength,    // between TwoPair(2) and Trips(3)
-    }
+    let value = evaluate_hand_value(cards, 3);
+    (value / 759_375) * 1_000_000 + value % 759_375
 }
 
 // ============================================================
@@ -139,11 +138,7 @@ fn fine_bin_top(cards: &[Card]) -> usize {
     match rank {
         HandRank3::HighCard => fine_bin_from(0, pr),
         HandRank3::OnePair => fine_bin_from(1, pr),
-        HandRank3::Trips   => {
-            // Map to category 2.5: bins 25-29 (between TwoPair and Trips)
-            let sub = ((pr as usize).saturating_sub(2) * 5 / 13).min(4);
-            25 + sub
-        }
+        HandRank3::Trips => fine_bin_from(3, pr),
     }
 }
 
@@ -758,6 +753,46 @@ fn evaluate_board(
     top_cards: &[Card], mid_cards: &[Card], bot_cards: &[Card],
     remaining_deck: &[Card],
 ) -> BoardEvaluation {
+    // If the board is full, use the constrained evaluator to support Joker downgrades!
+    if top_cards.len() == 3 && mid_cards.len() == 5 && bot_cards.len() == 5 {
+        let eval = ofc_core::evaluate_board_with_joker_constraint(top_cards, mid_cards, bot_cards);
+        let bust_prob = if eval.busted { 1.0 } else { 0.0 };
+
+        let mut expected_royalty = 0.0;
+        let mut fl_rate = 0.0;
+        let mut fl_ev_contribution = 0.0;
+
+        if !eval.busted {
+            expected_royalty = (ofc_core::get_top_royalty(&eval.top) +
+                               ofc_core::get_middle_royalty(&eval.mid) +
+                               ofc_core::get_bottom_royalty(&eval.bot)) as f64;
+            let (fl, fl_cards) = ofc_core::check_fl_entry(&eval.top);
+            if fl {
+                fl_rate = 1.0;
+                fl_ev_contribution = fl_ev_for_cards(fl_cards);
+            }
+        }
+
+        let ev = expected_royalty + fl_ev_contribution - (bust_prob * 6.0);
+
+        let top_dist = make_deterministic_top(&eval.top);
+        let mid_dist = make_deterministic_5(&eval.mid, true);
+        let bot_dist = make_deterministic_5(&eval.bot, false);
+
+        return BoardEvaluation {
+            top: top_dist,
+            mid: mid_dist,
+            bot: bot_dist,
+            bust_prob,
+            bust_top_mid: bust_prob, // simplified bounds for deterministic
+            bust_mid_bot: 0.0,
+            fl_rate,
+            fl_ev_contribution,
+            expected_royalty,
+            ev,
+        };
+    }
+
     let top_dist = if top_cards.len() < 3 {
         compute_top_distribution(top_cards, remaining_deck)
     } else {
@@ -897,6 +932,134 @@ fn generate_t0_candidates(dealt: &[Card]) -> Vec<Candidate> {
     candidates
 }
 
+fn candidate_top_cards(cand: &Candidate) -> Vec<Card> {
+    cand.placements.iter()
+        .filter(|(_, pos)| *pos == 0)
+        .map(|(card, _)| *card)
+        .collect()
+}
+
+fn top_has_high_route(top: &[Card]) -> bool {
+    top.iter().any(|c| c.is_joker() || c.rank >= 12)
+}
+
+fn top_has_fl_shape(top: &[Card]) -> bool {
+    if top.is_empty() {
+        return false;
+    }
+    let jokers = top.iter().filter(|c| c.is_joker()).count() as usize;
+    let mut counts: HashMap<u8, usize> = HashMap::new();
+    for card in top {
+        if !card.is_joker() {
+            *counts.entry(card.rank).or_insert(0) += 1;
+        }
+    }
+    for rank in [12u8, 13, 14] {
+        if counts.get(&rank).copied().unwrap_or(0) + jokers >= 2 {
+            return true;
+        }
+    }
+    counts.values().any(|count| *count + jokers >= 3) || jokers >= 2
+}
+
+fn candidate_matches_filter(cand: &Candidate, filter: &str) -> bool {
+    match filter {
+        "t0_fl_route" => {
+            let top = candidate_top_cards(cand);
+            top_has_high_route(&top) || top_has_fl_shape(&top)
+        }
+        _ => true,
+    }
+}
+
+fn select_candidate_subset(
+    candidates: Vec<Candidate>,
+    candidate_limit: usize,
+    candidate_filter: &str,
+) -> Vec<Candidate> {
+    if candidate_limit == 0 && candidate_filter == "all" {
+        return candidates;
+    }
+
+    let mut selected = Vec::new();
+    let mut used = HashSet::new();
+    let mut route_idxs = Vec::new();
+    let mut safe_idxs = Vec::new();
+
+    if candidate_filter != "all" {
+        for (idx, cand) in candidates.iter().enumerate() {
+            if candidate_matches_filter(cand, candidate_filter) {
+                route_idxs.push(idx);
+            } else {
+                safe_idxs.push(idx);
+            }
+        }
+    } else {
+        safe_idxs.extend(0..candidates.len());
+    }
+
+    if candidate_limit == 0 {
+        return route_idxs.into_iter().map(|idx| candidates[idx].clone()).collect();
+    }
+
+    let target = candidate_limit.min(candidates.len());
+    let route_target = if candidate_filter == "all" {
+        0
+    } else {
+        ((target * 2) / 3).max(1).min(route_idxs.len())
+    };
+    let safe_target = target.saturating_sub(route_target).min(safe_idxs.len());
+
+    let push_spread = |idxs: &[usize], count: usize, selected: &mut Vec<Candidate>, used: &mut HashSet<usize>| {
+        if count == 0 || idxs.is_empty() {
+            return;
+        }
+        if count >= idxs.len() {
+            for idx in idxs {
+                if used.insert(*idx) {
+                    selected.push(candidates[*idx].clone());
+                }
+            }
+            return;
+        }
+        for step in 0..count {
+            let idx = idxs[step * idxs.len() / count];
+            if used.insert(idx) {
+                selected.push(candidates[idx].clone());
+            }
+        }
+        if selected.len() < count {
+            for idx in idxs {
+                if selected.len() >= count {
+                    break;
+                }
+                if used.insert(*idx) {
+                    selected.push(candidates[*idx].clone());
+                }
+            }
+        }
+    };
+
+    push_spread(&route_idxs, route_target, &mut selected, &mut used);
+    push_spread(&safe_idxs, safe_target, &mut selected, &mut used);
+
+    if selected.len() < target {
+        for idx in 0..candidates.len() {
+            if selected.len() >= target {
+                break;
+            }
+            if used.insert(idx) {
+                selected.push(candidates[idx].clone());
+            }
+        }
+    }
+
+    if selected.len() > target {
+        selected.truncate(target);
+    }
+    selected
+}
+
 // ============================================================
 //  Candidate evaluation
 // ============================================================
@@ -925,12 +1088,15 @@ fn evaluate_candidates(
     top: &[Card], mid: &[Card], bot: &[Card],
     dealt: &[Card], remaining_deck: &[Card],
     turn: usize,
+    candidate_limit: usize,
+    candidate_filter: &str,
 ) -> Vec<CandidateResult> {
-    let candidates = if turn == 0 {
+    let all_candidates = if turn == 0 {
         generate_t0_candidates(dealt)
     } else {
         generate_candidates(top, mid, bot, dealt)
     };
+    let candidates = select_candidate_subset(all_candidates, candidate_limit, candidate_filter);
 
     let mut results: Vec<CandidateResult> = candidates.par_iter().map(|cand| {
         let mut new_top = top.to_vec();
@@ -946,15 +1112,11 @@ fn evaluate_candidates(
             }
         }
 
-        // Remove placed cards and discard from remaining deck
-        let used: HashSet<(u8, u8)> = cand.placements.iter()
-            .map(|(c, _)| (c.rank, c.suit))
-            .chain(std::iter::once((cand.discard.rank, cand.discard.suit)))
-            .collect();
-        let row_deck: Vec<Card> = remaining_deck.iter()
-            .filter(|c| !used.contains(&(c.rank, c.suit)))
-            .copied()
-            .collect();
+        // Remove exact card multiplicities. The two Jokers share rank/suit, so
+        // a HashSet would incorrectly remove both when only one is used.
+        let mut used: Vec<Card> = cand.placements.iter().map(|(card, _)| *card).collect();
+        used.push(cand.discard);
+        let row_deck = remove_cards_from_deck(remaining_deck, &used);
 
         let eval = evaluate_board(&new_top, &new_mid, &new_bot, &row_deck);
 
@@ -1063,6 +1225,38 @@ struct Cli {
     /// Number of MC simulations per candidate (for "mc" mode)
     #[arg(long, default_value_t = 50)]
     sims: usize,
+
+    /// Comma-separated sims per stage for "t0_ladder" mode
+    #[arg(long, default_value = "2,5,10,25,50")]
+    stage_sims: String,
+
+    /// Comma-separated keep counts per stage for "t0_ladder" mode
+    #[arg(long, default_value = "200,150,64,24,8")]
+    stage_limits: String,
+
+    /// Beam width for recursive rollout modes
+    #[arg(long, default_value_t = 5)]
+    recursive_beam: usize,
+
+    /// Child samples per action for recursive rollout modes
+    #[arg(long, default_value_t = 2)]
+    recursive_child_sims: usize,
+
+    /// Optional maximum number of candidates to evaluate after filtering
+    #[arg(long, default_value_t = 0)]
+    candidate_limit: usize,
+
+    /// Candidate pre-filter: "all" or "t0_fl_route"
+    #[arg(long, default_value = "all")]
+    candidate_filter: String,
+
+    /// JSONL input path for batch mode. Use "-" or empty for stdin.
+    #[arg(long, default_value = "")]
+    input: String,
+
+    /// JSONL output path for batch mode. Use "-" or empty for stdout.
+    #[arg(long, default_value = "")]
+    output: String,
 }
 
 // ============================================================
@@ -1089,6 +1283,17 @@ struct BoardOutput {
 }
 
 #[derive(Serialize)]
+struct BoardMcOutput {
+    top_cards: Vec<String>,
+    mid_cards: Vec<String>,
+    bot_cards: Vec<String>,
+    remaining_deck_size: usize,
+    start_turn: usize,
+    simulations: usize,
+    mc: McResult,
+}
+
+#[derive(Serialize)]
 struct CandidatesOutput {
     top_cards: Vec<String>,
     mid_cards: Vec<String>,
@@ -1112,19 +1317,14 @@ fn evaluate_final_board(top: &[Card], mid: &[Card], bot: &[Card]) -> (f64, bool,
     assert_eq!(mid.len(), 5);
     assert_eq!(bot.len(), 5);
 
-    // Bust check: top <= mid <= bot (using comparable values)
-    let top_val = top_comparable_value_5(top);
-    let mid_val = hand_value_5(mid);
+    let eval = ofc_core::evaluate_board_with_joker_constraint(top, mid, bot);
 
-    let mid_le_bot = compare_5_hands(mid, bot) <= 0;
-    let top_le_mid = top_val <= mid_val;
-
-    if !top_le_mid || !mid_le_bot {
+    if eval.busted {
         return (-6.0, false, 0);
     }
 
-    let royalty = get_top_royalty(top) + get_middle_royalty(mid) + get_bottom_royalty(bot);
-    let (fl, fl_cards) = check_fl_entry(top);
+    let royalty = ofc_core::get_top_royalty(&eval.top) + ofc_core::get_middle_royalty(&eval.mid) + ofc_core::get_bottom_royalty(&eval.bot);
+    let (fl, fl_cards) = ofc_core::check_fl_entry(&eval.top);
     let fl_bonus = if fl { fl_ev_for_cards(fl_cards) } else { 0.0 };
 
     (royalty as f64 + fl_bonus, fl, if fl { fl_cards } else { 0 })
@@ -1157,14 +1357,9 @@ fn select_best_placement_pe(
             }
         }
 
-        let used: HashSet<(u8, u8)> = cand.placements.iter()
-            .map(|(c, _)| (c.rank, c.suit))
-            .chain(std::iter::once((cand.discard.rank, cand.discard.suit)))
-            .collect();
-        let row_deck: Vec<Card> = remaining_deck.iter()
-            .filter(|c| !used.contains(&(c.rank, c.suit)))
-            .copied()
-            .collect();
+        let mut used: Vec<Card> = cand.placements.iter().map(|(card, _)| *card).collect();
+        used.push(cand.discard);
+        let row_deck = remove_cards_from_deck(remaining_deck, &used);
 
         let ev = evaluate_board_fast(&new_top, &new_mid, &new_bot, &row_deck, rng);
 
@@ -1289,6 +1484,12 @@ struct McCandidate {
     placements: Vec<(String, String)>,
     discard: String,
     mc: McResult,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    ladder_stage: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    ladder_rank: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    ladder_survived: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1298,6 +1499,373 @@ struct McCandidatesOutput {
     simulations_per_candidate: usize,
     candidates: Vec<McCandidate>,
     elapsed_ms: u64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct LadderStageSummary {
+    stage: usize,
+    sims: usize,
+    input_candidates: usize,
+    kept_candidates: usize,
+    top_avg_score: f64,
+    top_bust_rate: f64,
+    top_fl_rate: f64,
+    elapsed_ms: u64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct T0LadderOutput {
+    dealt_cards: Vec<String>,
+    initial_candidates: usize,
+    final_candidates: usize,
+    returned_candidates: usize,
+    stage_sims: Vec<usize>,
+    stage_limits: Vec<usize>,
+    stages: Vec<LadderStageSummary>,
+    candidates: Vec<McCandidate>,
+    elapsed_ms: u64,
+}
+
+// ============================================================
+//  Batch JSONL mode
+// ============================================================
+
+#[derive(Debug, Deserialize)]
+struct BatchRequest {
+    id: Option<serde_json::Value>,
+    mode: Option<String>,
+    top: Option<String>,
+    mid: Option<String>,
+    bot: Option<String>,
+    dealt: Option<String>,
+    exclude: Option<String>,
+    turn: Option<usize>,
+    position: Option<String>,
+    sims: Option<usize>,
+    recursive_beam: Option<usize>,
+    recursive_child_sims: Option<usize>,
+    stage_sims: Option<String>,
+    stage_limits: Option<String>,
+    candidate_limit: Option<usize>,
+    candidate_filter: Option<String>,
+}
+
+#[derive(Serialize)]
+struct BatchResponse {
+    id: Option<serde_json::Value>,
+    ok: bool,
+    result: Option<serde_json::Value>,
+    error: Option<String>,
+}
+
+fn candidates_output_from_parts(
+    top_cards: &[Card],
+    mid_cards: &[Card],
+    bot_cards: &[Card],
+    dealt_cards: &[Card],
+    exclude_cards: &[Card],
+    turn: usize,
+    position: &str,
+    candidate_limit: usize,
+    candidate_filter: &str,
+) -> CandidatesOutput {
+    let all_known: Vec<Card> = top_cards.iter()
+        .chain(mid_cards.iter())
+        .chain(bot_cards.iter())
+        .chain(dealt_cards.iter())
+        .chain(exclude_cards.iter())
+        .copied().collect();
+    let remaining = build_remaining_deck(&all_known);
+    let results = evaluate_candidates(
+        top_cards, mid_cards, bot_cards,
+        dealt_cards, &remaining, turn,
+        candidate_limit, candidate_filter,
+    );
+
+    CandidatesOutput {
+        top_cards: top_cards.iter().map(card_to_string).collect(),
+        mid_cards: mid_cards.iter().map(card_to_string).collect(),
+        bot_cards: bot_cards.iter().map(card_to_string).collect(),
+        dealt_cards: dealt_cards.iter().map(card_to_string).collect(),
+        remaining_deck_size: remaining.len(),
+        turn,
+        position: position.to_string(),
+        n_candidates: results.len(),
+        candidates: results,
+    }
+}
+
+fn board_output_from_parts(
+    top_cards: &[Card],
+    mid_cards: &[Card],
+    bot_cards: &[Card],
+    exclude_cards: &[Card],
+    turn: usize,
+    position: &str,
+) -> BoardOutput {
+    let all_known: Vec<Card> = top_cards.iter()
+        .chain(mid_cards.iter())
+        .chain(bot_cards.iter())
+        .chain(exclude_cards.iter())
+        .copied().collect();
+    let remaining = build_remaining_deck(&all_known);
+    let eval = evaluate_board(top_cards, mid_cards, bot_cards, &remaining);
+
+    BoardOutput {
+        top_cards: top_cards.iter().map(card_to_string).collect(),
+        mid_cards: mid_cards.iter().map(card_to_string).collect(),
+        bot_cards: bot_cards.iter().map(card_to_string).collect(),
+        remaining_deck_size: remaining.len(),
+        turn,
+        position: position.to_string(),
+        evaluation: eval,
+    }
+}
+
+fn board_mc_output_from_parts(
+    top_cards: &[Card],
+    mid_cards: &[Card],
+    bot_cards: &[Card],
+    exclude_cards: &[Card],
+    start_turn: usize,
+    sims: usize,
+) -> BoardMcOutput {
+    let all_known: Vec<Card> = top_cards.iter()
+        .chain(mid_cards.iter())
+        .chain(bot_cards.iter())
+        .chain(exclude_cards.iter())
+        .copied().collect();
+    let remaining = build_remaining_deck(&all_known);
+    let mc = run_mc(top_cards, mid_cards, bot_cards, &remaining, start_turn, sims);
+
+    BoardMcOutput {
+        top_cards: top_cards.iter().map(card_to_string).collect(),
+        mid_cards: mid_cards.iter().map(card_to_string).collect(),
+        bot_cards: bot_cards.iter().map(card_to_string).collect(),
+        remaining_deck_size: remaining.len(),
+        start_turn,
+        simulations: sims,
+        mc,
+    }
+}
+
+fn board_recursive_mc_output_from_parts(
+    top_cards: &[Card],
+    mid_cards: &[Card],
+    bot_cards: &[Card],
+    exclude_cards: &[Card],
+    start_turn: usize,
+    sims: usize,
+    beam_width: usize,
+    child_sims: usize,
+) -> BoardMcOutput {
+    let all_known: Vec<Card> = top_cards.iter()
+        .chain(mid_cards.iter())
+        .chain(bot_cards.iter())
+        .chain(exclude_cards.iter())
+        .copied().collect();
+    let remaining = build_remaining_deck(&all_known);
+    let mc = run_recursive_mc(
+        top_cards,
+        mid_cards,
+        bot_cards,
+        &remaining,
+        start_turn,
+        sims,
+        beam_width,
+        child_sims,
+    );
+
+    BoardMcOutput {
+        top_cards: top_cards.iter().map(card_to_string).collect(),
+        mid_cards: mid_cards.iter().map(card_to_string).collect(),
+        bot_cards: bot_cards.iter().map(card_to_string).collect(),
+        remaining_deck_size: remaining.len(),
+        start_turn,
+        simulations: sims,
+        mc,
+    }
+}
+
+fn mc_output_from_parts(
+    top_cards: &[Card],
+    mid_cards: &[Card],
+    bot_cards: &[Card],
+    dealt_cards: &[Card],
+    exclude_cards: &[Card],
+    turn: usize,
+    sims: usize,
+    candidate_limit: usize,
+    candidate_filter: &str,
+) -> McCandidatesOutput {
+    let start = std::time::Instant::now();
+    let all_known: Vec<Card> = top_cards.iter()
+        .chain(mid_cards.iter())
+        .chain(bot_cards.iter())
+        .chain(dealt_cards.iter())
+        .chain(exclude_cards.iter())
+        .copied().collect();
+    let remaining = build_remaining_deck(&all_known);
+
+    let results = if turn == 0 {
+        evaluate_t0_mc(
+            dealt_cards, &remaining, sims,
+            candidate_limit, candidate_filter,
+        )
+    } else {
+        evaluate_t1plus_mc(
+            top_cards, mid_cards, bot_cards,
+            dealt_cards, &remaining, turn, sims,
+            candidate_limit, candidate_filter,
+        )
+    };
+
+    McCandidatesOutput {
+        dealt_cards: dealt_cards.iter().map(card_to_string).collect(),
+        n_candidates: results.len(),
+        simulations_per_candidate: sims,
+        candidates: results,
+        elapsed_ms: start.elapsed().as_millis() as u64,
+    }
+}
+
+fn parse_usize_list(value: &str, fallback: &[usize]) -> Vec<usize> {
+    let parsed: Vec<usize> = value
+        .split(',')
+        .filter_map(|part| part.trim().parse::<usize>().ok())
+        .filter(|v| *v > 0)
+        .collect();
+    if parsed.is_empty() {
+        fallback.to_vec()
+    } else {
+        parsed
+    }
+}
+
+fn t0_ladder_output_from_parts(
+    dealt_cards: &[Card],
+    exclude_cards: &[Card],
+    stage_sims: &[usize],
+    stage_limits: &[usize],
+) -> T0LadderOutput {
+    let start = std::time::Instant::now();
+    let all_known: Vec<Card> = dealt_cards.iter()
+        .chain(exclude_cards.iter())
+        .copied().collect();
+    let remaining = build_remaining_deck(&all_known);
+    let mut output = evaluate_t0_ladder(
+        dealt_cards,
+        &remaining,
+        stage_sims,
+        stage_limits,
+    );
+    output.elapsed_ms = start.elapsed().as_millis() as u64;
+    output
+}
+
+fn evaluate_batch_request(req: &BatchRequest) -> Result<serde_json::Value, String> {
+    let mode = req.mode.as_deref().unwrap_or("candidates");
+    let top_cards = parse_cards(req.top.as_deref().unwrap_or(""));
+    let mid_cards = parse_cards(req.mid.as_deref().unwrap_or(""));
+    let bot_cards = parse_cards(req.bot.as_deref().unwrap_or(""));
+    let dealt_cards = parse_cards(req.dealt.as_deref().unwrap_or(""));
+    let exclude_cards = parse_cards(req.exclude.as_deref().unwrap_or(""));
+    let turn = req.turn.unwrap_or(1);
+    let position = req.position.as_deref().unwrap_or("bb");
+    let sims = req.sims.unwrap_or(50);
+    let recursive_beam = req.recursive_beam.unwrap_or(5);
+    let recursive_child_sims = req.recursive_child_sims.unwrap_or(2);
+    let stage_sims = parse_usize_list(
+        req.stage_sims.as_deref().unwrap_or("2,5,10,25,50"),
+        &[2, 5, 10, 25, 50],
+    );
+    let stage_limits = parse_usize_list(
+        req.stage_limits.as_deref().unwrap_or("200,150,64,24,8"),
+        &[200, 150, 64, 24, 8],
+    );
+    let candidate_limit = req.candidate_limit.unwrap_or(0);
+    let candidate_filter = req.candidate_filter.as_deref().unwrap_or("all");
+
+    match mode {
+        "board" => serde_json::to_value(board_output_from_parts(
+            &top_cards, &mid_cards, &bot_cards,
+            &exclude_cards, turn, position,
+        )).map_err(|e| e.to_string()),
+        "board_mc" => serde_json::to_value(board_mc_output_from_parts(
+            &top_cards, &mid_cards, &bot_cards,
+            &exclude_cards, turn, sims,
+        )).map_err(|e| e.to_string()),
+        "board_recursive_mc" => serde_json::to_value(board_recursive_mc_output_from_parts(
+            &top_cards, &mid_cards, &bot_cards,
+            &exclude_cards, turn, sims,
+            recursive_beam, recursive_child_sims,
+        )).map_err(|e| e.to_string()),
+        "candidates" => serde_json::to_value(candidates_output_from_parts(
+            &top_cards, &mid_cards, &bot_cards,
+            &dealt_cards, &exclude_cards, turn, position,
+            candidate_limit, candidate_filter,
+        )).map_err(|e| e.to_string()),
+        "mc" => serde_json::to_value(mc_output_from_parts(
+            &top_cards, &mid_cards, &bot_cards,
+            &dealt_cards, &exclude_cards, turn, sims,
+            candidate_limit, candidate_filter,
+        )).map_err(|e| e.to_string()),
+        "t0_ladder" => serde_json::to_value(t0_ladder_output_from_parts(
+            &dealt_cards,
+            &exclude_cards,
+            &stage_sims,
+            &stage_limits,
+        )).map_err(|e| e.to_string()),
+        _ => Err(format!("Unsupported batch mode: {}", mode)),
+    }
+}
+
+fn run_batch(input_path: &str, output_path: &str) -> Result<(), String> {
+    let reader: Box<dyn BufRead> = if input_path.is_empty() || input_path == "-" {
+        Box::new(BufReader::new(io::stdin()))
+    } else {
+        Box::new(BufReader::new(File::open(input_path).map_err(|e| e.to_string())?))
+    };
+    let mut writer: Box<dyn Write> = if output_path.is_empty() || output_path == "-" {
+        Box::new(BufWriter::new(io::stdout()))
+    } else {
+        Box::new(BufWriter::new(File::create(output_path).map_err(|e| e.to_string())?))
+    };
+
+    for (line_no, line_res) in reader.lines().enumerate() {
+        let line = line_res.map_err(|e| e.to_string())?;
+        if line.trim().is_empty() {
+            continue;
+        }
+        let response = match serde_json::from_str::<BatchRequest>(&line) {
+            Ok(req) => {
+                let id = req.id.clone();
+                match evaluate_batch_request(&req) {
+                    Ok(result) => BatchResponse {
+                        id,
+                        ok: true,
+                        result: Some(result),
+                        error: None,
+                    },
+                    Err(error) => BatchResponse {
+                        id,
+                        ok: false,
+                        result: None,
+                        error: Some(error),
+                    },
+                }
+            }
+            Err(error) => BatchResponse {
+                id: Some(serde_json::Value::from(line_no + 1)),
+                ok: false,
+                result: None,
+                error: Some(error.to_string()),
+            },
+        };
+        serde_json::to_writer(&mut writer, &response).map_err(|e| e.to_string())?;
+        writer.write_all(b"\n").map_err(|e| e.to_string())?;
+    }
+    writer.flush().map_err(|e| e.to_string())
 }
 
 /// Run MC simulation for a single board state.
@@ -1347,15 +1915,310 @@ fn run_mc(
     }
 }
 
-/// Evaluate all T0 candidates via MC simulation.
-fn evaluate_t0_mc(
+#[derive(Default, Clone)]
+struct RecursiveStats {
+    weight: f64,
+    score_sum: f64,
+    bust_sum: f64,
+    fl_sum: f64,
+    qq_sum: f64,
+    kk_sum: f64,
+    aa_sum: f64,
+    trips_sum: f64,
+    royalty_no_bust_sum: f64,
+}
+
+impl RecursiveStats {
+    fn add_outcome(&mut self, score: f64, bust: bool, fl: bool, fl_cards: u8) {
+        self.weight += 1.0;
+        self.score_sum += score;
+        if bust {
+            self.bust_sum += 1.0;
+        } else {
+            self.royalty_no_bust_sum += score;
+        }
+        if fl {
+            self.fl_sum += 1.0;
+            match fl_cards {
+                14 => self.qq_sum += 1.0,
+                15 => self.kk_sum += 1.0,
+                16 => self.aa_sum += 1.0,
+                17 => self.trips_sum += 1.0,
+                _ => {}
+            }
+        }
+    }
+
+    fn add_estimate(&mut self, other: &RecursiveStats) {
+        if other.weight <= 0.0 {
+            return;
+        }
+        self.weight += 1.0;
+        self.score_sum += other.score_sum / other.weight;
+        self.bust_sum += other.bust_sum / other.weight;
+        self.fl_sum += other.fl_sum / other.weight;
+        self.qq_sum += other.qq_sum / other.weight;
+        self.kk_sum += other.kk_sum / other.weight;
+        self.aa_sum += other.aa_sum / other.weight;
+        self.trips_sum += other.trips_sum / other.weight;
+        self.royalty_no_bust_sum += other.royalty_no_bust_sum / other.weight;
+    }
+
+    fn avg_score(&self) -> f64 {
+        if self.weight <= 0.0 { -6.0 } else { self.score_sum / self.weight }
+    }
+
+    fn to_mc_result(&self, simulations: usize, elapsed_ms: u64) -> McResult {
+        let w = self.weight.max(1.0);
+        McResult {
+            simulations,
+            avg_score: self.score_sum / w,
+            bust_rate: self.bust_sum / w,
+            fl_rate: self.fl_sum / w,
+            avg_royalty_no_bust: self.royalty_no_bust_sum / w,
+            fl_type_rates: FlTypeRates {
+                qq: self.qq_sum / w,
+                kk: self.kk_sum / w,
+                aa: self.aa_sum / w,
+                trips: self.trips_sum / w,
+            },
+            elapsed_ms,
+        }
+    }
+}
+
+fn apply_candidate_to_board(
+    top: &[Card],
+    mid: &[Card],
+    bot: &[Card],
+    cand: &Candidate,
+) -> (Vec<Card>, Vec<Card>, Vec<Card>) {
+    let mut new_top = top.to_vec();
+    let mut new_mid = mid.to_vec();
+    let mut new_bot = bot.to_vec();
+    for &(card, pos) in &cand.placements {
+        match pos {
+            0 => new_top.push(card),
+            1 => new_mid.push(card),
+            2 => new_bot.push(card),
+            _ => {}
+        }
+    }
+    (new_top, new_mid, new_bot)
+}
+
+fn remove_candidate_used(remaining_deck: &[Card], cand: &Candidate) -> Vec<Card> {
+    let mut used: Vec<Card> = cand.placements.iter().map(|(card, _)| *card).collect();
+    used.push(cand.discard);
+    remove_cards_from_deck(remaining_deck, &used)
+}
+
+fn sample_deal_from_deck(deck: &[Card], n: usize, rng: &mut StdRng) -> Option<(Vec<Card>, Vec<Card>)> {
+    if deck.len() < n {
+        return None;
+    }
+    let mut shuffled = deck.to_vec();
+    shuffled.shuffle(rng);
+    Some((shuffled[..n].to_vec(), shuffled[n..].to_vec()))
+}
+
+fn ranked_recursive_candidates(
+    top: &[Card],
+    mid: &[Card],
+    bot: &[Card],
     dealt: &[Card],
+    future_deck: &[Card],
+    beam_width: usize,
+    rng: &mut StdRng,
+) -> Vec<Candidate> {
+    let mut scored: Vec<(f64, Candidate)> = generate_candidates(top, mid, bot, dealt)
+        .into_iter()
+        .map(|cand| {
+            let (new_top, new_mid, new_bot) = apply_candidate_to_board(top, mid, bot, &cand);
+            let cand_deck = remove_candidate_used(future_deck, &cand);
+            let score = if new_top.len() == 3 && new_mid.len() == 5 && new_bot.len() == 5 {
+                let (score, _, _) = evaluate_final_board(&new_top, &new_mid, &new_bot);
+                score
+            } else {
+                evaluate_board_fast(&new_top, &new_mid, &new_bot, &cand_deck, rng)
+            };
+            (score, cand)
+        })
+        .collect();
+    scored.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
+    scored.into_iter()
+        .take(beam_width.max(1))
+        .map(|(_, cand)| cand)
+        .collect()
+}
+
+fn estimate_recursive_state(
+    top: &[Card],
+    mid: &[Card],
+    bot: &[Card],
+    remaining_deck: &[Card],
+    turn: usize,
+    samples: usize,
+    beam_width: usize,
+    child_sims: usize,
+    rng: &mut StdRng,
+) -> RecursiveStats {
+    if top.len() == 3 && mid.len() == 5 && bot.len() == 5 {
+        let mut stats = RecursiveStats::default();
+        let (score, fl, fl_cards) = evaluate_final_board(top, mid, bot);
+        stats.add_outcome(score, score <= -6.0, fl, fl_cards);
+        return stats;
+    }
+    if turn > 4 {
+        let mut stats = RecursiveStats::default();
+        stats.add_outcome(-6.0, true, false, 0);
+        return stats;
+    }
+
+    let mut stats = RecursiveStats::default();
+    let n_samples = samples.max(1);
+    for _ in 0..n_samples {
+        let Some((dealt, future_deck)) = sample_deal_from_deck(remaining_deck, 3, rng) else {
+            stats.add_outcome(-6.0, true, false, 0);
+            continue;
+        };
+
+        if turn == 4 {
+            let (new_top, new_mid, new_bot) = select_best_placement_final(top, mid, bot, &dealt);
+            let (score, fl, fl_cards) = evaluate_final_board(&new_top, &new_mid, &new_bot);
+            stats.add_outcome(score, score <= -6.0, fl, fl_cards);
+            continue;
+        }
+
+        let candidates = ranked_recursive_candidates(
+            top,
+            mid,
+            bot,
+            &dealt,
+            &future_deck,
+            beam_width,
+            rng,
+        );
+        if candidates.is_empty() {
+            stats.add_outcome(-6.0, true, false, 0);
+            continue;
+        }
+
+        let mut best_stats: Option<RecursiveStats> = None;
+        for (idx, cand) in candidates.iter().enumerate() {
+            let (new_top, new_mid, new_bot) = apply_candidate_to_board(top, mid, bot, cand);
+            let cand_deck = remove_candidate_used(&future_deck, cand);
+            let mut child_rng = StdRng::seed_from_u64(
+                rng.next_u64() ^ ((turn as u64) << 48) ^ ((idx as u64) << 32),
+            );
+            let candidate_stats = estimate_recursive_state(
+                &new_top,
+                &new_mid,
+                &new_bot,
+                &cand_deck,
+                turn + 1,
+                child_sims.max(1),
+                beam_width,
+                child_sims,
+                &mut child_rng,
+            );
+            if best_stats
+                .as_ref()
+                .map(|best| candidate_stats.avg_score() > best.avg_score())
+                .unwrap_or(true)
+            {
+                best_stats = Some(candidate_stats);
+            }
+        }
+        if let Some(best) = best_stats {
+            stats.add_estimate(&best);
+        } else {
+            stats.add_outcome(-6.0, true, false, 0);
+        }
+    }
+    stats
+}
+
+fn run_recursive_mc(
+    top: &[Card],
+    mid: &[Card],
+    bot: &[Card],
+    remaining_deck: &[Card],
+    start_turn: usize,
+    n_sims: usize,
+    beam_width: usize,
+    child_sims: usize,
+) -> McResult {
+    let start = std::time::Instant::now();
+    let results: Vec<RecursiveStats> = (0..n_sims.max(1)).into_par_iter().map(|i| {
+        let mut rng = StdRng::seed_from_u64(i as u64 + 20260520);
+        estimate_recursive_state(
+            top,
+            mid,
+            bot,
+            remaining_deck,
+            start_turn,
+            1,
+            beam_width,
+            child_sims,
+            &mut rng,
+        )
+    }).collect();
+
+    let mut total = RecursiveStats::default();
+    for result in &results {
+        total.add_estimate(result);
+    }
+    total.to_mc_result(n_sims, start.elapsed().as_millis() as u64)
+}
+
+fn mc_candidate_from_parts(cand: &Candidate, mc: McResult) -> McCandidate {
+    McCandidate {
+        placements: cand.placements.iter()
+            .map(|(c, pos)| (card_to_string(c), row_name(*pos).to_string()))
+            .collect(),
+        discard: card_to_string(&cand.discard),
+        mc,
+        ladder_stage: None,
+        ladder_rank: None,
+        ladder_survived: None,
+    }
+}
+
+fn mc_ladder_candidate_from_parts(
+    cand: &Candidate,
+    mc: McResult,
+    ladder_stage: usize,
+    ladder_rank: usize,
+    ladder_survived: bool,
+) -> McCandidate {
+    McCandidate {
+        placements: cand.placements.iter()
+            .map(|(c, pos)| (card_to_string(c), row_name(*pos).to_string()))
+            .collect(),
+        discard: card_to_string(&cand.discard),
+        mc,
+        ladder_stage: Some(ladder_stage),
+        ladder_rank: Some(ladder_rank),
+        ladder_survived: Some(ladder_survived),
+    }
+}
+
+fn candidate_key(cand: &Candidate) -> String {
+    let mut parts: Vec<String> = cand.placements.iter()
+        .map(|(card, pos)| format!("{}:{}", card_to_string(card), pos))
+        .collect();
+    parts.sort();
+    parts.push(format!("discard:{}", card_to_string(&cand.discard)));
+    parts.join("|")
+}
+
+fn evaluate_t0_mc_pairs(
+    candidates: &[Candidate],
     remaining_deck: &[Card],
     n_sims: usize,
-) -> Vec<McCandidate> {
-    let t0_candidates = generate_t0_candidates(dealt);
-
-    let mut results: Vec<McCandidate> = t0_candidates.par_iter().map(|cand| {
+) -> Vec<(Candidate, McResult)> {
+    let mut results: Vec<(Candidate, McResult)> = candidates.par_iter().map(|cand| {
         let mut new_top = Vec::new();
         let mut new_mid = Vec::new();
         let mut new_bot = Vec::new();
@@ -1370,18 +2233,117 @@ fn evaluate_t0_mc(
         }
 
         let mc = run_mc(&new_top, &new_mid, &new_bot, remaining_deck, 1, n_sims);
-
-        McCandidate {
-            placements: cand.placements.iter()
-                .map(|(c, pos)| (card_to_string(c), row_name(*pos).to_string()))
-                .collect(),
-            discard: card_to_string(&cand.discard),
-            mc,
-        }
+        (cand.clone(), mc)
     }).collect();
 
-    results.sort_by(|a, b| b.mc.avg_score.partial_cmp(&a.mc.avg_score).unwrap_or(std::cmp::Ordering::Equal));
+    results.sort_by(|a, b| b.1.avg_score.partial_cmp(&a.1.avg_score).unwrap_or(std::cmp::Ordering::Equal));
     results
+}
+
+/// Evaluate all T0 candidates via MC simulation.
+fn evaluate_t0_mc(
+    dealt: &[Card],
+    remaining_deck: &[Card],
+    n_sims: usize,
+    candidate_limit: usize,
+    candidate_filter: &str,
+) -> Vec<McCandidate> {
+    let t0_candidates = select_candidate_subset(
+        generate_t0_candidates(dealt),
+        candidate_limit,
+        candidate_filter,
+    );
+
+    evaluate_t0_mc_pairs(&t0_candidates, remaining_deck, n_sims)
+        .into_iter()
+        .map(|(cand, mc)| mc_candidate_from_parts(&cand, mc))
+        .collect()
+}
+
+fn evaluate_t0_ladder(
+    dealt: &[Card],
+    remaining_deck: &[Card],
+    stage_sims: &[usize],
+    stage_limits: &[usize],
+) -> T0LadderOutput {
+    let initial_candidates = generate_t0_candidates(dealt);
+    let initial_count = initial_candidates.len();
+    let mut current = initial_candidates;
+    let mut stages = Vec::new();
+    let mut final_pairs: Vec<(Candidate, McResult)> = Vec::new();
+    let mut latest: HashMap<String, (Candidate, McResult, usize, usize, bool)> = HashMap::new();
+
+    for (stage_idx, sims) in stage_sims.iter().enumerate() {
+        let stage_start = std::time::Instant::now();
+        let input_candidates = current.len();
+        let pairs = evaluate_t0_mc_pairs(&current, remaining_deck, *sims);
+        let keep = stage_limits
+            .get(stage_idx)
+            .copied()
+            .unwrap_or(input_candidates)
+            .min(pairs.len());
+
+        let (top_avg_score, top_bust_rate, top_fl_rate) = if let Some((_, mc)) = pairs.first() {
+            (mc.avg_score, mc.bust_rate, mc.fl_rate)
+        } else {
+            (0.0, 0.0, 0.0)
+        };
+
+        stages.push(LadderStageSummary {
+            stage: stage_idx,
+            sims: *sims,
+            input_candidates,
+            kept_candidates: keep,
+            top_avg_score,
+            top_bust_rate,
+            top_fl_rate,
+            elapsed_ms: stage_start.elapsed().as_millis() as u64,
+        });
+
+        for (rank, (cand, mc)) in pairs.iter().enumerate() {
+            latest.insert(
+                candidate_key(cand),
+                (cand.clone(), mc.clone(), stage_idx, rank, rank < keep),
+            );
+        }
+
+        final_pairs = pairs.into_iter().take(keep).collect();
+        current = final_pairs.iter().map(|(cand, _)| cand.clone()).collect();
+        if current.len() <= 1 {
+            break;
+        }
+    }
+
+    let final_count = final_pairs.len();
+    let mut latest_items: Vec<(Candidate, McResult, usize, usize, bool)> = latest
+        .into_values()
+        .collect();
+    latest_items.sort_by(|a, b| {
+        b.2.cmp(&a.2)
+            .then_with(|| b.4.cmp(&a.4))
+            .then_with(|| a.3.cmp(&b.3))
+            .then_with(|| b.1.avg_score.partial_cmp(&a.1.avg_score).unwrap_or(std::cmp::Ordering::Equal))
+    });
+
+    let candidates: Vec<McCandidate> = latest_items
+        .into_iter()
+        .map(|(cand, mc, stage, rank, survived)| {
+            mc_ladder_candidate_from_parts(&cand, mc, stage, rank, survived)
+        })
+        .collect();
+    let returned_count = candidates.len();
+
+    T0LadderOutput {
+        dealt_cards: dealt.iter().map(card_to_string).collect(),
+        initial_candidates: initial_count,
+        final_candidates: final_count,
+        returned_candidates: returned_count,
+        stage_sims: stage_sims.to_vec(),
+        stage_limits: stage_limits.to_vec(),
+        stages,
+        candidates,
+        elapsed_ms: 0,
+    }
 }
 
 /// Evaluate all T1+ candidates via MC simulation.
@@ -1392,8 +2354,14 @@ fn evaluate_t1plus_mc(
     remaining_deck: &[Card],
     current_turn: usize,
     n_sims: usize,
+    candidate_limit: usize,
+    candidate_filter: &str,
 ) -> Vec<McCandidate> {
-    let candidates = generate_candidates(top, mid, bot, dealt);
+    let candidates = select_candidate_subset(
+        generate_candidates(top, mid, bot, dealt),
+        candidate_limit,
+        candidate_filter,
+    );
 
     let mut results: Vec<McCandidate> = candidates.par_iter().map(|cand| {
         let mut new_top = top.to_vec();
@@ -1409,15 +2377,9 @@ fn evaluate_t1plus_mc(
             }
         }
 
-        // Remove placed + discarded cards from remaining deck
-        let used: HashSet<(u8, u8)> = cand.placements.iter()
-            .map(|(c, _)| (c.rank, c.suit))
-            .chain(std::iter::once((cand.discard.rank, cand.discard.suit)))
-            .collect();
-        let cand_deck: Vec<Card> = remaining_deck.iter()
-            .filter(|c| !used.contains(&(c.rank, c.suit)))
-            .copied()
-            .collect();
+        let mut used: Vec<Card> = cand.placements.iter().map(|(card, _)| *card).collect();
+        used.push(cand.discard);
+        let cand_deck = remove_cards_from_deck(remaining_deck, &used);
 
         let mc = run_mc(&new_top, &new_mid, &new_bot, &cand_deck, current_turn + 1, n_sims);
 
@@ -1427,6 +2389,9 @@ fn evaluate_t1plus_mc(
                 .collect(),
             discard: card_to_string(&cand.discard),
             mc,
+            ladder_stage: None,
+            ladder_rank: None,
+            ladder_survived: None,
         }
     }).collect();
 
@@ -1435,19 +2400,33 @@ fn evaluate_t1plus_mc(
 }
 
 fn build_remaining_deck(all_known: &[Card]) -> Vec<Card> {
-    let full_deck = create_deck(true);
-    let used: HashSet<(u8, u8)> = all_known.iter()
-        .map(|c| (c.rank, c.suit))
-        .collect();
-    full_deck.into_iter()
-        .filter(|c| !used.contains(&(c.rank, c.suit)))
-        .collect()
+    remove_cards_from_deck(&create_deck(true), all_known)
+}
+
+fn remove_cards_from_deck(deck: &[Card], used: &[Card]) -> Vec<Card> {
+    let mut remaining = deck.to_vec();
+    for card in used {
+        if let Some(index) = remaining
+            .iter()
+            .position(|candidate| candidate.rank == card.rank && candidate.suit == card.suit)
+        {
+            remaining.remove(index);
+        }
+    }
+    remaining
 }
 
 fn main() {
     let cli = Cli::parse();
 
     match cli.mode.as_str() {
+        "batch" => {
+            if let Err(error) = run_batch(&cli.input, &cli.output) {
+                eprintln!("batch failed: {}", error);
+                std::process::exit(1);
+            }
+        }
+
         "row" => {
             let row_cards = parse_cards(&cli.row);
             let exclude_cards = parse_cards(&cli.exclude);
@@ -1520,6 +2499,7 @@ fn main() {
             let results = evaluate_candidates(
                 &top_cards, &mid_cards, &bot_cards,
                 &dealt_cards, &remaining, cli.turn,
+                cli.candidate_limit, &cli.candidate_filter,
             );
 
             let output = CandidatesOutput {
@@ -1554,7 +2534,10 @@ fn main() {
 
             if cli.turn == 0 {
                 // T0: evaluate all placement candidates via MC
-                let results = evaluate_t0_mc(&dealt_cards, &remaining, cli.sims);
+                let results = evaluate_t0_mc(
+                    &dealt_cards, &remaining, cli.sims,
+                    cli.candidate_limit, &cli.candidate_filter,
+                );
                 let output = McCandidatesOutput {
                     dealt_cards: dealt_cards.iter().map(card_to_string).collect(),
                     n_candidates: results.len(),
@@ -1568,6 +2551,7 @@ fn main() {
                 let results = evaluate_t1plus_mc(
                     &top_cards, &mid_cards, &bot_cards,
                     &dealt_cards, &remaining, cli.turn, cli.sims,
+                    cli.candidate_limit, &cli.candidate_filter,
                 );
                 let output = McCandidatesOutput {
                     dealt_cards: dealt_cards.iter().map(card_to_string).collect(),
@@ -1580,8 +2564,56 @@ fn main() {
             }
         }
 
+        "board_mc" => {
+            let top_cards = parse_cards(&cli.top);
+            let mid_cards = parse_cards(&cli.mid);
+            let bot_cards = parse_cards(&cli.bot);
+            let exclude_cards = parse_cards(&cli.exclude);
+            let output = board_mc_output_from_parts(
+                &top_cards,
+                &mid_cards,
+                &bot_cards,
+                &exclude_cards,
+                cli.turn,
+                cli.sims,
+            );
+            println!("{}", serde_json::to_string_pretty(&output).unwrap());
+        }
+
+        "board_recursive_mc" => {
+            let top_cards = parse_cards(&cli.top);
+            let mid_cards = parse_cards(&cli.mid);
+            let bot_cards = parse_cards(&cli.bot);
+            let exclude_cards = parse_cards(&cli.exclude);
+            let output = board_recursive_mc_output_from_parts(
+                &top_cards,
+                &mid_cards,
+                &bot_cards,
+                &exclude_cards,
+                cli.turn,
+                cli.sims,
+                cli.recursive_beam,
+                cli.recursive_child_sims,
+            );
+            println!("{}", serde_json::to_string_pretty(&output).unwrap());
+        }
+
+        "t0_ladder" => {
+            let dealt_cards = parse_cards(&cli.dealt);
+            let exclude_cards = parse_cards(&cli.exclude);
+            let stage_sims = parse_usize_list(&cli.stage_sims, &[2, 5, 10, 25, 50]);
+            let stage_limits = parse_usize_list(&cli.stage_limits, &[200, 150, 64, 24, 8]);
+            let output = t0_ladder_output_from_parts(
+                &dealt_cards,
+                &exclude_cards,
+                &stage_sims,
+                &stage_limits,
+            );
+            println!("{}", serde_json::to_string_pretty(&output).unwrap());
+        }
+
         _ => {
-            eprintln!("Unknown mode: {}. Use 'row', 'board', 'candidates', or 'mc'.", cli.mode);
+            eprintln!("Unknown mode: {}. Use 'row', 'board', 'candidates', 'mc', 't0_ladder', or 'batch'.", cli.mode);
             std::process::exit(1);
         }
     }
@@ -1796,7 +2828,7 @@ mod tests {
             Card { rank: 5, suit: 0 },  Card { rank: 5, suit: 1 },
         ];
 
-        let results = evaluate_candidates(&top, &mid, &bot, &dealt, &remaining, 1);
+        let results = evaluate_candidates(&top, &mid, &bot, &dealt, &remaining, 1, 0, "all");
         assert!(!results.is_empty());
 
         let best = &results[0];
@@ -1805,5 +2837,18 @@ mod tests {
 
         println!("Best: ev={:.2}, bust={:.3}, fl={:.3}", best.ev, best.bust_prob, best.fl_rate);
         println!("Worst: ev={:.2}, bust={:.3}, fl={:.3}", worst.ev, worst.bust_prob, worst.fl_rate);
+    }
+
+    #[test]
+    fn remaining_deck_removes_jokers_by_multiplicity() {
+        let joker = Card { rank: 0, suit: 4 };
+
+        let after_one = build_remaining_deck(&[joker]);
+        assert_eq!(after_one.len(), 53);
+        assert_eq!(after_one.iter().filter(|card| card.is_joker()).count(), 1);
+
+        let after_two = build_remaining_deck(&[joker, joker]);
+        assert_eq!(after_two.len(), 52);
+        assert_eq!(after_two.iter().filter(|card| card.is_joker()).count(), 0);
     }
 }

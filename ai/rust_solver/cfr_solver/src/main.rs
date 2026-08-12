@@ -171,6 +171,30 @@ enum Commands {
         #[arg(long, default_value_t = 42)]
         seed: u64,
     },
+
+    /// Batch evaluation of complete game trajectories (T1-T4)
+    /// Evaluates all actions at each turn with nested Monte Carlo.
+    GameBatch {
+        /// Input JSON file with game scenarios
+        #[arg(long)]
+        input: String,
+
+        /// Number of Monte Carlo samples per action
+        #[arg(long, default_value_t = 30)]
+        samples: usize,
+
+        /// Output JSONL file path
+        #[arg(long, default_value = "game_batch_results.jsonl")]
+        output: String,
+
+        /// Random seed
+        #[arg(long, default_value_t = 54321)]
+        seed: u64,
+
+        /// Nesting depth for nested MC (comma-separated, e.g. "6,3,1")
+        #[arg(long, default_value = "6,3,1")]
+        nesting: String,
+    },
 }
 
 fn main() {
@@ -211,6 +235,15 @@ fn main() {
         }
         Commands::TurnEval { top, mid, bot, hand, turn, samples, top_n, seed } => {
             run_turn_eval(&top, &mid, &bot, &hand, turn, samples, top_n, seed);
+        }
+        Commands::GameBatch { input, samples, output, seed, nesting } => {
+            let parts: Vec<usize> = nesting.split(',').filter_map(|s| s.trim().parse().ok()).collect();
+            if parts.len() != 3 {
+                eprintln!("Error: --nesting must be 3 comma-separated values (e.g. 6,3,1)");
+                std::process::exit(1);
+            }
+            let nest = [parts[0], parts[1], parts[2]];
+            t0_eval::run_game_batch(&input, samples, &output, seed, nest);
         }
     }
 }

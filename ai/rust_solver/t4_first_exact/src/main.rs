@@ -800,15 +800,18 @@ struct Cli {
     #[arg(long)]
     t2_t3_model: Option<PathBuf>,
     /// T1-vs-FL playout labels: FL library dirs (with --t1-t2-model and
-    /// --t2-t3-model supplying the two playout movers).
-    #[arg(long, num_args = 1..)]
+    /// --t2-t3-model supplying the two playout movers).  Pass the flag with
+    /// no directories to take the opponents from --fl-pool instead.
+    #[arg(long, num_args = 0..)]
     t1_vs_fl_library: Option<Vec<PathBuf>>,
     /// The exported T2-vs-FL evaluator that chooses the T2 playout move.
     #[arg(long)]
     t1_t2_model: Option<PathBuf>,
     /// T0-vs-FL playout labels: FL library dirs (with --t0-t1-model,
     /// --t1-t2-model and --t2-t3-model supplying the three playout movers).
-    #[arg(long, num_args = 1..)]
+    /// Pass the flag with no directories to take the opponents from
+    /// --fl-pool instead.
+    #[arg(long, num_args = 0..)]
     t0_vs_fl_library: Option<Vec<PathBuf>>,
     /// The exported T1-vs-FL evaluator that chooses the T1 playout move.
     #[arg(long)]
@@ -821,9 +824,82 @@ struct Cli {
     fl_library_16: Option<PathBuf>,
     #[arg(long)]
     fl_library_17: Option<PathBuf>,
+    /// A `.jfl1` pool of pre-solved Fantasyland best-response frontiers, used
+    /// by --t0-vs-fl-library / --t1-vs-fl-library in place of a library shelf.
+    /// The two are different games: a pooled opponent sets its thirteen after
+    /// seeing hero's finished board, a library board was solved against
+    /// nobody.
+    #[arg(long)]
+    fl_pool: Option<PathBuf>,
     /// Emit sampled joint-outlook blocks for {id, board, pool} requests.
     #[arg(long, default_value_t = false)]
     joint_outlook: bool,
+    /// Emit `playout::encode_for`'s vector for {id, board, pool} requests,
+    /// under the model given by --t1-t2-model.  The parity harness
+    /// `ai/tutor/fl14_encoder_parity.py` drives the shipped encoder through
+    /// this rather than a copy of it: a copy would agree with Python while the
+    /// playout disagreed, which is the failure the harness exists to catch.
+    #[arg(long, default_value_t = false)]
+    encode_features: bool,
+}
+
+/// One board and the pool it is judged against, for --encode-features.
+#[derive(Deserialize)]
+struct EncodeRequest {
+    id: String,
+    board: BoardStr,
+    pool: Vec<String>,
+    /// Seed for the sampled joint block; defaults to `id`, matching how
+    /// `--joint-outlook` treats an absent seed.
+    #[serde(default)]
+    seed: Option<String>,
+    /// Only read by widths whose tail carries the opponent's card count.
+    #[serde(default = "default_encode_opp_count")]
+    opp_count: u8,
+}
+
+fn default_encode_opp_count() -> u8 {
+    14
+}
+
+#[derive(Serialize)]
+struct EncodeResponse {
+    id: String,
+    input_dim: usize,
+    features: Vec<f32>,
+}
+
+/// The width the shipped pool was built for.  Requests naming any other
+/// opponent card count are refused per root rather than scored against a
+/// Fantasyland hand of the wrong size.
+const POOL_WIDTH: u32 = 14;
+
+/// The opponents a `--tN-vs-fl-library` run prices its leaves against.
+///
+/// Refuses both sources at once rather than preferring one: a run handed a
+/// library shelf and a pool has not said which game it meant, and the
+/// difference is the whole rule correction, not a precision setting.
+fn opponents_for<'a>(
+    flag: &str,
+    dirs: &[PathBuf],
+    extra: [Option<&PathBuf>; 3],
+    pool: Option<&'a fl_solver::pool::Pool>,
+    slot: &'a mut Option<t3_vs_fl_lib::LibrarySet>,
+) -> Result<playout::OpponentSource<'a>> {
+    match (pool, dirs.is_empty()) {
+        (Some(pool), true) => Ok(playout::OpponentSource::Pool(pool)),
+        (Some(_), false) => bail!(
+            "{flag} was given library directories and --fl-pool was given too; \
+             pass one or the other"
+        ),
+        (None, true) => bail!(
+            "{flag} needs library directories unless --fl-pool supplies the \
+             opponents"
+        ),
+        (None, false) => Ok(playout::OpponentSource::Libraries(
+            slot.insert(t3_vs_fl_lib::LibrarySet::load(dirs, extra)?),
+        )),
+    }
 }
 
 fn main() -> Result<()> {
@@ -854,6 +930,98 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
+    if cli.encode_features {
+        let model_path = cli
+            .t1_t2_model
+            .as_ref()
+            .ok_or_else(|| anyhow!("--encode-features needs --t1-t2-model to fix the width"))?;
+        let image = std::fs::read(model_path)?;
+        let model = evaluator::Model::load(&image).map_err(|e| anyhow!("{e}"))?;
+        let fl_table: evaluator::FlTable = [
+            fl_ev.value(14) as f32,
+            fl_ev.value(15) as f32,
+            fl_ev.value(16) as f32,
+            fl_ev.value(17) as f32,
+        ];
+        let reader = BufReader::new(File::open(&cli.input)?);
+        let mut requests: Vec<EncodeRequest> = Vec::new();
+        for line in reader.lines() {
+            let line = line?;
+            if !line.trim().is_empty() {
+                requests.push(serde_json::from_str(&line)?);
+            }
+        }
+        let mut writer = BufWriter::new(File::create(&cli.output)?);
+        for chunk in requests.chunks(cli.chunk_size.max(1)) {
+            let encoded: Result<Vec<String>> = chunk
+                .par_iter()
+                .map(|request| {
+                    let board = CoreBoard::from_str_board(&request.board)?;
+                    let pool: Vec<Card> = request
+                        .pool
+                        .iter()
+                        .map(|name| to_core_card(name))
+                        .collect::<Result<Vec<_>>>()?;
+                    let memo: playout::RowwiseMemo =
+                        std::sync::Mutex::new(std::collections::HashMap::new());
+                    let mut features: Vec<f32> = Vec::new();
+                    playout::encode_for(
+                        &model,
+                        &board,
+                        &pool,
+                        request.opp_count,
+                        &fl_ev,
+                        &fl_table,
+                        &memo,
+                        0,
+                        request.seed.as_deref().unwrap_or(&request.id),
+                        &mut features,
+                    )?;
+                    Ok(serde_json::to_string(&EncodeResponse {
+                        id: request.id.clone(),
+                        input_dim: model.input_dim,
+                        features,
+                    })?)
+                })
+                .collect();
+            for line in encoded? {
+                writeln!(writer, "{line}")?;
+            }
+            writer.flush()?;
+        }
+        return Ok(());
+    }
+
+    if cli.fl_pool.is_some() && cli.t0_vs_fl_library.is_none() && cli.t1_vs_fl_library.is_none() {
+        bail!("--fl-pool only feeds --t0-vs-fl-library and --t1-vs-fl-library");
+    }
+    // The header pins the whole fl_ev table and refuses to load under any
+    // other, so handing it this run's own config makes a config that has
+    // drifted from the pool a load error rather than a leaf scoring entries
+    // against numbers they were not solved for.
+    let pool = match &cli.fl_pool {
+        Some(path) => {
+            let bytes = std::fs::read(path)
+                .with_context(|| format!("cannot read FL pool {}", path.display()))?;
+            let table = [
+                fl_ev.value(14),
+                fl_ev.value(15),
+                fl_ev.value(16),
+                fl_ev.value(17),
+            ];
+            let loaded = fl_solver::pool::deserialize(&bytes, POOL_WIDTH, table)
+                .map_err(|error| anyhow!("{} : {error}", path.display()))?;
+            eprintln!(
+                "fl pool: {} entries, width {}, seed {:#x}",
+                loaded.entries.len(),
+                loaded.width,
+                loaded.seed
+            );
+            Some(loaded)
+        }
+        None => None,
+    };
+
     if let Some(library_dirs) = &cli.t0_vs_fl_library {
         let t1_path = cli
             .t0_t1_model
@@ -873,13 +1041,17 @@ fn main() -> Result<()> {
         let t1_model = evaluator::Model::load(&t1_image).map_err(|e| anyhow!("{e}"))?;
         let t2_model = evaluator::Model::load(&t2_image).map_err(|e| anyhow!("{e}"))?;
         let t3_model = evaluator::Model::load(&t3_image).map_err(|e| anyhow!("{e}"))?;
-        let library = t3_vs_fl_lib::LibrarySet::load(
+        let mut library_slot = None;
+        let source = opponents_for(
+            "--t0-vs-fl-library",
             library_dirs,
             [
                 cli.fl_library_15.as_ref(),
                 cli.fl_library_16.as_ref(),
                 cli.fl_library_17.as_ref(),
             ],
+            pool.as_ref(),
+            &mut library_slot,
         )?;
         let fl_table: evaluator::FlTable = [
             fl_ev.value(14) as f32,
@@ -901,7 +1073,7 @@ fn main() -> Result<()> {
                 .iter()
                 .map(|request| {
                     Ok(serde_json::to_string(&t0_vs_fl::solve(
-                        request, &fl_ev, &library, &fl_table,
+                        request, &fl_ev, &source, &fl_table,
                         &t1_model, &t2_model, &t3_model,
                     )?)?)
                 })
@@ -927,13 +1099,17 @@ fn main() -> Result<()> {
         let t3_image = std::fs::read(t3_path)?;
         let t2_model = evaluator::Model::load(&t2_image).map_err(|e| anyhow!("{e}"))?;
         let t3_model = evaluator::Model::load(&t3_image).map_err(|e| anyhow!("{e}"))?;
-        let library = t3_vs_fl_lib::LibrarySet::load(
+        let mut library_slot = None;
+        let source = opponents_for(
+            "--t1-vs-fl-library",
             library_dirs,
             [
                 cli.fl_library_15.as_ref(),
                 cli.fl_library_16.as_ref(),
                 cli.fl_library_17.as_ref(),
             ],
+            pool.as_ref(),
+            &mut library_slot,
         )?;
         let fl_table: evaluator::FlTable = [
             fl_ev.value(14) as f32,
@@ -955,7 +1131,7 @@ fn main() -> Result<()> {
                 .iter()
                 .map(|request| {
                     Ok(serde_json::to_string(&t1_vs_fl::solve(
-                        request, &fl_ev, &library, &fl_table, &t2_model, &t3_model,
+                        request, &fl_ev, &source, &fl_table, &t2_model, &t3_model,
                     )?)?)
                 })
                 .collect();

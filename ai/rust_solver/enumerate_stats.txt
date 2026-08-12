@@ -1,0 +1,4 @@
+Total combinations: 3162510
+Canonical patterns: 152646
+Compression ratio: 20.7x
+Elapsed: 1.17s

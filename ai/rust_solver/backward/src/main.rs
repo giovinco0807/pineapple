@@ -317,16 +317,18 @@ fn evaluate_terminal(board: &Board, config: &FlEvConfig) -> f64 {
     let mid = board.mid_cards();
     let bot = board.bot_cards();
 
-    if !is_valid_placement(&top, &mid, &bot) {
+    let eval = ofc_core::evaluate_board_with_joker_constraint(&top, &mid, &bot);
+
+    if eval.busted {
         return config.bust_penalty;
     }
 
-    let top_r = get_top_royalty(&top);
-    let mid_r = get_middle_royalty(&mid);
-    let bot_r = get_bottom_royalty(&bot);
+    let top_r = ofc_core::get_top_royalty(&eval.top);
+    let mid_r = ofc_core::get_middle_royalty(&eval.mid);
+    let bot_r = ofc_core::get_bottom_royalty(&eval.bot);
     let total = (top_r + mid_r + bot_r) as f64;
 
-    let (fl_qualified, fl_cards) = check_fl_entry(&top);
+    let (fl_qualified, fl_cards) = ofc_core::check_fl_entry(&eval.top);
     let fl_bonus = if fl_qualified {
         config.fl_ev.get(&fl_cards).copied().unwrap_or(0.0)
     } else {

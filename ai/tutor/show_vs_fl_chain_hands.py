@@ -28,6 +28,7 @@ from ai.tutor.generate_t0_vs_fl_teacher import rows_of_action_key
 from ai.tutor.generate_t2_vs_fl_teacher import encode_t2_action
 from ai.tutor.generate_t3_vs_fl_teacher import encode_t3_action
 from ai.tutor.t2_policy_label_experiment import ALL_CARDS
+from ai.engine.encoding import ALL_CARDS as ALL_CARDS_FULL
 from ai.tutor.t4_vs_fl import FlLibrary, hero_terminal, score_against_library, seen_mask
 from ai.tutor.train_t4_first_evaluator import T4FirstEvaluator
 
@@ -37,11 +38,19 @@ SOLVER = Path(
     "330b2796-f08e-4d44-8104-95364f5124ba/scratchpad/t4fe_target/release/t4_first_exact.exe"
 )
 LIBRARY_DIR = "D:/ofc_data/fl_library_14_v3"
-MODELS = {
-    "t0": "D:/ofc_data/t0_vs_fl_model_v1/evaluator_best.pt",
-    "t1": "D:/ofc_data/t1_vs_fl_model_v1/evaluator_best.pt",
-    "t2": "D:/ofc_data/t2_vs_fl_model_v1/evaluator_best.pt",
-    "t3": "D:/ofc_data/t3_vs_fl_model_v2/evaluator_best.pt",
+MODEL_SETS = {
+    "v1": {
+        "t0": "D:/ofc_data/t0_vs_fl_model_v1/evaluator_best.pt",
+        "t1": "D:/ofc_data/t1_vs_fl_model_v1/evaluator_best.pt",
+        "t2": "D:/ofc_data/t2_vs_fl_model_v1/evaluator_best.pt",
+        "t3": "D:/ofc_data/t3_vs_fl_model_v2/evaluator_best.pt",
+    },
+    "v2": {
+        "t0": "D:/ofc_data/t0_vs_fl_model_v1/evaluator_best.pt",  # v2 pending
+        "t1": "D:/ofc_data/t1_vs_fl_model_v2/evaluator_best.pt",
+        "t2": "D:/ofc_data/t2_vs_fl_model_v2/evaluator_best.pt",
+        "t3": "D:/ofc_data/t3_vs_fl_model_v2/evaluator_best.pt",
+    },
 }
 
 
@@ -55,6 +64,10 @@ class Net:
         self.model.eval()
         self.mean = checkpoint["input_mean"].numpy().astype(np.float32)
         self.std = checkpoint["input_std"].numpy().astype(np.float32)
+
+    @property
+    def input_dim(self) -> int:
+        return int(self.mean.shape[0])
 
     def predict(self, rows: list[list[float]]) -> np.ndarray:
         x = (np.asarray(rows, dtype=np.float32) - self.mean) / self.std
@@ -92,9 +105,10 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--hands", type=int, default=3)
     parser.add_argument("--seed", type=int, default=555)
+    parser.add_argument("--models", choices=["v1", "v2"], default="v2")
     args = parser.parse_args()
 
-    nets = {name: Net(path) for name, path in MODELS.items()}
+    nets = {name: Net(path) for name, path in MODEL_SETS[args.models].items()}
     library = FlLibrary(Path(LIBRARY_DIR))
     models_bin = [
         "--t0-t1-model", "D:/ofc_data/t1_vs_fl_model_v1/evaluator.bin",
@@ -160,6 +174,25 @@ def main() -> None:
                     dead + [action.discard], opp_count,
                     table[key]["own_rowwise_block"]))
                 candidates.append(action)
+            if nets[street].input_dim == 109:
+                from ai.tutor.joint_blocks import fetch_joint_blocks
+                from ai.tutor.t4_vs_fl import CARD_INDEX as CI
+                requests_jb = []
+                for position, action in enumerate(candidates):
+                    after = exact_late.apply_action(board, action)
+                    seen_jb = seen_mask(
+                        [c for r in (after.top, after.middle, after.bottom) for c in r]
+                        + dead + [action.discard])
+                    requests_jb.append({
+                        "id": str(position),
+                        "board": {"top": list(after.top), "middle": list(after.middle),
+                                  "bottom": list(after.bottom)},
+                        "pool": [c for c in ALL_CARDS_FULL
+                                 if not ((1 << CI[c]) & seen_jb)],
+                    })
+                blocks = fetch_joint_blocks(requests_jb, Path.cwd())
+                vectors = [v[:89] + blocks[str(i)] + v[89:]
+                           for i, v in enumerate(vectors)]
             scores = nets[street].predict(vectors)
             best = candidates[int(np.argmax(scores))]
             after = exact_late.apply_action(board, best)

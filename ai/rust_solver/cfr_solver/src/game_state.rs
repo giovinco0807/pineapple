@@ -6,7 +6,7 @@
 use ofc_core::{
     Card, evaluate_3_card,
     get_top_royalty, get_middle_royalty, get_bottom_royalty,
-    is_valid_placement, check_fl_entry, compare_5_hands,
+    evaluate_board_with_joker_constraint, check_fl_entry, compare_5_hands,
 };
 use rand::seq::SliceRandom;
 use rand::Rng;
@@ -137,23 +137,33 @@ impl GameState {
         let my_board = &self.boards[player];
         let opp_board = &self.boards[opp];
 
-        let my_bust = !is_valid_placement(&my_board.top, &my_board.middle, &my_board.bottom);
-        let opp_bust = !is_valid_placement(&opp_board.top, &opp_board.middle, &opp_board.bottom);
+        let my_eval = evaluate_board_with_joker_constraint(
+            &my_board.top,
+            &my_board.middle,
+            &my_board.bottom,
+        );
+        let opp_eval = evaluate_board_with_joker_constraint(
+            &opp_board.top,
+            &opp_board.middle,
+            &opp_board.bottom,
+        );
+        let my_bust = my_eval.busted;
+        let opp_bust = opp_eval.busted;
 
         let my_royalties = if my_bust {
             0
         } else {
-            get_top_royalty(&my_board.top)
-                + get_middle_royalty(&my_board.middle)
-                + get_bottom_royalty(&my_board.bottom)
+            get_top_royalty(&my_eval.top)
+                + get_middle_royalty(&my_eval.mid)
+                + get_bottom_royalty(&my_eval.bot)
         };
 
         let opp_royalties = if opp_bust {
             0
         } else {
-            get_top_royalty(&opp_board.top)
-                + get_middle_royalty(&opp_board.middle)
-                + get_bottom_royalty(&opp_board.bottom)
+            get_top_royalty(&opp_eval.top)
+                + get_middle_royalty(&opp_eval.mid)
+                + get_bottom_royalty(&opp_eval.bot)
         };
 
         let mut score: f64;
@@ -169,17 +179,17 @@ impl GameState {
             let mut lines_lost = 0i32;
 
             // Top (3-card comparison)
-            let top_cmp = compare_3_hands(&my_board.top, &opp_board.top);
+            let top_cmp = compare_3_hands(&my_eval.top, &opp_eval.top);
             if top_cmp > 0 { lines_won += 1; }
             else if top_cmp < 0 { lines_lost += 1; }
 
             // Middle
-            let mid_cmp = compare_5_hands(&my_board.middle, &opp_board.middle);
+            let mid_cmp = compare_5_hands(&my_eval.mid, &opp_eval.mid);
             if mid_cmp > 0 { lines_won += 1; }
             else if mid_cmp < 0 { lines_lost += 1; }
 
             // Bottom
-            let bot_cmp = compare_5_hands(&my_board.bottom, &opp_board.bottom);
+            let bot_cmp = compare_5_hands(&my_eval.bot, &opp_eval.bot);
             if bot_cmp > 0 { lines_won += 1; }
             else if bot_cmp < 0 { lines_lost += 1; }
 
@@ -194,13 +204,13 @@ impl GameState {
 
         // FL Chain EV bonus (only in normal rounds)
         if !self.is_fl[player] && !my_bust {
-            let (fl_qualifies, fl_cards) = check_fl_entry(&my_board.top);
+            let (fl_qualifies, fl_cards) = check_fl_entry(&my_eval.top);
             if fl_qualifies {
                 score += fl_chain_ev(fl_cards);
             }
         }
         if !self.is_fl[opp] && !opp_bust {
-            let (opp_fl_qualifies, opp_fl_cards) = check_fl_entry(&opp_board.top);
+            let (opp_fl_qualifies, opp_fl_cards) = check_fl_entry(&opp_eval.top);
             if opp_fl_qualifies {
                 score -= fl_chain_ev(opp_fl_cards);
             }
@@ -250,4 +260,40 @@ fn compare_3_hands(a: &[Card], b: &[Card]) -> i32 {
         return if (ra as u8) > (rb as u8) { 1 } else { -1 };
     }
     if sa > sb { 1 } else if sa < sb { -1 } else { 0 }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn card(rank: u8, suit: u8) -> Card {
+        Card { rank, suit }
+    }
+
+    #[test]
+    fn terminal_utility_uses_constrained_joker_rows() {
+        let hero = Board {
+            top: vec![card(12, 0), card(12, 1), card(0, 4)],
+            middle: vec![card(13, 0), card(13, 1), card(9, 2), card(8, 3), card(7, 0)],
+            bottom: vec![card(14, 0), card(14, 1), card(14, 2), card(5, 3), card(4, 2)],
+        };
+        let opponent = Board {
+            top: vec![card(4, 0), card(3, 1), card(2, 2)],
+            middle: vec![card(13, 2), card(11, 1), card(9, 0), card(7, 3), card(5, 2)],
+            bottom: vec![card(14, 3), card(12, 2), card(10, 1), card(8, 0), card(6, 3)],
+        };
+        let state = GameState {
+            boards: [hero, opponent],
+            deck: Vec::new(),
+            hands: [Vec::new(), Vec::new()],
+            discards: [Vec::new(), Vec::new()],
+            turn: 4,
+            placed: [true, true],
+            btn: 0,
+            is_fl: [false, false],
+        };
+
+        // Base score is scoop 6 + QQ royalty 7. QQ also enters 14-card FL.
+        assert!((state.terminal_utility(0) - (13.0 + fl_chain_ev(14))).abs() < 1e-9);
+    }
 }

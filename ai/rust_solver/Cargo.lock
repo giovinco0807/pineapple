@@ -1107,6 +1107,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "fl_solver",
  "ofc_core",
  "rayon",
  "serde",

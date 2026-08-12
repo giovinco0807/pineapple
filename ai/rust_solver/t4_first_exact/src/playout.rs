@@ -16,12 +16,18 @@
 //! model without a street tag:
 //!   60  = actor + FL context                    (light playout policy)
 //!   101 = actor + rowwise + FL context          (light-lap T1/T2 evaluators)
+//!   104 = actor + rowwise + sampled joint + deck  (FL14 best-response
+//!         teachers; see `ai/tutor/encode_fl14_teacher.py`.  A different
+//!         joint block and a different tail from 109, not a truncation of
+//!         it -- the joint here is the completion outlook that admits more
+//!         than two open slots, and the seven-dim tail drops the columns a
+//!         fixed opponent width makes constant)
 //!   109 = actor + rowwise + joint + FL context  (full T3 evaluator; the
 //!         joint block needs exactly two open slots, so it is only ever
 //!         reachable from an 11-card board)
 
-use anyhow::{bail, Result};
-use fl_solver::pool::PoolEntry;
+use anyhow::{anyhow, bail, Result};
+use fl_solver::pool::{Pool, PoolEntry};
 use fl_solver::vs_fl::{self, HeroTerminal};
 use ofc_core::Card;
 use std::collections::HashMap;
@@ -41,14 +47,37 @@ fn seed_hash(seed: &str) -> u64 {
 }
 
 use super::evaluator;
+use super::joint_outlook;
 use super::row_memo::TerminalMemo;
 use super::t3_second;
 use super::t3_vs_fl::sampled_draws;
-use super::t3_vs_fl_lib::{card_bit, score_mean, terminal_key, FlLibrary, MatchedRow, TerminalKey};
+use super::t3_vs_fl_lib::{
+    card_bit, score_mean, terminal_key, FlLibrary, LibrarySet, MatchedRow, TerminalKey,
+};
 use super::{CoreBoard, FlEv, Terminal};
 
 /// The 52 natural cards, in the pool's rank-major bit order.
 const POOL_NATURALS: u64 = (1u64 << 52) - 1;
+
+/// actor 48 + rowwise 41 + joint 8 + deck 7 = 104, the FL14 teachers' width.
+/// `OPPONENT_SIZE` is the rowwise 41 and the joint 8 together, which is what
+/// the block binary returns in one call.
+pub(crate) const FL14_FEATURE_SIZE: usize =
+    evaluator::ACTOR_SIZE + evaluator::OPPONENT_SIZE + evaluator::FL14_CONTEXT_SIZE;
+
+/// The same blocks minus the joint one: what a search can afford.
+///
+/// `OPPONENT_SIZE` is rowwise 41 and joint 8 added together, so the eight come
+/// off here by name rather than by a constant of their own.
+const FL14_RANKER_SIZE: usize = FL14_FEATURE_SIZE - 8;
+
+/// What `encode_fl14_teacher` passes the block binary: `--joint-samples`
+/// defaults to 400 at T2 and to exact enumeration at T3/T4, and
+/// `max_arrangements` is 32 at every street.  The street is recoverable from
+/// the board -- a T2 placement leaves four open slots, a T3 placement two --
+/// so the encoder needs no street tag to reproduce the teacher's setting.
+const FL14_JOINT_SAMPLES: usize = 400;
+const FL14_JOINT_ARRANGEMENTS: usize = 32;
 
 /// What the leaf prices hero's finished board against.
 ///
@@ -71,8 +100,59 @@ pub(crate) enum Opponents<'a> {
     /// `opp_count` is not consulted on this path: the pool's stay term is
     /// already inside each row's `static_value`, priced at the width the pool
     /// was built for and pinned by its header.
-    #[allow(dead_code)] // Constructed once the labelers thread a pool through.
     Pool(&'a [&'a PoolEntry]),
+}
+
+/// Where a labelling run's opponents come from, before a root turns them into
+/// an [`Opponents`].
+///
+/// Not the same type as `Opponents` because a pool has to be drawn from once
+/// per root and a library does not: the library is filtered per leaf against
+/// whatever hero has seen, while the pool's draw is a sample and has to be
+/// fixed before the action fan-out so the fan-out shares it.
+pub(crate) enum OpponentSource<'a> {
+    Libraries(&'a LibrarySet),
+    Pool(&'a Pool),
+}
+
+/// The opponents one root faces, drawn once for the whole action fan-out.
+///
+/// `seen` is everything hero can see at the root -- board, discards and draw
+/// -- which no action changes, so one draw serves every action and the sampled
+/// opponents cancel in the action-to-action differences a teacher is read for.
+/// Same argument as the common random numbers the sampled continuations
+/// already share; drawing per action would put an independent sample between
+/// two numbers that are only ever subtracted.
+pub(crate) fn root_opponents<'a>(
+    pool: &'a Pool,
+    seen: &[Card],
+    want: usize,
+    stream: u64,
+) -> Result<Vec<&'a PoolEntry>> {
+    let (naturals, jokers) = pool_mask_of(seen);
+    fl_solver::pool::draw(pool, naturals, jokers, want, stream).map_err(|short| {
+        anyhow!(
+            "pool yielded {} of {} opponents for this root; a label quietly \
+             averaged over however many turned up is the expensive kind of \
+             silent failure",
+            short.found,
+            short.wanted
+        )
+    })
+}
+
+/// The opponent stream for a root, from the request's own id.
+///
+/// FNV-1a rather than `DefaultHasher`: the stream decides which opponents a
+/// label was priced against, and a hasher the standard library is free to
+/// change between toolchains would make a rerun a different run.
+pub(crate) fn root_stream(id: &str) -> u64 {
+    let mut hash = 0xcbf2_9ce4_8422_2325u64;
+    for byte in id.as_bytes() {
+        hash ^= *byte as u64;
+        hash = hash.wrapping_mul(0x0000_0100_0000_01b3);
+    }
+    fl_solver::pool::mix64(hash)
 }
 
 /// Everything the descent needs that does not change between nodes.
@@ -91,6 +171,20 @@ pub(crate) struct Context<'a> {
     pub(crate) t4_draw_sample: usize,
     /// Root-wide rowwise cache; see RowwiseMemo.
     pub(crate) rowwise_memo: RowwiseMemo,
+    /// Depth at which the chooser's own value is taken as the line's value
+    /// instead of playing the line out.
+    ///
+    /// `None` plays every line to an eleven-card board and prices it against
+    /// the opponents, so no number a label is built from comes from a model --
+    /// the containment structure the T3-vs-FL v1 failure established, where a
+    /// learned T4 leaf put MAE 0.645 into T3 labels and its per-board errors
+    /// were correlated enough across a root's draws to survive a 300-draw
+    /// average.
+    ///
+    /// `Some(d)` truncates, which is orders of magnitude faster and reopens
+    /// exactly that risk.  It exists to be measured against the untruncated
+    /// labels on the same roots, not to be switched on by default.
+    pub(crate) truncate_depth: Option<usize>,
 }
 
 /// One candidate placement of two drawn cards into rows, at the Card level.
@@ -143,6 +237,13 @@ pub(crate) fn candidates(board: &CoreBoard, draw: &[Card; 3]) -> Vec<Candidate> 
 /// a candidate changes at most two rows and the pool is fixed within the
 /// node, so most rows repeat -- the difference between minutes and hours on
 /// a T0 root (232 candidates x C(pool,2) evaluations per uncached row).
+///
+/// `node_seed` only reaches the FL14 width, whose joint block is sampled: it
+/// picks the completions, and every candidate at a node has to be judged on
+/// the same ones or the sampling noise lands straight on the ordering the
+/// chooser reads.  The `joint/` prefix mirrors `joint_outlook::solve`, so a
+/// playout node and a teacher row encoded from the same seed draw the same
+/// completions.
 pub(crate) fn encode_for(
     model: &evaluator::Model,
     board: &CoreBoard,
@@ -152,21 +253,51 @@ pub(crate) fn encode_for(
     fl_table: &evaluator::FlTable,
     memo: &RowwiseMemo,
     pool_key: u64,
+    node_seed: &str,
     out: &mut Vec<f32>,
 ) -> Result<()> {
     out.clear();
     evaluator::actor_block(&board.rows, out);
-    if model.input_dim >= 101 {
+    // 96 is below the 101 threshold but still wants the rowwise block -- it is
+    // 104 with the joint eight removed, not a narrower feature set.
+    if model.input_dim >= 101 || model.input_dim == FL14_RANKER_SIZE {
         let _categories = evaluator::opponent_rowwise_block_shared(
             &board.rows, unseen, fl_table, memo, pool_key, out,
         );
     }
-    if model.input_dim >= 109 {
-        for value in t3_second::joint_block(board, unseen, fl_ev)? {
+    if model.input_dim == FL14_RANKER_SIZE {
+        // The FL14 blocks without the joint one.
+        //
+        // Not a smaller model -- a differently-employed one.  The joint block
+        // is worth 0.085 of regret at T2 (0.134 with it, 0.219 without) and
+        // the 104-dim evaluator keeps it to serve the street.  But it costs
+        // 98% of a candidate encode -- one T1 request measured 0.77 s without
+        // it and 48.6 s with -- and a search encodes thousands of candidates
+        // per root.  So the street is served by the model that sees the most
+        // and searched by the model that costs the least.
+        evaluator::fl14_context_block(unseen, out);
+    } else if model.input_dim == FL14_FEATURE_SIZE {
+        let open: usize = board.open_slots().iter().sum();
+        let block = joint_outlook::sampled_joint_block(
+            board,
+            unseen,
+            if open <= 2 { 0 } else { FL14_JOINT_SAMPLES },
+            FL14_JOINT_ARRANGEMENTS,
+            &format!("joint/{node_seed}"),
+            fl_ev,
+        )?;
+        for value in block {
             out.push(value as f32);
         }
+        evaluator::fl14_context_block(unseen, out);
+    } else {
+        if model.input_dim >= 109 {
+            for value in t3_second::joint_block(board, unseen, fl_ev)? {
+                out.push(value as f32);
+            }
+        }
+        super::t3_vs_fl::fl_context(unseen, opp_count, fl_ev, out);
     }
-    super::t3_vs_fl::fl_context(unseen, opp_count, fl_ev, out);
     if out.len() != model.input_dim {
         bail!(
             "playout feature width {} does not match model input {}",
@@ -185,9 +316,10 @@ fn choose(
     unseen: &[Card],
     context: &Context<'_>,
     pool_key: u64,
+    node_seed: &str,
     features: &mut Vec<f32>,
     scratch: &mut Vec<f32>,
-) -> Result<Option<CoreBoard>> {
+) -> Result<(Option<CoreBoard>, f32)> {
     let mut best_score = f32::NEG_INFINITY;
     let mut chosen: Option<CoreBoard> = None;
     for candidate in candidates(board, draw) {
@@ -203,6 +335,7 @@ fn choose(
             context.fl_table,
             &context.rowwise_memo,
             pool_key,
+            node_seed,
             features,
         )?;
         let predicted = model.predict(features, scratch);
@@ -211,7 +344,7 @@ fn choose(
             chosen = Some(next);
         }
     }
-    Ok(chosen)
+    Ok((chosen, best_score))
 }
 
 /// The opponents that survive everything hero has seen on this line, before a
@@ -238,7 +371,7 @@ enum Shortlist<'a> {
 /// distinction that makes two hero jokers filter correctly.  Routed through
 /// `fl_solver::pool::natural_bit` so the order cannot drift apart from the
 /// pool file's.
-fn pool_mask_of(cards: &[Card]) -> (u64, u32) {
+pub(crate) fn pool_mask_of(cards: &[Card]) -> (u64, u32) {
     let mut naturals = 0u64;
     let mut jokers = 0u32;
     for card in cards {
@@ -478,19 +611,27 @@ pub(crate) fn descend(
             .map(|(_, card)| *card)
             .collect();
         let child_seed = format!("{seed}/{index}");
-        let Some(next_board) = choose(
+        let (chosen, best_score) = choose(
             model,
             board,
             &draw,
             &next_unseen,
             context,
             seed_hash(&child_seed),
+            &child_seed,
             features,
             scratch,
-        )?
-        else {
+        )?;
+        let Some(next_board) = chosen else {
             continue;
         };
+        if context.truncate_depth == Some(depth) {
+            // The chooser already scored every candidate; taking its best is
+            // free, where playing the line out is the whole cost.
+            total += best_score as f64;
+            lines += 1;
+            continue;
+        }
         let drawn_jokers = draw.iter().filter(|card| card.is_joker()).count();
         let (value, samples) = descend(
             &next_board,
@@ -627,6 +768,7 @@ mod tests {
             opp_count: 14,
             t4_draw_sample: draws,
             rowwise_memo: Mutex::new(HashMap::new()),
+            truncate_depth: None,
         };
         let mut features: Vec<f32> = Vec::new();
         let mut scratch: Vec<f32> = Vec::new();

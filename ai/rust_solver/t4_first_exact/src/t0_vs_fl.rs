@@ -4,7 +4,7 @@
 //! A T0 action assigns all five dealt cards to rows (no discard, no draw);
 //! everything after that is the shared chain playout -- T1/T2 evaluators and
 //! the light T3 policy choose moves, and the 11-card terminal is priced
-//! exactly against the FL board library.
+//! exactly against whatever opponents the run was handed.
 //!
 //! Candidate enumeration dedupes on card identity like every other street,
 //! which also collapses the interchangeable jokers.  Placements that
@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 
 use super::evaluator;
 use super::playout;
-use super::t3_vs_fl_lib::{card_bit, LibrarySet};
+use super::t3_vs_fl_lib::card_bit;
 use super::{to_core_card, CoreBoard, FlEv};
 
 #[derive(Deserialize)]
@@ -37,6 +37,15 @@ pub struct T0VsFlRequest {
     /// T4 draws sampled per terminal; 0 enumerates all C(n,3).
     #[serde(default = "default_t4_draw_sample")]
     pub t4_draw_sample: usize,
+    /// Depth at which the chooser's value stands in for the line.
+    /// Absent plays every line out; see `playout::Context`.
+    #[serde(default)]
+    pub truncate_depth: Option<usize>,
+    /// Opponents drawn from the pool for this root, shared by every action.
+    /// Ignored on the library path, which filters the whole shelf per leaf
+    /// instead of sampling it.
+    #[serde(default = "default_pool_opponents")]
+    pub pool_opponents: usize,
 }
 
 fn default_t1_samples() -> usize {
@@ -55,6 +64,14 @@ fn default_t4_draw_sample() -> usize {
     40
 }
 
+/// Attrition is worse here than at T1 -- see the note on the T1 default.  A T0
+/// root conditions the draw on five cards and the playout reveals twelve more
+/// before the terminal, so about 1% of the drawn entries reach the leaf (4.1 of
+/// 400, measured).  60 prices a T0 leaf against well under one opponent.
+fn default_pool_opponents() -> usize {
+    60
+}
+
 #[derive(Serialize)]
 pub struct T0VsFlActionValue {
     /// Rows as sorted card names, top/middle/bottom -- the action identity.
@@ -71,6 +88,11 @@ pub struct T0VsFlResponse {
     pub id: String,
     pub schema: &'static str,
     pub leaf: &'static str,
+    /// Which opponents the pool draw landed on, so a label says what it was
+    /// priced against rather than leaving it to be re-derived.  Absent on the
+    /// library path, which does not draw.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub opponent_stream: Option<u64>,
     pub actions: Vec<T0VsFlActionValue>,
 }
 
@@ -117,13 +139,12 @@ fn t0_candidates(cards: &[Card; 5]) -> Vec<[usize; 5]> {
 pub fn solve(
     request: &T0VsFlRequest,
     fl_ev: &FlEv,
-    libraries: &LibrarySet,
+    source: &playout::OpponentSource<'_>,
     fl_table: &evaluator::FlTable,
     t1_model: &evaluator::Model,
     t2_model: &evaluator::Model,
     t3_model: &evaluator::Model,
 ) -> Result<T0VsFlResponse> {
-    let library = libraries.for_count(request.opp_count);
     if request.cards.len() != 5 {
         bail!("T0-vs-FL needs exactly five dealt cards");
     }
@@ -150,17 +171,44 @@ pub fn solve(
     }
     let root_jokers = dealt.iter().filter(|card| card.is_joker()).count();
 
+    let stream = playout::root_stream(&request.id);
+    let drawn = match source {
+        playout::OpponentSource::Libraries(_) => Vec::new(),
+        playout::OpponentSource::Pool(pool) => {
+            if u32::from(request.opp_count) != pool.width {
+                bail!(
+                    "request faces a {}-card Fantasyland opponent but the pool \
+                     solved width {}",
+                    request.opp_count,
+                    pool.width
+                );
+            }
+            playout::root_opponents(pool, &dealt, request.pool_opponents, stream)?
+        }
+    };
+    let (opponents, leaf) = match source {
+        playout::OpponentSource::Libraries(libraries) => (
+            playout::Opponents::Library(libraries.for_count(request.opp_count)),
+            "t1_t2_t3_models_move_library_scoring",
+        ),
+        playout::OpponentSource::Pool(_) => (
+            playout::Opponents::Pool(&drawn),
+            "t1_t2_t3_models_move_pool_best_response",
+        ),
+    };
+
     let models = [t1_model, t2_model, t3_model];
     let samples = [request.t1_samples, request.t2_samples, request.t3_samples];
     let context = playout::Context {
         fl_ev,
-        opponents: playout::Opponents::Library(library),
+        opponents,
         fl_table,
         models: &models,
         samples: &samples,
         opp_count: request.opp_count,
         t4_draw_sample: request.t4_draw_sample,
         rowwise_memo: std::sync::Mutex::new(std::collections::HashMap::new()),
+        truncate_depth: request.truncate_depth,
     };
 
     let candidates = t0_candidates(&dealt);
@@ -221,7 +269,11 @@ pub fn solve(
     Ok(T0VsFlResponse {
         id: request.id.clone(),
         schema: "ofc_t0_vs_fl_value_playout/v1",
-        leaf: "t1_t2_t3_models_move_library_scoring",
+        leaf,
+        opponent_stream: match source {
+            playout::OpponentSource::Libraries(_) => None,
+            playout::OpponentSource::Pool(_) => Some(stream),
+        },
         actions: actions_out,
     })
 }

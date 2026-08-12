@@ -9,7 +9,7 @@
 use ofc_core::{
     Card, create_deck, card_to_string,
     get_top_royalty, get_middle_royalty, get_bottom_royalty,
-    is_valid_placement, check_fl_entry,
+    check_fl_entry,
 };
 use rand::seq::SliceRandom;
 use rand::SeedableRng;
@@ -86,17 +86,19 @@ fn score_final_board(cb: &CompactBoard) -> f64 {
     let mid = &cb.mid[..cb.mid_len as usize];
     let bot = &cb.bot[..cb.bot_len as usize];
 
-    if !is_valid_placement(top, mid, bot) {
+    let eval = ofc_core::evaluate_board_with_joker_constraint(top, mid, bot);
+
+    if eval.busted {
         return -6.0;
     }
 
-    let royalties = get_top_royalty(top)
-        + get_middle_royalty(mid)
-        + get_bottom_royalty(bot);
+    let royalties = get_top_royalty(&eval.top)
+        + get_middle_royalty(&eval.mid)
+        + get_bottom_royalty(&eval.bot);
 
     let mut score = royalties as f64;
 
-    let (fl_qualifies, fl_cards) = check_fl_entry(top);
+    let (fl_qualifies, fl_cards) = check_fl_entry(&eval.top);
     if fl_qualifies {
         score += fl_chain_ev(fl_cards);
     }
@@ -1147,11 +1149,14 @@ fn score_raw_royalty(cb: &CompactBoard) -> f64 {
     let mid = &cb.mid[..cb.mid_len as usize];
     let bot = &cb.bot[..cb.bot_len as usize];
 
-    if !is_valid_placement(top, mid, bot) {
+    let eval = ofc_core::evaluate_board_with_joker_constraint(top, mid, bot);
+    if eval.busted {
         return -6.0;
     }
 
-    (get_top_royalty(top) + get_middle_royalty(mid) + get_bottom_royalty(bot)) as f64
+    (get_top_royalty(&eval.top)
+        + get_middle_royalty(&eval.mid)
+        + get_bottom_royalty(&eval.bot)) as f64
 }
 
 /// Exhaustive search returning both score AND final board.
@@ -1280,7 +1285,14 @@ pub fn measure_fl_stats(n_hands: usize, n_samples: usize, seed: u64) {
                 );
                 let raw = score_raw_royalty(&final_board);
                 let top = &final_board.top[..final_board.top_len as usize];
-                let (fl_entered, fl_cards) = check_fl_entry(top);
+                let mid = &final_board.mid[..final_board.mid_len as usize];
+                let bot = &final_board.bot[..final_board.bot_len as usize];
+                let eval = ofc_core::evaluate_board_with_joker_constraint(top, mid, bot);
+                let (fl_entered, fl_cards) = if eval.busted {
+                    (false, 0)
+                } else {
+                    check_fl_entry(&eval.top)
+                };
                 SampleResult {
                     raw_royalty: raw,
                     total_score: total,
@@ -1388,4 +1400,327 @@ pub fn measure_fl_stats(n_hands: usize, n_samples: usize, seed: u64) {
 
     let total_time = start.elapsed().as_secs_f64();
     println!("Total time: {:.1}min", total_time / 60.0);
+}
+
+// ─── Game Batch Evaluation (T1-T4) ───
+
+/// Batch evaluate complete game trajectories.
+///
+/// Input JSON format:
+/// ```json
+/// [
+///   {
+///     "game_id": 0,
+///     "t0_board": {"top": ["Ks"], "mid": ["6s", "2c"], "bot": ["9d", "Jh"]},
+///     "turns": [
+///       {"turn": 1, "hand": ["Th", "5d", "3c"]},
+///       {"turn": 2, "hand": ["Ah", "7c", "Qd"]},
+///       {"turn": 3, "hand": ["4s", "8h", "2d"]},
+///       {"turn": 4, "hand": ["Js", "6h", "9c"]}
+///     ]
+///   }
+/// ]
+/// ```
+///
+/// Output: one JSONL line per turn per game, with all actions and their EVs.
+pub fn run_game_batch(input_path: &str, n_samples: usize, output_path: &str, seed: u64, nesting: [usize; 3]) {
+    use std::fs::{File, OpenOptions};
+    use std::io::{BufRead, BufReader, Write};
+
+    let input_data: String = std::fs::read_to_string(input_path)
+        .expect("Failed to read input JSON");
+    let entries: Vec<serde_json::Value> = serde_json::from_str(&input_data)
+        .expect("Failed to parse input JSON");
+
+    let n_games = entries.len();
+
+    // Check how many lines already completed (for resumption)
+    let completed = if std::path::Path::new(output_path).exists() {
+        let file = File::open(output_path).unwrap();
+        BufReader::new(file).lines().count()
+    } else {
+        0
+    };
+
+    // Each game produces 4 lines (T1-T4), so completed_games = completed / 4
+    let completed_games = completed / 4;
+
+    if completed_games >= n_games {
+        println!("Already completed {} games (target: {}). Nothing to do.", completed_games, n_games);
+        return;
+    }
+
+    let remaining_games = n_games - completed_games;
+    println!("=== Game Batch Evaluation (T1-T4) ===");
+    println!("Input: {} | Games: {} | Samples/action: {} | Nesting: {:?}", input_path, n_games, n_samples, nesting);
+    println!("Output: {} | Format: all actions per turn per game", output_path);
+    if completed_games > 0 {
+        println!("Resuming from game #{} ({} already done)", completed_games + 1, completed_games);
+    }
+    println!();
+
+    let mut file = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(output_path)
+        .expect("Failed to open output file");
+
+    let start = std::time::Instant::now();
+
+    for game_idx in completed_games..n_games {
+        let entry = &entries[game_idx];
+        let game_id = entry["game_id"].as_u64().unwrap_or(game_idx as u64);
+
+        // Parse T0 board
+        let t0_board = &entry["t0_board"];
+        let top_cards: Vec<String> = t0_board["top"].as_array()
+            .map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+            .unwrap_or_default();
+        let mid_cards: Vec<String> = t0_board["mid"].as_array()
+            .map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+            .unwrap_or_default();
+        let bot_cards: Vec<String> = t0_board["bot"].as_array()
+            .map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+            .unwrap_or_default();
+
+        let top_str = top_cards.join(" ");
+        let mid_str = mid_cards.join(" ");
+        let bot_str = bot_cards.join(" ");
+
+        let mut board = match parse_board(&top_str, &mid_str, &bot_str) {
+            Some(b) => b,
+            None => {
+                eprintln!("[Game {}] Invalid T0 board, skipping", game_id);
+                // Write 4 empty lines to maintain alignment
+                for t in 1..=4 {
+                    writeln!(file, "{{\"game_id\":{},\"turn\":{},\"error\":\"invalid_board\"}}", game_id, t).ok();
+                }
+                continue;
+            }
+        };
+
+        // Collect known cards from T0 board
+        let mut known = board_cards(&board);
+
+        // Parse turns
+        let turns = match entry["turns"].as_array() {
+            Some(t) => t,
+            None => {
+                eprintln!("[Game {}] No turns array, skipping", game_id);
+                for t in 1..=4 {
+                    writeln!(file, "{{\"game_id\":{},\"turn\":{},\"error\":\"no_turns\"}}", game_id, t).ok();
+                }
+                continue;
+            }
+        };
+
+        for turn_entry in turns {
+            let turn = turn_entry["turn"].as_u64().unwrap_or(0) as usize;
+            let hand_arr = match turn_entry["hand"].as_array() {
+                Some(a) => a,
+                None => continue,
+            };
+
+            let hand_cards: Vec<Card> = hand_arr.iter()
+                .filter_map(|v| v.as_str().and_then(|s| parse_card(s)))
+                .collect();
+
+            if hand_cards.len() != 3 {
+                writeln!(file, "{{\"game_id\":{},\"turn\":{},\"error\":\"invalid_hand\"}}", game_id, turn).ok();
+                continue;
+            }
+
+            let hand = [hand_cards[0], hand_cards[1], hand_cards[2]];
+            known.extend_from_slice(&hand);
+
+            let turns_after = 4 - turn; // T1→3, T2→2, T3→1, T4→0
+
+            // Build remaining deck (excluding all known cards)
+            let full_deck = create_deck(true);
+            let remaining: Vec<Card> = full_deck.iter()
+                .filter(|c| !known.iter().any(|k| k.rank == c.rank && k.suit == c.suit))
+                .copied()
+                .collect();
+
+            // Enumerate all valid actions
+            let mut actions: Vec<(usize, Row, Row)> = Vec::new();
+            for_each_turn_action(&hand, &board, |d, r0, r1| {
+                actions.push((d, r0, r1));
+            });
+
+            let n_actions = actions.len();
+
+            if turns_after == 0 {
+                // T4: no future, direct scoring
+                let mut results: Vec<(String, f64)> = actions.iter().map(|&(discard_idx, row0, row1)| {
+                    let kept0 = (discard_idx + 1) % 3;
+                    let kept1 = (discard_idx + 2) % 3;
+
+                    let mut cb = board;
+                    cb.push(row0, hand[kept0]);
+                    cb.push(row1, hand[kept1]);
+
+                    let ev = score_final_board(&cb);
+                    let desc = format!(
+                        "d:{} {}→{:?} {}→{:?}",
+                        card_to_string(&hand[discard_idx]),
+                        card_to_string(&hand[kept0]), row0,
+                        card_to_string(&hand[kept1]), row1,
+                    );
+                    (desc, ev)
+                }).collect();
+
+                results.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+
+                // Write results
+                let actions_json: Vec<String> = results.iter().map(|(desc, ev)| {
+                    format!("{{\"a\":\"{}\",\"ev\":{:.3}}}", desc, ev)
+                }).collect();
+
+                let board_desc = format!("Top[{}] Mid[{}] Bot[{}]", top_str_from_board(&board), mid_str_from_board(&board), bot_str_from_board(&board));
+                let hand_desc = format!("{} {} {}", card_to_string(&hand[0]), card_to_string(&hand[1]), card_to_string(&hand[2]));
+
+                writeln!(file,
+                    "{{\"game_id\":{},\"turn\":{},\"board\":\"{}\",\"hand\":\"{}\",\"n_actions\":{},\"actions\":[{}]}}",
+                    game_id, turn, board_desc, hand_desc, n_actions, actions_json.join(",")
+                ).ok();
+
+                // Apply best action to board
+                if let Some(&(discard_idx, row0, row1)) = actions.iter()
+                    .max_by(|a, b| {
+                        let ev_a = {
+                            let k0 = (a.0 + 1) % 3; let k1 = (a.0 + 2) % 3;
+                            let mut cb = board; cb.push(a.1, hand[k0]); cb.push(a.2, hand[k1]);
+                            score_final_board(&cb)
+                        };
+                        let ev_b = {
+                            let k0 = (b.0 + 1) % 3; let k1 = (b.0 + 2) % 3;
+                            let mut cb = board; cb.push(b.1, hand[k0]); cb.push(b.2, hand[k1]);
+                            score_final_board(&cb)
+                        };
+                        ev_a.partial_cmp(&ev_b).unwrap()
+                    }) {
+                    let kept0 = (discard_idx + 1) % 3;
+                    let kept1 = (discard_idx + 2) % 3;
+                    board.push(row0, hand[kept0]);
+                    board.push(row1, hand[kept1]);
+                }
+            } else {
+                // T1-T3: parallel Monte Carlo evaluation
+                let total_tasks = n_actions * n_samples;
+                let eval_seed = seed.wrapping_add(game_id * 1_000_000_007).wrapping_add(turn as u64 * 100_003);
+
+                // Determine nesting for this turn
+                // T1 (turns_after=3): use full [n0, n1, n2]
+                // T2 (turns_after=2): use [n0, n1] (skip n2 level)
+                // T3 (turns_after=1): use [n0] (just one level)
+                let turn_nesting = match turns_after {
+                    3 => nesting,  // T1: [6,3,1] for T2,T3,T4
+                    2 => [nesting[0], nesting[1], 1],  // T2: [6,3] for T3,T4
+                    1 => [nesting[0], 1, 1],  // T3: [6] for T4
+                    _ => [1, 1, 1],
+                };
+
+                let scores: Vec<f64> = (0..total_tasks)
+                    .into_par_iter()
+                    .map(|task_id| {
+                        let action_idx = task_id / n_samples;
+                        let sample_idx = task_id % n_samples;
+                        let (discard_idx, row0, row1) = actions[action_idx];
+
+                        let kept0 = (discard_idx + 1) % 3;
+                        let kept1 = (discard_idx + 2) % 3;
+
+                        let mut cb = board;
+                        cb.push(row0, hand[kept0]);
+                        cb.push(row1, hand[kept1]);
+
+                        let combined_seed = eval_seed
+                            .wrapping_add(action_idx as u64 * 10_000_019)
+                            .wrapping_add(sample_idx as u64);
+                        let mut rng = SmallRng::seed_from_u64(combined_seed);
+
+                        // Use nested MC to evaluate future turns
+                        // turn is 1-indexed, estimate_future_ev uses nesting[turn.saturating_sub(1)]
+                        // T1 (turn=1): starts sampling T2, nesting[0]
+                        // T2 (turn=2): starts sampling T3, nesting[1]
+                        // T3 (turn=3): starts sampling T4, nesting[2]
+                        estimate_future_ev(&cb, &remaining, turn, &turn_nesting, &mut rng)
+                    })
+                    .collect();
+
+                // Aggregate results
+                let mut results: Vec<(String, f64, usize, Row, Row)> = actions.iter().enumerate().map(|(i, &(discard_idx, row0, row1))| {
+                    let kept0 = (discard_idx + 1) % 3;
+                    let kept1 = (discard_idx + 2) % 3;
+                    let start_i = i * n_samples;
+                    let end_i = start_i + n_samples;
+                    let total: f64 = scores[start_i..end_i].iter().sum();
+                    let ev = total / n_samples as f64;
+
+                    let desc = format!(
+                        "d:{} {}→{:?} {}→{:?}",
+                        card_to_string(&hand[discard_idx]),
+                        card_to_string(&hand[kept0]), row0,
+                        card_to_string(&hand[kept1]), row1,
+                    );
+                    (desc, ev, discard_idx, row0, row1)
+                }).collect();
+
+                results.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+
+                // Write results
+                let actions_json: Vec<String> = results.iter().map(|(desc, ev, _, _, _)| {
+                    format!("{{\"a\":\"{}\",\"ev\":{:.3}}}", desc, ev)
+                }).collect();
+
+                let board_desc = format!("Top[{}] Mid[{}] Bot[{}]", top_str_from_board(&board), mid_str_from_board(&board), bot_str_from_board(&board));
+                let hand_desc = format!("{} {} {}", card_to_string(&hand[0]), card_to_string(&hand[1]), card_to_string(&hand[2]));
+
+                writeln!(file,
+                    "{{\"game_id\":{},\"turn\":{},\"board\":\"{}\",\"hand\":\"{}\",\"n_actions\":{},\"n_samples\":{},\"nesting\":\"{:?}\",\"actions\":[{}]}}",
+                    game_id, turn, board_desc, hand_desc, n_actions, n_samples, turn_nesting, actions_json.join(",")
+                ).ok();
+
+                // Apply best action to board for next turn
+                if let Some(&(_, _, best_discard, best_row0, best_row1)) = results.first() {
+                    let kept0 = (best_discard + 1) % 3;
+                    let kept1 = (best_discard + 2) % 3;
+                    board.push(best_row0, hand[kept0]);
+                    board.push(best_row1, hand[kept1]);
+                }
+            }
+
+            file.flush().unwrap();
+        }
+
+        let elapsed = start.elapsed().as_secs_f64();
+        let done = game_idx - completed_games + 1;
+        let avg = elapsed / done as f64;
+        let eta = avg * (remaining_games - done) as f64;
+        println!(
+            "[{:>4}/{}] game_id={} | {:.1}s/game | ETA: {:.0}min",
+            game_idx + 1, n_games, game_id, avg, eta / 60.0,
+        );
+    }
+
+    let total_time = start.elapsed().as_secs_f64();
+    println!("\n=== Game Batch Complete ===");
+    println!("Processed: {} games ({} turns)", remaining_games, remaining_games * 4);
+    println!("Total time: {:.1}min ({:.1}s/game)", total_time / 60.0, total_time / remaining_games as f64);
+}
+
+/// Helper: format board top cards as string
+fn top_str_from_board(cb: &CompactBoard) -> String {
+    (0..cb.top_len as usize).map(|i| card_to_string(&cb.top[i])).collect::<Vec<_>>().join(" ")
+}
+
+/// Helper: format board mid cards as string
+fn mid_str_from_board(cb: &CompactBoard) -> String {
+    (0..cb.mid_len as usize).map(|i| card_to_string(&cb.mid[i])).collect::<Vec<_>>().join(" ")
+}
+
+/// Helper: format board bot cards as string
+fn bot_str_from_board(cb: &CompactBoard) -> String {
+    (0..cb.bot_len as usize).map(|i| card_to_string(&cb.bot[i])).collect::<Vec<_>>().join(" ")
 }

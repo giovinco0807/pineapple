@@ -19,6 +19,8 @@ pub const OPPONENT_SIZE: usize = 49;
 pub const ACTOR_SIZE: usize = 48;
 pub const JOINT_SIZE: usize = 12;
 pub const CONTEXT_SIZE: usize = 6;
+/// The FL14 teachers' deck block (encode_fl14_teacher.context_block).
+pub const FL14_CONTEXT_SIZE: usize = 7;
 pub const FEATURE_SIZE: usize = HERO_SIZE + OPPONENT_SIZE + JOINT_SIZE + CONTEXT_SIZE;
 
 const ROW_CAPACITY: [usize; 3] = [3, 5, 5];
@@ -637,6 +639,40 @@ fn rowwise_single_row(
     out.push(fl_total / denominator / MAX_FL_EV);
     out.push(room as f32 / 5.0);
     category
+}
+
+/// Deck composition for the FL14 teachers (7 dims).  Port of
+/// `context_block` in `ai/tutor/encode_fl14_teacher.py`.
+///
+/// Neither `context_block` below nor `t3_vs_fl::fl_context` with entries
+/// dropped: at a fixed Fantasyland width the opponent's card-count one-hot and
+/// `fl_ev[width]` are constants, and a constant column is a zero-variance
+/// column for the trainer to divide by.  They come back when widths 15-17 get
+/// pools.
+pub fn fl14_context_block(pool: &[Card], out: &mut Vec<f32>) {
+    let mut jokers = 0u32;
+    let (mut aces, mut kings, mut queens) = (0u32, 0u32, 0u32);
+    for card in pool {
+        if card.is_joker() {
+            jokers += 1;
+        } else {
+            match card.rank {
+                14 => aces += 1,
+                13 => kings += 1,
+                12 => queens += 1,
+                _ => {}
+            }
+        }
+    }
+    out.push(jokers as f32 / 2.0);
+    out.push(aces as f32 / 4.0);
+    out.push(kings as f32 / 4.0);
+    out.push(queens as f32 / 4.0);
+    out.push(pool.len() as f32 / 54.0);
+    out.push((aces + kings + queens) as f32 / pool.len().max(1) as f32);
+    // Redundant -- it is exactly 1 - dim 0 -- but the trained weights were
+    // fitted with it, so dropping it would move every prediction.
+    out.push((2 - jokers.min(2)) as f32 / 2.0);
 }
 
 /// Remaining-deck summary (6 dims).
