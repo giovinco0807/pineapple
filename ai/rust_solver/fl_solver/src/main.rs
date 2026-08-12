@@ -4,6 +4,7 @@
 
 mod frontier;
 mod pool;
+mod row_memo;
 mod t2_labels;
 mod t3_labels;
 mod t4_labels;

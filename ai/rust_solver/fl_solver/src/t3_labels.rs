@@ -120,6 +120,12 @@ pub fn board_key(rows: &[Vec<Card>; 3], discard: &Card) -> String {
     parts.join("|")
 }
 
+/// One complete board's terminal facts, the long way.
+///
+/// The hot paths reach this through [`crate::row_memo`], which reproduces it
+/// from cached per-row evaluations whenever the final top and middle are
+/// joker-free and calls it directly when they are not.  It stays the
+/// definition: the memo is checked against it rather than the other way round.
 pub fn hero_terminal(rows: &[Vec<Card>; 3]) -> HeroTerminal {
     let core: Vec<Vec<ofc_core::Card>> = rows.iter().map(|row| crate::to_core_cards(row)).collect();
     let eval = ofc_core::evaluate_board_with_joker_constraint(&core[0], &core[1], &core[2]);
@@ -223,14 +229,15 @@ pub fn completion_value(
     let patterns = open_patterns(after);
     let pair_count = unseen.len() * (unseen.len() - 1) / 2;
     let mut table: Vec<f64> = vec![f64::NEG_INFINITY; pair_count * patterns.len()];
+    // `after` does not move for the whole call, so a row keeps its value,
+    // royalty and Fantasyland entry across every pair that does not touch it.
+    let mut memo = crate::row_memo::TerminalMemo::new(after);
     let mut pair_index = 0usize;
     for first in 0..unseen.len() {
         for second in (first + 1)..unseen.len() {
             for (slot, pattern) in patterns.iter().enumerate() {
-                let mut final_rows = after.clone();
-                final_rows[pattern[0]].push(unseen[first]);
-                final_rows[pattern[1]].push(unseen[second]);
-                let hero = hero_terminal(&final_rows);
+                let hero = memo
+                    .terminal(&[(pattern[0], unseen[first]), (pattern[1], unseen[second])]);
                 let value = if own_only {
                     crate::vs_fl::hero_own(&hero, fl_ev)
                 } else {
@@ -302,6 +309,7 @@ pub fn sampled_completion_value(
 ) -> f64 {
     let patterns = open_patterns(after);
     let picks = crate::t2_labels::sampled_t3_draws(unseen.len(), draws, stream);
+    let mut memo = crate::row_memo::TerminalMemo::new(after);
     let mut total = 0.0f64;
     for picked in &picks {
         let mut best = f64::NEG_INFINITY;
@@ -311,10 +319,8 @@ pub fn sampled_completion_value(
             (picked[1], picked[2]),
         ] {
             for pattern in &patterns {
-                let mut final_rows = after.clone();
-                final_rows[pattern[0]].push(unseen[first]);
-                final_rows[pattern[1]].push(unseen[second]);
-                let hero = hero_terminal(&final_rows);
+                let hero = memo
+                    .terminal(&[(pattern[0], unseen[first]), (pattern[1], unseen[second])]);
                 let value: f64 = opponents
                     .iter()
                     .map(|entry| hero_score(&hero, &entry.rows, fl_ev))

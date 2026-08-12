@@ -35,6 +35,7 @@ pub fn subset_masks(n: usize, k: usize) -> Vec<u32> {
 
 pub mod frontier;
 pub mod pool;
+mod row_memo;
 pub mod t2_labels;
 pub mod t3_labels;
 pub mod t4_labels;

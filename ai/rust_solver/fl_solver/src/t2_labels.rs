@@ -12,11 +12,13 @@
 //! enumerated and each is priced by `completion_value`, which enumerates every
 //! C(40,3) T4 draw and every placement of it.  So a T2 action's value is
 //!
+//! ```text
 //!     mean over sampled T3 draws of
 //!       max over T3 placements of
 //!         mean over ALL T4 draws of
 //!           max over T4 placements of
 //!             hero's exact score against the opponent's best response
+//! ```
 //!
 //! The two maxima are hero playing on, not an assumption about hero: at T3 and
 //! T4 hero sees the draw before choosing, so taking the best is what hero does.
