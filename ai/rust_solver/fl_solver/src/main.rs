@@ -1810,7 +1810,10 @@ fn card_of_name(name: &str) -> Card {
 /// The dealt path derives a root's position from the seed and can afford to;
 /// a played root cannot be re-derived from anything, so the checks that the
 /// dealt path gets for free are made here instead.
-fn read_roots_file(path: &str) -> Vec<FileRoot> {
+/// `placed` is how many cards a root of this street has already put down:
+/// nine at T3, seven at T2.  Passed rather than assumed, because reading a
+/// T2 file with T3's expectation is a mistake the assertion should name.
+fn read_roots_file(path: &str, placed_expected: usize) -> Vec<FileRoot> {
     let text = std::fs::read_to_string(path)
         .unwrap_or_else(|error| panic!("cannot read roots file {path}: {error}"));
     let mut out = Vec::new();
@@ -1849,7 +1852,11 @@ fn read_roots_file(path: &str) -> Vec<FileRoot> {
             );
         }
         let placed: usize = rows.iter().map(Vec::len).sum();
-        assert_eq!(placed, 9, "{path}:{}: {placed} cards placed", line_number + 1);
+        assert_eq!(
+            placed, placed_expected,
+            "{path}:{}: {placed} cards placed, expected {placed_expected}",
+            line_number + 1
+        );
         assert_eq!(record.draw.len(), 3, "{path}:{}", line_number + 1);
         let draw: Vec<Card> = record.draw.iter().map(|n| card_of_name(n)).collect();
         out.push(FileRoot {
@@ -1912,7 +1919,7 @@ fn main() {
         let bytes = std::fs::read(&pool_path).expect("read pool");
         let loaded = pool::deserialize(&bytes, 14, table).expect("load pool");
         eprintln!("pool: {} entries, width {}", loaded.entries.len(), loaded.width);
-        let file_roots = roots_file.as_deref().map(read_roots_file);
+        let file_roots = roots_file.as_deref().map(|path| read_roots_file(path, 9));
         if let Some(supplied) = &file_roots {
             // The file decides how many roots there are; honouring --roots on
             // top of it would only be a way to label a prefix by accident.
@@ -2027,6 +2034,7 @@ fn main() {
         let mut seed = 0xD00E_0001u64;
         let mut stream_offset = 0u64;
         let mut out_dir = String::from("D:/ofc_data/fl14_t2_teacher_v1");
+        let mut roots_file: Option<String> = None;
         let mut index = 2;
         while index < args.len() {
             match args[index].as_str() {
@@ -2038,9 +2046,19 @@ fn main() {
                 "--seed" => { index += 1; seed = args[index].parse().expect("seed"); }
                 "--stream-offset" => { index += 1; stream_offset = args[index].parse().expect("stream-offset"); }
                 "--out-dir" => { index += 1; out_dir = args[index].clone(); }
+                // Positions from a file instead of dealt ones.  The dealt shape
+                // is `cards[0..2]/[2..5]/[5..7]`, i.e. (2,3,2) for every root --
+                // one arrangement out of the many a played hand reaches, which
+                // is the same defect the T3 teacher had.
+                "--roots-file" => { index += 1; roots_file = Some(args[index].clone()); }
                 _ => {}
             }
             index += 1;
+        }
+        let file_roots = roots_file.as_ref().map(|path| read_roots_file(path, 7));
+        if let Some(list) = &file_roots {
+            roots = list.len();
+            eprintln!("teach-t2: {} roots from file", roots);
         }
         let table = [0.0f64, 10.7, 29.9, 63.5];
         let bytes = std::fs::read(&pool_path).expect("read pool");
@@ -2064,15 +2082,31 @@ fn main() {
         );
         let mut written = 0usize;
         for root in 0..roots as u64 {
-            let cards = pool::deal(seed, root, 11);
-            let request = t2_labels::T2Request {
-                id: format!("{}", seed.wrapping_add(root)),
-                rows: [cards[0..2].to_vec(), cards[2..5].to_vec(), cards[5..7].to_vec()],
-                dead: cards[7..8].to_vec(),
-                draw: [cards[8], cards[9], cards[10]],
-                opponents,
-                t3_draws,
-                t4_draws,
+            let request = match &file_roots {
+                Some(list) => {
+                    let entry = &list[root as usize];
+                    t2_labels::T2Request {
+                        id: entry.id.clone(),
+                        rows: entry.rows.clone(),
+                        dead: entry.dead.clone(),
+                        draw: entry.draw,
+                        opponents,
+                        t3_draws,
+                        t4_draws,
+                    }
+                }
+                None => {
+                    let cards = pool::deal(seed, root, 11);
+                    t2_labels::T2Request {
+                        id: format!("{}", seed.wrapping_add(root)),
+                        rows: [cards[0..2].to_vec(), cards[2..5].to_vec(), cards[5..7].to_vec()],
+                        dead: cards[7..8].to_vec(),
+                        draw: [cards[8], cards[9], cards[10]],
+                        opponents,
+                        t3_draws,
+                        t4_draws,
+                    }
+                }
             };
             let stream = pool::stream_of(root, stream_offset);
             match t2_labels::solve(&request, &loaded, &table, stream) {

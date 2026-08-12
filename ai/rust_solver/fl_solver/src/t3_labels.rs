@@ -139,13 +139,26 @@ pub fn hero_terminal(rows: &[Vec<Card>; 3]) -> HeroTerminal {
     }
 }
 
-/// Where two more cards can go on a board with two open slots.
+/// Where two more cards can go, as an ORDERED pair of rows.
+///
+/// Ordered, and that is the whole point.  This read `for second in first..3`
+/// until 2026-08-12, so the caller -- which puts the first card in
+/// `pattern[0]` and the second in `pattern[1]` -- could never put the first
+/// card in a higher row than the second.  Two cards going to two different
+/// rows have two distinct outcomes and only one was ever built: a (2,4,3)
+/// board offers 21 T3 actions and the labeler enumerated 12 of them, so every
+/// value it produced was a maximum over 57% of the legal moves, and every
+/// "best action" it taught might not have been one.
+///
+/// Callers that dedupe on the resulting board collapse the (r, r) case back to
+/// one action by themselves; `completion_value` does not dedupe and pays for
+/// the duplicate, which is cheaper than the bookkeeping to avoid it.
 pub fn open_patterns(rows: &[Vec<Card>; 3]) -> Vec<[usize; 2]> {
     let capacity = [3usize, 5, 5];
     let open: Vec<usize> = (0..3).map(|row| capacity[row] - rows[row].len()).collect();
     let mut out = Vec::new();
     for first in 0..3usize {
-        for second in first..3usize {
+        for second in 0..3usize {
             let mut need = [0usize; 3];
             need[first] += 1;
             need[second] += 1;
@@ -702,5 +715,96 @@ mod tests {
             harvested > 0,
             "no harvest to check: {jokerless} jokerless roots, {solved} solved"
         );
+    }
+
+    /// Every legal placement of the two kept cards exists, on every board shape.
+    ///
+    /// Built here from an independent enumeration -- an ordered pair of rows per
+    /// discard, filtered by capacity -- rather than by calling the thing under
+    /// test with different arguments.  `open_patterns` returned only the pairs
+    /// with `first <= second` until 2026-08-12, which cost a (2,4,3) board nine
+    /// of its twenty-one actions; a test that shared the generator would have
+    /// agreed with the bug.
+    #[test]
+    fn every_legal_placement_is_enumerated_on_every_board_shape() {
+        let cards = deal(0x7311_9000, 0, 14);
+        let draw = [cards[11], cards[12], cards[13]];
+        // Nine placed, spread over the shapes a played hand actually reaches.
+        for shape in [[2usize, 4, 3], [1, 3, 5], [3, 3, 3], [0, 4, 5], [3, 5, 1], [2, 2, 5]] {
+            let mut rows: [Vec<Card>; 3] = [Vec::new(), Vec::new(), Vec::new()];
+            let mut next = 0usize;
+            for (row, count) in shape.iter().enumerate() {
+                for _ in 0..*count {
+                    rows[row].push(cards[next]);
+                    next += 1;
+                }
+            }
+
+            let mut expected: std::collections::BTreeSet<String> =
+                std::collections::BTreeSet::new();
+            let capacity = [3usize, 5, 5];
+            for discard in 0..3usize {
+                let kept: Vec<usize> = (0..3).filter(|index| *index != discard).collect();
+                for row_a in 0..3usize {
+                    for row_b in 0..3usize {
+                        let mut need = [0usize; 3];
+                        need[row_a] += 1;
+                        need[row_b] += 1;
+                        if (0..3).any(|row| rows[row].len() + need[row] > capacity[row]) {
+                            continue;
+                        }
+                        let mut after = rows.clone();
+                        after[row_a].push(draw[kept[0]]);
+                        after[row_b].push(draw[kept[1]]);
+                        expected.insert(board_key(&after, &draw[discard]));
+                    }
+                }
+            }
+
+            let mut produced: std::collections::BTreeSet<String> =
+                std::collections::BTreeSet::new();
+            for discard in 0..3usize {
+                let kept: Vec<usize> = (0..3).filter(|index| *index != discard).collect();
+                for pattern in open_patterns(&rows) {
+                    let mut after = rows.clone();
+                    after[pattern[0]].push(draw[kept[0]]);
+                    after[pattern[1]].push(draw[kept[1]]);
+                    produced.insert(board_key(&after, &draw[discard]));
+                }
+            }
+
+            let missing: Vec<&String> = expected.difference(&produced).collect();
+            assert!(
+                missing.is_empty(),
+                "shape {shape:?} is missing {} of {} placements, e.g. {:?}",
+                missing.len(),
+                expected.len(),
+                missing.first()
+            );
+            assert_eq!(
+                produced, expected,
+                "shape {shape:?} produced a placement the enumeration does not allow"
+            );
+        }
+    }
+
+    /// The count the fix restores, pinned so a regression is a number and not a
+    /// silently smaller search.
+    #[test]
+    fn a_two_four_three_board_offers_twenty_one_t3_actions() {
+        let cards = deal(0x7311_9100, 0, 14);
+        let rows = [cards[0..2].to_vec(), cards[2..6].to_vec(), cards[6..9].to_vec()];
+        let draw = [cards[11], cards[12], cards[13]];
+        let mut seen: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+        for discard in 0..3usize {
+            let kept: Vec<usize> = (0..3).filter(|index| *index != discard).collect();
+            for pattern in open_patterns(&rows) {
+                let mut after = rows.clone();
+                after[pattern[0]].push(draw[kept[0]]);
+                after[pattern[1]].push(draw[kept[1]]);
+                seen.insert(board_key(&after, &draw[discard]));
+            }
+        }
+        assert_eq!(seen.len(), 21, "a (2,4,3) board should offer 21 T3 actions");
     }
 }
