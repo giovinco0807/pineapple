@@ -1756,6 +1756,112 @@ fn build_pool(entries: usize, width: usize, seed: u64, table: [f64; 4], out_path
     eprintln!("pool: reload verified");
 }
 
+/// One T3 root read from `teach --roots-file`, as
+/// `t4_first_exact --play-roots` writes it.
+#[derive(Deserialize)]
+struct RootRecord {
+    id: String,
+    rows: Vec<Vec<String>>,
+    dead: Vec<String>,
+    draw: Vec<String>,
+}
+
+/// A T3 root the file supplied, checked once so a malformed line fails the run
+/// rather than one root of it.
+struct FileRoot {
+    id: String,
+    rows: [Vec<Card>; 3],
+    dead: Vec<Card>,
+    draw: [Card; 3],
+}
+
+/// A card name to a `Card`.
+///
+/// Both joker spellings are accepted: the player keeps X1 and X2 apart because
+/// they are two deck slots, and a board only ever needs to know that a joker is
+/// a joker.
+fn card_of_name(name: &str) -> Card {
+    if name == "X1" || name == "X2" || name == "JK" || name == "X" {
+        return Card { rank: 0, suit: 4 };
+    }
+    let bytes = name.as_bytes();
+    assert_eq!(bytes.len(), 2, "not a card name: {name}");
+    let rank = match bytes[0] as char {
+        '2'..='9' => bytes[0] - b'0',
+        'T' => 10,
+        'J' => 11,
+        'Q' => 12,
+        'K' => 13,
+        'A' => 14,
+        other => panic!("invalid rank {other} in {name}"),
+    };
+    let suit = match bytes[1] as char {
+        's' => 0,
+        'h' => 1,
+        'd' => 2,
+        'c' => 3,
+        other => panic!("invalid suit {other} in {name}"),
+    };
+    Card { rank, suit }
+}
+
+/// The roots a `--roots-file` supplies, in file order.
+///
+/// The dealt path derives a root's position from the seed and can afford to;
+/// a played root cannot be re-derived from anything, so the checks that the
+/// dealt path gets for free are made here instead.
+fn read_roots_file(path: &str) -> Vec<FileRoot> {
+    let text = std::fs::read_to_string(path)
+        .unwrap_or_else(|error| panic!("cannot read roots file {path}: {error}"));
+    let mut out = Vec::new();
+    for (line_number, line) in text.lines().enumerate() {
+        if line.trim().is_empty() {
+            continue;
+        }
+        let record: RootRecord = serde_json::from_str(line)
+            .unwrap_or_else(|error| panic!("{path}:{}: {error}", line_number + 1));
+        // The label writer builds its JSON by hand, so an id carrying a quote
+        // or a backslash would emit a record no reader can parse.
+        assert!(
+            !record.id.contains(['"', '\\']),
+            "{path}:{}: id {:?} cannot be written into a JSON string",
+            line_number + 1,
+            record.id
+        );
+        assert_eq!(
+            record.rows.len(),
+            3,
+            "{path}:{}: {} rows",
+            line_number + 1,
+            record.rows.len()
+        );
+        let rows = [
+            record.rows[0].iter().map(|n| card_of_name(n)).collect::<Vec<Card>>(),
+            record.rows[1].iter().map(|n| card_of_name(n)).collect::<Vec<Card>>(),
+            record.rows[2].iter().map(|n| card_of_name(n)).collect::<Vec<Card>>(),
+        ];
+        for (row, capacity) in [3usize, 5, 5].iter().enumerate() {
+            assert!(
+                rows[row].len() <= *capacity,
+                "{path}:{}: row {row} holds {} of {capacity}",
+                line_number + 1,
+                rows[row].len()
+            );
+        }
+        let placed: usize = rows.iter().map(Vec::len).sum();
+        assert_eq!(placed, 9, "{path}:{}: {placed} cards placed", line_number + 1);
+        assert_eq!(record.draw.len(), 3, "{path}:{}", line_number + 1);
+        let draw: Vec<Card> = record.draw.iter().map(|n| card_of_name(n)).collect();
+        out.push(FileRoot {
+            id: record.id,
+            rows,
+            dead: record.dead.iter().map(|n| card_of_name(n)).collect(),
+            draw: [draw[0], draw[1], draw[2]],
+        });
+    }
+    out
+}
+
 fn main() {
     let args: Vec<String> = std::env::args().collect();
 
@@ -1769,6 +1875,7 @@ fn main() {
         let mut own_only = false;
         let mut t4_per_root = 2usize;
         let mut out_dir = String::from(".");
+        let mut roots_file: Option<String> = None;
         let mut index = 2;
         while index < args.len() {
             match args[index].as_str() {
@@ -1778,6 +1885,14 @@ fn main() {
                 "--seed" => { index += 1; seed = args[index].parse().expect("seed"); }
                 "--t4-per-root" => { index += 1; t4_per_root = args[index].parse().expect("t4"); }
                 "--out-dir" => { index += 1; out_dir = args[index].clone(); }
+                // Roots played by the trained chain instead of assigned from
+                // the deal.  The dealt path fills the rows in deal order,
+                // which is a legal T3 position and not one anybody reaches;
+                // labels off it teach the model a distribution it never meets.
+                // Everything downstream of the root is unchanged, so the two
+                // teachers can be run over the same fourteen cards and
+                // compared.
+                "--roots-file" => { index += 1; roots_file = Some(args[index].clone()); }
                 // Shifts the opponent-draw stream WITHOUT shifting the deal,
                 // so a second pass labels the same positions against a fresh
                 // set of opponents.  The opponent draw is the only sampled
@@ -1797,6 +1912,13 @@ fn main() {
         let bytes = std::fs::read(&pool_path).expect("read pool");
         let loaded = pool::deserialize(&bytes, 14, table).expect("load pool");
         eprintln!("pool: {} entries, width {}", loaded.entries.len(), loaded.width);
+        let file_roots = roots_file.as_deref().map(read_roots_file);
+        if let Some(supplied) = &file_roots {
+            // The file decides how many roots there are; honouring --roots on
+            // top of it would only be a way to label a prefix by accident.
+            roots = supplied.len();
+            eprintln!("roots: {roots} played, from {}", roots_file.as_deref().unwrap_or(""));
+        }
         std::fs::create_dir_all(&out_dir).expect("out dir");
         let started = std::time::Instant::now();
         let done = std::sync::atomic::AtomicUsize::new(0);
@@ -1805,14 +1927,29 @@ fn main() {
         let produced: Vec<(String, String)> = (0..roots as u64)
             .into_par_iter()
             .map(|root| {
-                let cards = pool::deal(seed, root, 14);
-                let request = t3_labels::T3Request {
-                    id: format!("{}", seed.wrapping_add(root)),
-                    rows: [cards[0..2].to_vec(), cards[2..6].to_vec(), cards[6..9].to_vec()],
-                    dead: cards[9..11].to_vec(),
-                    draw: [cards[11], cards[12], cards[13]],
-                    opponents,
-                    t4_draws: 0,
+                let request = match &file_roots {
+                    Some(supplied) => {
+                        let played = &supplied[root as usize];
+                        t3_labels::T3Request {
+                            id: played.id.clone(),
+                            rows: played.rows.clone(),
+                            dead: played.dead.clone(),
+                            draw: played.draw,
+                            opponents,
+                            t4_draws: 0,
+                        }
+                    }
+                    None => {
+                        let cards = pool::deal(seed, root, 14);
+                        t3_labels::T3Request {
+                            id: format!("{}", seed.wrapping_add(root)),
+                            rows: [cards[0..2].to_vec(), cards[2..6].to_vec(), cards[6..9].to_vec()],
+                            dead: cards[9..11].to_vec(),
+                            draw: [cards[11], cards[12], cards[13]],
+                            opponents,
+                            t4_draws: 0,
+                        }
+                    }
                 };
                 let mut t3_line = String::new();
                 let mut t4_lines = String::new();

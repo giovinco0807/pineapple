@@ -16,6 +16,7 @@
 
 mod evaluator;
 mod joint_outlook;
+mod play_roots;
 mod playout;
 mod t0_vs_fl;
 mod row_memo;
@@ -834,6 +835,21 @@ struct Cli {
     /// Emit sampled joint-outlook blocks for {id, board, pool} requests.
     #[arg(long, default_value_t = false)]
     joint_outlook: bool,
+    /// Play T0/T1/T2 with the three trained choosers over {id, cards[14]}
+    /// lines and emit the T3 root each deal reaches, in the shape
+    /// `fl_solver teach --roots-file` consumes.  Nothing is scored, so this
+    /// wants no opponents and no --fl-pool.
+    #[arg(long, default_value_t = false)]
+    play_roots: bool,
+    /// The chooser at each played street.  Named by the street that acts, not
+    /// by the street that asked, because here no street is asking: the three
+    /// models are the players, not a search's continuation.
+    #[arg(long)]
+    play_t0_model: Option<PathBuf>,
+    #[arg(long)]
+    play_t1_model: Option<PathBuf>,
+    #[arg(long)]
+    play_t2_model: Option<PathBuf>,
     /// Emit `playout::encode_for`'s vector for {id, board, pool} requests,
     /// under the model given by --t1-t2-model.  The parity harness
     /// `ai/tutor/fl14_encoder_parity.py` drives the shipped encoder through
@@ -927,6 +943,72 @@ fn main() -> Result<()> {
             }
             writer.flush()?;
         }
+        return Ok(());
+    }
+
+    if cli.play_roots {
+        let model_of = |flag: &str, path: &Option<PathBuf>| -> Result<evaluator::Model> {
+            let path = path
+                .as_ref()
+                .ok_or_else(|| anyhow!("--play-roots requires {flag}"))?;
+            let image = std::fs::read(path)
+                .with_context(|| format!("cannot read {}", path.display()))?;
+            evaluator::Model::load(&image).map_err(|e| anyhow!("{} : {e}", path.display()))
+        };
+        let t0_model = model_of("--play-t0-model", &cli.play_t0_model)?;
+        let t1_model = model_of("--play-t1-model", &cli.play_t1_model)?;
+        let t2_model = model_of("--play-t2-model", &cli.play_t2_model)?;
+        eprintln!(
+            "play-roots: choosers {} / {} / {} dims",
+            t0_model.input_dim, t1_model.input_dim, t2_model.input_dim
+        );
+        let fl_table: evaluator::FlTable = [
+            fl_ev.value(14) as f32,
+            fl_ev.value(15) as f32,
+            fl_ev.value(16) as f32,
+            fl_ev.value(17) as f32,
+        ];
+        let reader = BufReader::new(File::open(&cli.input)?);
+        let mut requests: Vec<play_roots::PlayRequest> = Vec::new();
+        for line in reader.lines() {
+            let line = line?;
+            if !line.trim().is_empty() {
+                requests.push(serde_json::from_str(&line)?);
+            }
+        }
+        let mut writer = BufWriter::new(File::create(&cli.output)?);
+        let started = std::time::Instant::now();
+        let mut streets = play_roots::StreetSeconds::default();
+        for chunk in requests.chunks(cli.chunk_size.max(1)) {
+            let played: Result<Vec<(String, play_roots::StreetSeconds)>> = chunk
+                .par_iter()
+                .map(|request| {
+                    let (root, timing) = play_roots::play(
+                        request, &fl_ev, &fl_table, &t0_model, &t1_model, &t2_model,
+                    )?;
+                    Ok((serde_json::to_string(&root)?, timing))
+                })
+                .collect();
+            for (line, timing) in played? {
+                writeln!(writer, "{line}")?;
+                streets.add(&timing);
+            }
+            writer.flush()?;
+        }
+        let deals = requests.len().max(1) as f64;
+        // Wall time is what a run costs; the per-street figures are summed
+        // across threads, so they answer "where did the work go" and not
+        // "how long did it take".
+        eprintln!(
+            "play-roots: {} deals, {:.1} s wall ({:.3} s/deal); thread-seconds \
+             per deal t0 {:.4} t1 {:.4} t2 {:.4}",
+            requests.len(),
+            started.elapsed().as_secs_f64(),
+            started.elapsed().as_secs_f64() / deals,
+            streets.t0 / deals,
+            streets.t1 / deals,
+            streets.t2 / deals,
+        );
         return Ok(());
     }
 

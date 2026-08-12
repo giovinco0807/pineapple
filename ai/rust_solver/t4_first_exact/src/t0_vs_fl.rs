@@ -107,7 +107,7 @@ fn card_id(card: &Card) -> u64 {
 /// Distinct assignments of the five cards to rows within capacity.
 /// Identity-keyed: two assignments that differ only by swapping equal cards
 /// (the jokers) collapse to one.
-fn t0_candidates(cards: &[Card; 5]) -> Vec<[usize; 5]> {
+pub(crate) fn t0_candidates(cards: &[Card; 5]) -> Vec<[usize; 5]> {
     let mut out: Vec<[usize; 5]> = Vec::new();
     let mut seen: std::collections::BTreeSet<u64> = std::collections::BTreeSet::new();
     for code in 0..3usize.pow(5) {
