@@ -2,7 +2,13 @@
 
 Monte-Carlo evaluator over the full legal action set with common random
 futures: every candidate is scored against the SAME sampled continuations,
-which removes almost all ranking variance between candidates.
+which removes almost all ranking variance between candidates.  Everything
+candidate-independent -- the continuation cards, the hero's keep choices,
+the opponent's completed terminal -- is drawn once per future before the
+candidate loop, and the only candidate-dependent randomness (which open row
+takes each kept card) reads a per-future seeded stream at fixed offsets, so
+no candidate's score can depend on which candidates were evaluated before
+it.  ``ofc_regular.three_max.mc`` uses the same scheme.
 
 Continuation model: both players complete their boards with uniform random
 legal placements (information-set correct: the opponent's hidden cards are
@@ -141,17 +147,32 @@ def _random_fill(rows: Dict[str, List[str]], cards: List[str], rng: random.Rando
         rows[row].append(card)
 
 
-def _hero_continue(rows: Dict[str, List[str]], future: List[str], streets: int, rng: random.Random):
-    """Pineapple continuation: per street take 3 cards, place 2 random-legal, discard 1."""
-    idx = 0
-    for _ in range(streets):
-        dealt = future[idx : idx + 3]
-        idx += 3
-        keep = rng.sample(dealt, 2)
-        for card in keep:
+def _hero_continue(
+    rows: Dict[str, List[str]],
+    future: Sequence[str],
+    keep_plan: Sequence[Tuple[int, int]],
+    row_rng: random.Random,
+):
+    """Play the hero's remaining streets under complete common random numbers.
+
+    Candidate boards differ in shape, and any stream consumption that depends
+    on shape desynchronises the candidates' continuations.  So the two random
+    inputs are decoupled from shape entirely: which 2 of the 3 dealt cards to
+    keep is ``keep_plan``, drawn once per future before any candidate is
+    scored; and each placement consumes exactly one ``row_rng.random()`` --
+    a fixed-width draw, unlike ``choice``'s variable-width sampling -- so
+    every candidate reads the same stream at the same offsets no matter how
+    many rows are open.
+    """
+    for street_index, (first, second) in enumerate(keep_plan):
+        dealt = future[street_index * 3 : street_index * 3 + 3]
+        for keep_index in (first, second):
+            draw = row_rng.random()
             open_rows = [r for r in ROWS if len(rows[r]) < ROW_CAPACITY[r]]
-            row = rng.choice(open_rows)
-            rows[row].append(card)
+            if not open_rows:
+                return
+            row = open_rows[min(int(draw * len(open_rows)), len(open_rows) - 1)]
+            rows[row].append(dealt[keep_index])
 
 
 def evaluate_position(
@@ -245,11 +266,31 @@ def evaluate_position_mc(
 
     rng = random.Random(0xC0FFEE ^ (turn * 7919) ^ len(deck))
 
-    # Pre-draw common futures: same continuation cards for every candidate.
+    draw_need = hero_future_need + opp_need
+    if draw_need > len(deck):
+        raise ValueError(f"残り山札 {len(deck)} 枚では継続 {draw_need} 枚を賄えません（死札が多すぎます）")
+
+    # Pre-draw common futures: ALL candidate-independent randomness is fixed
+    # per future before any candidate is scored.  The opponent's board does
+    # not depend on the hero's choice, so its terminal is computed here once
+    # and shared; the hero's keep choices likewise.  Only the hero's row
+    # placements depend on the candidate's shape, and those read a fresh
+    # stream seeded by ``row_seed`` inside the candidate loop.
     futures = []
     for _ in range(sims):
-        sample = rng.sample(deck, min(len(deck), hero_future_need + opp_need))
-        futures.append((sample[:hero_future_need], sample[hero_future_need : hero_future_need + opp_need]))
+        sample = rng.sample(deck, draw_need)
+        keep_plan = tuple(
+            tuple(sorted(rng.sample(range(3), 2))) for _ in range(hero_streets_left)
+        )
+        row_seed = rng.randrange(1 << 62)
+        opp_rows = {r: list(getattr(opp, r)) for r in ROWS}
+        _random_fill(opp_rows, sample[hero_future_need:draw_need], rng)
+        o_term = _board_terminal(
+            tuple(sorted(opp_rows["top"])),
+            tuple(sorted(opp_rows["middle"])),
+            tuple(sorted(opp_rows["bottom"])),
+        )
+        futures.append((sample[:hero_future_need], keep_plan, row_seed, o_term))
 
     candidates = []
     for action in actions:
@@ -261,18 +302,11 @@ def evaluate_position_mc(
         busts = 0
         fls = 0
         roy_sum = 0.0
-        for hero_future, opp_fill in futures:
+        for hero_future, keep_plan, row_seed, o_term in futures:
             rows = {r: list(placed[r]) for r in ROWS}
-            _hero_continue(rows, hero_future, hero_streets_left, rng)
-            opp_rows = {r: list(getattr(opp, r)) for r in ROWS}
-            _random_fill(opp_rows, opp_fill, rng)
+            _hero_continue(rows, hero_future, keep_plan, random.Random(row_seed))
             h_term = _board_terminal(
                 tuple(sorted(rows["top"])), tuple(sorted(rows["middle"])), tuple(sorted(rows["bottom"]))
-            )
-            o_term = _board_terminal(
-                tuple(sorted(opp_rows["top"])),
-                tuple(sorted(opp_rows["middle"])),
-                tuple(sorted(opp_rows["bottom"])),
             )
             total += _score_pair(h_term, o_term)
             busts += h_term[0]
