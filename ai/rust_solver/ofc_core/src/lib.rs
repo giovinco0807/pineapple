@@ -191,6 +191,9 @@ thread_local! {
     static JOKER_EVAL_CACHE: RefCell<HashMap<u64, u32>> = RefCell::new(HashMap::new());
 }
 
+/// A leak guard that cannot bind: the rows this cache can hold are the jokered
+/// ones, and there are C(52,4) + C(52,3) five-card and C(52,2) + 52 three-card
+/// ones -- about 294,000 in total, a few megabytes a thread.
 const JOKER_EVAL_CACHE_LIMIT: usize = 4_000_000;
 
 fn joker_eval_cache_key(cards: &[Card], expected_count: usize) -> u64 {
@@ -251,6 +254,22 @@ pub fn evaluate_hand_value(cards: &[Card], expected_count: usize) -> u32 {
         }
     }
 
+    // The lookup above has been here since the cache was written; the insert
+    // had not, so the map stayed empty and every joker row was re-substituted
+    // from scratch forever.  `JOKER_EVAL_CACHE_LIMIT` being dead code was the
+    // only sign of it.  It costs more than it sounds: with the constrained-row
+    // cache already in, a T3 root whose middle holds two jokers ran 26.3 s on
+    // one thread against 3.6 s with this insert restored, because a middle that
+    // cannot be legally substituted comes back still holding its jokers and is
+    // then evaluated again by `is_valid_placement`, by `hero_terminal` and by
+    // the royalty, at 990 natural evaluations each time.
+    JOKER_EVAL_CACHE.with(|cache| {
+        let mut cache = cache.borrow_mut();
+        if cache.len() >= JOKER_EVAL_CACHE_LIMIT {
+            cache.clear();
+        }
+        cache.insert(key, best_value);
+    });
     best_value
 }
 
@@ -711,11 +730,6 @@ pub fn evaluate_board_with_joker_constraint(
     }
 }
 
-/// Check if 3-card top ≤ 5-card mid (extracted from is_valid_placement)
-fn is_top_le_mid(top: &[Card], mid: &[Card]) -> bool {
-    evaluate_hand_value(top, 3) <= evaluate_hand_value(mid, 5)
-}
-
 /// Compare two 3-card hands (for finding best substitution)
 pub fn compare_3_hands(a: &[Card], b: &[Card]) -> i32 {
     let value_a = evaluate_hand_value(a, 3);
@@ -746,87 +760,194 @@ fn available_subs(cards: &[Card]) -> Vec<Card> {
     subs
 }
 
+thread_local! {
+    /// Constrained substitutions, keyed by the constrained row and the
+    /// reference's VALUE rather than the reference's cards.
+    ///
+    /// That key is legitimate because neither `constrain_5_vs_5` nor
+    /// `constrain_3_vs_5` ever looked at the reference row itself: it appeared
+    /// only inside `compare_5_hands(.., ref_cards)` and a
+    /// `top_value <= mid_value` test, and each reduced it to
+    /// `evaluate_hand_value(ref, 5)` and nothing else.  `available_subs`
+    /// depends on the constrained row alone.  So both are pure functions of
+    /// `(cards, reference value)`.  The property is pinned by
+    /// `the_reference_row_is_read_only_through_its_value` rather than left to
+    /// this comment.
+    ///
+    /// Worth caching because the two-joker branch walks C(~45, 2) = 990
+    /// candidate pairs, and `fl_solver`'s T3 labeler asks the same question for
+    /// every completion of a base board that does not move.  One thread, 60
+    /// opponents, a T3 root whose middle holds two jokers: 97 s, against 0.6 s
+    /// for a joker-free one.  This cache took it to 25 s and the joker
+    /// evaluation cache above -- which was not storing anything -- took it the
+    /// rest of the way to 2 s.  When the placement leaves the middle alone the
+    /// whole sweep collapses to one solve per distinct bottom value.
+    ///
+    /// Keyed on card ORDER, not on the multiset: the answer is a `Vec` whose
+    /// order follows the input's, so two orderings of one hand are two
+    /// different answers even though they are the same hand.
+    static CONSTRAIN_CACHE: RefCell<HashMap<u64, Vec<Card>>> = RefCell::new(HashMap::new());
+}
+
+/// Bounded so a long teacher run cannot leak.  Held far below
+/// `JOKER_EVAL_CACHE_LIMIT` because an entry here is a heap `Vec` rather than a
+/// `u32`, and this runs on every core at once; a T3 action's whole working set
+/// is a few thousand keys, so the bound is never the thing that binds.
+const CONSTRAIN_CACHE_LIMIT: usize = 100_000;
+
+/// 6 bits a card IN THE ORDER GIVEN, under the row width, over 24 bits of
+/// reference value.  The width leads so a three-card row and a five-card one
+/// cannot collide.
+fn constrain_cache_key(cards: &[Card], reference: u32) -> u64 {
+    debug_assert!(reference < 1 << 24, "a hand value no longer fits the key");
+    let mut key: u64 = cards.len() as u64;
+    for card in cards {
+        let code = if card.is_joker() {
+            60
+        } else {
+            card.rank as u64 * 4 + card.suit as u64
+        };
+        key = (key << 6) | code;
+    }
+    (key << 24) | reference as u64
+}
+
+fn constrain_cached(
+    cards: &[Card],
+    reference: u32,
+    solve: impl FnOnce() -> Vec<Card>,
+) -> Vec<Card> {
+    // Six bits a card runs out past five, and a key that silently drops its
+    // high bits answers one row with another's hand.  No caller builds a longer
+    // row -- the searches below assume five and three -- so this is a guard
+    // rather than a path.
+    if cards.len() > 5 {
+        return solve();
+    }
+    let key = constrain_cache_key(cards, reference);
+    if let Some(hit) = CONSTRAIN_CACHE.with(|cache| cache.borrow().get(&key).cloned()) {
+        return hit;
+    }
+    let solved = solve();
+    CONSTRAIN_CACHE.with(|cache| {
+        let mut cache = cache.borrow_mut();
+        if cache.len() >= CONSTRAIN_CACHE_LIMIT {
+            cache.clear();
+        }
+        cache.insert(key, solved.clone());
+    });
+    solved
+}
+
 /// Find best 5-card joker substitution constrained to ≤ ref_cards (5-card)
 fn constrain_5_vs_5(cards: &[Card], ref_cards: &[Card]) -> Vec<Card> {
-    // If max eval already ≤ ref, keep original
-    if compare_5_hands(cards, ref_cards) <= 0 {
+    let reference = evaluate_hand_value(ref_cards, 5);
+    constrain_cached(cards, reference, || solve_5_vs_5(cards, reference))
+}
+
+/// [`constrain_5_vs_5`] with the reference already reduced to its value, and
+/// without the cache in front of it.  Split out so the memo has something to
+/// wrap and the tests have something unmemoized to check it against.
+fn solve_5_vs_5(cards: &[Card], reference: u32) -> Vec<Card> {
+    // If max eval already ≤ ref, keep original.  Also the only guard the
+    // candidate buffer below needs: a row that is not five cards long
+    // evaluates to 0, which is ≤ every reference, so it returns here.
+    if evaluate_hand_value(cards, 5) <= reference {
         return cards.to_vec();
     }
 
-    let non_jokers: Vec<Card> = cards.iter().filter(|c| !c.is_joker()).cloned().collect();
-    let n_jokers = cards.len() - non_jokers.len();
+    // The candidate is assembled in place.  It used to be a fresh `Vec` per
+    // pair, which on the two-joker branch is 990 allocations for one call and
+    // tens of millions across a root.
+    let mut candidate = [Card { rank: 0, suit: 0 }; 5];
+    let mut naturals = 0usize;
+    for card in cards {
+        if !card.is_joker() {
+            candidate[naturals] = *card;
+            naturals += 1;
+        }
+    }
+    let n_jokers = cards.len() - naturals;
     let subs = available_subs(cards);
 
-    let mut best: Option<Vec<Card>> = None;
+    // Carried alongside the hand because the loop used to re-derive it, and the
+    // incumbent's value cannot change: `compare_5_hands(&test, best)` evaluated
+    // BOTH sides afresh on every one of the 990 pairs.
+    let mut best: Option<(u32, Vec<Card>)> = None;
 
     if n_jokers == 1 {
         for sub in &subs {
-            let mut test = non_jokers.clone();
-            test.push(*sub);
-            if compare_5_hands(&test, ref_cards) <= 0 {
-                if best.is_none() || compare_5_hands(&test, best.as_ref().unwrap()) > 0 {
-                    best = Some(test);
-                }
+            candidate[naturals] = *sub;
+            let value = evaluate_hand_value(&candidate[..naturals + 1], 5);
+            if value <= reference && best.as_ref().map_or(true, |(seen, _)| value > *seen) {
+                best = Some((value, candidate[..naturals + 1].to_vec()));
             }
         }
     } else if n_jokers == 2 {
         for i in 0..subs.len() {
+            candidate[naturals] = subs[i];
             for j in (i + 1)..subs.len() {
-                let mut test = non_jokers.clone();
-                test.push(subs[i]);
-                test.push(subs[j]);
-                if compare_5_hands(&test, ref_cards) <= 0 {
-                    if best.is_none() || compare_5_hands(&test, best.as_ref().unwrap()) > 0 {
-                        best = Some(test);
-                    }
+                candidate[naturals + 1] = subs[j];
+                let value = evaluate_hand_value(&candidate[..naturals + 2], 5);
+                if value <= reference && best.as_ref().map_or(true, |(seen, _)| value > *seen) {
+                    best = Some((value, candidate[..naturals + 2].to_vec()));
                 }
             }
         }
     }
 
     // If no valid sub found → genuinely busted, return original
-    best.unwrap_or_else(|| cards.to_vec())
+    best.map(|(_, hand)| hand).unwrap_or_else(|| cards.to_vec())
 }
 
 /// Find best 3-card joker substitution constrained to ≤ mid (5-card)
 fn constrain_3_vs_5(cards: &[Card], mid: &[Card]) -> Vec<Card> {
+    let reference = evaluate_hand_value(mid, 5);
+    constrain_cached(cards, reference, || solve_3_vs_5(cards, reference))
+}
+
+/// [`constrain_3_vs_5`] against the middle's value alone, unmemoized.
+fn solve_3_vs_5(cards: &[Card], reference: u32) -> Vec<Card> {
     // If max eval already ≤ mid, keep original
-    if is_top_le_mid(cards, mid) {
+    if evaluate_hand_value(cards, 3) <= reference {
         return cards.to_vec();
     }
 
-    let non_jokers: Vec<Card> = cards.iter().filter(|c| !c.is_joker()).cloned().collect();
-    let n_jokers = cards.len() - non_jokers.len();
+    let mut candidate = [Card { rank: 0, suit: 0 }; 3];
+    let mut naturals = 0usize;
+    for card in cards {
+        if !card.is_joker() {
+            candidate[naturals] = *card;
+            naturals += 1;
+        }
+    }
+    let n_jokers = cards.len() - naturals;
     let subs = available_subs(cards);
 
-    let mut best: Option<Vec<Card>> = None;
+    let mut best: Option<(u32, Vec<Card>)> = None;
 
     if n_jokers == 1 {
         for sub in &subs {
-            let mut test = non_jokers.clone();
-            test.push(*sub);
-            if is_top_le_mid(&test, mid) {
-                if best.is_none() || compare_3_hands(&test, best.as_ref().unwrap()) > 0 {
-                    best = Some(test);
-                }
+            candidate[naturals] = *sub;
+            let value = evaluate_hand_value(&candidate[..naturals + 1], 3);
+            if value <= reference && best.as_ref().map_or(true, |(seen, _)| value > *seen) {
+                best = Some((value, candidate[..naturals + 1].to_vec()));
             }
         }
     } else if n_jokers == 2 {
         for i in 0..subs.len() {
+            candidate[naturals] = subs[i];
             for j in (i + 1)..subs.len() {
-                let mut test = non_jokers.clone();
-                test.push(subs[i]);
-                test.push(subs[j]);
-                if is_top_le_mid(&test, mid) {
-                    if best.is_none() || compare_3_hands(&test, best.as_ref().unwrap()) > 0 {
-                        best = Some(test);
-                    }
+                candidate[naturals + 1] = subs[j];
+                let value = evaluate_hand_value(&candidate[..naturals + 2], 3);
+                if value <= reference && best.as_ref().map_or(true, |(seen, _)| value > *seen) {
+                    best = Some((value, candidate[..naturals + 2].to_vec()));
                 }
             }
         }
     }
 
-    best.unwrap_or_else(|| cards.to_vec())
+    best.map(|(_, hand)| hand).unwrap_or_else(|| cards.to_vec())
 }
 
 #[cfg(test)]
@@ -891,6 +1012,267 @@ mod tests {
         assert_eq!(primary_rank_from_value(evaluate_hand_value(&eval.top, 3)), 12);
         assert_eq!(get_top_royalty(&eval.top), 7);
         assert_eq!(check_fl_entry(&eval.top), (true, 14));
+    }
+
+    /// Deterministic, and the same shape the exactness suite uses.
+    fn lcg(state: &mut u64) -> usize {
+        *state = state
+            .wrapping_mul(6364136223846793005)
+            .wrapping_add(1442695040888963407);
+        (*state >> 33) as usize
+    }
+
+    fn shuffled_deck(state: &mut u64, with_jokers: bool) -> Vec<Card> {
+        let mut deck = create_deck(with_jokers);
+        for index in (1..deck.len()).rev() {
+            let pick = lcg(state) % (index + 1);
+            deck.swap(index, pick);
+        }
+        deck
+    }
+
+    /// A row of `size` cards whose first `jokers` slots are jokers.
+    fn jokered_row(state: &mut u64, size: usize, jokers: usize) -> Vec<Card> {
+        let mut row: Vec<Card> = shuffled_deck(state, false)[..size].to_vec();
+        for slot in 0..jokers {
+            row[slot] = joker();
+        }
+        row
+    }
+
+    /// `constrain_5_vs_5` as it stood before the reference was reduced to a
+    /// value -- taking the reference's CARDS and comparing against them.
+    ///
+    /// Kept verbatim because the cached version cannot be checked against
+    /// itself: a key that reads the reference wrongly would agree with every
+    /// call that shares the key.  This is the thing it has to agree with.
+    fn mirror_5_vs_5(cards: &[Card], ref_cards: &[Card]) -> Vec<Card> {
+        if compare_5_hands(cards, ref_cards) <= 0 {
+            return cards.to_vec();
+        }
+        let non_jokers: Vec<Card> = cards.iter().filter(|c| !c.is_joker()).cloned().collect();
+        let n_jokers = cards.len() - non_jokers.len();
+        let subs = available_subs(cards);
+        let mut best: Option<Vec<Card>> = None;
+        if n_jokers == 1 {
+            for sub in &subs {
+                let mut test = non_jokers.clone();
+                test.push(*sub);
+                if compare_5_hands(&test, ref_cards) <= 0
+                    && (best.is_none() || compare_5_hands(&test, best.as_ref().unwrap()) > 0)
+                {
+                    best = Some(test);
+                }
+            }
+        } else if n_jokers == 2 {
+            for i in 0..subs.len() {
+                for j in (i + 1)..subs.len() {
+                    let mut test = non_jokers.clone();
+                    test.push(subs[i]);
+                    test.push(subs[j]);
+                    if compare_5_hands(&test, ref_cards) <= 0
+                        && (best.is_none() || compare_5_hands(&test, best.as_ref().unwrap()) > 0)
+                    {
+                        best = Some(test);
+                    }
+                }
+            }
+        }
+        best.unwrap_or_else(|| cards.to_vec())
+    }
+
+    /// `constrain_3_vs_5` likewise.  The `<=` was `is_top_le_mid`, which had no
+    /// other caller and went with the rewrite.
+    fn mirror_3_vs_5(cards: &[Card], mid: &[Card]) -> Vec<Card> {
+        let le_mid = |top: &[Card]| evaluate_hand_value(top, 3) <= evaluate_hand_value(mid, 5);
+        if le_mid(cards) {
+            return cards.to_vec();
+        }
+        let non_jokers: Vec<Card> = cards.iter().filter(|c| !c.is_joker()).cloned().collect();
+        let n_jokers = cards.len() - non_jokers.len();
+        let subs = available_subs(cards);
+        let mut best: Option<Vec<Card>> = None;
+        if n_jokers == 1 {
+            for sub in &subs {
+                let mut test = non_jokers.clone();
+                test.push(*sub);
+                if le_mid(&test)
+                    && (best.is_none() || compare_3_hands(&test, best.as_ref().unwrap()) > 0)
+                {
+                    best = Some(test);
+                }
+            }
+        } else if n_jokers == 2 {
+            for i in 0..subs.len() {
+                for j in (i + 1)..subs.len() {
+                    let mut test = non_jokers.clone();
+                    test.push(subs[i]);
+                    test.push(subs[j]);
+                    if le_mid(&test)
+                        && (best.is_none() || compare_3_hands(&test, best.as_ref().unwrap()) > 0)
+                    {
+                        best = Some(test);
+                    }
+                }
+            }
+        }
+        best.unwrap_or_else(|| cards.to_vec())
+    }
+
+    /// Distinct five-card rows that share a hand value.
+    ///
+    /// Jokered rows are drawn too: a bottom row holding one is ordinary, and
+    /// its value comes from the exhaustive substitution rather than from its
+    /// own cards -- which is the case a value-keyed cache has the most to lose
+    /// on.
+    fn equal_value_reference_pairs(state: &mut u64, wanted: usize) -> Vec<(Vec<Card>, Vec<Card>)> {
+        let mut by_value: HashMap<u32, Vec<Vec<Card>>> = HashMap::new();
+        let mut out = Vec::new();
+        for round in 0..60_000usize {
+            let hand: Vec<Card> = shuffled_deck(state, round % 4 == 0)[..5].to_vec();
+            let bucket = by_value.entry(evaluate_hand_value(&hand, 5)).or_default();
+            if bucket.iter().any(|seen| *seen == hand) {
+                continue;
+            }
+            if let Some(other) = bucket.first() {
+                out.push((other.clone(), hand.clone()));
+                if out.len() >= wanted {
+                    return out;
+                }
+            }
+            bucket.push(hand);
+        }
+        out
+    }
+
+    /// `JOKER_EVAL_CACHE` keys on the sorted multiset, with both jokers on one
+    /// code, so a hit is only exact if the value ignores card order and cannot
+    /// tell one joker from the other.  Now that the cache actually stores
+    /// anything, that is load-bearing.
+    #[test]
+    fn a_hand_value_depends_on_the_multiset_and_not_the_order() {
+        let mut state: u64 = 0x2026_0813_0003;
+        for round in 0..4_000usize {
+            let width = if round % 2 == 0 { 5 } else { 3 };
+            let jokers = round % 3;
+            let row = jokered_row(&mut state, width, jokers.min(width));
+            let value = evaluate_hand_value(&row, width);
+            assert_eq!(
+                joker_eval_cache_key(&row, width),
+                joker_eval_cache_key(&row, width),
+                "the key is not a function of its arguments"
+            );
+            let mut shuffled = row.clone();
+            for index in (1..shuffled.len()).rev() {
+                let pick = lcg(&mut state) % (index + 1);
+                shuffled.swap(index, pick);
+            }
+            assert_eq!(
+                joker_eval_cache_key(&shuffled, width),
+                joker_eval_cache_key(&row, width),
+                "reordering {row:?} to {shuffled:?} moved the key"
+            );
+            assert_eq!(
+                evaluate_hand_value(&shuffled, width),
+                value,
+                "reordering {row:?} to {shuffled:?} moved its value"
+            );
+        }
+    }
+
+    /// The premise the constrained-row cache rests on: `constrain_*` reads its
+    /// reference row through `evaluate_hand_value(ref, 5)` and through nothing
+    /// else, so two references of equal value are one question.
+    ///
+    /// Asserted on the UNMEMOIZED mirror, which is the only way to say
+    /// anything: put the same question to the cached function twice and the
+    /// second answer is the first one back, whatever the premise is worth.  The
+    /// cached function is then checked against the mirror in the same loop, so
+    /// a wrong key shows up as a disagreement rather than as agreement with
+    /// itself.
+    #[test]
+    fn the_reference_row_is_read_only_through_its_value() {
+        let mut state: u64 = 0x2026_0813_0001;
+        let pairs = equal_value_reference_pairs(&mut state, 240);
+        assert!(pairs.len() >= 200, "only {} equal-value reference pairs", pairs.len());
+        let (mut bound_mid, mut bound_top) = (0usize, 0usize);
+        for (index, (ref_a, ref_b)) in pairs.iter().enumerate() {
+            assert_eq!(evaluate_hand_value(ref_a, 5), evaluate_hand_value(ref_b, 5));
+            let jokers = index % 2 + 1;
+            let mid = jokered_row(&mut state, 5, jokers);
+            let top = jokered_row(&mut state, 3, jokers);
+
+            let mid_a = mirror_5_vs_5(&mid, ref_a);
+            assert_eq!(
+                mid_a,
+                mirror_5_vs_5(&mid, ref_b),
+                "two references of value {} constrain {mid:?} differently: {ref_a:?} vs {ref_b:?}",
+                evaluate_hand_value(ref_a, 5)
+            );
+            let top_a = mirror_3_vs_5(&top, ref_a);
+            assert_eq!(
+                top_a,
+                mirror_3_vs_5(&top, ref_b),
+                "two references of value {} constrain {top:?} differently: {ref_a:?} vs {ref_b:?}",
+                evaluate_hand_value(ref_a, 5)
+            );
+
+            // ref_a stores the entry, ref_b reads it back off the shared value.
+            assert_eq!(constrain_5_vs_5(&mid, ref_a), mid_a);
+            assert_eq!(constrain_5_vs_5(&mid, ref_b), mid_a);
+            assert_eq!(constrain_3_vs_5(&top, ref_a), top_a);
+            assert_eq!(constrain_3_vs_5(&top, ref_b), top_a);
+
+            if mid_a != mid {
+                bound_mid += 1;
+            }
+            if top_a != top {
+                bound_top += 1;
+            }
+        }
+        // Without this the test could pass on nothing but early returns, where
+        // the reference is read once and the search never runs.
+        assert!(
+            bound_mid > 0 && bound_top > 0,
+            "no reference bound anything: {bound_mid} middles, {bound_top} tops"
+        );
+        println!(
+            "{} equal-value reference pairs; {bound_mid} bound the middle, {bound_top} the top",
+            pairs.len()
+        );
+    }
+
+    /// And the rewrite moved nothing: the memoized search agrees with the
+    /// pre-change one on fresh inputs and on repeats, which is where the cache
+    /// is the thing answering.
+    #[test]
+    fn the_constrained_search_agrees_with_the_unmemoized_one() {
+        let mut state: u64 = 0x2026_0813_0002;
+        let mut history: Vec<(Vec<Card>, Vec<Card>, Vec<Card>)> = Vec::new();
+        for round in 0..600usize {
+            let jokers = round % 3;
+            let mid = jokered_row(&mut state, 5, jokers);
+            let top = jokered_row(&mut state, 3, jokers);
+            // A jokered bottom every fifth round: the reference's own value is
+            // then the exhaustive one, and the key carries it.
+            let bot = jokered_row(&mut state, 5, usize::from(round % 5 == 0));
+            assert_eq!(
+                constrain_5_vs_5(&mid, &bot),
+                mirror_5_vs_5(&mid, &bot),
+                "middle {mid:?} against bottom {bot:?}"
+            );
+            assert_eq!(
+                constrain_3_vs_5(&top, &bot),
+                mirror_3_vs_5(&top, &bot),
+                "top {top:?} against middle {bot:?}"
+            );
+            history.push((top, mid, bot));
+        }
+        for (top, mid, bot) in &history {
+            assert_eq!(constrain_5_vs_5(mid, bot), mirror_5_vs_5(mid, bot));
+            assert_eq!(constrain_3_vs_5(top, bot), mirror_3_vs_5(top, bot));
+        }
+        println!("{} constrained rows, each checked cold and again on the cache", history.len());
     }
 
     #[test]
