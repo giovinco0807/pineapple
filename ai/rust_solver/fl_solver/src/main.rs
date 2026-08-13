@@ -1932,7 +1932,30 @@ fn main() {
         let done = std::sync::atomic::AtomicUsize::new(0);
         let short = std::sync::atomic::AtomicUsize::new(0);
 
-        let produced: Vec<(String, String)> = (0..roots as u64)
+        // Published a chunk at a time, in root order.
+        //
+        // Two requirements pull against each other.  A run of this length must
+        // not lose everything to one interruption -- the collect-and-dump shape
+        // has cost this project an hour of Spot work twice -- but writing from
+        // inside the parallel map would order the lines by thread scheduling,
+        // and these files are diffed byte for byte to prove an optimisation
+        // changed nothing.  Chunking satisfies both: the work inside a chunk is
+        // parallel, the chunks are sequential, and the output is the order the
+        // roots were asked for.
+        use std::io::Write;
+        let mut t3_file = std::io::BufWriter::new(
+            std::fs::File::create(format!("{out_dir}/t3_labels.jsonl")).expect("t3 out"),
+        );
+        let mut t4_file = std::io::BufWriter::new(
+            std::fs::File::create(format!("{out_dir}/t4_labels.jsonl")).expect("t4 out"),
+        );
+        let mut t3_rows = 0usize;
+        let mut t4_rows = 0usize;
+        let publish_chunk = 250usize;
+
+        for start in (0..roots as u64).step_by(publish_chunk) {
+        let end = (start + publish_chunk as u64).min(roots as u64);
+        let produced: Vec<(String, String)> = (start..end)
             .into_par_iter()
             .map(|root| {
                 let request = match &file_roots {
@@ -2007,19 +2030,23 @@ fn main() {
                 (t3_line, t4_lines)
             })
             .collect();
-
-        let mut t3_out = String::new();
-        let mut t4_out = String::new();
         for (t3, t4) in &produced {
-            t3_out.push_str(t3);
-            t4_out.push_str(t4);
+            if !t3.is_empty() {
+                t3_file.write_all(t3.as_bytes()).expect("write t3");
+                t3_rows += 1;
+            }
+            if !t4.is_empty() {
+                t4_file.write_all(t4.as_bytes()).expect("write t4");
+                t4_rows += t4.lines().count();
+            }
         }
-        std::fs::write(format!("{out_dir}/t3_labels.jsonl"), &t3_out).expect("write t3");
-        std::fs::write(format!("{out_dir}/t4_labels.jsonl"), &t4_out).expect("write t4");
+        t3_file.flush().expect("flush t3");
+        t4_file.flush().expect("flush t4");
+        }
         eprintln!(
             "teach: {} T3 roots, {} T4 decisions, {} short draws, {:.1} min total",
-            t3_out.lines().count(),
-            t4_out.lines().count(),
+            t3_rows,
+            t4_rows,
             short.load(std::sync::atomic::Ordering::Relaxed),
             started.elapsed().as_secs_f64() / 60.0,
         );
