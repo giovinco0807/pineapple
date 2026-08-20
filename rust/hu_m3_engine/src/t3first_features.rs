@@ -686,6 +686,31 @@ impl FreeOutlookCache {
         board: &Board,
         unknown: &[Card],
     ) -> Result<([f32; FIRST_OPP_SIZE], Vec<Finish>), String> {
+        self.outlook_impl(board, unknown, true)
+    }
+
+    /// The block alone, for callers that discard the finishes.
+    ///
+    /// The hidden-opponent encoder zeroes its head-to-head columns, so the
+    /// finishes -- three cloned `HandValue`s per surviving draw -- are built
+    /// and immediately dropped there. Skipping their construction is the only
+    /// difference: every count the block reads, including the survivor count
+    /// that is `finishes.len()` on the collecting path, is kept by the same
+    /// arithmetic, so the block is the same bytes either way.
+    pub(crate) fn outlook_block_only(
+        &mut self,
+        board: &Board,
+        unknown: &[Card],
+    ) -> Result<[f32; FIRST_OPP_SIZE], String> {
+        Ok(self.outlook_impl(board, unknown, false)?.0)
+    }
+
+    fn outlook_impl(
+        &mut self,
+        board: &Board,
+        unknown: &[Card],
+        collect_finishes: bool,
+    ) -> Result<([f32; FIRST_OPP_SIZE], Vec<Finish>), String> {
         let rows = [
             board.cards(Row::Top),
             board.cards(Row::Middle),
@@ -734,7 +759,9 @@ impl FreeOutlookCache {
         ];
         let draw_set = &self.draw_sets[draw_slot];
 
-        let mut finishes: Vec<Finish> = Vec::with_capacity(draw_set.picks);
+        let mut finishes: Vec<Finish> =
+            Vec::with_capacity(if collect_finishes { draw_set.picks } else { 0 });
+        let mut survivors = 0usize;
         let mut fouls = 0usize;
         let mut fl_count = 0usize;
         let mut royalty_sum = 0.0f64;
@@ -765,19 +792,22 @@ impl FreeOutlookCache {
             match best {
                 None => fouls += 1,
                 Some((_score, slots, royalty, fl)) => {
+                    survivors += 1;
                     royalty_sum += royalty as f64;
                     if fl {
                         fl_count += 1;
                     }
-                    finishes.push(Finish::new(
-                        [
-                            tables[0].entries[slots[0] as usize].value.clone(),
-                            tables[1].entries[slots[1] as usize].value.clone(),
-                            tables[2].entries[slots[2] as usize].value.clone(),
-                        ],
-                        royalty,
-                        fl,
-                    ));
+                    if collect_finishes {
+                        finishes.push(Finish::new(
+                            [
+                                tables[0].entries[slots[0] as usize].value.clone(),
+                                tables[1].entries[slots[1] as usize].value.clone(),
+                                tables[2].entries[slots[2] as usize].value.clone(),
+                            ],
+                            royalty,
+                            fl,
+                        ));
+                    }
                 }
             }
         }
@@ -789,7 +819,7 @@ impl FreeOutlookCache {
         out[base] = (lows[1] as f32 - highs[2] as f32) / 8.0;
         out[base + 1] = (lows[0] as f32 - highs[1] as f32) / 8.0;
         base += 2;
-        let survived = finishes.len().max(1) as f32;
+        let survived = survivors.max(1) as f32;
         out[base] = fl_count as f32 / survived;
         out[base + 1] = (royalty_sum as f32 / survived) / 10.0;
         Ok((out, finishes))

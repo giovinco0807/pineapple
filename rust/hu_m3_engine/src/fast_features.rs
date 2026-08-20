@@ -98,6 +98,17 @@ pub fn fast_outlook(
     cache.inner.outlook(board, unknown)
 }
 
+/// The coarse outlook block without the finishes, for the hidden-opponent
+/// encoder below: its head-to-head columns stay zero, so finishes built here
+/// would be dropped unread. Same block bytes as [`fast_outlook`].
+pub fn fast_outlook_block_only(
+    board: &Board,
+    unknown: &[Card],
+    cache: &mut FastOutlookCache,
+) -> Result<[f32; SIDE_OUTLOOK_SIZE], String> {
+    cache.inner.outlook_block_only(board, unknown)
+}
+
 /// Where the hero's half of the vector ends and the opponent's begins.
 ///
 /// Named because the T0 first-seat encoder below writes everything up to it and
@@ -166,7 +177,7 @@ pub fn fast_encode_hidden_opponent(
 ) -> Result<[f32; FEATURE_SIZE], String> {
     let mut out = [0.0f32; FEATURE_SIZE];
     out[..STRUCTURAL_SIZE].copy_from_slice(&encode_structural(observation, candidate_board));
-    let (hero_block, _hero_finishes) = fast_outlook(candidate_board, unknown, cache)?;
+    let hero_block = fast_outlook_block_only(candidate_board, unknown, cache)?;
     out[STRUCTURAL_SIZE..HERO_BLOCK_END].copy_from_slice(&hero_block);
     // [HERO_BLOCK_END, FEATURE_SIZE) stays zero; see above.
     Ok(out)
