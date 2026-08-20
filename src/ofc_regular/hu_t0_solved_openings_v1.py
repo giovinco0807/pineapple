@@ -295,7 +295,8 @@ def main(argv: list[str] | None = None) -> int:
             deep=([p for p in ((root / "local4096" / "seed_independence.json"),)
                    if p.is_file()]
                   + sorted((root / "local4096" / "hand0_settled").glob("b*.json"))),
-            extra=sorted((root / "ladder20_local").glob("h*_b*.json")),
+            extra=(sorted((root / "ladder20_local").glob("h*_b*.json"))
+                   + sorted((root / "ladder20_elim").glob("h*_e*.json"))),
         )
         table_path.parent.mkdir(parents=True, exist_ok=True)
         table_path.write_text(json.dumps(table, indent=1), encoding="utf-8")
