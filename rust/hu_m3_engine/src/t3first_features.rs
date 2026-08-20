@@ -27,7 +27,7 @@
 use crate::cards::Card;
 use crate::infoset::ActorObservation;
 use crate::scoring::{
-    bottom_royalty_from_value, fl_entry_from_top_value, middle_royalty_from_value,
+    bottom_royalty_from_value, compare_key, fl_entry_from_top_value, middle_royalty_from_value,
     top_royalty_from_value, HandValue,
 };
 use crate::state::{Board, Row};
@@ -228,25 +228,11 @@ fn combinations_at(unknown: &[Card], r: usize, wanted: &[usize]) -> Vec<Card> {
     out
 }
 
-/// `HandValue`'s ordering as one integer: the category in the top byte and the
-/// tie-breakers, zero-padded, below it. Tie-breakers are card ranks (`2..=14`,
-/// never zero) and there are at most five, so padding a shorter list with zeros
-/// reproduces `Vec`'s "a prefix sorts first" rule exactly. Comparing these is
-/// what lets the arrangement loop stay out of the heap.
-fn compare_key(value: &HandValue) -> u64 {
-    debug_assert!(value.1.len() <= 7, "tie-breakers overflow the packed key");
-    let mut key = (value.0 as u64) << 56;
-    for (slot, rank) in value.1.iter().take(7).enumerate() {
-        key |= (*rank as u64) << (48 - 8 * slot);
-    }
-    key
-}
-
 /// One evaluated row completion: the row's own cards plus a chosen subset of
-/// the unknowns. Royalty and Fantasy Land are stored beside the value so the
-/// joint loop reads all three from the same place it would have computed them.
+/// the unknowns, reduced to the packed ordering key. Royalty and Fantasy Land
+/// are stored beside it so the joint loop reads all three from the same place
+/// it would have computed them.
 struct RowCompletion {
-    value: HandValue,
     key: u64,
     royalty: f32,
     fantasyland: bool,
@@ -258,7 +244,6 @@ struct CompletionView {
     key: u64,
     royalty: f32,
     fantasyland: bool,
-    slot: u32,
 }
 
 fn mix64(key: u64) -> u64 {
@@ -347,21 +332,16 @@ impl RowMemo {
             key: completion.key,
             royalty: completion.royalty,
             fantasyland: completion.fantasyland,
-            slot,
         }
     }
 }
 
 fn evaluate_completion(row: usize, cards: &[Card]) -> RowCompletion {
     let value = partial_value(cards, ROW_CAPACITY[row]);
-    let royalty = royalty_of(row, &value);
-    let fantasyland = row == 0 && fl_entry_from_top_value(&value).qualifies;
-    let key = compare_key(&value);
     RowCompletion {
-        value,
-        key,
-        royalty,
-        fantasyland,
+        key: compare_key(&value),
+        royalty: royalty_of(row, &value),
+        fantasyland: row == 0 && fl_entry_from_top_value(&value).qualifies,
     }
 }
 
@@ -467,7 +447,6 @@ struct RowTable {
     total_room: usize,
     mask: u64,
     parts: usize,
-    entries: Vec<RowCompletion>,
     views: Vec<CompletionView>,
 }
 
@@ -654,7 +633,6 @@ impl FreeOutlookCache {
             total_room,
             mask,
             parts: parts.len(),
-            entries: memo.entries,
             views,
         });
         self.tables.len() - 1
@@ -685,6 +663,31 @@ impl FreeOutlookCache {
         &mut self,
         board: &Board,
         unknown: &[Card],
+    ) -> Result<([f32; FIRST_OPP_SIZE], Vec<Finish>), String> {
+        self.outlook_impl(board, unknown, true)
+    }
+
+    /// The block alone, for callers that discard the finishes.
+    ///
+    /// The hidden-opponent encoder zeroes its head-to-head columns, so the
+    /// finishes -- three cloned `HandValue`s per surviving draw -- are built
+    /// and immediately dropped there. Skipping their construction is the only
+    /// difference: every count the block reads, including the survivor count
+    /// that is `finishes.len()` on the collecting path, is kept by the same
+    /// arithmetic, so the block is the same bytes either way.
+    pub(crate) fn outlook_block_only(
+        &mut self,
+        board: &Board,
+        unknown: &[Card],
+    ) -> Result<[f32; FIRST_OPP_SIZE], String> {
+        Ok(self.outlook_impl(board, unknown, false)?.0)
+    }
+
+    fn outlook_impl(
+        &mut self,
+        board: &Board,
+        unknown: &[Card],
+        collect_finishes: bool,
     ) -> Result<([f32; FIRST_OPP_SIZE], Vec<Finish>), String> {
         let rows = [
             board.cards(Row::Top),
@@ -734,7 +737,9 @@ impl FreeOutlookCache {
         ];
         let draw_set = &self.draw_sets[draw_slot];
 
-        let mut finishes: Vec<Finish> = Vec::with_capacity(draw_set.picks);
+        let mut finishes: Vec<Finish> =
+            Vec::with_capacity(if collect_finishes { draw_set.picks } else { 0 });
+        let mut survivors = 0usize;
         let mut fouls = 0usize;
         let mut fl_count = 0usize;
         let mut royalty_sum = 0.0f64;
@@ -745,9 +750,11 @@ impl FreeOutlookCache {
                 index * tables[1].parts,
                 index * tables[2].parts,
             ];
-            // (score, slots, royalty, fl); first strict maximum wins, matching
-            // the Python `>` comparison.
-            let mut best: Option<(f32, [u32; 3], f32, bool)> = None;
+            // (score, row keys, royalty, fl); first strict maximum wins,
+            // matching the Python `>` comparison. The keys the legality check
+            // reads are the same packed values the finish carries, so the
+            // winner needs no lookup back into the tables.
+            let mut best: Option<(f32, [u64; 3], f32, bool)> = None;
             for arrangement in arrangements {
                 let top = tables[0].views[bases[0] + arrangement[0] as usize];
                 let middle = tables[1].views[bases[1] + arrangement[1] as usize];
@@ -759,25 +766,20 @@ impl FreeOutlookCache {
                 let fl = top.fantasyland;
                 let score = royalty + if fl { 10.0 } else { 0.0 };
                 if best.as_ref().map_or(true, |(held, _, _, _)| score > *held) {
-                    best = Some((score, [top.slot, middle.slot, bottom.slot], royalty, fl));
+                    best = Some((score, [top.key, middle.key, bottom.key], royalty, fl));
                 }
             }
             match best {
                 None => fouls += 1,
-                Some((_score, slots, royalty, fl)) => {
+                Some((_score, keys, royalty, fl)) => {
+                    survivors += 1;
                     royalty_sum += royalty as f64;
                     if fl {
                         fl_count += 1;
                     }
-                    finishes.push(Finish::new(
-                        [
-                            tables[0].entries[slots[0] as usize].value.clone(),
-                            tables[1].entries[slots[1] as usize].value.clone(),
-                            tables[2].entries[slots[2] as usize].value.clone(),
-                        ],
-                        royalty,
-                        fl,
-                    ));
+                    if collect_finishes {
+                        finishes.push(Finish::new(keys, royalty, fl));
+                    }
                 }
             }
         }
@@ -789,7 +791,7 @@ impl FreeOutlookCache {
         out[base] = (lows[1] as f32 - highs[2] as f32) / 8.0;
         out[base + 1] = (lows[0] as f32 - highs[1] as f32) / 8.0;
         base += 2;
-        let survived = finishes.len().max(1) as f32;
+        let survived = survivors.max(1) as f32;
         out[base] = fl_count as f32 / survived;
         out[base + 1] = (royalty_sum as f32 / survived) / 10.0;
         Ok((out, finishes))

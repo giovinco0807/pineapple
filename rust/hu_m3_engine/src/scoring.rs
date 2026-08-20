@@ -23,6 +23,21 @@ pub const DEFAULT_FL_EV_14: f64 = 9.6;
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize)]
 pub struct HandValue(pub u8, pub Vec<u8>);
 
+/// `HandValue`'s ordering as one integer: the category in the top byte and the
+/// tie-breakers, zero-padded, below it. Tie-breakers are card ranks (`2..=14`,
+/// never zero) and there are at most five, so padding a shorter list with zeros
+/// reproduces `Vec`'s "a prefix sorts first" rule exactly. Comparing these is
+/// what lets the arrangement loop and the head-to-head block stay out of the
+/// heap.
+pub(crate) fn compare_key(value: &HandValue) -> u64 {
+    debug_assert!(value.1.len() <= 7, "tie-breakers overflow the packed key");
+    let mut key = (value.0 as u64) << 56;
+    for (slot, rank) in value.1.iter().take(7).enumerate() {
+        key |= (*rank as u64) << (48 - 8 * slot);
+    }
+    key
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct FantasylandEntry {
     pub qualifies: bool,

@@ -25,7 +25,7 @@
 use crate::cards::Card;
 use crate::infoset::ActorObservation;
 use crate::scoring::{
-    bottom_royalty_from_value, fl_entry_from_top_value, middle_royalty_from_value,
+    bottom_royalty_from_value, compare_key, fl_entry_from_top_value, middle_royalty_from_value,
     top_royalty_from_value, HandValue,
 };
 use crate::state::{Board, Row};
@@ -200,8 +200,13 @@ struct RowFinish {
 }
 
 /// A finished legal board.
+///
+/// The rows are carried as [`compare_key`] integers rather than `HandValue`s:
+/// the head-to-head block only ever orders them, the packed key orders
+/// identically (an equivalence `t3first_features` pins with a test), and the
+/// integer spares the three heap clones every surviving draw used to pay.
 pub struct Finish {
-    values: [HandValue; 3],
+    keys: [u64; 3],
     royalty: f32,
     fantasyland: bool,
 }
@@ -209,9 +214,10 @@ pub struct Finish {
 impl Finish {
     /// Used by the first-seat encoder, whose sampled joint block builds
     /// finishes of its own but compares them through the same head-to-head.
-    pub fn new(values: [HandValue; 3], royalty: f32, fantasyland: bool) -> Self {
+    /// Takes the rows in [`compare_key`] form.
+    pub fn new(keys: [u64; 3], royalty: f32, fantasyland: bool) -> Self {
         Self {
-            values,
+            keys,
             royalty,
             fantasyland,
         }
@@ -319,10 +325,10 @@ pub fn side_outlook(
                 fantasyland += 1;
             }
             legal.push(Finish {
-                values: [
-                    triple[0].value.clone(),
-                    triple[1].value.clone(),
-                    triple[2].value.clone(),
+                keys: [
+                    compare_key(&triple[0].value),
+                    compare_key(&triple[1].value),
+                    compare_key(&triple[2].value),
                 ],
                 royalty,
                 fantasyland: triple[0].fantasyland,
@@ -406,7 +412,7 @@ pub fn head_to_head(hero: &[Finish], opponent: &[Finish]) -> [f32; HEAD_TO_HEAD_
             pairs += 1;
             let mut won = 0;
             for row in 0..3 {
-                if mine.values[row] > other.values[row] {
+                if mine.keys[row] > other.keys[row] {
                     wins[row] += 1.0;
                     won += 1;
                 }

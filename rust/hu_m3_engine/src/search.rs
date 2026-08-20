@@ -530,8 +530,17 @@ struct TerminalComponentMeans {
     future_count: usize,
 }
 
+/// Card masks as the cache identity of one child observation.
+///
+/// Within one search context every child observation shares the root's
+/// immutable scoring context and carries the same hardcoded Fantasyland flags,
+/// so the fields that vary -- boards, dealt cards, discards, seat, street,
+/// order -- are the whole identity, and masks carry them order-invariantly
+/// without JSON serialization, repeated validation, or cryptographic hashing
+/// at every rollout node. Street is derivable from the mask populations, but
+/// carrying it makes the injectivity argument structural rather than counted.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
-struct T4ObservationKey {
+struct ObservationKey {
     hero_top: u64,
     hero_middle: u64,
     hero_bottom: u64,
@@ -541,10 +550,11 @@ struct T4ObservationKey {
     dealt: u64,
     hero_discards: u64,
     seat: Seat,
+    street: Street,
     to_act_order: ActOrder,
 }
 
-impl T4ObservationKey {
+impl ObservationKey {
     fn new(observation: &ActorObservation) -> Self {
         let mask = |cards: &[Card]| cards.iter().fold(0_u64, |value, card| value | card.bit());
         Self {
@@ -557,6 +567,7 @@ impl T4ObservationKey {
             dealt: mask(&observation.dealt_cards),
             hero_discards: mask(&observation.hero_private_discards),
             seat: observation.seat,
+            street: observation.street,
             to_act_order: observation.to_act_order,
         }
     }
@@ -613,22 +624,22 @@ struct SearchContext {
     /// path; the `decide` path is unaffected either way, because it never
     /// reaches here.
     fast_t0_second_model: Option<Model>,
-    t4_action_cache: HashMap<T4ObservationKey, Action>,
-    t3_second_action_cache: HashMap<String, Action>,
-    t3_first_action_cache: HashMap<String, Action>,
-    t2_second_action_cache: HashMap<String, Action>,
-    t2_first_action_cache: HashMap<String, Action>,
-    t1_second_action_cache: HashMap<String, Action>,
-    t1_first_action_cache: HashMap<String, Action>,
-    t0_second_action_cache: HashMap<String, Action>,
+    t4_action_cache: HashMap<ObservationKey, Action>,
+    t3_second_action_cache: HashMap<ObservationKey, Action>,
+    t3_first_action_cache: HashMap<ObservationKey, Action>,
+    t2_second_action_cache: HashMap<ObservationKey, Action>,
+    t2_first_action_cache: HashMap<ObservationKey, Action>,
+    t1_second_action_cache: HashMap<ObservationKey, Action>,
+    t1_first_action_cache: HashMap<ObservationKey, Action>,
+    t0_second_action_cache: HashMap<ObservationKey, Action>,
     /// Replies memoised by the coarse evaluator, kept apart from the
     /// full-precision caches above so a fingerprint answered by one encoder can
     /// never be served by the other.
-    fast_t2_second_action_cache: HashMap<String, Action>,
-    fast_t2_first_action_cache: HashMap<String, Action>,
-    fast_t1_second_action_cache: HashMap<String, Action>,
-    fast_t1_first_action_cache: HashMap<String, Action>,
-    fast_t0_second_action_cache: HashMap<String, Action>,
+    fast_t2_second_action_cache: HashMap<ObservationKey, Action>,
+    fast_t2_first_action_cache: HashMap<ObservationKey, Action>,
+    fast_t1_second_action_cache: HashMap<ObservationKey, Action>,
+    fast_t1_first_action_cache: HashMap<ObservationKey, Action>,
+    fast_t0_second_action_cache: HashMap<ObservationKey, Action>,
     /// Outlook work the coarse replies share. Held for the search rather than
     /// built per decision so candidate boards drawn against a repeated unknown
     /// set answer from it; a call with a different unknown set empties it, so
@@ -638,9 +649,10 @@ struct SearchContext {
     fast_t1_second_outlook: FastOutlookCache,
     fast_t1_first_outlook: FastOutlookCache,
     fast_t0_second_outlook: FastOutlookCache,
-    t3_child_observation_fingerprints: HashSet<String>,
-    t4_child_observation_keys: HashSet<T4ObservationKey>,
+    t3_child_observation_keys: HashSet<ObservationKey>,
+    t4_child_observation_keys: HashSet<ObservationKey>,
 }
+
 
 pub fn evaluate_engine_request(request: EngineRequest) -> Result<Value, String> {
     if request.schema != REQUEST_SCHEMA {
@@ -1285,7 +1297,7 @@ pub fn evaluate_t3(observation: &ActorObservation, config: &T3Config) -> Result<
         fast_t1_second_outlook: FastOutlookCache::new(),
         fast_t1_first_outlook: FastOutlookCache::new(),
         fast_t0_second_outlook: FastOutlookCache::new(),
-        t3_child_observation_fingerprints: HashSet::new(),
+        t3_child_observation_keys: HashSet::new(),
         t4_child_observation_keys: HashSet::new(),
     };
     let candidate_values = score_t3_actions(
@@ -1356,7 +1368,7 @@ pub fn evaluate_t3(observation: &ActorObservation, config: &T3Config) -> Result<
         "evaluation_rng_key_digests": evaluation_batch.particles.iter().map(|particle| particle.rng_key_digest.clone()).collect::<Vec<_>>(),
         "sample_independence": "disjoint_particle_rng_keys",
         "continuation_policy": continuation_policy_report(config, &context),
-        "child_information_set_count": context.t3_child_observation_fingerprints.len() + context.t4_child_observation_keys.len(),
+        "child_information_set_count": context.t3_child_observation_keys.len() + context.t4_child_observation_keys.len(),
         "actions": rows,
         "teacher_value_status": "diagnostic_not_match_EV",
     }))
@@ -1458,7 +1470,7 @@ pub fn evaluate_t3_abr_components(
         fast_t1_second_outlook: FastOutlookCache::new(),
         fast_t1_first_outlook: FastOutlookCache::new(),
         fast_t0_second_outlook: FastOutlookCache::new(),
-        t3_child_observation_fingerprints: HashSet::new(),
+        t3_child_observation_keys: HashSet::new(),
         t4_child_observation_keys: HashSet::new(),
     };
     let candidate_components = score_t3_action_components(
@@ -1542,7 +1554,7 @@ pub fn evaluate_t3_abr_components(
         "evaluation_rng_key_digests": evaluation_batch.particles.iter().map(|particle| particle.rng_key_digest.clone()).collect::<Vec<_>>(),
         "sample_independence": "disjoint_particle_rng_keys",
         "continuation_policy": continuation_policy_report(config, &context),
-        "child_information_set_count": context.t3_child_observation_fingerprints.len() + context.t4_child_observation_keys.len(),
+        "child_information_set_count": context.t3_child_observation_keys.len() + context.t4_child_observation_keys.len(),
         "terminal_component_schema": "hu_m3_t3_terminal_component_means_v1",
         "terminal_component_visibility":
             "aggregate_only_no_sampled_cards_no_opponent_private_discards",
@@ -1736,7 +1748,7 @@ fn locked_t4_action(
     // root solve. Card masks therefore provide the same order-invariant cache
     // identity as the public SHA-256 fingerprint without JSON serialization,
     // repeated validation, or cryptographic hashing at every rollout node.
-    let key = T4ObservationKey::new(observation);
+    let key = ObservationKey::new(observation);
     context.t4_child_observation_keys.insert(key);
     if context.config.use_t4_action_cache {
         if let Some(action) = context.t4_action_cache.get(&key) {
@@ -1826,17 +1838,15 @@ fn locked_t3_first_action(
                 .to_owned(),
         );
     };
-    let fingerprint = observation.fingerprint();
-    context
-        .t3_child_observation_fingerprints
-        .insert(fingerprint.clone());
-    if let Some(action) = context.t3_first_action_cache.get(&fingerprint) {
+    let key = ObservationKey::new(observation);
+    context.t3_child_observation_keys.insert(key);
+    if let Some(action) = context.t3_first_action_cache.get(&key) {
         return Ok(action.clone());
     }
     let selected = learned_t3_first_action(observation, model)?;
     context
         .t3_first_action_cache
-        .insert(fingerprint, selected.clone());
+        .insert(key, selected.clone());
     Ok(selected)
 }
 
@@ -2350,17 +2360,15 @@ fn locked_t2_second_action(
     // the difference: it returns a legal action chosen by the same canonical
     // rule, and only the encoder behind the choice is cheaper.
     if let Some(model) = context.fast_t2_second_model.as_ref() {
-        let fingerprint = observation.fingerprint();
-        context
-            .t3_child_observation_fingerprints
-            .insert(fingerprint.clone());
-        if let Some(action) = context.fast_t2_second_action_cache.get(&fingerprint) {
+        let key = ObservationKey::new(observation);
+        context.t3_child_observation_keys.insert(key);
+        if let Some(action) = context.fast_t2_second_action_cache.get(&key) {
             return Ok(action.clone());
         }
         let selected = fast_t2_action(observation, model, &mut context.fast_t2_second_outlook)?;
         context
             .fast_t2_second_action_cache
-            .insert(fingerprint, selected.clone());
+            .insert(key, selected.clone());
         return Ok(selected);
     }
     let Some(model) = context.t2_second_model.as_ref() else {
@@ -2370,17 +2378,15 @@ fn locked_t2_second_action(
                 .to_owned(),
         );
     };
-    let fingerprint = observation.fingerprint();
-    context
-        .t3_child_observation_fingerprints
-        .insert(fingerprint.clone());
-    if let Some(action) = context.t2_second_action_cache.get(&fingerprint) {
+    let key = ObservationKey::new(observation);
+    context.t3_child_observation_keys.insert(key);
+    if let Some(action) = context.t2_second_action_cache.get(&key) {
         return Ok(action.clone());
     }
     let selected = learned_t2_second_action(observation, model)?;
     context
         .t2_second_action_cache
-        .insert(fingerprint, selected.clone());
+        .insert(key, selected.clone());
     Ok(selected)
 }
 
@@ -2397,17 +2403,15 @@ fn locked_t2_first_action(
 ) -> Result<Action, String> {
     // The coarse reply when one was pinned; see [`locked_t2_second_action`].
     if let Some(model) = context.fast_t2_first_model.as_ref() {
-        let fingerprint = observation.fingerprint();
-        context
-            .t3_child_observation_fingerprints
-            .insert(fingerprint.clone());
-        if let Some(action) = context.fast_t2_first_action_cache.get(&fingerprint) {
+        let key = ObservationKey::new(observation);
+        context.t3_child_observation_keys.insert(key);
+        if let Some(action) = context.fast_t2_first_action_cache.get(&key) {
             return Ok(action.clone());
         }
         let selected = fast_t2_action(observation, model, &mut context.fast_t2_first_outlook)?;
         context
             .fast_t2_first_action_cache
-            .insert(fingerprint, selected.clone());
+            .insert(key, selected.clone());
         return Ok(selected);
     }
     let Some(model) = context.t2_first_model.as_ref() else {
@@ -2417,17 +2421,15 @@ fn locked_t2_first_action(
                 .to_owned(),
         );
     };
-    let fingerprint = observation.fingerprint();
-    context
-        .t3_child_observation_fingerprints
-        .insert(fingerprint.clone());
-    if let Some(action) = context.t2_first_action_cache.get(&fingerprint) {
+    let key = ObservationKey::new(observation);
+    context.t3_child_observation_keys.insert(key);
+    if let Some(action) = context.t2_first_action_cache.get(&key) {
         return Ok(action.clone());
     }
     let selected = learned_t2_first_action(observation, model)?;
     context
         .t2_first_action_cache
-        .insert(fingerprint, selected.clone());
+        .insert(key, selected.clone());
     Ok(selected)
 }
 
@@ -2447,17 +2449,15 @@ fn locked_t1_second_action(
     // the difference: it returns a legal action chosen by the same canonical
     // rule, and only the encoder behind the choice is cheaper.
     if let Some(model) = context.fast_t1_second_model.as_ref() {
-        let fingerprint = observation.fingerprint();
-        context
-            .t3_child_observation_fingerprints
-            .insert(fingerprint.clone());
-        if let Some(action) = context.fast_t1_second_action_cache.get(&fingerprint) {
+        let key = ObservationKey::new(observation);
+        context.t3_child_observation_keys.insert(key);
+        if let Some(action) = context.fast_t1_second_action_cache.get(&key) {
             return Ok(action.clone());
         }
         let selected = fast_t1_action(observation, model, &mut context.fast_t1_second_outlook)?;
         context
             .fast_t1_second_action_cache
-            .insert(fingerprint, selected.clone());
+            .insert(key, selected.clone());
         return Ok(selected);
     }
     let Some(model) = context.t1_second_model.as_ref() else {
@@ -2467,17 +2467,15 @@ fn locked_t1_second_action(
                 .to_owned(),
         );
     };
-    let fingerprint = observation.fingerprint();
-    context
-        .t3_child_observation_fingerprints
-        .insert(fingerprint.clone());
-    if let Some(action) = context.t1_second_action_cache.get(&fingerprint) {
+    let key = ObservationKey::new(observation);
+    context.t3_child_observation_keys.insert(key);
+    if let Some(action) = context.t1_second_action_cache.get(&key) {
         return Ok(action.clone());
     }
     let selected = learned_t1_second_action(observation, model)?;
     context
         .t1_second_action_cache
-        .insert(fingerprint, selected.clone());
+        .insert(key, selected.clone());
     Ok(selected)
 }
 
@@ -2492,17 +2490,15 @@ fn locked_t1_first_action(
 ) -> Result<Action, String> {
     // The coarse reply when one was pinned; see [`locked_t1_second_action`].
     if let Some(model) = context.fast_t1_first_model.as_ref() {
-        let fingerprint = observation.fingerprint();
-        context
-            .t3_child_observation_fingerprints
-            .insert(fingerprint.clone());
-        if let Some(action) = context.fast_t1_first_action_cache.get(&fingerprint) {
+        let key = ObservationKey::new(observation);
+        context.t3_child_observation_keys.insert(key);
+        if let Some(action) = context.fast_t1_first_action_cache.get(&key) {
             return Ok(action.clone());
         }
         let selected = fast_t1_action(observation, model, &mut context.fast_t1_first_outlook)?;
         context
             .fast_t1_first_action_cache
-            .insert(fingerprint, selected.clone());
+            .insert(key, selected.clone());
         return Ok(selected);
     }
     let Some(model) = context.t1_first_model.as_ref() else {
@@ -2512,17 +2508,15 @@ fn locked_t1_first_action(
                 .to_owned(),
         );
     };
-    let fingerprint = observation.fingerprint();
-    context
-        .t3_child_observation_fingerprints
-        .insert(fingerprint.clone());
-    if let Some(action) = context.t1_first_action_cache.get(&fingerprint) {
+    let key = ObservationKey::new(observation);
+    context.t3_child_observation_keys.insert(key);
+    if let Some(action) = context.t1_first_action_cache.get(&key) {
         return Ok(action.clone());
     }
     let selected = learned_t1_first_action(observation, model)?;
     context
         .t1_first_action_cache
-        .insert(fingerprint, selected.clone());
+        .insert(key, selected.clone());
     Ok(selected)
 }
 
@@ -2542,18 +2536,16 @@ fn locked_t0_second_action(
     // action chosen by the same canonical rule, and only the encoder behind the
     // choice is cheaper.
     if let Some(model) = context.fast_t0_second_model.as_ref() {
-        let fingerprint = observation.fingerprint();
-        context
-            .t3_child_observation_fingerprints
-            .insert(fingerprint.clone());
-        if let Some(action) = context.fast_t0_second_action_cache.get(&fingerprint) {
+        let key = ObservationKey::new(observation);
+        context.t3_child_observation_keys.insert(key);
+        if let Some(action) = context.fast_t0_second_action_cache.get(&key) {
             return Ok(action.clone());
         }
         let selected =
             fast_t0_second_action(observation, model, &mut context.fast_t0_second_outlook)?;
         context
             .fast_t0_second_action_cache
-            .insert(fingerprint, selected.clone());
+            .insert(key, selected.clone());
         return Ok(selected);
     }
     let Some(model) = context.t0_second_model.as_ref() else {
@@ -2563,17 +2555,15 @@ fn locked_t0_second_action(
                 .to_owned(),
         );
     };
-    let fingerprint = observation.fingerprint();
-    context
-        .t3_child_observation_fingerprints
-        .insert(fingerprint.clone());
-    if let Some(action) = context.t0_second_action_cache.get(&fingerprint) {
+    let key = ObservationKey::new(observation);
+    context.t3_child_observation_keys.insert(key);
+    if let Some(action) = context.t0_second_action_cache.get(&key) {
         return Ok(action.clone());
     }
     let selected = learned_t0_second_action(observation, model)?;
     context
         .t0_second_action_cache
-        .insert(fingerprint, selected.clone());
+        .insert(key, selected.clone());
     Ok(selected)
 }
 
@@ -3567,7 +3557,7 @@ pub fn evaluate_t2(observation: &ActorObservation, config: &T3Config) -> Result<
         fast_t1_second_outlook: FastOutlookCache::new(),
         fast_t1_first_outlook: FastOutlookCache::new(),
         fast_t0_second_outlook: FastOutlookCache::new(),
-        t3_child_observation_fingerprints: HashSet::new(),
+        t3_child_observation_keys: HashSet::new(),
         t4_child_observation_keys: HashSet::new(),
     };
     let mut required = vec![
@@ -3640,7 +3630,7 @@ pub fn evaluate_t2(observation: &ActorObservation, config: &T3Config) -> Result<
             evaluation_best - evaluation_values[selected],
         "sample_independence": "disjoint_particle_rng_keys",
         "continuation_policy": continuation_policy_report(config, &context),
-        "child_information_set_count": context.t3_child_observation_fingerprints.len()
+        "child_information_set_count": context.t3_child_observation_keys.len()
             + context.t4_child_observation_keys.len(),
         "actions": rows,
         "teacher_value_status": "diagnostic_not_match_EV",
@@ -3799,7 +3789,7 @@ pub fn evaluate_t1(observation: &ActorObservation, config: &T3Config) -> Result<
         fast_t1_second_outlook: FastOutlookCache::new(),
         fast_t1_first_outlook: FastOutlookCache::new(),
         fast_t0_second_outlook: FastOutlookCache::new(),
-        t3_child_observation_fingerprints: HashSet::new(),
+        t3_child_observation_keys: HashSet::new(),
         t4_child_observation_keys: HashSet::new(),
     };
     // Acting second every one of the five is on the path: the opponent's T2
@@ -3878,7 +3868,7 @@ pub fn evaluate_t1(observation: &ActorObservation, config: &T3Config) -> Result<
             evaluation_best - evaluation_values[selected],
         "sample_independence": "disjoint_particle_rng_keys",
         "continuation_policy": continuation_policy_report(config, &context),
-        "child_information_set_count": context.t3_child_observation_fingerprints.len()
+        "child_information_set_count": context.t3_child_observation_keys.len()
             + context.t4_child_observation_keys.len(),
         "actions": rows,
         "teacher_value_status": "diagnostic_not_match_EV",
@@ -3998,7 +3988,7 @@ fn build_t0_context(
         fast_t1_second_outlook: FastOutlookCache::new(),
         fast_t1_first_outlook: FastOutlookCache::new(),
         fast_t0_second_outlook: FastOutlookCache::new(),
-        t3_child_observation_fingerprints: HashSet::new(),
+        t3_child_observation_keys: HashSet::new(),
         t4_child_observation_keys: HashSet::new(),
     })
 }
@@ -4605,7 +4595,7 @@ pub fn evaluate_t0(observation: &ActorObservation, config: &T3Config) -> Result<
         "prefilter_keep": config.prefilter_keep,
         "stage_two_action_count": survivor_count,
         "continuation_policy": continuation_policy_report(config, &context),
-        "child_information_set_count": context.t3_child_observation_fingerprints.len()
+        "child_information_set_count": context.t3_child_observation_keys.len()
             + context.t4_child_observation_keys.len(),
         "actions": rows,
         "teacher_value_status": "diagnostic_not_match_EV",
@@ -5301,21 +5291,22 @@ fn locked_t3_second_action(
     if observation.street != Street::T3 || observation.to_act_order != ActOrder::Second {
         return Err("nested T3 response must be a T3 second-seat observation".to_owned());
     }
-    let fingerprint = observation.fingerprint();
-    context
-        .t3_child_observation_fingerprints
-        .insert(fingerprint.clone());
-    if let Some(action) = context.t3_second_action_cache.get(&fingerprint) {
+    let key = ObservationKey::new(observation);
+    context.t3_child_observation_keys.insert(key);
+    if let Some(action) = context.t3_second_action_cache.get(&key) {
         return Ok(action.clone());
     }
     if let Some(model) = context.t3_second_model.as_ref() {
         let selected = learned_t3_second_action(observation, model)?;
         context
             .t3_second_action_cache
-            .insert(fingerprint, selected.clone());
+            .insert(key, selected.clone());
         return Ok(selected);
     }
     let actions = generate_turn_actions_trusted(&observation.hero_board, &observation.dealt_cards);
+    // The sampled fallback addresses its particles by the public fingerprint,
+    // so that string survives the cache keys moving to card masks.
+    let fingerprint = observation.fingerprint();
     let batch = sample_hidden_card_particles(
         observation,
         context.config.seed,
@@ -5327,7 +5318,7 @@ fn locked_t3_second_action(
     let selected = actions[canonical_descending_indices(&values, &actions)?[0]].clone();
     context
         .t3_second_action_cache
-        .insert(fingerprint, selected.clone());
+        .insert(key, selected.clone());
     Ok(selected)
 }
 
@@ -5633,7 +5624,7 @@ mod tests {
             fast_t1_second_outlook: FastOutlookCache::new(),
             fast_t1_first_outlook: FastOutlookCache::new(),
             fast_t0_second_outlook: FastOutlookCache::new(),
-            t3_child_observation_fingerprints: HashSet::new(),
+            t3_child_observation_keys: HashSet::new(),
             t4_child_observation_keys: HashSet::new(),
         }
     }
