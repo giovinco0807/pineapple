@@ -1,4 +1,4 @@
-# T0 ladder for the twenty akq openings — state at 2026-08-20 (stopped)
+# T0 ladder for the twenty akq openings — closed 2026-08-20
 
 Two schedules were run against the same twenty openings. The second replaced the
 first, and both are on disk. This is where they left off and what would restart
@@ -50,56 +50,62 @@ finish on one batch where the fixed schedule paid twelve.
 
 ## Where it stopped, and why
 
-Nine hands remained, in three clear tiers:
+Seventeen of the twenty openings converged to a single candidate. Three were
+left open by choice:
 
 | opening | particles | live | gap | sigma | needed for 4 sigma |
 |---|---|---|---|---|---|
-| Qd Jc 3c 3h 2h | 3k | 1 | +1.187 | 4.3 | 3k — **already there** |
-| Kc Qs 7s 3c 3d | 10k | 1 | +0.631 | 4.2 | 9k — **already there** |
-| Qc 9d 7s 3h 2s | 9k | 2 | +0.617 | 3.9 | 9k |
-| Qs 6s 5d 3c 3h | 13k | 5 | +0.438 | 3.3 | 19k |
-| Qh Js 9h 3h 2c | 13k | 2 | +0.438 | 3.3 | 19k |
-| Ac Qc 7h 3d 3s | 13k | 2 | +0.393 | 3.0 | 23k |
-| Kc Ks 7h 5d 4s | 13k | 16 | +0.156 | 1.2 | 147k |
-| Kh Jd 9s 8h 7c | 47k | 2 | +0.047 | 0.7 | 1,642k |
-| As Kd Kh Ts 7s | 26k | 2 | +0.038 | 0.4 | 2,529k |
+| As Kd Kh Ts 7s | 40k | 2 | +0.184 | 2.4 | 107k |
+| Kh Jd 9s 8h 7c | 63k | 2 | +0.109 | 1.8 | 303k |
+| Kc Ks 7h 5d 4s | 17k | 5 | +0.184 | 1.6 | 107k |
 
-**A scheduling flaw stopped the top two from being recorded.** Each worker
-finishes one hand before starting the next, so the two workers that reached
-`As Kd Kh Ts 7s` and `Kh Jd 9s 8h 7c` — the two that need millions of particles
-— stalled there forever, and every hand queued behind them waited. The third
-worker had finished its whole list and sat idle: five of sixteen cores doing
-nothing while two hands that needed only a convergence check went unvisited.
+They are separated by 0.11 to 0.18 points, which is less than the model's own
+error on the two openings it gets wrong (0.218 and 0.283). Deciding them would
+cost hours to establish which of two actions worth the same within a fifth of a
+point is better, and the table records them as `unresolved`, which says exactly
+that. **"Below what this instrument resolves" is a result, not a failure to
+reach one.**
 
-**Fix before restarting: advance every open hand by one batch per pass**, the
-same batch-major ordering the fixed schedule used and the adaptive one failed to
-inherit. Then a hand that cannot converge costs one batch a pass instead of
-blocking a queue.
+An estimate to distrust, from this run: `As Kd Kh Ts 7s` reported a gap of
++0.038 at 26k particles, +0.240 at 36k, and +0.184 at 40k. `particles_needed`
+moved with it -- 2,529k, then 63k, then 107k. The requirement goes as the
+inverse square of the gap, so a gap estimated from a few standard errors carries
+a requirement that can move by a factor of forty. Projections made at 2 sigma
+are not worth quoting, and one made here was retracted twice.
 
-## The bottom three are not worth finishing
+## A scheduling flaw, found and fixed mid-run
 
-`Kc Ks 7h 5d 4s`, `Kh Jd 9s 8h 7c` and `As Kd Kh Ts 7s` need 147k, 1,642k and
-2,529k particles for a 4-sigma verdict. At 170 ms of core time per particle-
-evaluation the last two are weeks of local compute or about $1,000 of GCP each.
+The first version of the eliminator ran each hand to completion before starting
+the next. Two workers reached openings needing millions of particles and stalled
+there permanently while every hand queued behind them waited -- two of those
+already past four sigma and needing nothing but a convergence check -- and the
+third worker, having finished its list, sat idle. Five of sixteen cores doing
+nothing.
 
-They are separated by 0.038 to 0.156 points. Paying that to establish which of
-two actions worth the same within a twentieth of a point is better is not a
-trade anyone should take. **"The difference is below what this instrument can
-resolve" is itself a correct result**, and the table already records them as
-`unresolved`, which says exactly that.
+The fix is one batch per open hand per pass, which the fixed schedule had and
+the adaptive one failed to inherit. See `docs/t0_sequential_elimination_20260820.md`.
 
 ## What the model looks like against the decided hands
 
-Of the eleven converged openings the shipped T0 first-seat policy picks the
-measured best on ten. It misses on `Ah Kc Qs 8h 7c` — the most deeply measured
-of them — where it plays the measured second and ranks the true best third of
-232, costing 0.218 points.
+Of the seventeen converged openings the shipped T0 first-seat policy picks the
+measured best on fifteen. Mean cost 0.029 points a hand.
 
-**91% is not a number to quote yet.** Hands converge in order of how separated
-they are, so the easy ones finished first and this sample is biased toward them.
-The nine left are the tight ones. Ten zeros and one 0.218 also averages to
-0.0198 points a hand, which will move a lot if the remaining hands go the other
-way.
+**The two misses are the two that took the most particles to decide.**
+
+| opening | particles to converge | gap | model rank of the best | cost |
+|---|---|---|---|---|
+| `Ah Kc Qs 8h 7c` | 81k | 0.218 | 3 of 232 | 0.218 |
+| `Ac Qc 7h 3d 3s` | 45k | 0.283 | 2 of 232 | 0.283 |
+
+Everything it got right converged in 3k to 35k. That is the shape the earlier
+readings kept half-showing and this one states: **the policy is reliable exactly
+where the answer is obvious and unreliable exactly where it is not.** An earlier
+version of this file said the correlation was not supported; it was, at 45k
+particles and above, and the sample then was too small and too easy to see it.
+
+The number remains biased toward easy hands -- the three left open are the
+tightest of the twenty -- but the direction is now measured rather than
+suspected.
 
 ## Restarting
 
