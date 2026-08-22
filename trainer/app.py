@@ -25,6 +25,7 @@ sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(ROOT))
 
 from trainer import evaluator as trainer_evaluator  # noqa: E402
+from trainer import handlog  # noqa: E402
 from trainer.game import TrainingSession  # noqa: E402
 from trainer.store import TrainerStore  # noqa: E402
 
@@ -168,6 +169,7 @@ class NewTrainingRequest(BaseModel):
     position: str = Field(default="random", pattern="^(random|first|second)$")
     precision: str = Field(default="standard", pattern="^(fast|standard|high)$")
     mistake_threshold: float = 1.0
+    method: str = Field(default="model", pattern="^(model|teacher)$")
 
 
 @app.post("/api/training/new")
@@ -177,6 +179,7 @@ async def training_new(req: NewTrainingRequest, account_id: int = Depends(curren
         position=req.position,
         precision=req.precision,
         mistake_threshold=req.mistake_threshold,
+        method=req.method,
         on_mistake=_persist_mistake,
         on_hand_done=_persist_hand,
     )
@@ -238,6 +241,7 @@ class EditorRequest(BaseModel):
     turn: int
     position: str = Field(default="first", pattern="^(first|second)$")
     precision: str = Field(default="standard", pattern="^(fast|standard|high)$")
+    method: str = Field(default="model", pattern="^(model|teacher)$")
 
 
 @app.post("/api/editor/evaluate")
@@ -252,6 +256,7 @@ async def editor_evaluate(req: EditorRequest):
             turn=req.turn,
             position=req.position,
             precision=req.precision,
+            method=req.method,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
@@ -259,6 +264,7 @@ async def editor_evaluate(req: EditorRequest):
         logger.exception("editor evaluation failed")
         raise HTTPException(status_code=503, detail=f"評価に失敗しました: {exc}")
     result["turn"] = req.turn
+    result["method"] = req.method
     result["candidate_count"] = len(result.get("candidates") or [])
     result["elapsed"] = time.time() - started
     return result
@@ -298,6 +304,179 @@ async def mistake_retry(
 async def mistake_delete(mistake_id: int, account_id: int = Depends(current_account)):
     store.delete_mistake(mistake_id, account_id)
     return {"ok": True}
+
+
+# ----------------------------------------------------------------------
+# hand logs (transcribed hands)
+# ----------------------------------------------------------------------
+
+
+class HandLogRequest(BaseModel):
+    label: str = ""
+    note: str = ""
+    hero_position: str = Field(default="first", pattern="^(first|second)$")
+    streets: list = []
+    # Fantasyland: which seats were in it, and the thirteen cards each of those
+    # seats set in one action.  Absent on every record written before FL was
+    # supported, which is why both default to empty rather than being required.
+    fl: Dict[str, bool] = {}
+    fl_hands: Dict[str, Any] = {}
+
+
+@app.post("/api/handlog")
+async def handlog_create(req: HandLogRequest, account_id: int = Depends(current_account)):
+    try:
+        hand = handlog.validate_hand(req.model_dump())
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    hand_id = store.add_hand_log(
+        account_id=account_id,
+        label=hand["label"],
+        note=hand["note"],
+        position=hand["hero_position"],
+        hand=hand,
+    )
+    return {"id": hand_id, "hand": hand}
+
+
+@app.put("/api/handlog/{hand_id}")
+async def handlog_update(
+    hand_id: int, req: HandLogRequest, account_id: int = Depends(current_account)
+):
+    try:
+        hand = handlog.validate_hand(req.model_dump())
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    if not store.update_hand_log(
+        hand_id,
+        account_id,
+        label=hand["label"],
+        note=hand["note"],
+        position=hand["hero_position"],
+        hand=hand,
+    ):
+        raise HTTPException(status_code=404, detail="ハンドが見つかりません")
+    return {"id": hand_id, "hand": hand}
+
+
+@app.get("/api/handlog")
+async def handlog_list(account_id: int = Depends(current_account)):
+    return {"hands": store.list_hand_logs(account_id)}
+
+
+# Declared before /api/handlog/{hand_id}: routes match in declaration order and
+# `hand_id: int` would reject "job" with a 422 rather than falling through.
+@app.get("/api/handlog/job/{job_id}")
+async def handlog_job(job_id: str):
+    job = handlog.jobs.get(job_id)
+    if job is None:
+        raise HTTPException(
+            status_code=404,
+            detail="解析ジョブが見つかりません（サーバー再起動後は再解析してください）",
+        )
+    return job
+
+
+@app.get("/api/handlog/{hand_id}")
+async def handlog_detail(hand_id: int, account_id: int = Depends(current_account)):
+    item = store.get_hand_log(hand_id, account_id)
+    if item is None:
+        raise HTTPException(status_code=404, detail="ハンドが見つかりません")
+    return item
+
+
+@app.delete("/api/handlog/{hand_id}")
+async def handlog_delete(hand_id: int, account_id: int = Depends(current_account)):
+    store.delete_hand_log(hand_id, account_id)
+    return {"ok": True}
+
+
+class HandLogValidateRequest(HandLogRequest):
+    pass
+
+
+@app.post("/api/handlog/validate")
+async def handlog_validate(req: HandLogValidateRequest):
+    """Check a record without storing it, so the editor can flag typos early."""
+    try:
+        hand = handlog.validate_hand(req.model_dump())
+    except ValueError as exc:
+        return {"ok": False, "detail": str(exc)}
+    return {"ok": True, "hand": hand}
+
+
+class AnalyzeRequest(BaseModel):
+    hand_ids: list = []
+    hand: Optional[HandLogRequest] = None
+    precision: str = Field(default="fast", pattern="^(fast|standard|high|deep|deep_t0)$")
+    include_opp: bool = False
+    # Grade only these streets.  Empty means the whole hand, which is what
+    # every caller before this field meant.  The point is to make the
+    # expensive rungs usable: a hand is ten decisions, and `deep_t0` spends
+    # minutes on the opening alone, so a spot worth a hard look should not
+    # drag nine others behind it.
+    turns: list[int] = []
+    # Which instrument grades. The model is deterministic; the teacher search is
+    # seed-dominated at the sample counts a trainer can afford -- measured in
+    # docs/trainer_ranking_quality_20260808.md, which is why this defaults away
+    # from it.
+    method: str = Field(default="model", pattern="^(model|teacher)$")
+
+
+@app.post("/api/handlog/analyze")
+async def handlog_analyze(req: AnalyzeRequest, account_id: int = Depends(current_account)):
+    items: list = []
+    if req.hand:
+        try:
+            items.append({"id": None, "hand": handlog.validate_hand(req.hand.model_dump())})
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+    for hand_id in req.hand_ids:
+        record = store.get_hand_log(int(hand_id), account_id)
+        if record is None:
+            raise HTTPException(status_code=404, detail=f"ハンド #{hand_id} が見つかりません")
+        items.append({"id": record["id"], "hand": record["hand"]})
+    if not items:
+        raise HTTPException(status_code=400, detail="解析するハンドがありません")
+    turns = sorted({int(t) for t in req.turns})
+    if any(t < 0 or t > 4 for t in turns):
+        raise HTTPException(status_code=400, detail="ターンは T0〜T4 の範囲で指定してください")
+
+    def _persist(hand_id, hand, analysis):
+        # `hand` is the snapshot taken when the job was submitted; a deep run
+        # takes minutes, so the row may have been corrected in the meantime.
+        if hand_id is None:
+            return
+        if turns:
+            # A targeted run graded part of the hand, so it folds into what is
+            # stored instead of replacing it -- see handlog.merge_analysis.
+            stored = store.update_hand_log_analysis(
+                hand_id,
+                account_id,
+                lambda existing: handlog.merge_analysis(existing, analysis),
+                expect_hand=hand,
+            )
+        else:
+            stored = store.set_hand_log_analysis(
+                hand_id, account_id, analysis, expect_hand=hand
+            )
+        if not stored:
+            logger.info("hand #%s changed while it was being analysed; result dropped", hand_id)
+
+    job_id = handlog.jobs.submit(
+        items,
+        precision=req.precision,
+        include_opp=req.include_opp,
+        on_hand_done=_persist,
+        method=req.method,
+        turns=turns or None,
+    )
+    return {
+        "job_id": job_id,
+        "hands": len(items),
+        "method": req.method,
+        "turns": turns,
+    }
 
 
 if __name__ == "__main__":

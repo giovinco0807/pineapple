@@ -68,6 +68,7 @@ class TrainingSession:
         *,
         position: str = "random",
         precision: str = "standard",
+        method: str = "model",
         mistake_threshold: float = 1.0,
         on_mistake: Optional[Callable[[Dict[str, Any]], None]] = None,
         on_hand_done: Optional[Callable[["TrainingSession"], None]] = None,
@@ -76,6 +77,10 @@ class TrainingSession:
         self.id = uuid.uuid4().hex[:12]
         self.evaluate = evaluate
         self.precision = precision
+        # How the hero's move is graded. See evaluator.evaluate_position: the
+        # model is deterministic, the teacher search is seed-dominated at the
+        # sample counts this can afford.
+        self.method = method
         self.mistake_threshold = float(mistake_threshold)
         self.on_mistake = on_mistake
         self.on_hand_done = on_hand_done
@@ -214,6 +219,7 @@ class TrainingSession:
                 turn=street,
                 position=self.position,
                 precision=self.precision,
+                method=self.method,
             )
             with self._lock:
                 self._eval_result = result

@@ -89,6 +89,46 @@ reported and refuses to write when it is not what the plan pinned. A plan
 without ``plan_kind`` takes the joint-exact path and produces byte-identical
 requests and position files to one written before this kind existed.
 
+A joint-exact plan of any kind may say where its positions come from.
+``root_source: "seeded"`` -- the default, and what every plan written before
+this key meant -- deals each root from ``hand_seed_base + offset`` and plays the
+streets above it with a frozen behavior profile. ``root_source: "explicit"``
+takes them from a ``roots`` list the plan carries, so a caller can hand the
+fleet a NAMED set of positions: a measurement of the teacher on a stated set of
+hands, a re-solve of the positions a model disagreed with, a top-up of a
+corpus's thin region. None of those is reachable from a seed, because the
+seed is what chooses the hand.
+
+What ``explicit`` does NOT change is how a label is measured. A seed decides two
+independent things here, and only the first is replaced: which position is
+labelled, and how it is scored. ``eval_seed_base + offset * 7 + trial *
+3_000_017`` is derived exactly as it always was, so a fixed position is still
+measured by a particle batch nobody chose, and two runs of one explicit plan
+agree bit for bit. The seeded fields themselves are refused rather than ignored
+on such a plan: a hand seed block on a plan that never dealt a hand reads as a
+claim about overlap with other corpora that the explicit list does not make.
+
+Each root states ``dealt_cards`` and may state ``hero_board``,
+``opponent_public_board``, ``hero_private_discards``, ``opponent_discard_count``
+(a declaration checked against the public board, never an input),
+``opponent_in_fantasyland`` and a free-text ``note``. Everything omitted is
+empty or false, which makes the T0 first-seat root -- two empty boards and five
+cards -- the degenerate case rather than a special one, and leaves T1 and below
+needing no schema change. Every root is validated when the PLAN loads, not when
+its shard reaches it, and by ``ActorObservation`` rather than by a second copy
+of the geometry table: a position that contradicts the plan's street and seat is
+refused by name and index while the run is still an offline receipt.
+
+One field a root may never carry is ``scoring``. The Fantasyland constant is
+what a label means and it reaches the engine through the observation's scoring
+context from the single config ``hu_infoset`` reads -- for explicit roots
+exactly as for dealt ones. A root that set its own would be the second source of
+truth the v3 consolidation removed, and a corpus built at a constant nobody
+chose is indistinguishable from a correct one downstream. The plan declares
+``fl_ev_cards``/``fl_ev_value``, the worker checks that against the runtime
+config, and then checks again that every explicit root will carry that same
+constant into the engine.
+
 A T0 plan may also carry either or both of the two pruning-safety fields.
 ``prefilter_margin`` widens the root prefilter's keep boundary wherever the
 coarse stage cannot separate the actions across it; ``audit_full_every`` makes
@@ -214,6 +254,65 @@ PRUNING_SAFETY_FIELDS = ("prefilter_margin", "audit_full_every")
 # is a prefilter, and only the T0 evaluator has one.
 RACE_FIELDS = ("race_schedule", "race_lcb_z")
 
+# Where a joint-exact plan's positions come from. Two sources, and the default
+# is the only one that existed before: `seeded` derives every root by dealing
+# `hand_seed_base + offset` and playing the streets above it with a frozen
+# behavior profile, which is what makes a corpus of independent random hands.
+#
+# `explicit` is the other thing a caller sometimes needs -- a NAMED set of
+# positions, solved exactly as they were handed over. A measurement of the
+# teacher on a stated set of hands, a re-solve of positions a model disagreed
+# with, a targeted top-up of a corpus's thin region: none of those can be
+# reached from a seed, because the seed is what chooses the hand.
+#
+# The seeds do not go away under `explicit`, and this is the distinction the
+# whole feature turns on. A seed decides two independent things here: WHICH
+# position is labelled (hand/behavior seeds) and HOW the label is measured
+# (`eval_seed_base`, whose progression the engine draws its particle batches
+# from). An explicit plan replaces only the first. `eval_seed_base + offset * 7
+# + trial * 3_000_017` is derived exactly as it always was, so a position that
+# is fixed rather than dealt is still measured by a batch nobody chose, and two
+# runs of the same explicit plan still agree bit for bit.
+ROOT_SOURCE_SEEDED = "seeded"
+ROOT_SOURCE_EXPLICIT = "explicit"
+ROOT_SOURCES = (ROOT_SOURCE_SEEDED, ROOT_SOURCE_EXPLICIT)
+
+# The fields that only mean something when the roots are dealt from seeds. An
+# explicit plan is REFUSED for carrying them rather than quietly ignoring them,
+# by the same rule every misplaced field in this worker is refused by: a plan
+# that names a hand seed block reads as having drawn its positions from it, and
+# a reader comparing two corpora would take the overlap as a duplicate-position
+# hazard that does not exist -- or, worse, take its absence as proof of
+# independence the explicit list never claimed.
+SEEDED_ONLY_FIELDS = ("hand_seed_base", "behavior_seed_offset")
+
+# One explicit root's shape. `dealt_cards` is the only required key because it
+# is the only one every street has: at T0 first the two boards are empty and
+# nothing has been discarded, so a five-card list is the entire position. Every
+# other key defaults to the empty/false value, which makes the T0 first-seat
+# case the degenerate one rather than a special case in the code.
+#
+# The optional keys are here so that T1 and below need no schema change: those
+# streets differ from T0 only in having boards and discards to state. The
+# geometry each street/seat requires is not restated here -- `ActorObservation`
+# already holds the single table (`_REGULAR_DECISION_GEOMETRY`) the engine
+# mirrors, and a second copy of it in this file is a second thing to drift.
+#
+# `opponent_discard_count` is accepted but is NOT an input: it is derived from
+# the opponent's public board, exactly as `ActorObservation.from_dict` derives
+# it, so stating it is a declaration this worker checks rather than a value it
+# takes. `note` is free text for the caller's own bookkeeping; nothing reads it.
+EXPLICIT_ROOT_FIELDS = frozenset({
+    "dealt_cards",
+    "hero_board",
+    "opponent_public_board",
+    "hero_private_discards",
+    "opponent_discard_count",
+    "opponent_in_fantasyland",
+    "note",
+})
+EXPLICIT_ROOT_BOARD_ROWS = ("top", "middle", "bottom")
+
 
 def canonical_bytes(value: Any) -> bytes:
     return json.dumps(
@@ -247,14 +346,29 @@ def load_plan(path: pathlib.Path) -> dict[str, Any]:
         )
     if kind in vs_fl_kinds:
         return load_t3_vs_fl_plan(plan)
+    # Where the positions come from. Absent is `seeded`, so a plan written
+    # before this key existed takes exactly the path it took then and renders
+    # byte-identical requests and position files.
+    root_source = plan.get("root_source", ROOT_SOURCE_SEEDED)
+    if root_source not in ROOT_SOURCES:
+        raise SystemExit(
+            f"root_source must be one of {list(ROOT_SOURCES)} or absent (which "
+            f"means {ROOT_SOURCE_SEEDED!r}); the plan asks for {root_source!r}"
+        )
     required = {
         "schema", "job_id", "street", "seat", "samples", "seeds_per_position",
-        "hand_seed_base", "behavior_seed_offset", "eval_seed_base",
+        "eval_seed_base",
         "engine_library", "engine_library_sha256",
         "feature_encoder_library", "feature_encoder_library_sha256",
         "t4_model", "t4_model_sha256",
         "shards",
     }
+    if root_source == ROOT_SOURCE_SEEDED:
+        # Unchanged: the same set this worker has always required, since a
+        # seeded plan's positions ARE its hand and behavior seed blocks.
+        required |= set(SEEDED_ONLY_FIELDS)
+    else:
+        required |= {"roots"}
     # The T3 second-seat model is on every joint-exact path except one. Acting
     # SECOND at T3 the opponent's T3 turn is already behind the teacher, so
     # `rollout_t3_second` reaches the terminal through two T4 decisions and
@@ -581,7 +695,307 @@ def load_plan(path: pathlib.Path) -> dict[str, Any]:
             f"only; this plan is {plan['street']}/{plan['seat']}, whose teacher "
             "has no T0 reply ahead of it to answer coarsely"
         )
+    if root_source == ROOT_SOURCE_SEEDED:
+        # Refused rather than ignored. A seeded plan carrying a root list would
+        # label the dealt positions and leave the list unread, which is a corpus
+        # of positions nobody asked for under a plan that names the ones they
+        # did.
+        if "roots" in plan:
+            raise SystemExit(
+                "this plan carries an explicit root list but its root_source is "
+                f"{ROOT_SOURCE_SEEDED!r}, under which every position is dealt "
+                f"from hand_seed_base + offset and the list is never read. Set "
+                f"root_source to {ROOT_SOURCE_EXPLICIT!r} or remove the list"
+            )
+    else:
+        validate_explicit_roots(plan)
     return plan
+
+
+def _explicit_board_rows(
+    entry: Mapping[str, Any], field: str, index: int
+) -> dict[str, tuple[str, ...]]:
+    """One board of an explicit root, defaulting every row to empty."""
+
+    raw = entry.get(field, {})
+    if not isinstance(raw, Mapping):
+        raise SystemExit(
+            f"explicit root {index}: {field} must be an object with "
+            f"{list(EXPLICIT_ROOT_BOARD_ROWS)} rows; got {raw!r}"
+        )
+    unknown = sorted(set(raw) - set(EXPLICIT_ROOT_BOARD_ROWS))
+    if unknown:
+        raise SystemExit(
+            f"explicit root {index}: {field} carries unknown rows {unknown}; "
+            f"the rows are {list(EXPLICIT_ROOT_BOARD_ROWS)}"
+        )
+    rows: dict[str, tuple[str, ...]] = {}
+    for row in EXPLICIT_ROOT_BOARD_ROWS:
+        rows[row] = _explicit_card_list(raw, row, index, f"{field}.{row}")
+    return rows
+
+
+def _explicit_card_list(
+    payload: Mapping[str, Any], field: str, index: int, label: str
+) -> tuple[str, ...]:
+    cards = payload.get(field, ())
+    if isinstance(cards, (str, bytes)) or not isinstance(cards, (list, tuple)):
+        raise SystemExit(
+            f"explicit root {index}: {label} must be a list of card strings; "
+            f"got {cards!r}"
+        )
+    for card in cards:
+        if not isinstance(card, str):
+            raise SystemExit(
+                f"explicit root {index}: {label} holds {card!r}, which is not a "
+                "card string such as 'Ah'"
+            )
+    return tuple(cards)
+
+
+def explicit_root_observation(plan: Mapping[str, Any], index: int):
+    """Rebuild one explicit root exactly as the plan states it.
+
+    The plan's own street and seat decide the observation's; nothing about the
+    position is inferred from a seed, and no random number is drawn. What the
+    caller handed over is what gets solved.
+
+    Every consistency rule lives in `ActorObservation.__post_init__`: the card
+    alphabet, duplicate cards across the boards and the deal, and the
+    street/seat geometry the Rust engine mirrors. Re-deriving those here would
+    be a second copy free to drift from the engine's. What this function adds is
+    the position INDEX, so a rejected plan says which of five hundred roots is
+    wrong rather than only that one of them is.
+    """
+
+    from .hu_infoset import ActorObservation
+    from .state import Board
+
+    entry = plan["roots"][index]
+    if not isinstance(entry, Mapping):
+        raise SystemExit(
+            f"explicit root {index} must be an object; got {entry!r}"
+        )
+    if "scoring" in entry:
+        # Named ahead of the generic unknown-field refusal below, because this
+        # is the one rejected field a caller has a plausible reason to reach
+        # for -- and the one whose silent acceptance would be worst. The
+        # Fantasyland constant is what a label MEANS, and it reaches the engine
+        # through the observation's scoring context from the single config
+        # `hu_infoset` reads. A root that carried its own would be a second
+        # source competing with that one, and a corpus built at a constant
+        # nobody chose looks exactly like a correct corpus from the outside.
+        raise SystemExit(
+            f"explicit root {index} carries a scoring context. A plan cannot "
+            "set the Fantasyland constant -- it comes from the one config "
+            "hu_infoset reads, for explicit roots exactly as for dealt ones. "
+            "Pin fl_ev_cards/fl_ev_value at the top of the plan to DECLARE "
+            "which constant this run must find, and the worker will refuse to "
+            "run against any other"
+        )
+    unknown = sorted(set(entry) - EXPLICIT_ROOT_FIELDS)
+    if unknown:
+        raise SystemExit(
+            f"explicit root {index} carries unknown fields {unknown}; the "
+            f"accepted ones are {sorted(EXPLICIT_ROOT_FIELDS)}"
+        )
+    if "dealt_cards" not in entry:
+        raise SystemExit(
+            f"explicit root {index} is missing dealt_cards, the one field every "
+            "street has"
+        )
+    fantasyland = entry.get("opponent_in_fantasyland", False)
+    if not isinstance(fantasyland, bool):
+        raise SystemExit(
+            f"explicit root {index}: opponent_in_fantasyland must be a boolean; "
+            f"got {fantasyland!r}"
+        )
+    try:
+        observation = ActorObservation(
+            hero_board=Board.from_rows(
+                **_explicit_board_rows(entry, "hero_board", index)
+            ),
+            opponent_public_board=Board.from_rows(
+                **_explicit_board_rows(entry, "opponent_public_board", index)
+            ),
+            dealt_cards=_explicit_card_list(
+                entry, "dealt_cards", index, "dealt_cards"
+            ),
+            hero_private_discards=_explicit_card_list(
+                entry, "hero_private_discards", index, "hero_private_discards"
+            ),
+            seat=plan["seat"],
+            street=plan["street"],
+            to_act_order=plan["seat"],
+            opponent_in_fantasyland=fantasyland,
+        )
+    except ValueError as error:
+        # `InformationSetError` is a ValueError, and so is every card-alphabet
+        # and row-capacity refusal `Board` makes.
+        raise SystemExit(
+            f"explicit root {index} is not a {plan['street']}/{plan['seat']} "
+            f"position: {error}"
+        ) from error
+    declared = entry.get("opponent_discard_count")
+    if declared is not None:
+        # A declaration, never an input -- the count follows from the
+        # opponent's public board, so the only thing to do with a stated one is
+        # check it. Same rule `ActorObservation.from_dict` applies.
+        if (
+            isinstance(declared, bool)
+            or not isinstance(declared, int)
+            or declared != observation.opponent_discard_count
+        ):
+            raise SystemExit(
+                f"explicit root {index}: opponent_discard_count={declared!r} "
+                f"disagrees with the {observation.opponent_discard_count} the "
+                "opponent's public board implies"
+            )
+    return observation
+
+
+def normalized_fl_ev(source: Any) -> dict[str, float]:
+    """One Fantasyland table, in one key type, whatever shape it arrived in.
+
+    The three places this worker compares fl_ev tables read them from three
+    sources that disagree about the type of a card count, and every one of them
+    is correct on its own terms:
+
+    * ``hu_infoset.load_default_fl_ev()`` returns ``{14: 9.6}`` -- INT keys,
+      because it parses the config into the numbers the engine works in;
+    * ``ScoringContext.fl_ev`` is ``((14, 9.6),)`` -- a tuple of int pairs, so
+      the dataclass can be frozen and hashed;
+    * a written position's ``observation.scoring.fl_ev`` is ``{"14": 9.6}`` --
+      STRING keys, because it has been through JSON, which has no other kind.
+
+    Comparing any two of those directly is always false, and false in the
+    quietest possible way: the values match, the tables mean the same thing, and
+    the guard fires anyway. That is worse than a guard that never fires, because
+    it fails a correct run and does it at the point where a fleet has already
+    been paid for. Normalising at each call site is what produced that defect --
+    three inline comprehensions that all had to agree, and the moment one caller
+    passed a table that had not been through one, the comparison inverted.
+
+    So there is one normaliser and every comparison goes through it, on BOTH
+    sides. Strings win because that is what survives the round trip to a
+    position file, which is the only one of the three forms that has to match
+    something written by a different process on a different day.
+    """
+
+    if isinstance(source, Mapping):
+        pairs = source.items()
+    else:
+        pairs = source
+    return {str(cards): float(value) for cards, value in pairs}
+
+
+def check_explicit_root_fl_ev(roots, runtime_fl_ev: Any) -> None:
+    """Every explicit root will carry the runtime's Fantasyland constant.
+
+    Module-level rather than inline in `run` so it can be exercised without an
+    engine, because the failure it guards against is the one this project has
+    the worst record with: a corpus of the wrong quantity is byte-shaped exactly
+    like a correct one, so nothing downstream reports it and the error surfaces
+    only as a model that will not train.
+
+    `runtime_fl_ev` is taken in whatever form the caller has it -- the raw
+    ``load_default_fl_ev()`` mapping with int keys, an already-normalised one,
+    or the tuple of pairs a `ScoringContext` holds. Both sides go through
+    `normalized_fl_ev`, so the answer is about the CONSTANT and never about
+    which of the three key types the caller happened to be holding.
+
+    The comparison should be unfalsifiable as things stand: explicit roots are
+    built by `explicit_root_observation`, which refuses a `scoring` key outright
+    and so leaves every root on `ScoringContext`'s default, read from the one
+    config `hu_infoset` reads. The check earns its place on the two ways that
+    can come apart -- `_DEFAULT_FL_EV` is frozen when `hu_infoset` is imported
+    while the runtime table is read after, so a config swapped underneath a
+    long-lived process splits them; and a later change that let a root state its
+    own context would find this waiting rather than a finished corpus.
+    """
+
+    expected = normalized_fl_ev(runtime_fl_ev)
+    for index, root in enumerate(roots):
+        carried = normalized_fl_ev(root.scoring.fl_ev)
+        if carried != expected:
+            raise SystemExit(
+                f"explicit root {index} would carry fl_ev={carried} into the "
+                f"engine, but this runtime's config reads {expected}. "
+                "The Fantasyland constant is what a label MEANS, so refusing "
+                "here is the difference between no corpus and a corpus of a "
+                "quantity nobody asked for -- which is indistinguishable from a "
+                "correct one downstream"
+            )
+
+
+def validate_explicit_roots(plan: Mapping[str, Any]) -> None:
+    """Every explicit root is a legal position, and the shards tile the list.
+
+    Done here rather than at the first position for the reason every other
+    check in `load_plan` is: a fleet that discovers the fault on shard 17, four
+    hours in, has already paid for the sixteen shards it will have to throw
+    away. `hu_m31_label_gen_gcp_plan_v1` calls this same `load_plan`, so a
+    malformed root list fails while the run is still an offline receipt.
+    """
+
+    for field in SEEDED_ONLY_FIELDS:
+        if field in plan:
+            raise SystemExit(
+                f"{field} is wired for {ROOT_SOURCE_SEEDED!r} plans only; this "
+                f"plan is {ROOT_SOURCE_EXPLICIT!r}, whose positions are the ones "
+                "it lists rather than the ones a seed block deals. Leaving it in "
+                "would read as a hand block this corpus drew from"
+            )
+    roots = plan["roots"]
+    if isinstance(roots, (str, bytes, Mapping)) or not isinstance(roots, list):
+        raise SystemExit(
+            f"roots must be a list of positions; got {type(roots).__name__}"
+        )
+    if not roots:
+        raise SystemExit(
+            "roots is empty, which is a run that would label nothing; omit the "
+            "plan instead"
+        )
+    for index in range(len(roots)):
+        explicit_root_observation(plan, index)
+    # The shard layout indexes into the list, so the two have to agree exactly:
+    # a shard reaching past the end would fail on its own last position, and a
+    # list reaching past the shards would carry roots no shard ever solves.
+    expected_start = 0
+    seen: set[Any] = set()
+    shards = plan["shards"]
+    if isinstance(shards, (str, bytes, Mapping)) or not isinstance(shards, list):
+        raise SystemExit(
+            f"shards must be a list of shard entries; got "
+            f"{type(shards).__name__}"
+        )
+    for entry in shards:
+        if not isinstance(entry, Mapping):
+            raise SystemExit(f"shard entry must be an object; got {entry!r}")
+        for field in ("shard_id", "start", "count"):
+            if field not in entry:
+                raise SystemExit(f"shard entry is missing {field}")
+        shard_id = entry["shard_id"]
+        if shard_id in seen:
+            raise SystemExit(f"shard id {shard_id!r} appears twice")
+        seen.add(shard_id)
+        if entry["start"] != expected_start:
+            raise SystemExit(
+                f"shard {shard_id!r} starts at {entry['start']}, breaking the "
+                f"tiling that reached {expected_start}"
+            )
+        count = entry["count"]
+        if isinstance(count, bool) or not isinstance(count, int) or count <= 0:
+            raise SystemExit(
+                f"shard {shard_id!r} count must be a positive integer; got "
+                f"{count!r}"
+            )
+        expected_start += count
+    if expected_start != len(roots):
+        raise SystemExit(
+            f"the shards cover {expected_start} positions but the plan lists "
+            f"{len(roots)} roots; every listed root must be solved exactly once"
+        )
 
 
 def load_t3_vs_fl_plan(plan: dict[str, Any]) -> dict[str, Any]:
@@ -594,6 +1008,21 @@ def load_t3_vs_fl_plan(plan: dict[str, Any]) -> dict[str, Any]:
     """
 
     kind = plan["plan_kind"]
+    # The explicit-root intake is the joint-exact kinds' alone. These kinds
+    # index a PINNED roots file by offset, which is already a caller-chosen
+    # position list under a different and older mechanism; a plan carrying both
+    # would name two sources for one position and this loader would read the
+    # file. Refused rather than ignored, like every other misplaced field here.
+    stray_roots = sorted(
+        field for field in ("root_source", "roots") if field in plan
+    )
+    if stray_roots:
+        raise SystemExit(
+            f"{stray_roots} are wired for the joint-exact kinds; this plan is "
+            f"{kind!r}, whose positions come from the pinned roots_file it "
+            "indexes by offset. Two sources for one position is one source too "
+            "many, and this loader would read the file"
+        )
     required = set(T3_VS_FL_REQUIRED)
     if kind == T2_VS_FL_KIND:
         # T2 samples both downstream draws instead of enumerating one.
@@ -1230,9 +1659,22 @@ def run(args: argparse.Namespace) -> int:
     from .hu_turn3_stage3_feature_rust import pinned_feature_encoder_library
 
     library = hu_m3_rust.load_native_engine(path=engine, build_if_missing=False)
-    bundle = load_model_bundle(
-        ModelPaths(), {behavior_profile_for_index(i) for i in range(5)}
-    )
+    root_source = plan.get("root_source", ROOT_SOURCE_SEEDED)
+    if root_source == ROOT_SOURCE_EXPLICIT:
+        # Built once, up front, and for the whole list rather than this shard's
+        # slice: `load_plan` has already proved every one of them legal, so this
+        # only materialises them. The behavior bundle is not loaded at all --
+        # nothing is played out to reach a position that was handed over.
+        explicit_roots = tuple(
+            explicit_root_observation(plan, index)
+            for index in range(len(plan["roots"]))
+        )
+        bundle = None
+    else:
+        explicit_roots = None
+        bundle = load_model_bundle(
+            ModelPaths(), {behavior_profile_for_index(i) for i in range(5)}
+        )
 
     def build_config(offset: int, trial: int) -> JointExactConfig:
         seed = plan["eval_seed_base"] + offset * 7 + trial * 3_000_017
@@ -1379,6 +1821,18 @@ def run(args: argparse.Namespace) -> int:
         """The observation this street labels: T3 exposes the first seat's
         decision, T2, T1 and T0 either seat's, chosen by the plan."""
 
+        if explicit_roots is not None:
+            # The offset indexes the plan's own list. No deck is shuffled, no
+            # profile is consulted and no seed is read: the position is the one
+            # the caller wrote down. The evaluation seeds in `build_config` are
+            # untouched by this branch, so the batch that MEASURES this fixed
+            # position is derived exactly as it is for a dealt one.
+            if not 0 <= offset < len(explicit_roots):
+                raise SystemExit(
+                    f"offset {offset} is outside the plan's {len(explicit_roots)} "
+                    "explicit roots"
+                )
+            return explicit_roots[offset]
         arguments = {
             "hand_seed": plan["hand_seed_base"] + offset,
             "behavior_seed": plan["hand_seed_base"]
@@ -1473,9 +1927,10 @@ def run(args: argparse.Namespace) -> int:
     # it is what the labels will MEAN rather than what the plan hoped they would.
     from .hu_infoset import load_default_fl_ev
 
-    runtime_fl_ev = {
-        str(cards): float(value) for cards, value in load_default_fl_ev().items()
-    }
+    # `load_default_fl_ev` returns int keys; everything compared against this
+    # below has been through JSON and has string ones. One normaliser, so the
+    # three comparisons cannot disagree about which type they are in.
+    runtime_fl_ev = normalized_fl_ev(load_default_fl_ev())
     if "fl_ev_value" in plan:
         cards = str(plan["fl_ev_cards"])
         stated = float(plan["fl_ev_value"])
@@ -1489,6 +1944,15 @@ def run(args: argparse.Namespace) -> int:
                 "the one the plan was written against, and every label this "
                 "shard produced would be a quantity nobody asked for"
             )
+    if explicit_roots is not None:
+        # The same gate one level down, and the level that matters for this
+        # kind. Above, the plan's DECLARED constant is checked against the
+        # runtime config. Here, the constant each root will actually carry into
+        # the engine is checked against that same config -- because for an
+        # explicit plan the observations arrive from outside this module, and
+        # "the roots carry what the config says" stops being a fact about the
+        # code and becomes a claim worth checking.
+        check_explicit_root_fl_ev(explicit_roots, runtime_fl_ev)
 
     def position_path(offset: int) -> pathlib.Path:
         return out / f"position_{offset:08d}.json"
@@ -1524,9 +1988,7 @@ def run(args: argparse.Namespace) -> int:
         # failure the gate exists to prevent.
         recorded = record.get("observation", {}).get("scoring", {}).get("fl_ev")
         if isinstance(recorded, Mapping):
-            recorded_fl_ev = {
-                str(cards): float(value) for cards, value in recorded.items()
-            }
+            recorded_fl_ev = normalized_fl_ev(recorded)
             if recorded_fl_ev != runtime_fl_ev:
                 raise SystemExit(
                     f"{path.name} carries fl_ev={recorded_fl_ev} but this run "

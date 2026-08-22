@@ -1,0 +1,26 @@
+{
+  "rule_set": "regular_3max",
+  "include_jokers": false,
+  "deck_cards": 52,
+  "player_count": 3,
+  "opponents_per_player": 2,
+  "fl_entry_cards": {"qq": 14, "kk": 14, "aa": 14, "trips": 14},
+  "fl_stay_cards": 14,
+  "reward_mode": "bootstrap_from_hu_per_pair",
+  "fl_ev": {"14": 9.6},
+  "fl_ev_units": "per_pair",
+  "fl_ev_hand_total": {"14": 19.2},
+  "provenance": {
+    "status": "BOOTSTRAP - NOT a measured 3-max fixed point. Placeholder for M0/M1 only; M2 replaces it with a measured self-play fixed point and every corpus labelled under this file must be relabelled.",
+    "date": "2026-08-12",
+    "contract": "docs/three_max_rules_contract_20260812.md R6",
+    "derivation": "3-max settles as a sum of three independent pairwise heads-up comparisons (contract R4). The Fantasyland term therefore enters ONCE PER PAIR, so the constant the scoring kernel consumes is a PER-PAIR value, while the hand-level worth of entering Fantasyland is the sum over both opponents. v0 takes the heads-up per-pair value unchanged (9.6, configs/fl_ev_regular_v4_selfplay.json), which makes the hand total 19.2 - the anchor named in the design note.",
+    "units_warning": "The design note's headline number 19.2 is the HAND TOTAL, not the kernel input. Feeding 19.2 to the per-pair kernel would double the Fantasyland term for every label in the cascade. load_fl_ev_3max() rejects any file whose fl_ev_hand_total is not opponents_per_player times fl_ev, which is what makes that mistake loud instead of silent.",
+    "known_bias_direction": "Unestablished. Two effects push opposite ways and neither is measured: entering Fantasyland is paid by two opponents (raises the total), but the entry hand also risks fouling against two opponents and the 3-max deck is 51/52 dealt, which changes both the entry rate and what a Fantasyland hand can find (direction unknown). Do not assume 19.2 is a floor or a ceiling.",
+    "predecessor_file": "configs/fl_ev_regular_v4_selfplay.json",
+    "predecessor_fl_ev_14": 9.6,
+    "predecessor_units": "per_pair (heads-up has exactly one pair, so the HU file's value is simultaneously the per-pair value and the hand total)",
+    "replacement_plan": "M2: sensitivity probe at +/-30% to find which streets are robust, then a self-play fixed point using the closed-form crossing V* = (V0 - slope*x0)/(1 - slope) that the HU v3/v4 adoptions used. Naive iteration is not to be used: the HU map's slope is negative (-0.144) and iterates alternate."
+  },
+  "source": "Bootstrap constant for the 3-max track, created 2026-08-12 alongside the M0 game core. Carries no measurement of its own."
+}

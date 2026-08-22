@@ -4754,8 +4754,19 @@ pub fn model_scores(
                 _ => unreachable!("T4 and T0 first seat handled above"),
             };
             let model = require(path, sha, field, crate::t3first_features::FEATURE_SIZE)?;
-            let actions =
-                generate_turn_actions_trusted(&observation.hero_board, &observation.dealt_cards);
+            // T0 is the one street whose legal set comes from the opening
+            // generator: five cards placed at once, not two of three. The
+            // second seat shares this arm with T1-T3 and was being handed turn
+            // actions, which produce two-card boards the feature encoder then
+            // rejects ("free outlook expects a board with two, four, six or
+            // eight open slots, got [1, 5, 5]"). `learned_t0_second_action`,
+            // which `decide` uses for the same street, already generates the
+            // right set; this makes the ranking agree with it.
+            let actions = if observation.street == Street::T0 {
+                generate_initial_actions(&observation.hero_board, &observation.dealt_cards)?
+            } else {
+                generate_turn_actions_trusted(&observation.hero_board, &observation.dealt_cards)
+            };
             if actions.is_empty() {
                 return Err(format!("{field}: observation has no legal actions"));
             }

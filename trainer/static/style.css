@@ -412,3 +412,251 @@ table.cands tr.preview-row td { background: rgba(79, 140, 255, 0.16); }
 .muted { color: var(--text-dim); }
 .mono { font-variant-numeric: tabular-nums; }
 hr.sep { border: none; border-top: 1px solid var(--border); margin: 12px 0; }
+
+/* ============ ハンド入力（handlog） ============ */
+
+.hl-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.hl-meta label { display: flex; align-items: center; gap: 6px; color: var(--text-dim); font-size: 12px; }
+/* The turn picker reads as one control, not five loose checkboxes sharing a
+   row with the precision menu. */
+.hl-turns {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-dim);
+  font-size: 12px;
+}
+.hl-turns label { gap: 4px; }
+/* A grade the search re-checked. Quiet by default; the overturned case earns
+   the accent, because that is the one where the number the user would have
+   seen was wrong. */
+.hl-checked {
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  font-size: 11px;
+  cursor: help;
+}
+.hl-checked.ok { border-color: var(--good); color: var(--good); }
+.hl-meta input, .hl-meta select {
+  background: var(--bg-panel-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 5px 8px;
+  font-size: 13px;
+}
+
+.hl-step {
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--accent);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+  font-weight: 600;
+  background: var(--bg-panel-2);
+}
+.hl-step.hero { border-left-color: var(--accent); }
+.hl-step.opp { border-left-color: var(--warn); }
+.hl-step.complete { border-left-color: var(--good); color: var(--good); }
+
+.hl-place-btns kbd {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0 4px;
+  font-size: 11px;
+  margin-left: 4px;
+  color: var(--text-dim);
+}
+.card.hl-discarded { opacity: 0.4; filter: grayscale(0.7); }
+
+.hl-list { max-height: 260px; overflow-y: auto; }
+.hl-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 6px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.hl-item.current { background: rgba(79, 140, 255, 0.1); }
+.hl-item-label { flex: 1; cursor: pointer; }
+.hl-item-label:hover { color: var(--accent); }
+.hl-item-meta { color: var(--text-dim); font-size: 12px; display: flex; align-items: center; gap: 6px; }
+
+.hl-progress { padding: 12px 0; }
+.hl-bar {
+  height: 8px;
+  background: var(--bg-panel-2);
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+.hl-bar span { display: block; height: 100%; background: var(--accent); transition: width 0.3s; }
+
+.hl-summary {
+  background: var(--bg-panel-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+}
+.hl-result { margin-bottom: 18px; }
+.hl-result h3 { font-size: 14px; margin-bottom: 6px; }
+table.hl-decisions tr.opp-row td { opacity: 0.6; }
+table.hl-decisions tr.blunder-row td { background: rgba(255, 92, 116, 0.12); }
+table.hl-decisions tr.clickable { cursor: pointer; }
+table.hl-decisions tr.clickable:hover td { background: rgba(79, 140, 255, 0.12); }
+.hl-detail:not(:empty) {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px;
+  margin-top: 8px;
+  background: var(--bg-panel-2);
+}
+.hl-detail h4 { font-size: 13px; margin-bottom: 6px; color: var(--text-dim); }
+
+.hl-discards {
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--warn);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin: 10px 0;
+  background: var(--bg-panel-2);
+}
+.hl-discard-head { font-weight: 600; margin-bottom: 8px; }
+.hl-discard-head .muted { font-weight: 400; font-size: 12px; }
+.hl-discard-head kbd {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0 4px;
+  font-size: 11px;
+}
+.hl-discard-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 6px;
+  border-radius: 6px;
+}
+.hl-discard-row.active { background: rgba(245, 193, 68, 0.14); outline: 1px solid var(--warn); }
+.hl-discard-label { width: 28px; color: var(--text-dim); font-size: 12px; }
+.hl-discard-placed { display: flex; gap: 4px; }
+.hl-discard-row .cardslot.clickable { cursor: pointer; }
+.hl-discard-row .cardslot.clickable:hover { border-color: var(--warn); }
+table.hl-decisions tr.fl-row td { background: rgba(124, 92, 255, 0.12); }
+table.hl-decisions tr.approx-row td:first-child::after { content: ""; }
+table.hl-decisions tr.approx-row td { border-bottom: 1px dashed var(--warn); }
+
+/* ---- hand review: a block per street, both seats inside it ---- */
+
+.hl-summary-card {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+  background: var(--bg-panel-2);
+}
+.hl-summary-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  margin-bottom: 10px;
+}
+.hl-summary-title .tag {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 1px 8px;
+  font-size: 11px;
+  color: var(--text-dim);
+}
+.hl-score { margin-left: auto; font-weight: 700; font-size: 15px; }
+.hl-summary-stats { display: flex; flex-wrap: wrap; gap: 18px; }
+.hl-stat { display: flex; flex-direction: column; gap: 2px; }
+.hl-stat-label { font-size: 11px; color: var(--text-dim); }
+.hl-stat-value { font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+.hl-street {
+  display: grid;
+  grid-template-columns: 34px 1fr;
+  grid-template-areas: "label body" ". cands";
+  gap: 0 8px;
+  padding: 6px 0;
+  border-top: 1px solid var(--border);
+}
+.hl-street-label {
+  grid-area: label;
+  font-weight: 700;
+  color: var(--text-dim);
+  font-size: 13px;
+  padding-top: 6px;
+}
+.hl-street-body { grid-area: body; display: flex; flex-direction: column; gap: 3px; }
+.hl-street-cands { grid-area: cands; }
+
+.hl-decision {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 4px 8px;
+  border-radius: 8px;
+  border-left: 3px solid transparent;
+}
+.hl-decision.hero { border-left-color: var(--accent); background: rgba(79, 140, 255, 0.06); }
+.hl-decision.opp { border-left-color: var(--warn); background: rgba(245, 193, 68, 0.05); }
+.hl-decision.worst { outline: 1px solid var(--bad); }
+
+.hl-who { font-size: 12px; color: var(--text-dim); width: 28px; flex: none; }
+.hl-cards { display: inline-flex; gap: 2px; }
+.hl-decision .card.small { width: 26px; height: 36px; font-size: 11px; }
+.hl-decision .card.small .suit { font-size: 9px; }
+.hl-arrow { color: var(--text-dim); }
+.hl-play { font-size: 13px; }
+.hl-grade { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; }
+.hl-rank {
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 1px 8px;
+  color: var(--text-dim);
+}
+.hl-rank.best { border-color: var(--good); color: var(--good); }
+.hl-rank.bad { border-color: var(--bad); color: var(--bad); }
+.hl-better { font-size: 12px; color: var(--text-dim); width: 100%; padding-left: 36px; }
+.hl-expand { flex: none; }
+
+.hl-street-cands:not(:empty) {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin: 4px 0 6px;
+  background: var(--bg-panel-2);
+}
+
+.hl-final {
+  border-top: 1px solid var(--border);
+  margin-top: 8px;
+  padding-top: 8px;
+}
+.hl-final-head { font-size: 12px; color: var(--text-dim); margin-bottom: 4px; }
+.hl-final-line { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+.hl-final-line .hl-cards { gap: 2px; }
+.hl-final-line .card.small { width: 26px; height: 36px; font-size: 11px; }
+.hl-final-line .card.small .suit { font-size: 9px; }

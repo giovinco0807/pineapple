@@ -221,6 +221,7 @@ const Training = {
       skipObvious: $("#opt-skip-obvious").checked,
       autoNew: $("#opt-auto-new").checked,
       precision: $("#opt-precision").value,
+      method: $("#opt-method").value,
       threshold: parseFloat($("#opt-threshold").value) || 1.0,
     };
   },
@@ -235,7 +236,12 @@ const Training = {
     try {
       const res = await api("/api/training/new", {
         method: "POST",
-        body: { position: "random", precision: this.options().precision, mistake_threshold: this.options().threshold },
+        body: {
+          position: "random",
+          precision: this.options().precision,
+          method: this.options().method,
+          mistake_threshold: this.options().threshold,
+        },
       });
       this.sid = res.session_id;
       this.state = res.state;
@@ -764,6 +770,7 @@ const Editor = {
           turn,
           position: $("#ed-position").value,
           precision: $("#ed-precision").value,
+          method: $("#ed-method").value,
         },
       });
       this.result = res;
@@ -1158,6 +1165,21 @@ const Mistakes = {
     }
   },
 };
+
+// Precision is a particle count. Under the model there are no particles, so the
+// control is disabled in these two views as it is in the hand-log one.
+function syncMethodControls() {
+  for (const [method, precision] of [
+    ["#opt-method", "#opt-precision"],
+    ["#ed-method", "#ed-precision"],
+  ]) {
+    const sel = $(method);
+    if (sel) $(precision).disabled = sel.value === "model";
+  }
+}
+$("#opt-method").addEventListener("change", syncMethodControls);
+$("#ed-method").addEventListener("change", syncMethodControls);
+syncMethodControls();
 
 $("#mi-refresh").addEventListener("click", () => Mistakes.refresh());
 

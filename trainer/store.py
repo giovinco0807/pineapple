@@ -40,6 +40,26 @@ CREATE TABLE IF NOT EXISTS mistakes (
 );
 CREATE INDEX IF NOT EXISTS idx_mistakes_created ON mistakes (created_at DESC);
 
+-- Hands transcribed by the user (video / live play) rather than played here.
+-- `hand` is the full record both seats and all five streets; `analysis` is the
+-- last grading run over it, kept alongside so a re-open does not re-spend the
+-- twenty seconds T0 costs.
+CREATE TABLE IF NOT EXISTS hand_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    account_id INTEGER NOT NULL DEFAULT 1,
+    created_at REAL NOT NULL,
+    updated_at REAL NOT NULL,
+    label TEXT NOT NULL DEFAULT '',
+    note TEXT NOT NULL DEFAULT '',
+    position TEXT NOT NULL,
+    hand TEXT NOT NULL,
+    analysis TEXT,
+    analyzed_at REAL,
+    total_ev_loss REAL,
+    score REAL
+);
+CREATE INDEX IF NOT EXISTS idx_handlogs_account ON hand_logs (account_id, created_at DESC);
+
 CREATE TABLE IF NOT EXISTS hands (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     created_at REAL NOT NULL,
@@ -140,6 +160,7 @@ class TrainerStore:
         with self._lock, self._connect() as conn:
             conn.execute("DELETE FROM mistakes WHERE account_id = ?", (account_id,))
             conn.execute("DELETE FROM hands WHERE account_id = ?", (account_id,))
+            conn.execute("DELETE FROM hand_logs WHERE account_id = ?", (account_id,))
             conn.execute("DELETE FROM accounts WHERE id = ?", (account_id,))
 
     def add_mistake(
@@ -292,6 +313,198 @@ class TrainerStore:
                 item["summary"] = None
             result.append(item)
         return result
+
+    # ------------------------------------------------------------------
+    # transcribed hand logs
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _handlog_row(row: sqlite3.Row, with_hand: bool = True) -> Dict[str, Any]:
+        item = dict(row)
+        for key in ("hand", "analysis"):
+            if key in item:
+                try:
+                    item[key] = json.loads(item[key]) if item[key] else None
+                except (TypeError, ValueError):
+                    item[key] = None
+        if not with_hand:
+            item.pop("hand", None)
+        return item
+
+    def add_hand_log(
+        self,
+        *,
+        account_id: int,
+        label: str,
+        note: str,
+        position: str,
+        hand: Dict[str, Any],
+    ) -> int:
+        now = time.time()
+        with self._lock, self._connect() as conn:
+            cur = conn.execute(
+                """INSERT INTO hand_logs
+                   (account_id, created_at, updated_at, label, note, position, hand)
+                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                (account_id, now, now, label, note, position, json.dumps(hand)),
+            )
+            return int(cur.lastrowid)
+
+    def update_hand_log(
+        self,
+        hand_log_id: int,
+        account_id: int,
+        *,
+        label: str,
+        note: str,
+        position: str,
+        hand: Dict[str, Any],
+    ) -> bool:
+        """Replace a record's contents, dropping the analysis only if the cards moved.
+
+        The editor PUTs label, note and streets together with no dirty check, so
+        renaming a hand arrives here as a full update.  Clearing the analysis
+        unconditionally would throw away a grading run that cost minutes at the
+        offline precisions, for a hand whose cards nobody touched -- so the
+        stored record decides, not the shape of the request.
+        """
+        payload = json.dumps(hand)
+        with self._lock, self._connect() as conn:
+            row = conn.execute(
+                "SELECT hand FROM hand_logs WHERE id = ? AND account_id = ?",
+                (hand_log_id, account_id),
+            ).fetchone()
+            if row is None:
+                return False
+            cards_changed = row["hand"] != payload
+            if cards_changed:
+                cur = conn.execute(
+                    """UPDATE hand_logs
+                       SET updated_at = ?, label = ?, note = ?, position = ?, hand = ?,
+                           analysis = NULL, analyzed_at = NULL, total_ev_loss = NULL, score = NULL
+                       WHERE id = ? AND account_id = ?""",
+                    (time.time(), label, note, position, payload, hand_log_id, account_id),
+                )
+            else:
+                cur = conn.execute(
+                    """UPDATE hand_logs
+                       SET updated_at = ?, label = ?, note = ?, position = ?
+                       WHERE id = ? AND account_id = ?""",
+                    (time.time(), label, note, position, hand_log_id, account_id),
+                )
+            return cur.rowcount > 0
+
+    def set_hand_log_analysis(
+        self,
+        hand_log_id: int,
+        account_id: int,
+        analysis: Dict[str, Any],
+        expect_hand: Optional[Dict[str, Any]] = None,
+    ) -> bool:
+        """Attach a finished analysis, unless the hand changed while it ran.
+
+        A deep grading run takes minutes, and the obvious thing to do while one
+        is in flight is to fix a card you misread in the hand being graded.  The
+        result landing afterwards describes the old cards, so it is dropped
+        rather than pinned onto the corrected record.
+        """
+        result = analysis.get("result") or {}
+        with self._lock, self._connect() as conn:
+            if expect_hand is not None:
+                row = conn.execute(
+                    "SELECT hand FROM hand_logs WHERE id = ? AND account_id = ?",
+                    (hand_log_id, account_id),
+                ).fetchone()
+                if row is None or row["hand"] != json.dumps(expect_hand):
+                    return False
+            cur = conn.execute(
+                """UPDATE hand_logs
+                   SET analysis = ?, analyzed_at = ?, total_ev_loss = ?, score = ?
+                   WHERE id = ? AND account_id = ?""",
+                (
+                    json.dumps(analysis),
+                    time.time(),
+                    analysis.get("hero_total_ev_loss"),
+                    result.get("score"),
+                    hand_log_id,
+                    account_id,
+                ),
+            )
+            return cur.rowcount > 0
+
+    def update_hand_log_analysis(
+        self,
+        hand_log_id: int,
+        account_id: int,
+        mutate: Any,
+        expect_hand: Optional[Dict[str, Any]] = None,
+    ) -> bool:
+        """Replace the stored analysis with ``mutate(existing_or_None)``.
+
+        The read and the write happen under one lock because the caller needs
+        the old value to build the new one -- a targeted run grades one street
+        and has to fold that into whatever the hand already carried.  Doing the
+        read in the caller would let two runs finishing together each fold into
+        the same stale base, and the second would drop the first's decision.
+
+        Same staleness rule as ``set_hand_log_analysis``: a hand corrected
+        while the run was in flight rejects the result rather than pinning it
+        onto cards it does not describe.
+        """
+        with self._lock, self._connect() as conn:
+            row = conn.execute(
+                "SELECT hand, analysis FROM hand_logs WHERE id = ? AND account_id = ?",
+                (hand_log_id, account_id),
+            ).fetchone()
+            if row is None:
+                return False
+            if expect_hand is not None and row["hand"] != json.dumps(expect_hand):
+                return False
+            existing = json.loads(row["analysis"]) if row["analysis"] else None
+            analysis = mutate(existing)
+            if analysis is None:
+                return False
+            result = analysis.get("result") or {}
+            cur = conn.execute(
+                """UPDATE hand_logs
+                   SET analysis = ?, analyzed_at = ?, total_ev_loss = ?, score = ?
+                   WHERE id = ? AND account_id = ?""",
+                (
+                    json.dumps(analysis),
+                    time.time(),
+                    analysis.get("hero_total_ev_loss"),
+                    result.get("score"),
+                    hand_log_id,
+                    account_id,
+                ),
+            )
+            return cur.rowcount > 0
+
+    def list_hand_logs(self, account_id: int, limit: int = 200) -> List[Dict[str, Any]]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                """SELECT id, created_at, updated_at, label, note, position,
+                          analyzed_at, total_ev_loss, score
+                   FROM hand_logs WHERE account_id = ?
+                   ORDER BY created_at DESC LIMIT ?""",
+                (account_id, limit),
+            ).fetchall()
+        return [self._handlog_row(row, with_hand=False) for row in rows]
+
+    def get_hand_log(self, hand_log_id: int, account_id: int) -> Optional[Dict[str, Any]]:
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT * FROM hand_logs WHERE id = ? AND account_id = ?",
+                (hand_log_id, account_id),
+            ).fetchone()
+        return self._handlog_row(row) if row else None
+
+    def delete_hand_log(self, hand_log_id: int, account_id: int) -> None:
+        with self._lock, self._connect() as conn:
+            conn.execute(
+                "DELETE FROM hand_logs WHERE id = ? AND account_id = ?",
+                (hand_log_id, account_id),
+            )
 
     def stats(self, account_id: int) -> Dict[str, Any]:
         with self._connect() as conn:

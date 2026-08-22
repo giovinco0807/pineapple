@@ -54,6 +54,11 @@ SIMS = {
     "fast": {0: 48, 1: 64, 2: 96, 3: 160, 4: 400},
     "standard": {0: 160, 1: 220, 2: 300, 3: 600, 4: 1500},
     "high": {0: 400, 1: 600, 2: 800, 3: 1600, 4: 4000},
+    # Offline grading; see SAMPLES["deep"] in engine_eval. Only reached if the
+    # engine refuses a street, but a fallback that quietly drops to fast
+    # rollouts would undercut the rung the caller asked for.
+    "deep": {0: 800, 1: 1200, 2: 1600, 3: 3200, 4: 8000},
+    "deep_t0": {0: 1600, 1: 1200, 2: 1600, 3: 3200, 4: 8000},
 }
 
 _rng_lock = threading.Lock()
@@ -186,13 +191,33 @@ def evaluate_position(
     precision: str = "standard",
     sims_override: Optional[int] = None,
     top_n: int = 0,
+    opp_in_fl: bool = False,
+    method: str = "model",
 ) -> Dict[str, Any]:
-    """Rank every legal action: m3 engine for T0-T4, Monte-Carlo as fallback."""
+    """Rank every legal action: m3 engine for T0-T4, Monte-Carlo as fallback.
+
+    `method` picks which instrument answers:
+
+    * ``"model"`` (default) -- the street's learned model scores every action in
+      one forward pass.  Deterministic: no seed, no particles, so the same
+      position always produces the same ranking and the same EV gaps.
+    * ``"teacher"`` -- the joint-exact search that produced those models'
+      training labels.  Deeper in principle, but at the sample counts a trainer
+      can afford its ranking is seed-dominated: five seeds, five different best
+      openings at T0, mean per-action spread 25.87 points
+      (`docs/trainer_ranking_quality_20260808.md`).  Kept because it is the
+      teacher and sometimes that is the thing you want to look at.
+    """
     if turn in (0, 1, 2, 3, 4):
         try:
             from trainer import engine_eval
 
-            return engine_eval.evaluate_with_engine(
+            run = (
+                engine_eval.model_scores_with_engine
+                if method == "model"
+                else engine_eval.evaluate_with_engine
+            )
+            return run(
                 hero_board=hero_board,
                 opp_board=opp_board,
                 dealt=dealt,
@@ -200,6 +225,7 @@ def evaluate_position(
                 turn=turn,
                 position=position,
                 precision=precision,
+                opp_in_fl=opp_in_fl,
             )
         except Exception as exc:  # engine refusal (e.g. T1-first) -> MC fallback
             import logging
@@ -207,6 +233,11 @@ def evaluate_position(
             logging.getLogger("trainer.evaluator").info(
                 "engine eval unavailable for T%s/%s (%s); falling back to MC", turn, position, exc
             )
+            if opp_in_fl:
+                # The MC fallback deals the opponent a normal five-street hand.
+                # Against a Fantasyland opponent that is not a coarser answer,
+                # it is an answer to a different question, so refuse instead.
+                raise
     return evaluate_position_mc(
         hero_board=hero_board,
         opp_board=opp_board,

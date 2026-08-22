@@ -337,12 +337,34 @@ def phase_execute(plan, run_dir, args, adapter) -> None:
 
     launched = []
     skipped = 0
+    finished = 0
     for shard in plan["shards"]:
         # Spot instances that are preempted are DELETED, not stopped, so a
         # fleet erodes shard by shard. --only-missing refills just the gaps:
         # it never touches an instance that still exists, which is what makes
         # a top-up safe to run against a fleet that is otherwise working.
         if args.only_missing and not args.render_only:
+            # A published receipt means the shard needs no refill, whatever
+            # became of its instance.  Without this the flag reads only the
+            # instance side, and the two ways a finished shard can present both
+            # go wrong (2026-08-16, T1 second seat, about six hours):
+            #
+            #   instance kept  -> the region's INSTANCES quota (72 in us-west1,
+            #     and terminated instances count against it) fills with shards
+            #     that are already done, and the remaining ones cannot launch;
+            #   instance deleted -> the shard is re-issued, the worker finds
+            #     "0 positions to generate", collides on the create-only
+            #     complete.json, exits 1 and so never reaches its own shutdown
+            #     line, and the VM idles until someone notices.
+            #
+            # Reading the receipt escapes both: finished shards are skipped and
+            # their instances can be deleted to free the quota.
+            if adapter.get_object_metadata(
+                bucket=plan["bucket"],
+                object_name=f"{shard['object_prefix']}/files/SHARD_DONE.json",
+            ) is not None:
+                finished += 1
+                continue
             existing = adapter.get_instance(
                 instance_name=_instance_name(plan["run_name"], shard["shard_id"])
             )
@@ -375,8 +397,8 @@ def phase_execute(plan, run_dir, args, adapter) -> None:
         })
         print(f"  launched {spec['name']} operation {operation.get('name')}")
     if args.only_missing:
-        print(f"  only-missing: {skipped} instances already present, "
-              f"{len(launched)} created")
+        print(f"  only-missing: {finished} shards already published, "
+              f"{skipped} instances already present, {len(launched)} created")
     if args.render_only:
         rendered = run_dir / "rendered_instance_specs.json"
         rendered.write_text(json.dumps(launched, indent=2, sort_keys=True),

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>OFC Pineapple トレーナー（レギュラー）</title>
-<link rel="stylesheet" href="/static/style.css">
+<link rel="stylesheet" href="/static/style.css?v=20260815b">
 </head>
 <body>
 
@@ -13,6 +13,7 @@
   <nav>
     <button data-view="training" class="active">トレーニング</button>
     <button data-view="editor">エディタ</button>
+    <button data-view="handlog">ハンド入力</button>
     <button data-view="mistakes">ミス復習</button>
   </nav>
   <div id="account-bar">
@@ -71,6 +72,11 @@
           <label><input type="checkbox" id="opt-skip-obvious" checked> 選択肢が1つだけの時はスキップ</label>
           <label><input type="checkbox" id="opt-auto-new"> ハンド終了後に自動で次のハンド</label>
           <div class="opt-row">
+            採点方法
+            <select id="opt-method">
+              <option value="model" selected>モデル</option>
+              <option value="teacher">教師探索</option>
+            </select>
             精度
             <select id="opt-precision">
               <option value="fast">速い（粗い）</option>
@@ -133,6 +139,11 @@
               <option value="first" selected>先行</option>
               <option value="second">後攻</option>
             </select>
+            採点方法
+            <select id="ed-method">
+              <option value="model" selected>モデル</option>
+              <option value="teacher">教師探索</option>
+            </select>
             精度
             <select id="ed-precision">
               <option value="fast">速い</option>
@@ -151,6 +162,108 @@
         <h2>候補ランキング</h2>
         <div id="ed-results">
           <p class="muted">ポジションを作って「評価する」を押してください。候補をクリックすると盤面にプレビューします。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ ハンド入力（実戦ハンドの採点） ============ -->
+  <section id="view-handlog" class="view">
+    <div class="layout">
+      <div class="panel">
+        <h2>ハンド入力<span class="sub" id="hl-progress"></span></h2>
+
+        <div class="hl-meta">
+          <label>ラベル <input id="hl-label" placeholder="動画 12:30 / ハンド3" style="width:200px"></label>
+          <label>自分の手番
+            <select id="hl-position">
+              <option value="first" selected>先行（自分が先に置く）</option>
+              <option value="second">後攻（相手が先に置く）</option>
+            </select>
+          </label>
+          <label>種類
+            <select id="hl-pattern">
+              <option value="normal" selected>通常（両者とも街を打つ）</option>
+              <option value="hero">自分がFL（相手は通常）</option>
+              <option value="opp">相手がFL（自分は通常）</option>
+              <option value="both">両者FL</option>
+            </select>
+          </label>
+          <button id="hl-reset" class="small">最初から</button>
+        </div>
+
+        <div id="hl-step" class="hl-step"></div>
+
+        <div class="board-area">
+          <div class="board-label"><span class="tag">相手</span><span id="hl-opp-pos" class="muted"></span></div>
+          <div id="hl-opp-board"></div>
+          <div class="tray" id="hl-opp-tray"><span class="tray-label">相手の配札</span></div>
+          <hr class="sep">
+          <div class="board-label"><span class="tag">あなた</span><span id="hl-hero-pos" class="muted"></span></div>
+          <div id="hl-hero-board"></div>
+          <div class="tray" id="hl-hero-tray"><span class="tray-label">自分の配札</span></div>
+        </div>
+
+        <div class="controls hl-place-btns">
+          <button data-place="top">上に置く <kbd>T</kbd></button>
+          <button data-place="middle">中に置く <kbd>M</kbd></button>
+          <button data-place="bottom">下に置く <kbd>B</kbd></button>
+          <button data-place="discard">捨てる <kbd>X</kbd></button>
+          <button id="hl-undo">1つ戻す <kbd>⌫</kbd></button>
+        </div>
+
+        <div id="hl-discards" class="hl-discards" style="display:none"></div>
+
+        <div class="picker-grid" id="hl-picker"></div>
+
+        <div class="controls">
+          <button id="hl-save" class="primary">保存</button>
+          <button id="hl-analyze">保存して解析</button>
+          <div class="opt-row" style="display:flex;align-items:center;gap:8px">
+            採点方法
+            <select id="hl-method">
+              <option value="model" selected>モデル（決定的・上位10）</option>
+              <option value="teacher">教師探索（シード依存・遅い）</option>
+            </select>
+            精度
+            <select id="hl-precision">
+              <option value="fast">速い（1サンプル・同率が出やすい）</option>
+              <option value="standard" selected>標準</option>
+              <option value="high">高精度</option>
+              <option value="deep">じっくり（T1〜T3のサンプル増・1ハンド約1分）</option>
+              <option value="deep_t0">じっくり＋T0（T0も精査・1ハンド約6分）</option>
+            </select>
+            <label><input type="checkbox" id="hl-include-opp" checked> 相手の判断も採点</label>
+            <span class="hl-turns">
+              ターン
+              <label><input type="checkbox" class="hl-turn" value="0"> T0</label>
+              <label><input type="checkbox" class="hl-turn" value="1"> T1</label>
+              <label><input type="checkbox" class="hl-turn" value="2"> T2</label>
+              <label><input type="checkbox" class="hl-turn" value="3"> T3</label>
+              <label><input type="checkbox" class="hl-turn" value="4"> T4</label>
+              <span id="hl-turns-note" class="muted">未選択なら全ターン</span>
+            </span>
+            <span id="hl-method-note" class="muted"></span>
+            <span id="hl-include-opp-note" class="muted"></span>
+          </div>
+        </div>
+        <div id="hl-status" class="muted" style="margin-top:8px"></div>
+      </div>
+
+      <div class="panel">
+        <h2>保存したハンド
+          <button id="hl-refresh" class="small" style="float:right">更新</button>
+        </h2>
+        <div id="hl-list" class="hl-list"></div>
+        <div class="controls">
+          <button id="hl-analyze-selected">選択したハンドを解析</button>
+          <button id="hl-select-all" class="small">全選択</button>
+          <button id="hl-select-none" class="small">選択解除</button>
+        </div>
+        <hr class="sep">
+        <h2>解析結果</h2>
+        <div id="hl-results">
+          <p class="muted">ハンドを入力して「保存して解析」を押すと、各配置の順位とEVロスが出ます。</p>
         </div>
       </div>
     </div>
@@ -179,6 +292,7 @@
 </div>
 <div class="toast-wrap" id="toasts"></div>
 
-<script src="/static/app.js"></script>
+<script src="/static/app.js?v=20260815b"></script>
+<script src="/static/handlog.js?v=20260815b"></script>
 </body>
 </html>
