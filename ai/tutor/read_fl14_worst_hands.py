@@ -25,20 +25,29 @@ import numpy as np
 import torch
 
 from ai.tutor.train_t4_first_evaluator import T4FirstEvaluator
+from ai.tutor.encode_fl14_teacher import stable_root_id
 
 
 def action_keys(labels: Path, street: str, wanted: set[int]) -> dict[int, list[tuple]]:
     """`root -> [(key, value), ...]` in the order the encoder consumed them."""
     out: dict[int, list[tuple]] = defaultdict(list)
+    root_ids: dict[int, str] = {}
     with labels.open(encoding="utf-8") as handle:
         for line in handle:
             if not line.strip():
                 continue
             record = json.loads(line)
-            root = int(record["root"])
+            root = stable_root_id(record)
             if root not in wanted:
                 continue
-            if street == "t3":
+            record_id = str(record.get("id", root))
+            if root in root_ids and root_ids[root] != record_id:
+                raise RuntimeError(
+                    f"root key {root} is reused by ids {root_ids[root]} and {record_id}; "
+                    "the encoded split cannot identify their actions safely"
+                )
+            root_ids[root] = record_id
+            if street in ("t2", "t3"):
                 out[root] += [
                     (a["action_key"], float(a["value"]), record) for a in record["actions"]
                 ]
@@ -61,7 +70,7 @@ def action_keys(labels: Path, street: str, wanted: set[int]) -> dict[int, list[t
 
 
 def describe(key: str, record: dict, street: str) -> str:
-    if street == "t3":
+    if street in ("t2", "t3"):
         rows, discard = key.rsplit("|", 1)
         return f"{rows}  (discard {discard})"
     return f"{record['board']}  +draw {record['draw']}  ->  {key}"
@@ -69,12 +78,16 @@ def describe(key: str, record: dict, street: str) -> str:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--street", choices=["t3", "t4"], required=True)
+    parser.add_argument("--street", choices=["t2", "t3", "t4"], required=True)
     parser.add_argument("--model", type=Path, required=True)
     parser.add_argument("--data-dir", type=Path, required=True)
     parser.add_argument("--labels", type=Path, required=True)
     parser.add_argument("--split", default="test")
     parser.add_argument("--worst", type=int, default=15)
+    parser.add_argument(
+        "--json-out", type=Path,
+        help="Also write the scored worst roots as structured JSON.",
+    )
     args = parser.parse_args()
 
     payload = np.load(args.data_dir / f"{args.split}.npz")
@@ -101,11 +114,14 @@ def main() -> None:
         scored.append((float(truth[best] - truth[pick]), root, pick, best, indices))
     scored.sort(reverse=True)
 
+    regrets = np.asarray([row[0] for row in scored], dtype=np.float64)
+
     worst = scored[: args.worst]
     keys = action_keys(args.labels, args.street, {row[1] for row in worst})
 
     print(f"# {args.street} worst {len(worst)} of {len(scored)} roots "
-          f"(mean regret {np.mean([r[0] for r in scored]):.4f})\n")
+          f"(mean regret {regrets.mean():.4f})\n")
+    structured = []
     for regret, root, pick, best, indices in worst:
         actions = keys.get(root)
         if not actions or len(actions) != len(indices):
@@ -113,6 +129,28 @@ def main() -> None:
                   f"[{len(actions or [])} keys vs {len(indices)} rows -- skipped]")
             continue
         record = actions[0][2]
+        rows = record["board"].split("|")[:3]
+        visible = ",".join(rows + [record.get("dead", ""), record.get("draw", "")])
+        structured.append(
+            {
+                "root": root,
+                "regret": regret,
+                "actions": len(indices),
+                "shape": [0 if not row else len(row.split(",")) for row in rows],
+                "visible_jokers": visible.count("X"),
+                "board": record["board"],
+                "dead": record["dead"],
+                "draw": record["draw"],
+                "teacher_action": actions[best][0],
+                "teacher_value": float(y[indices[best]]),
+                "teacher_prediction": float(prediction[indices[best]]),
+                "model_action": actions[pick][0],
+                "model_value": float(y[indices[pick]]),
+                "model_prediction": float(prediction[indices[pick]]),
+                "root_spread": float(y[indices].max() - y[indices].min()),
+                "model_spread": float(prediction[indices].max() - prediction[indices].min()),
+            }
+        )
         print(f"root {root}  regret {regret:.3f}   actions {len(indices)}")
         print(f"  board {record['board']}  dead {record['dead']}  draw {record['draw']}")
         print(f"  teacher {describe(actions[best][0], record, args.street)}")
@@ -122,6 +160,30 @@ def main() -> None:
         spread = float(y[indices].max() - y[indices].min())
         print(f"  root spread {spread:.3f}   model spread "
               f"{float(prediction[indices].max() - prediction[indices].min()):.3f}\n")
+    if args.json_out:
+        args.json_out.parent.mkdir(parents=True, exist_ok=True)
+        args.json_out.write_text(
+            json.dumps(
+                {
+                    "street": args.street,
+                    "split": args.split,
+                    "roots": len(scored),
+                    "mean_regret": float(regrets.mean()),
+                    "regret_quantiles": {
+                        "p50": float(np.quantile(regrets, 0.50)),
+                        "p90": float(np.quantile(regrets, 0.90)),
+                        "p95": float(np.quantile(regrets, 0.95)),
+                        "p99": float(np.quantile(regrets, 0.99)),
+                        "max": float(regrets.max()),
+                    },
+                    "zero_regret_rate": float(np.mean(regrets == 0.0)),
+                    "worst": structured,
+                },
+                ensure_ascii=False,
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
 
 
 if __name__ == "__main__":

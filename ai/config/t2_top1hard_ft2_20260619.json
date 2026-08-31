@@ -1,0 +1,1822 @@
+{
+  "name": "t2_top1hard_ft2_20260619",
+  "status": "diagnostic",
+  "purpose": "T2 model-only Top1 EV-loss reduction experiment. This records the strongest checked Top1 blend after Top3 residual tuning; it is not promoted as the runtime default until selected-action runtime loss and 5 second latency are revalidated.",
+  "base_config": "ai/config/t2_top3_residual_ft2_20260618.json",
+  "source_data": {
+    "current_top1miss_summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/current_top3residual_alpha1_top1miss/top1miss_summary.json",
+    "top1_initial_hard_groups": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/hard_groups/top1_ev_loss_gt025_from_top3residual_alpha1.jsonl",
+    "train_top1_ft1": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/av_dataset_top3residual_base_plus_top1hard98_r20_dim520",
+    "top1_residual_hard_groups": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/hard_groups/top1_residual_gt025_from_add_beta0p8.jsonl",
+    "train_top1_ft2": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/av_dataset_top1hard98_r20_plus_residual11_r50_dim520"
+  },
+  "models": {
+    "top3_residual_ft2": "D:/ofc-pineapple-data/t2_next_20260614/top3_ev_loss_goal_20260618/models/t2-top5hard55-top3hard25-residual6-r60-ft2-top3-20260618/action_value_final.pt",
+    "top1hard_ft1": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/models/t2-top3residual-plus-top1hard98-r20-ft-top1-20260619/action_value_final.pt",
+    "top1hard_ft2": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/models/t2-top1hard98-residual11-r50-ft2-top1-20260619/action_value_final.pt"
+  },
+  "recommended_diagnostic_blend": {
+    "mode": "t2_model_top1hard_ft2_add_beta0p8_diagnostic",
+    "checkpoints": [
+      "ai/models/candidate_runs/t2-stable-oracle56-cap500-cap1000-ft-from-exact53-20260603/model/action_value_best.pt",
+      "D:/ofc-pineapple-data/t2_next_20260614/teacher_top10_cap50_100/models/t2-cap50-100-ft-top3-20260614/action_value_final.pt",
+      "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/fresh_external360_varied_20260615/train160_more/models/t2-local444-more160-cap50-ft-top3-20260615/action_value_final.pt",
+      "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/fresh_external800_varied_20260615/train120_more6/models/t2-local924-more120-cap50-ft-top3-20260615/action_value_final.pt",
+      "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/fresh_external920_varied_20260615/train120_more7/models/t2-local1044-more120-cap50-ft-top3-20260615/action_value_final.pt",
+      "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/fresh_external920_varied_20260615/train120_more7/models/t2-train1164-current-top3miss-weighted-lowlr-20260615/action_value_final.pt",
+      "D:/ofc-pineapple-data/t2_next_20260614/top3_ev_loss_goal_20260618/models/t2-top5hard55-top3hard25-residual6-r60-ft2-top3-20260618/action_value_final.pt",
+      "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/models/t2-top1hard98-residual11-r50-ft2-top1-20260619/action_value_final.pt"
+    ],
+    "weights": [
+      0.017857142857142856,
+      0.044642857142857144,
+      0.24107142857142858,
+      0.044642857142857144,
+      0.005357142857142857,
+      0.0035714285714285713,
+      0.35714285714285715,
+      0.28571428571428575
+    ],
+    "raw_blend": {
+      "old_ensemble_total": 1.0,
+      "top3_residual_alpha": 1.0,
+      "top1hard_ft2_beta": 0.8
+    }
+  },
+  "evidence": {
+    "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/eval_top1hard_ft2_blend/top1hard_ft2_blend_summary.json",
+    "current_top3_residual_alpha1": {
+      "groups": 1022,
+      "top1": 0.851,
+      "top3": 0.987,
+      "top5": 0.995,
+      "top10_min": 1.0,
+      "top1_regret": 0.230691,
+      "top1_misses": 152,
+      "top1_ev_loss_gt_0_25": 98,
+      "top1_ev_loss_gt_1_0": 69,
+      "max_top1_ev_loss": 13.032,
+      "top3_ev_loss_gt_0_1": 0,
+      "max_top3_ev_loss": 0.08
+    },
+    "top1hard_ft1_add_beta0p8": {
+      "groups": 1022,
+      "top1": 0.963,
+      "top3": 0.993,
+      "top5": 0.997,
+      "top10_min": 1.0,
+      "top1_regret": 0.028134,
+      "top1_misses": 38,
+      "top1_ev_loss_gt_0_25": 11,
+      "top1_ev_loss_gt_1_0": 7,
+      "max_top1_ev_loss": 11.199,
+      "top3_ev_loss_gt_0_1": 0,
+      "max_top3_ev_loss": 0.056
+    },
+    "top1hard_ft2_add_beta0p8": {
+      "groups": 1022,
+      "top1": 0.971,
+      "top3": 0.993,
+      "top5": 0.997,
+      "top10_min": 1.0,
+      "top1_regret": 0.003803,
+      "top1_misses": 30,
+      "top1_ev_loss_gt_0_25": 3,
+      "top1_ev_loss_gt_1_0": 2,
+      "max_top1_ev_loss": 1.429,
+      "top3_ev_loss_gt_0_1": 0,
+      "max_top3_ev_loss": 0.056
+    },
+    "rejected_checks": {
+      "ft2_add_beta_1_0": {
+        "top1": 0.966,
+        "top1_regret": 0.015137,
+        "top1_ev_loss_gt_1_0": 5,
+        "max_top1_ev_loss": 5.199
+      },
+      "ft2_add_beta_1_2": {
+        "top1": 0.967,
+        "top1_regret": 0.03123,
+        "top1_ev_loss_gt_1_0": 6,
+        "max_top1_ev_loss": 16.462
+      },
+      "ft2_add_beta_1_5": {
+        "top1": 0.969,
+        "top1_regret": 0.031366,
+        "top1_ev_loss_gt_1_0": 6,
+        "max_top1_ev_loss": 16.462
+      },
+      "ft2_replace_alpha_0_8": {
+        "top1": 0.97,
+        "top1_regret": 0.011378,
+        "top1_ev_loss_gt_1_0": 3,
+        "max_top1_ev_loss": 5.199
+      }
+    },
+    "external_clean_check": {
+      "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/external_clean_check_top1hard_ft2_beta0p8",
+      "baseline_summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/external_clean_check_current_top3residual_alpha1",
+      "datasets": {
+        "clean20c": {
+          "groups": 20,
+          "top1": 0.4,
+          "top3": 0.65,
+          "top5": 0.75,
+          "top10": 0.9,
+          "top20": 1.0,
+          "top1_regret": 1.609,
+          "baseline_top1": 0.45,
+          "baseline_top1_regret": 1.072
+        },
+        "clean_holdout4_fixed": {
+          "groups": 40,
+          "top1": 0.4,
+          "top3": 0.725,
+          "top5": 0.85,
+          "top10": 0.9,
+          "top20": 0.975,
+          "top1_regret": 2.253,
+          "baseline_top1": 0.425,
+          "baseline_top1_regret": 1.545
+        },
+        "broad160_holdout40_fixed": {
+          "groups": 40,
+          "top1": 0.25,
+          "top3": 0.525,
+          "top5": 0.625,
+          "top10": 0.9,
+          "top20": 0.975,
+          "top1_regret": 1.689,
+          "baseline_top1": 0.3,
+          "baseline_top1_regret": 1.48
+        }
+      },
+      "aggregate": {
+        "groups": 100,
+        "top1": 0.34,
+        "top3": 0.63,
+        "top5": 0.74,
+        "top10": 0.9,
+        "top20": 0.98,
+        "top1_regret": 1.899,
+        "baseline_top1": 0.38,
+        "baseline_top1_regret": 1.424
+      }
+    },
+    "clean260_retrain_check": {
+      "status": "rejected",
+      "train_data": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/av_dataset_top1hard_ft2_plus_clean260_r3_hard136_r16_dim520",
+      "model": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/models/t2-top1hard-ft2-clean260-r3-hard136-r16-ft-clean-top1-20260619/action_value_final.pt",
+      "external_sweep_summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/external_clean_blend_sweep_clean260_20260619/summary.json",
+      "aggregate": {
+        "groups": 100,
+        "baseline_top1": 0.38,
+        "baseline_top1_regret": 1.425,
+        "best_clean_top1": 0.37,
+        "best_clean_top1_regret": 1.5,
+        "prev_top1_beta0p8_top1": 0.34,
+        "prev_top1_beta0p8_top1_regret": 1.898
+      },
+      "decision": "Do not promote. Clean260 hard-negative fine-tuning did not beat the current Top3 residual baseline on clean external Top1 or Reg1."
+    },
+    "new_broad_smoke_20260619": {
+      "source": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_smoke_20260619/inputs/t2_new_broad_smoke4_source_all_actions.jsonl",
+      "exact_output": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_smoke_20260619/cap50/t2_oracle_cap50_limit4.jsonl",
+      "teacher": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_smoke_20260619/t2_new_broad_smoke4_alllegal_cap50.teacher.jsonl",
+      "dataset": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_smoke_20260619/reranker_t2_new_broad_smoke4_alllegal_cap50_dim520",
+      "records": 4,
+      "positions": {
+        "bb": 2,
+        "btn": 2
+      },
+      "source_candidates": 99,
+      "source_elapsed_seconds": 3.865,
+      "cap50_avg_elapsed_ms": 16675.006,
+      "source_top1_same_as_cap50": 0.25,
+      "avg_source_top1_ev_loss": 6.8548,
+      "max_source_top1_ev_loss": 24.5981,
+      "teacher_invalid_rows": 0,
+      "teacher_invalid_candidates": 0,
+      "converted_samples": 99
+    },
+    "new_broad200_first20_20260619": {
+      "source": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad200_20260619/inputs/t2_new_broad200_source_all_actions.jsonl",
+      "exact_output_first20": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad200_20260619/cap50_first20/t2_oracle_cap50_limit20.jsonl",
+      "teacher_first20": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad200_20260619/t2_new_broad200_first20_alllegal_cap50.teacher.jsonl",
+      "dataset_first20": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad200_20260619/reranker_t2_new_broad200_first20_alllegal_cap50_dim520",
+      "source_records": 200,
+      "source_positions": {
+        "bb": 100,
+        "btn": 100
+      },
+      "source_candidates": 4791,
+      "source_elapsed_seconds": 156.638,
+      "first20_cap50_records": 20,
+      "first20_cap50_candidates": 480,
+      "first20_cap50_avg_elapsed_ms": 16331.822,
+      "first20_source_top1_same_as_cap50": 0.25,
+      "first20_avg_source_top1_ev_loss": 3.1032,
+      "first20_max_source_top1_ev_loss": 9.9368,
+      "first20_model_checks": {
+        "current_default6": {
+          "top1": 0.3,
+          "top3": 0.45,
+          "top5": 0.55,
+          "top10": 0.8,
+          "top20": 0.9,
+          "reg1": 3.145,
+          "reg10": 1.367
+        },
+        "top3residual_alpha1": {
+          "top1": 0.25,
+          "top3": 0.5,
+          "top5": 0.6,
+          "top10": 0.85,
+          "top20": 0.9,
+          "reg1": 3.3,
+          "reg10": 1.187
+        },
+        "top1hard_ft2_beta0p8": {
+          "top1": 0.2,
+          "top3": 0.45,
+          "top5": 0.6,
+          "top10": 0.85,
+          "top20": 0.9,
+          "reg1": 2.978,
+          "reg10": 1.187
+        }
+      },
+      "decision": "Fresh broad first20 confirms the mined-set Top1 result does not generalize. Finish cap50 labels for the broad200 source and split into train/final before another Top1 specialist."
+    },
+    "new_broad200_full_20260619": {
+      "source": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad200_20260619/inputs/t2_new_broad200_source_all_actions.jsonl",
+      "dataset_all200": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad200_20260619/reranker_t2_new_broad200_all200_alllegal_cap50_dim520",
+      "dataset_train0_159": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad200_20260619/reranker_t2_new_broad200_train0_159_alllegal_cap50_dim520",
+      "dataset_final160_199": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad200_20260619/reranker_t2_new_broad200_final160_199_alllegal_cap50_dim520",
+      "records": 200,
+      "candidates": 4791,
+      "source_top1_same_as_cap50": 0.265,
+      "source_top1_changed": 147,
+      "avg_cap50_elapsed_ms": 14452.505,
+      "avg_source_top1_ev_loss": 3.0246,
+      "max_source_top1_ev_loss": 24.579,
+      "skip_support_added": {
+        "rust": "ai/rust_solver/t3_exact_solver/src/main.rs",
+        "python_wrapper": "ai/tutor/run_t2_exact_oracle.py",
+        "verified_record_indices": [
+          20,
+          21
+        ]
+      },
+      "model_checks_final160_199": {
+        "current_default6": {
+          "top1": 0.275,
+          "top3": 0.625,
+          "top5": 0.7,
+          "top10": 0.9,
+          "top20": 0.95,
+          "reg1": 1.869,
+          "reg10": 0.126
+        },
+        "top3residual_alpha1": {
+          "top1": 0.275,
+          "top3": 0.625,
+          "top5": 0.725,
+          "top10": 0.875,
+          "top20": 0.95,
+          "reg1": 1.654,
+          "reg10": 0.126
+        },
+        "newbroad_train0_159_standalone": {
+          "model": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad200_20260619/models/t2-newbroad-train0-159-ft-top1-20260619/action_value_best.pt",
+          "top1": 0.25,
+          "top3": 0.625,
+          "top5": 0.725,
+          "top10": 0.85,
+          "top20": 0.95,
+          "reg1": 1.986,
+          "reg10": 0.151
+        },
+        "mixed_newbroad160_r6_standalone": {
+          "model": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad200_20260619/models/t2-top3residual-plus-newbroad160-r6-ft-top1-20260619/action_value_best.pt",
+          "top1": 0.225,
+          "top3": 0.625,
+          "top5": 0.7,
+          "top10": 0.8,
+          "top20": 0.95,
+          "reg1": 2.358,
+          "reg10": 0.153
+        }
+      },
+      "decision": "Broad200 cap50 labels are useful teacher data, but the tested train0_159 specialists did not improve final160_199. Do not promote; generate more broad cap50 rows before the next Top1 specialist."
+    },
+    "new_broad1000_first100_20260619": {
+      "source": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/inputs/t2_new_broad1000_source_all_actions.jsonl",
+      "dataset_0_99": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/reranker_t2_new_broad1000_0_99_alllegal_cap50_dim520",
+      "dataset_train0_79": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/reranker_t2_new_broad1000_train0_79_alllegal_cap50_dim520",
+      "dataset_final60": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/reranker_t2_broad200final40_plus_newbroad20_final_dim520",
+      "source_records": 1000,
+      "source_positions": {
+        "bb": 500,
+        "btn": 500
+      },
+      "source_candidates": 23943,
+      "source_elapsed_seconds": 709.403,
+      "cap50_records_completed": 100,
+      "cap50_candidates_completed": 2343,
+      "avg_cap50_elapsed_ms_first100": 13282.155,
+      "source_top1_same_as_cap50_first100": 0.28,
+      "source_top1_changed_first100": 72,
+      "avg_source_top1_ev_loss_first100": 3.1511,
+      "max_source_top1_ev_loss_first100": 21.8398,
+      "merge_compatibility_added": "ai/training/merge_action_value_reranker_data.py fills missing positions.npy with zeros for all-position training/eval merges.",
+      "model_checks_0_99": {
+        "current_default6": {
+          "top1": 0.37,
+          "top3": 0.63,
+          "top5": 0.77,
+          "top10": 0.91,
+          "top20": 0.98,
+          "reg1": 2.001,
+          "reg10": 0.119
+        },
+        "top3residual_alpha1": {
+          "top1": 0.37,
+          "top3": 0.6,
+          "top5": 0.77,
+          "top10": 0.93,
+          "top20": 0.97,
+          "reg1": 1.746,
+          "reg10": 0.018
+        },
+        "top1hard_ft2_beta0p8": {
+          "top1": 0.36,
+          "top3": 0.58,
+          "top5": 0.77,
+          "top10": 0.9,
+          "top20": 0.99,
+          "reg1": 1.823,
+          "reg10": 0.043
+        }
+      },
+      "train_check": {
+        "dataset": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/av_dataset_prev_mixed_plus_new80r8_dim520",
+        "model": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/models/t2-prevmixed-plus-new80r8-ft-top1-20260619/action_value_best.pt",
+        "train_groups": 5254,
+        "train_samples": 74426,
+        "result_final60": {
+          "current_default6": {
+            "top1": 0.267,
+            "top3": 0.583,
+            "top5": 0.7,
+            "top10": 0.883,
+            "top20": 0.967,
+            "reg1": 1.908,
+            "reg10": 0.096
+          },
+          "top3residual_alpha1": {
+            "top1": 0.267,
+            "top3": 0.583,
+            "top5": 0.717,
+            "top10": 0.883,
+            "top20": 0.95,
+            "reg1": 1.694,
+            "reg10": 0.086
+          },
+          "new80r8_standalone": {
+            "top1": 0.25,
+            "top3": 0.583,
+            "top5": 0.667,
+            "top10": 0.833,
+            "top20": 0.983,
+            "reg1": 2.143,
+            "reg10": 0.124
+          },
+          "top3_plus_new80r8_gamma0p25": {
+            "top1": 0.267,
+            "top3": 0.567,
+            "top5": 0.7,
+            "top10": 0.883,
+            "top20": 0.95,
+            "reg1": 1.783,
+            "reg10": 0.086
+          }
+        }
+      },
+      "decision": "Do not promote the new80r8 specialist. The first100 exact labels confirm the fresh broad distribution problem, but 80 new train rows are still too small to improve held-out Top1. Continue labeling the remaining broad1000 cap50 rows before another Top1 specialist."
+    },
+    "new_broad1000_first200_20260619": {
+      "dataset_0_199": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/reranker_t2_new_broad1000_0_199_alllegal_cap50_dim520",
+      "dataset_train0_159": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/reranker_t2_new_broad1000_train0_159_alllegal_cap50_dim520",
+      "dataset_final160_199": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/reranker_t2_new_broad1000_final160_199_alllegal_cap50_dim520",
+      "aggregate": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/cap50_first200_aggregate.json",
+      "cap50_records_completed": 200,
+      "cap50_candidates_completed": 4791,
+      "source_top1_same_as_cap50": 0.27,
+      "source_top1_changed": 146,
+      "avg_cap50_elapsed_ms": 13879.928,
+      "avg_source_top1_ev_loss": 3.1586,
+      "max_source_top1_ev_loss": 34.8178,
+      "model_checks_0_199": {
+        "current_default6": {
+          "top1": 0.375,
+          "top3": 0.63,
+          "top5": 0.74,
+          "top10": 0.91,
+          "top20": 0.985,
+          "reg1": 2.183,
+          "reg10": 0.124
+        },
+        "top3residual_alpha1": {
+          "top1": 0.38,
+          "top3": 0.64,
+          "top5": 0.75,
+          "top10": 0.925,
+          "top20": 0.98,
+          "reg1": 2.145,
+          "reg10": 0.057
+        },
+        "top1hard_ft2_beta0p8": {
+          "top1": 0.375,
+          "top3": 0.625,
+          "top5": 0.765,
+          "top10": 0.915,
+          "top20": 0.99,
+          "reg1": 2.157,
+          "reg10": 0.063
+        }
+      },
+      "model_checks_final160_199": {
+        "current_default6": {
+          "top1": 0.35,
+          "top3": 0.65,
+          "top5": 0.725,
+          "top10": 0.95,
+          "top20": 0.975,
+          "reg1": 2.238,
+          "reg10": 0.055
+        },
+        "top3residual_alpha1": {
+          "top1": 0.35,
+          "top3": 0.675,
+          "top5": 0.75,
+          "top10": 0.95,
+          "top20": 0.975,
+          "reg1": 2.393,
+          "reg10": 0.055
+        },
+        "newbroad1000_train0_159_standalone": {
+          "model": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/models/t2-newbroad1000-train0-159-ft-top1-20260619/action_value_best.pt",
+          "top1": 0.325,
+          "top3": 0.65,
+          "top5": 0.75,
+          "top10": 0.875,
+          "top20": 1.0,
+          "reg1": 2.361,
+          "reg10": 0.631
+        },
+        "prevmixed_new160r6_standalone": {
+          "model": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/models/t2-prevmixed-plus-new160r6-ft-top1-20260619/action_value_best.pt",
+          "top1": 0.325,
+          "top3": 0.65,
+          "top5": 0.8,
+          "top10": 0.925,
+          "top20": 1.0,
+          "reg1": 2.441,
+          "reg10": 0.622
+        },
+        "top3_plus_prevmixed_new160r6_gamma0p25": {
+          "top1": 0.375,
+          "top3": 0.675,
+          "top5": 0.775,
+          "top10": 0.95,
+          "top20": 0.975,
+          "reg1": 2.435,
+          "reg10": 0.059
+        }
+      },
+      "decision": "Do not promote the first200 specialists. The mixed gamma0.25 blend lifts final40 Top1 from 35.0% to 37.5%, but worsens Top1 EV loss versus the current default and top3 residual baselines. Continue broad1000 labeling before another Top1 promotion attempt."
+    },
+    "new_broad1000_first300_20260620": {
+      "dataset_0_299": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/reranker_t2_new_broad1000_0_299_alllegal_cap50_dim520",
+      "dataset_train0_239": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/reranker_t2_new_broad1000_train0_239_alllegal_cap50_dim520",
+      "dataset_final240_299": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/reranker_t2_new_broad1000_final240_299_alllegal_cap50_dim520",
+      "aggregate": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/cap50_first300_aggregate.json",
+      "cap50_records_completed": 300,
+      "cap50_candidates_completed": 7191,
+      "source_top1_same_as_cap50": 0.2667,
+      "source_top1_changed": 220,
+      "avg_cap50_elapsed_ms": 13923.956,
+      "avg_source_top1_ev_loss": 3.0108,
+      "max_source_top1_ev_loss": 38.9656,
+      "model_checks_0_299": {
+        "current_default6": {
+          "top1": 0.37,
+          "top3": 0.633,
+          "top5": 0.74,
+          "top10": 0.907,
+          "top20": 0.99,
+          "reg1": 1.975,
+          "reg10": 0.104
+        },
+        "top3residual_alpha1": {
+          "top1": 0.373,
+          "top3": 0.63,
+          "top5": 0.74,
+          "top10": 0.913,
+          "top20": 0.987,
+          "reg1": 1.856,
+          "reg10": 0.063
+        },
+        "top1hard_ft2_beta0p8": {
+          "top1": 0.373,
+          "top3": 0.617,
+          "top5": 0.757,
+          "top10": 0.9,
+          "top20": 0.993,
+          "reg1": 1.867,
+          "reg10": 0.068
+        }
+      },
+      "model_checks_final240_299": {
+        "current_default6": {
+          "top1": 0.367,
+          "top3": 0.6,
+          "top5": 0.683,
+          "top10": 0.883,
+          "top20": 1.0,
+          "reg1": 1.432,
+          "reg10": 0.074
+        },
+        "top3residual_alpha1": {
+          "top1": 0.35,
+          "top3": 0.583,
+          "top5": 0.683,
+          "top10": 0.867,
+          "top20": 1.0,
+          "reg1": 1.38,
+          "reg10": 0.09
+        },
+        "top1hard_ft2_beta0p8": {
+          "top1": 0.35,
+          "top3": 0.617,
+          "top5": 0.717,
+          "top10": 0.85,
+          "top20": 1.0,
+          "reg1": 1.411,
+          "reg10": 0.096
+        },
+        "prevmixed_new240r6_standalone": {
+          "model": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/models/t2-prevmixed-plus-new240r6-ft-top1-20260620/action_value_best.pt",
+          "top1": 0.35,
+          "top3": 0.6,
+          "top5": 0.717,
+          "top10": 0.85,
+          "top20": 1.0,
+          "reg1": 1.693,
+          "reg10": 0.199
+        },
+        "top3_plus_prevmixed_new240r6_gamma0p25": {
+          "top1": 0.35,
+          "top3": 0.633,
+          "top5": 0.7,
+          "top10": 0.883,
+          "top20": 1.0,
+          "reg1": 1.341,
+          "reg10": 0.081
+        }
+      },
+      "decision": "Do not promote as a Top1 model. The new240r6 gamma0.25 blend lowers final60 Reg1 from 1.432 to 1.341 but does not improve Top1 accuracy, so it is useful evidence for EV-loss tuning but not sufficient for the Top1 objective."
+    },
+    "new_broad1000_first400_20260620": {
+      "dataset_0_399": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/reranker_t2_new_broad1000_0_399_alllegal_cap50_dim520",
+      "dataset_train0_319": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/reranker_t2_new_broad1000_train0_319_alllegal_cap50_dim520",
+      "dataset_final320_399": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/reranker_t2_new_broad1000_final320_399_alllegal_cap50_dim520",
+      "aggregate": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/cap50_first400_aggregate.json",
+      "cap50_records_completed": 400,
+      "cap50_candidates_completed": 9675,
+      "source_top1_same_as_cap50": 0.2875,
+      "source_top1_changed": 285,
+      "avg_cap50_elapsed_ms": 14133.76,
+      "avg_source_top1_ev_loss": 2.8068,
+      "max_source_top1_ev_loss": 38.9656,
+      "model_checks_final320_399": {
+        "current_default6": {
+          "top1": 0.375,
+          "top3": 0.625,
+          "top5": 0.7,
+          "top10": 0.838,
+          "top15": 0.962,
+          "top20": 0.975,
+          "reg1": 2.135,
+          "reg10": 0.095
+        },
+        "top3residual_alpha1": {
+          "top1": 0.35,
+          "top3": 0.65,
+          "top5": 0.75,
+          "top10": 0.875,
+          "top15": 0.962,
+          "top20": 0.988,
+          "reg1": 1.456,
+          "reg10": 0.087
+        },
+        "top1hard_ft2_beta0p8": {
+          "top1": 0.338,
+          "top3": 0.65,
+          "top5": 0.725,
+          "top10": 0.862,
+          "top15": 0.975,
+          "top20": 0.988,
+          "reg1": 1.434,
+          "reg10": 0.099
+        },
+        "prevmixed_new320r6_standalone": {
+          "model": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/models/t2-prevmixed-plus-new320r6-ft-top1-20260620/action_value_best.pt",
+          "top1": 0.362,
+          "top3": 0.675,
+          "top5": 0.762,
+          "top10": 0.925,
+          "top15": 0.975,
+          "top20": 1.0,
+          "reg1": 1.474,
+          "reg10": 0.057
+        },
+        "top3_plus_prevmixed_new320r6_gamma0p25": {
+          "top1": 0.388,
+          "top3": 0.662,
+          "top5": 0.75,
+          "top10": 0.9,
+          "top15": 0.975,
+          "top20": 0.988,
+          "reg1": 1.247,
+          "reg10": 0.066
+        }
+      },
+      "clean_external_checks": {
+        "baseline_top3residual_alpha1": {
+          "top1": 0.38,
+          "reg1": 1.425
+        },
+        "top3_plus_prevmixed_new320r6_gamma0p10": {
+          "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/blend_sweep_new320/summary.json",
+          "top1": 0.38,
+          "top3": 0.64,
+          "top5": 0.76,
+          "top10": 0.9,
+          "top15": 0.95,
+          "top20": 0.98,
+          "reg1": 1.438,
+          "reg10": 0.183
+        },
+        "top3_plus_prevmixed_new320r6_gamma0p25": {
+          "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/external_clean_check_new320_gamma0p25/summary.json",
+          "top1": 0.37,
+          "top3": 0.64,
+          "top5": 0.78,
+          "top10": 0.91,
+          "top15": 0.94,
+          "top20": 0.98,
+          "reg1": 1.508,
+          "reg10": 0.148
+        }
+      },
+      "decision": "Do not promote as a Top1 model. The new320r6 gamma0.25 blend improves broad1000 final80 Top1 from 37.5% to 38.8% and lowers Reg1, but it does not beat the clean external Top3 residual baseline. Gamma0.10 ties clean external Top1 but worsens Reg1 and does not improve final320_399 Top1. Continue labeling more broad1000 cap50 rows before another promotion attempt."
+    },
+    "new_broad1000_first600_20260620": {
+      "dataset_0_599": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/reranker_t2_new_broad1000_0_599_alllegal_cap50_dim520",
+      "dataset_train0_479": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/reranker_t2_new_broad1000_train0_479_alllegal_cap50_dim520",
+      "dataset_final480_599": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/reranker_t2_new_broad1000_final480_599_alllegal_cap50_dim520",
+      "aggregate": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/cap50_first600_aggregate.json",
+      "cap50_records_completed": 600,
+      "cap50_candidates_completed": 14454,
+      "source_top1_same_as_cap50": 0.2983,
+      "source_top1_changed": 421,
+      "avg_cap50_elapsed_ms": 14115.934,
+      "avg_source_top1_ev_loss": 2.6358,
+      "max_source_top1_ev_loss": 38.9656,
+      "model_checks_final480_599": {
+        "current_default6": {
+          "top1": 0.358,
+          "top3": 0.608,
+          "top5": 0.767,
+          "top10": 0.933,
+          "top15": 0.975,
+          "top20": 0.992,
+          "reg1": 2.334,
+          "reg10": 0.093
+        },
+        "top3residual_alpha1": {
+          "top1": 0.408,
+          "top3": 0.642,
+          "top5": 0.783,
+          "top10": 0.942,
+          "top15": 0.992,
+          "top20": 0.992,
+          "reg1": 2.253,
+          "reg10": 0.099
+        },
+        "top1hard_ft2_beta0p8": {
+          "top1": 0.433,
+          "top3": 0.642,
+          "top5": 0.767,
+          "top10": 0.925,
+          "top15": 0.983,
+          "top20": 0.992,
+          "reg1": 2.29,
+          "reg10": 0.19
+        },
+        "top3_plus_prevmixed_new320r6_gamma0p25": {
+          "top1": 0.425,
+          "top3": 0.658,
+          "top5": 0.758,
+          "top10": 0.925,
+          "top15": 0.983,
+          "top20": 1.0,
+          "reg1": 2.039,
+          "reg10": 0.105
+        },
+        "prevmixed_new480r6_standalone": {
+          "model": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/models/t2-prevmixed-plus-new480r6-ft-top1-20260620/action_value_best.pt",
+          "top1": 0.408,
+          "top3": 0.658,
+          "top5": 0.783,
+          "top10": 0.917,
+          "top15": 0.967,
+          "top20": 1.0,
+          "reg1": 2.235,
+          "reg10": 0.215
+        },
+        "top3_plus_prevmixed_new480r6_gamma0p25": {
+          "top1": 0.425,
+          "top3": 0.658,
+          "top5": 0.767,
+          "top10": 0.917,
+          "top15": 0.992,
+          "top20": 1.0,
+          "reg1": 2.042,
+          "reg10": 0.106
+        },
+        "top3_plus_prevmixed_new480r6_gamma0p5": {
+          "top1": 0.425,
+          "top3": 0.65,
+          "top5": 0.767,
+          "top10": 0.933,
+          "top15": 0.983,
+          "top20": 1.0,
+          "reg1": 2.02,
+          "reg10": 0.085
+        }
+      },
+      "clean_external_checks": {
+        "baseline_top3residual_alpha1": {
+          "top1": 0.38,
+          "reg1": 1.425
+        },
+        "top3_plus_prevmixed_new480r6_gamma0p25": {
+          "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/external_clean_check_new480_gamma0p25/summary.json",
+          "top1": 0.36,
+          "top3": 0.64,
+          "top5": 0.77,
+          "top10": 0.91,
+          "top15": 0.94,
+          "top20": 0.98,
+          "reg1": 1.541,
+          "reg10": 0.148
+        }
+      },
+      "decision": "Do not promote as a Top1 model. On broad1000 final480_599 the existing top1hard ft2 beta0.8 has the best Top1 at 43.3%. The new480r6 blends lower Reg1 but do not improve Top1 and fail the clean external check at 36.0% Top1 versus the 38.0% top3 residual baseline."
+    },
+    "new_broad1000_first800_20260620": {
+      "dataset_0_799": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/reranker_t2_new_broad1000_0_799_alllegal_cap50_dim520",
+      "teacher_train0_599": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/t2_new_broad1000_train0_599_alllegal_cap50.teacher.jsonl",
+      "dataset_final600_799": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/reranker_t2_new_broad1000_final600_799_alllegal_cap50_dim520",
+      "aggregate": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/cap50_first800_aggregate.json",
+      "cap50_records_completed": 800,
+      "cap50_candidates_completed": 19179,
+      "source_top1_same_as_cap50": 0.2825,
+      "source_top1_changed": 574,
+      "avg_cap50_elapsed_ms": 14016.7,
+      "avg_estimated_full_t2_elapsed_ms": 1857552.9,
+      "avg_source_top1_ev_loss": 2.6954,
+      "max_source_top1_ev_loss": 38.9656,
+      "model_checks_final600_799": {
+        "current_default6": {
+          "top1": 0.365,
+          "top3": 0.665,
+          "top5": 0.8,
+          "top10": 0.905,
+          "top15": 0.97,
+          "top20": 0.99,
+          "reg1": 1.665,
+          "reg3": 0.626,
+          "reg10": 0.217
+        },
+        "top3residual_alpha1": {
+          "top1": 0.4,
+          "top3": 0.695,
+          "top5": 0.815,
+          "top10": 0.94,
+          "top15": 0.965,
+          "top20": 0.995,
+          "reg1": 1.591,
+          "reg3": 0.567,
+          "reg10": 0.106
+        },
+        "top1hard_ft2_beta0p8": {
+          "top1": 0.385,
+          "top3": 0.685,
+          "top5": 0.795,
+          "top10": 0.92,
+          "top15": 0.975,
+          "top20": 0.995,
+          "reg1": 1.743,
+          "reg3": 0.572,
+          "reg10": 0.132
+        },
+        "top3_plus_prevmixed_new480r6_gamma0p25": {
+          "top1": 0.4,
+          "top3": 0.695,
+          "top5": 0.825,
+          "top10": 0.94,
+          "top15": 0.97,
+          "top20": 0.995,
+          "reg1": 1.628,
+          "reg3": 0.608,
+          "reg10": 0.128
+        },
+        "top3_plus_new600r8_top1strong_gamma0p25": {
+          "model": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/models/t2-prevmixed-plus-new600r8-top1strong-20260620/action_value_best.pt",
+          "top1": 0.41,
+          "top3": 0.69,
+          "top5": 0.815,
+          "top10": 0.935,
+          "top15": 0.97,
+          "top20": 0.995,
+          "reg1": 1.564,
+          "reg3": 0.62,
+          "reg10": 0.128
+        },
+        "top3_plus_new600r4_balanced_gamma0p25": {
+          "model": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/models/t2-prevmixed-plus-new600r4-balanced-20260620/action_value_best.pt",
+          "top1": 0.42,
+          "top3": 0.69,
+          "top5": 0.815,
+          "top10": 0.94,
+          "top15": 0.965,
+          "top20": 0.995,
+          "reg1": 1.569,
+          "reg3": 0.579,
+          "reg10": 0.128
+        },
+        "new600r4_balanced_standalone": {
+          "model": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/models/t2-prevmixed-plus-new600r4-balanced-20260620/action_value_best.pt",
+          "top1": 0.375,
+          "top3": 0.67,
+          "top5": 0.805,
+          "top10": 0.935,
+          "top15": 0.965,
+          "top20": 0.995,
+          "reg1": 1.762,
+          "reg3": 0.702,
+          "reg10": 0.126
+        }
+      },
+      "clean_external_checks": {
+        "baseline_top3residual_alpha1": {
+          "top1": 0.38,
+          "top3": 0.64,
+          "top5": 0.76,
+          "top10": 0.89,
+          "top15": 0.94,
+          "top20": 0.98,
+          "reg1": 1.425,
+          "reg3": 0.514,
+          "reg10": 0.183
+        },
+        "top3_plus_new600r8_top1strong_gamma0p25": {
+          "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/external_clean_check_new600r8_top1strong_gamma0p25/summary.json",
+          "top1": 0.36,
+          "top3": 0.63,
+          "top5": 0.77,
+          "top10": 0.91,
+          "top15": 0.94,
+          "top20": 0.98,
+          "reg1": 1.532,
+          "reg3": 0.531,
+          "reg10": 0.148
+        },
+        "top3_plus_new600r4_balanced_gamma0p25": {
+          "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/external_clean_check_new600r4_balanced_gamma0p25/summary.json",
+          "top1": 0.37,
+          "top3": 0.64,
+          "top5": 0.77,
+          "top10": 0.91,
+          "top15": 0.95,
+          "top20": 0.98,
+          "reg1": 1.547,
+          "reg3": 0.535,
+          "reg10": 0.155
+        },
+        "new600r4_balanced_standalone": {
+          "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/external_clean_check_new600r4_balanced_standalone/summary.json",
+          "top1": 0.38,
+          "top3": 0.63,
+          "top5": 0.8,
+          "top10": 0.92,
+          "top15": 0.94,
+          "top20": 0.98,
+          "reg1": 1.274,
+          "reg3": 0.574,
+          "reg10": 0.12
+        }
+      },
+      "decision": "Do not promote either first800 diagnostic model as the runtime Top1 model. The best final600_799 Top1 reaches 42.0%, but the gain does not carry to the clean external set. The balanced standalone model ties clean external Top1 at 38.0% and lowers Reg1, but it is weaker on final600_799, so keep it diagnostic."
+    },
+    "new_broad1000_first1000_20260620": {
+      "dataset_0_999": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/reranker_t2_new_broad1000_0_999_alllegal_cap50_dim520",
+      "dataset_final800_999": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/reranker_t2_new_broad1000_final800_999_alllegal_cap50_dim520",
+      "teacher_all0_999": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/t2_new_broad1000_all0_999_alllegal_cap50.teacher.jsonl",
+      "teacher_final800_999": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/t2_new_broad1000_final800_999_alllegal_cap50.teacher.jsonl",
+      "aggregate": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/cap50_first1000_aggregate.json",
+      "cap50_records_completed": 1000,
+      "cap50_candidates_completed": 23742,
+      "source_top1_same_as_cap50": 0.281,
+      "source_top1_changed": 719,
+      "avg_cap50_elapsed_ms": 14023.055,
+      "avg_estimated_full_t2_elapsed_ms": 1859267.243,
+      "avg_source_top1_ev_loss": 2.7099,
+      "max_source_top1_ev_loss": 38.9656,
+      "train_artifacts": {
+        "prev_mixed_plus_new800r4_balanced_data": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/av_dataset_prev_mixed_plus_new800r4_balanced_dim520",
+        "prev_mixed_plus_new800r4_balanced_model": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/models/t2-prevmixed-plus-new800r4-balanced-20260620/action_value_best.pt",
+        "new800only_balanced_model": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/models/t2-new800only-balanced-20260620/action_value_best.pt"
+      },
+      "model_checks_final800_999": {
+        "top3residual_alpha1": {
+          "top1": 0.36,
+          "top3": 0.595,
+          "top5": 0.77,
+          "top10": 0.87,
+          "top15": 0.955,
+          "top20": 1.0,
+          "reg1": 2.077,
+          "reg3": 0.948,
+          "reg10": 0.172
+        },
+        "top1hard_ft2_beta0p8": {
+          "top1": 0.345,
+          "top3": 0.61,
+          "top5": 0.745,
+          "top10": 0.87,
+          "top15": 0.95,
+          "top20": 1.0,
+          "reg1": 2.087,
+          "reg3": 0.959,
+          "reg10": 0.289
+        },
+        "new600r4_balanced_standalone": {
+          "top1": 0.34,
+          "top3": 0.63,
+          "top5": 0.77,
+          "top10": 0.885,
+          "top15": 0.955,
+          "top20": 0.995,
+          "reg1": 2.078,
+          "reg3": 0.754,
+          "reg10": 0.301
+        },
+        "new800r4_balanced_standalone": {
+          "top1": 0.33,
+          "top3": 0.635,
+          "top5": 0.755,
+          "top10": 0.875,
+          "top15": 0.965,
+          "top20": 0.995,
+          "reg1": 2.078,
+          "reg3": 0.918,
+          "reg10": 0.29
+        },
+        "top3_plus_new800r4_balanced_gamma0p25": {
+          "top1": 0.355,
+          "top3": 0.595,
+          "top5": 0.765,
+          "top10": 0.875,
+          "top15": 0.955,
+          "top20": 1.0,
+          "reg1": 2.138,
+          "reg3": 0.968,
+          "reg10": 0.213
+        },
+        "new800only_balanced_standalone": {
+          "top1": 0.34,
+          "top3": 0.63,
+          "top5": 0.765,
+          "top10": 0.87,
+          "top15": 0.95,
+          "top20": 0.995,
+          "reg1": 2.164,
+          "reg3": 0.889,
+          "reg10": 0.319
+        },
+        "top3_plus_new800only_balanced_gamma0p25": {
+          "top1": 0.355,
+          "top3": 0.61,
+          "top5": 0.76,
+          "top10": 0.88,
+          "top15": 0.96,
+          "top20": 0.995,
+          "reg1": 2.112,
+          "reg3": 0.896,
+          "reg10": 0.18
+        }
+      },
+      "decision": "Do not promote any first1000 diagnostic model. On the clean 800-999 holdout, the old top3 residual ensemble remains the best Top1 result at 36.0%. New first800/final1000 fine-tunes and new-only fine-tuning do not improve Top1, so the next step should change features or architecture rather than repeat the same fine-tune recipe."
+    }
+  },
+  "notes": [
+    "This pass optimizes model Top1 ordering, not final product runtime selection.",
+    "The best checked diagnostic blend is add beta 0.8 for the second Top1 specialist. It reduces Top1 EV loss > 0.25 from 98 groups to 3 and > 1.0 from 69 groups to 2 while keeping Top3 EV loss > 0.1 at 0.",
+    "The 97.1% Top1 result is not a clean external number because the hard negatives were mined from the same 15 checked datasets.",
+    "On clean external checks not used in the Top1 hard-negative pass, this blend reached only 34.0% Top1 over 100 groups and worsened Top1 regret versus the previous Top3 residual blend. Treat it as an in-distribution diagnostic, not a promoted model.",
+    "Do not use this as the runtime default until broader clean external data is added and T2 hybrid selected-action EV loss is rechecked. Runtime currently still depends on exact/refinement and rescue gates.",
+    "A clean260 hard-negative fine-tune was rejected on 2026-06-19 because it did not beat the current Top3 residual baseline on clean external Top1 or Reg1.",
+    "A new broad all-legal/cap50 smoke shard passed source generation, Rust cap50, fixed teacher join, and reranker conversion on D:. The source/model Top1 matched cap50 Top1 on only 1/4 rows, confirming that fresh broad data is needed.",
+    "The new broad200 source first20 check reached only 20-30% model Top1 depending on blend, so the 97.1% mined-set result is not an external strength number.",
+    "The completed broad200 cap50 set has 200 records and 4791 candidates; source/T3-model Top1 matches cap50 Top1 only 26.5% of the time. The tested train0_159 specialists did not improve final160_199, so more broad cap50 data is needed before another Top1 promotion attempt.",
+    "The new broad1000 source has 1000 records and 23943 candidates. The first100 cap50 labels show source/T3-model Top1 matches cap50 Top1 only 28.0% of the time, and the new80r8 specialist did not improve the 60-row holdout. Keep it diagnostic and continue exact labeling toward 800-1000 train rows.",
+    "The first200 broad1000 cap50 labels have source/T3-model Top1 agreement of 27.0%, average Top1 EV loss 3.159, and max loss 34.818. A mixed new160r6 blend improved final40 Top1 to 37.5% but worsened Top1 EV loss, so it is diagnostic only.",
+    "The first300 broad1000 cap50 labels have source/T3-model Top1 agreement of 26.7%, average Top1 EV loss 3.011, and max loss 38.966. The new240r6 blend improves final60 Reg1 but not Top1 accuracy, so more exact labels are still needed.",
+    "The first400 broad1000 cap50 labels have source/T3-model Top1 agreement of 28.8%, average Top1 EV loss 2.807, and max loss 38.966. The new320r6 gamma0.25 blend improves the broad1000 final80 Top1 to 38.8% but fails the clean external promotion check, so keep it diagnostic.",
+    "The first600 broad1000 cap50 labels have source/T3-model Top1 agreement of 29.8%, average Top1 EV loss 2.636, and max loss 38.966. The new480r6 fine-tune did not beat the existing top1hard ft2 model on final480_599 Top1 and failed clean external, so more labels plus a different training objective or model change are needed.",
+    "The first800 broad1000 cap50 labels have source/T3-model Top1 agreement of 28.2%, average Top1 EV loss 2.695, and max loss 38.966. New first800 diagnostics reached 42.0% on final600_799, but clean external Top1 stayed at the 38.0% baseline at best, so the apparent gain is not externalized.",
+    "The full first1000 broad1000 cap50 set has source/T3-model Top1 agreement of 28.1%, average Top1 EV loss 2.710, and max loss 38.966. On the clean 800-999 holdout, the old top3 residual ensemble remains best at 36.0% Top1; new800 mixed and new800-only fine-tunes do not improve Top1, so the next useful step is a feature or architecture change.",
+    "Adding candidate-rank/route metadata to the set-residual gate produced the strongest current Top1 diagnostic: candidate_rank_gap_chal_minus_base <= 0 with gamma0.10 improves 640-row replay Top1 from 37.5% to 43.9% and Reg1 from 1.714 to 1.525; external-only 240-row Top1 improves from 36.7% to 40.0% and Reg1 from 1.515 to 1.402."
+  ],
+  "experiments": {
+    "set_residual_architecture_20260620": {
+      "base_score_script": "ai/training/write_action_value_base_scores.py",
+      "base_score_summary_train0_799": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/reranker_t2_new_broad1000_0_799_alllegal_cap50_dim520/base_scores.metadata.json",
+      "base_score_summary_final800_999": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/reranker_t2_new_broad1000_final800_999_alllegal_cap50_dim520/base_scores.metadata.json",
+      "models": {
+        "actionfeat617_balanced": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/models/t2-new800-actionfeat617-balanced-20260620/action_value_best.pt",
+        "set_new800_target1": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/models/t2-set-new800-target1-20260620/action_value_set_best.pt",
+        "set_baseline_residual": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/models/t2-set-new800-baseline-residual-20260620/action_value_set_final.pt"
+      },
+      "final800_999_checks": {
+        "baseline_top3_residual_alpha1": {
+          "top1": 0.36,
+          "top3": 0.595,
+          "top5": 0.77,
+          "top10": 0.87,
+          "top15": 0.955,
+          "top20": 1.0,
+          "reg1": 2.077,
+          "reg3": 0.948,
+          "reg10": 0.172
+        },
+        "actionfeat617_standalone": {
+          "top1": 0.33,
+          "top3": 0.58,
+          "top5": 0.75,
+          "top10": 0.86,
+          "top15": 0.925,
+          "top20": 0.995,
+          "reg1": 2.238,
+          "reg3": 0.908,
+          "reg10": 0.278
+        },
+        "set_new800_target1": {
+          "top1": 0.255,
+          "top3": 0.49,
+          "top5": 0.705,
+          "top10": 0.85,
+          "top15": 0.925,
+          "top20": 0.98,
+          "reg1": 3.068,
+          "reg3": 1.244,
+          "reg10": 0.201
+        },
+        "set_baseline_residual_best": {
+          "top1": 0.37,
+          "top3": 0.59,
+          "top5": 0.735,
+          "top10": 0.88,
+          "top15": 0.965,
+          "top20": 0.99,
+          "reg1": 2.194,
+          "reg3": 0.954,
+          "reg10": 0.162
+        },
+        "set_baseline_residual_final": {
+          "top1": 0.38,
+          "top3": 0.6,
+          "top5": 0.7,
+          "top10": 0.895,
+          "top15": 0.95,
+          "top20": 0.995,
+          "reg1": 2.062,
+          "reg3": 1.052,
+          "reg10": 0.171
+        }
+      },
+      "blend_sweep": {
+        "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/blend_sweep_set_baseline_residual_final/summary.json",
+        "formula": "score = baseline_ensemble + gamma * (set_baseline_residual - baseline_ensemble)",
+        "clean_external_baseline_gamma0": {
+          "groups": 100,
+          "top1": 0.38,
+          "top3": 0.64,
+          "top5": 0.76,
+          "top10": 0.89,
+          "top15": 0.94,
+          "top20": 0.98,
+          "reg1": 1.425,
+          "reg3": 0.514,
+          "reg10": 0.183
+        },
+        "clean_external_gamma0p10": {
+          "groups": 100,
+          "top1": 0.43,
+          "top3": 0.66,
+          "top5": 0.8,
+          "top10": 0.9,
+          "top15": 0.95,
+          "top20": 0.98,
+          "reg1": 1.502,
+          "reg3": 0.519,
+          "reg10": 0.184
+        },
+        "clean_external_gamma0p15": {
+          "groups": 100,
+          "top1": 0.44,
+          "top3": 0.65,
+          "top5": 0.8,
+          "top10": 0.9,
+          "top15": 0.95,
+          "top20": 0.98,
+          "reg1": 1.675,
+          "reg3": 0.513,
+          "reg10": 0.224
+        },
+        "final800_999_baseline_gamma0": {
+          "groups": 200,
+          "top1": 0.36,
+          "top3": 0.595,
+          "top5": 0.77,
+          "top10": 0.87,
+          "top15": 0.955,
+          "top20": 1.0,
+          "reg1": 2.077,
+          "reg3": 0.948,
+          "reg10": 0.172
+        },
+        "final800_999_gamma0p10": {
+          "groups": 200,
+          "top1": 0.37,
+          "top3": 0.595,
+          "top5": null,
+          "top10": 0.87,
+          "top15": null,
+          "top20": null,
+          "reg1": 1.979,
+          "reg3": null,
+          "reg10": 0.184
+        },
+        "combined_clean_plus_final_gamma0p10": {
+          "groups": 300,
+          "top1": 0.39,
+          "reg1": 1.82
+        },
+        "extra_external_summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/blend_sweep_set_baseline_residual_final_extra_external/summary.json",
+        "extra_external_baseline_gamma0": {
+          "groups": 140,
+          "top1": 0.357,
+          "top3": 0.707,
+          "top10": 0.95,
+          "reg1": 1.579,
+          "reg10": 0.039
+        },
+        "extra_external_gamma0p10": {
+          "groups": 140,
+          "top1": 0.336,
+          "top3": 0.75,
+          "top10": 0.964,
+          "reg1": 1.554,
+          "reg10": 0.038
+        },
+        "combined_440_gamma0p10": {
+          "groups": 440,
+          "top1": 0.373,
+          "reg1": 1.735
+        }
+      },
+      "decision": "Diagnostic only. A small set-residual blend at gamma0.10 improves Top1 on the first clean external 100 groups and final800_999, but loses Top1 on the extra external 140 groups, mainly broad100_fixed. It improves candidate-pool style metrics on the extra set (Top3/Top10 and Reg1), so the next useful step is a gated/confidence residual rather than a global gamma. Do not promote as runtime/default Top1 model.",
+      "gate_diagnostic": {
+        "script": "ai/training/evaluate_set_residual_gate.py",
+        "train0_799_summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/gate_sweep_set_residual_gamma0p10_train0_799/summary.json",
+        "train0_599_summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/gate_sweep_set_residual_gamma0p10_train0_599/summary.json",
+        "oracle_diagnostic_summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/gate_sweep_set_residual_gamma0p10_oracle_diagnostics/summary.json",
+        "selected_gate_train0_799": {
+          "gate_type": "single_feature",
+          "feature": "challenger_margin_over_base",
+          "direction": "ge",
+          "threshold": 0.0033830178538454326,
+          "gamma": 0.1
+        },
+        "replay_440": {
+          "datasets": [
+            "final800_999",
+            "clean20c",
+            "clean_holdout4_fixed",
+            "broad160_holdout40_fixed",
+            "clean20",
+            "clean20b",
+            "broad100_fixed"
+          ],
+          "baseline": {
+            "groups": 440,
+            "switch_groups": 0,
+            "top1": 0.364,
+            "top3": 0.641,
+            "top10": 0.9,
+            "reg1": 1.77
+          },
+          "global_gamma0p10": {
+            "groups": 440,
+            "switch_groups": 440,
+            "top1": 0.373,
+            "top3": 0.659,
+            "top10": 0.907,
+            "reg1": 1.735
+          },
+          "gated_gamma0p10": {
+            "groups": 440,
+            "switch_groups": 52,
+            "top1": 0.375,
+            "top3": 0.65,
+            "top10": 0.905,
+            "reg1": 1.75
+          }
+        },
+        "decision": "Keep diagnostic. The selected gate improves 440-row replay Top1 by 1.1pp and slightly lowers Reg1 versus baseline, but broad100_fixed regresses and clean_holdout4 gains Top1 while worsening Reg1. This is a candidate for stronger confidence-gate training, not a runtime default."
+      },
+      "candidate_rank_gate_diagnostic": {
+        "feature_update": "evaluate_set_residual_gate.py now includes position, candidate_ranks, action_indices, route_tags, and route-tag bit/fraction features.",
+        "gate": {
+          "gate_type": "single_feature",
+          "feature": "candidate_rank_gap_chal_minus_base",
+          "direction": "le",
+          "threshold": 0.0,
+          "gamma": 0.1,
+          "formula": "Use set-residual challenger when challenger_top_candidate_rank <= base_top_candidate_rank."
+        },
+        "train0_599_summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/gate_sweep_set_residual_gamma0p10_train0_599_feat2/summary.json",
+        "train0_799_summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/gate_sweep_set_residual_gamma0p10_train0_799_feat2/summary.json",
+        "learned_gate_delta_summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/learned_gate_set_residual_gamma0p10_delta_feat2_train0_599_val600_799/summary.json",
+        "learned_gate_improve_summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/learned_gate_set_residual_gamma0p10_improve_feat2_train0_599_val600_799/summary.json",
+        "replay_640": {
+          "datasets": [
+            "final600_799",
+            "final800_999",
+            "clean20c",
+            "clean_holdout4_fixed",
+            "broad160_holdout40_fixed",
+            "clean20",
+            "clean20b",
+            "broad100_fixed"
+          ],
+          "baseline": {
+            "groups": 640,
+            "switch_groups": 0,
+            "top1": 0.375,
+            "top3": 0.658,
+            "top10": 0.912,
+            "reg1": 1.714
+          },
+          "global_gamma0p10": {
+            "groups": 640,
+            "switch_groups": 640,
+            "top1": 0.425,
+            "top3": 0.712,
+            "top10": 0.928,
+            "reg1": 1.601
+          },
+          "candidate_rank_gated_gamma0p10": {
+            "groups": 640,
+            "switch_groups": 615,
+            "top1": 0.439,
+            "top3": 0.706,
+            "top10": 0.928,
+            "reg1": 1.525
+          }
+        },
+        "external_replay_240": {
+          "datasets": [
+            "clean20c",
+            "clean_holdout4_fixed",
+            "broad160_holdout40_fixed",
+            "clean20",
+            "clean20b",
+            "broad100_fixed"
+          ],
+          "baseline": {
+            "groups": 240,
+            "switch_groups": 0,
+            "top1": 0.367,
+            "top3": 0.679,
+            "top10": 0.925,
+            "reg1": 1.515
+          },
+          "global_gamma0p10": {
+            "groups": 240,
+            "switch_groups": 240,
+            "top1": 0.375,
+            "top3": 0.712,
+            "top10": 0.938,
+            "reg1": 1.532
+          },
+          "candidate_rank_gated_gamma0p10": {
+            "groups": 240,
+            "switch_groups": 225,
+            "top1": 0.4,
+            "top3": 0.7,
+            "top10": 0.938,
+            "reg1": 1.402
+          }
+        },
+        "fixed_gamma_sweep_20260620": {
+          "script": "ai/training/sweep_set_residual_fixed_gate.py",
+          "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/fixed_candidate_rank_gate_gamma_sweep_20260620/summary.json",
+          "misses": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/fixed_candidate_rank_gate_gamma_sweep_20260620/best_gamma_misses.jsonl",
+          "gate": {
+            "feature": "candidate_rank_gap_chal_minus_base",
+            "direction": "le",
+            "threshold": 0.0,
+            "formula": "Use set-residual challenger when challenger_top_candidate_rank <= base_top_candidate_rank."
+          },
+          "gamma0p75": {
+            "all": {
+              "groups": 640,
+              "switch_groups": 533,
+              "top1": 0.581,
+              "top3": 0.75,
+              "top5": 0.831,
+              "top10": 0.93,
+              "top15": 0.975,
+              "top20": 0.995,
+              "reg1": 1.019,
+              "reg3_rerank": 0.497,
+              "reg10_rerank": 0.102
+            },
+            "external": {
+              "groups": 240,
+              "switch_groups": 180,
+              "top1": 0.458,
+              "top3": 0.683,
+              "top5": 0.808,
+              "top10": 0.917,
+              "top15": 0.971,
+              "top20": 0.992,
+              "reg1": 1.12,
+              "reg3_rerank": 0.568,
+              "reg10_rerank": 0.105
+            }
+          },
+          "gamma1p0": {
+            "all": {
+              "groups": 640,
+              "switch_groups": 525,
+              "top1": 0.588,
+              "top3": 0.75,
+              "top5": 0.828,
+              "top10": 0.925,
+              "top15": 0.969,
+              "top20": 0.994,
+              "reg1": 1.004,
+              "reg3_rerank": 0.5,
+              "reg10_rerank": 0.113
+            },
+            "external": {
+              "groups": 240,
+              "switch_groups": 171,
+              "top1": 0.454,
+              "top3": 0.679,
+              "top5": 0.808,
+              "top10": 0.908,
+              "top15": 0.958,
+              "top20": 0.988,
+              "reg1": 1.137,
+              "reg3_rerank": 0.57,
+              "reg10_rerank": 0.106
+            }
+          },
+          "external_gamma1p0_misses": {
+            "top1_misses": 131,
+            "mean_regret": 2.084,
+            "p90_regret": 5.27,
+            "max_regret": 18.571,
+            "regret_gte_1": 57,
+            "regret_gte_5": 15,
+            "regret_gte_10": 4
+          },
+          "decision": "Diagnostic only. Larger gamma improves all-aggregate Top1 strongly and external Top1 modestly, but external Top1 remains 45-46%, so this is a mining baseline rather than a promoted runtime model."
+        },
+        "hardtop1_r1_r2_blend_20260620": {
+          "source_weighted_data_r1": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/reranker_t2_new_broad1000_0_999_gate1p0_top1miss_weighted_20260620",
+          "source_weighted_data_r2": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/reranker_t2_new_broad1000_0_999_gate1p0_top1miss_weighted_r2_20260620",
+          "mining_r1": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/fixed_gate_gamma1p0_train0_999_mining_20260620/best_gamma_misses.jsonl",
+          "mining_r2": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/fixed_gate_gamma1p0_train0_999_mining_hardtop1_r2_20260620/best_gamma_misses.jsonl",
+          "models": {
+            "r1_final": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/models/t2-set-new1000-gate1p0-hardtop1-residual-20260620/action_value_set_final.pt",
+            "r2_final": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/models/t2-set-new1000-gate1p0-hardtop1-r2-residual-20260620/action_value_set_final.pt"
+          },
+          "script_updates": {
+            "create_eval_miss_weighted_action_value_data.py": "Uses ordered_indices as confusers when top_predictions are absent and preserves base_scores.npy.",
+            "sweep_set_residual_fixed_gate.py": "Supports blended set checkpoints with --checkpoints and --weights."
+          },
+          "sweeps": {
+            "r1_final": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/fixed_candidate_rank_gate_gamma_sweep_new1000_hardtop1_final_20260620/summary.json",
+            "r2_final": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/fixed_candidate_rank_gate_gamma_sweep_new1000_hardtop1_r2_final_20260620/summary.json",
+            "r1r2w50": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/fixed_candidate_rank_gate_gamma_sweep_new1000_hardtop1_r1r2w50_20260620/summary.json"
+          },
+          "winner": {
+            "mode": "candidate_rank_gated_set_residual_blend",
+            "set_checkpoints": [
+              "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/models/t2-set-new1000-gate1p0-hardtop1-residual-20260620/action_value_set_final.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/models/t2-set-new1000-gate1p0-hardtop1-r2-residual-20260620/action_value_set_final.pt"
+            ],
+            "set_weights": [
+              0.5,
+              0.5
+            ],
+            "gamma": 1.15,
+            "gate": {
+              "feature": "candidate_rank_gap_chal_minus_base",
+              "direction": "le",
+              "threshold": 0.0
+            },
+            "all_640": {
+              "groups": 640,
+              "switch_groups": 536,
+              "top1": 0.769,
+              "top3": 0.852,
+              "top5": 0.919,
+              "top10": 0.97,
+              "top15": 0.989,
+              "top20": 0.995,
+              "reg1": 0.536,
+              "reg3_rerank": 0.291,
+              "reg10_rerank": 0.052
+            },
+            "external_240": {
+              "groups": 240,
+              "switch_groups": 158,
+              "top1": 0.504,
+              "top3": 0.658,
+              "top5": 0.804,
+              "top10": 0.929,
+              "top15": 0.979,
+              "top20": 0.992,
+              "reg1": 0.995,
+              "reg3_rerank": 0.58,
+              "reg10_rerank": 0.133
+            },
+            "external_misses": {
+              "top1_misses": 119,
+              "mean_regret": 2.008,
+              "max_regret": 18.571,
+              "regret_gte_1": 50,
+              "regret_gte_5": 13,
+              "regret_gte_10": 4
+            }
+          },
+          "decision": "Best current Top1 diagnostic. External Top1 improves from the previous fixed-gate 45.4-45.8% to 50.4%, and all-aggregate Top1 improves to 76.9%. Keep diagnostic because external Top3 is lower than the old fixed gate, and the gain over r1_final is only one external group."
+        },
+        "mixed_newbroad200_top1_finetune_20260620": {
+          "mixed_train": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_mixed_20260620/reranker_t2_broad1000_plus_newbroad200_train160_alllegal_cap50_dim520",
+          "weighted_train": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_mixed_20260620/reranker_t2_broad1000_plus_newbroad200_train160_gate1p15_top1miss_weighted_20260620",
+          "mining": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_mixed_20260620/current_r1r2w50_gamma1p15_mixed_train_mining_20260620/best_gamma_misses.jsonl",
+          "models": {
+            "scratch": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_mixed_20260620/models/t2-set-broad1000-plus-newbroad160-hardtop1-residual-20260620",
+            "r1_init_finetune": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_mixed_20260620/models/t2-set-r1-init-broad1000-plus-newbroad160-hardtop1-ft-20260620"
+          },
+          "script_updates": {
+            "train_action_value_set_reranker.py": "Supports --init-checkpoint and --normalization-source so hard-negative passes can fine-tune from an existing set checkpoint instead of always training from scratch."
+          },
+          "sweeps": {
+            "baseline_r1r2w50_gamma1p15": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_mixed_20260620/current_r1r2w50_gamma1p15_baseline_eval_20260620/summary.json",
+            "scratch_best": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_mixed_20260620/fixed_gate_gamma_sweep_broad1000_newbroad160_hardtop1_best_20260620/summary.json",
+            "scratch_final": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_mixed_20260620/fixed_gate_gamma_sweep_broad1000_newbroad160_hardtop1_final_20260620/summary.json",
+            "r1_init_best": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_mixed_20260620/fixed_gate_gamma_sweep_r1init_ft_best_20260620/summary.json",
+            "r1_init_final": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_mixed_20260620/fixed_gate_gamma_sweep_r1init_ft_final_20260620/summary.json",
+            "blend3_w45_45_10": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_mixed_20260620/blend3_w45_45_10_sweep_20260620/summary.json"
+          },
+          "baseline_current": {
+            "selector": "R1/R2 50/50 gamma1.15",
+            "external_240": {
+              "groups": 240,
+              "top1": 0.504,
+              "top3": 0.658,
+              "top10": 0.929,
+              "top20": 0.992,
+              "reg1": 0.995,
+              "reg10_rerank": 0.133
+            },
+            "external_plus_newbroad": {
+              "groups": 280,
+              "top1": 0.489,
+              "top3": 0.65,
+              "top10": 0.929,
+              "top20": 0.989,
+              "reg1": 0.984,
+              "reg10_rerank": 0.139
+            }
+          },
+          "best_checked_new_attempt": {
+            "selector": "R1-init fine-tune final gamma1.25",
+            "external_240": {
+              "groups": 240,
+              "top1": 0.488,
+              "top3": 0.671,
+              "top10": 0.925,
+              "top20": 0.988,
+              "reg1": 0.936,
+              "reg10_rerank": 0.096
+            },
+            "external_plus_newbroad": {
+              "groups": 280,
+              "top1": 0.475,
+              "top3": 0.664,
+              "top10": 0.918,
+              "top20": 0.979,
+              "reg1": 0.958,
+              "reg10_rerank": 0.107
+            }
+          },
+          "decision": "Do not promote. The mixed/new_broad200 hard-negative fine-tunes improve some internal and regret metrics, but external Top1 stays below the current R1/R2 50/50 gamma1.15 baseline. The stronger-looking internal precision does not hold on external tests."
+        },
+        "fresh100_independent_top1_check_20260620": {
+          "source": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh100_20260620/inputs/t2_new_broad_fresh100_source_all_actions.jsonl",
+          "exact": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh100_20260620/t2_new_broad_fresh100_alllegal_cap50.exact.jsonl",
+          "teacher": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh100_20260620/t2_new_broad_fresh100_alllegal_cap50.teacher.jsonl",
+          "reranker_data": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh100_20260620/reranker_t2_new_broad_fresh100_alllegal_cap50_dim520",
+          "generation": {
+            "records": 100,
+            "bb_records": 50,
+            "btn_records": 50,
+            "root_start": 1200,
+            "roots_used": 25,
+            "avg_legal_candidates": 24.12,
+            "source_elapsed_seconds": 49.1
+          },
+          "source_vs_cap50": {
+            "same_top1": 34,
+            "changed_top1": 66,
+            "same_top1_rate": 0.34,
+            "avg_cap50_elapsed_ms_per_row": 58179.162,
+            "avg_source_top1_ev_loss": 3.165,
+            "max_source_top1_ev_loss": 60.455
+          },
+          "current_r1r2_eval": {
+            "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh100_20260620/current_r1r2w50_gamma_sweep_fresh100_external_20260620/summary.json",
+            "fresh100": {
+              "groups": 100,
+              "top1": 0.82,
+              "top3": 0.89,
+              "top10": 0.96,
+              "top20": 1.0,
+              "reg1": 0.824,
+              "reg3_rerank": 0.766,
+              "reg10_rerank": 0.1
+            },
+            "external_240": {
+              "groups": 240,
+              "top1": 0.504,
+              "top3": 0.658,
+              "top10": 0.929,
+              "top20": 0.992,
+              "reg1": 0.995,
+              "reg3_rerank": 0.58,
+              "reg10_rerank": 0.133
+            }
+          },
+          "miss_mining": {
+            "fresh100_misses": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh100_20260620/current_r1r2w50_gamma_sweep_fresh100_external_20260620/fresh100_misses.jsonl",
+            "misses": 18,
+            "ev_loss_gte_0p25": 10,
+            "ev_loss_gte_1": 7,
+            "ev_loss_gte_5": 1,
+            "mean_miss_regret": 4.579,
+            "max_miss_regret": 60.455
+          },
+          "r3_finetune": {
+            "weighted_data": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh100_20260620/reranker_t2_new_broad_fresh100_gate1p15_top1miss_weighted_20260620",
+            "model": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh100_20260620/models/t2-set-r1-init-fresh100-hardtop1-ft-20260620",
+            "sweep": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh100_20260620/fixed_gate_gamma_sweep_r3_best_fresh100_external_20260620/summary.json",
+            "fresh100": {
+              "top1": 0.94,
+              "top3": 0.97,
+              "top10": 1.0,
+              "top20": 1.0,
+              "reg1": 0.03,
+              "reg3_rerank": 0.002,
+              "reg10_rerank": 0.0
+            },
+            "external_240": {
+              "top1": 0.462,
+              "top3": 0.696,
+              "top10": 0.921,
+              "top20": 0.988,
+              "reg1": 1.11,
+              "reg3_rerank": 0.472,
+              "reg10_rerank": 0.099
+            }
+          },
+          "r1r2r3_blends": {
+            "w45_45_10": {
+              "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh100_20260620/blend_r1r2r3_w45_45_10_fresh100_external_20260620/summary.json",
+              "external_240_top1": 0.5,
+              "external_240_reg1": 1.008
+            },
+            "w40_40_20": {
+              "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh100_20260620/blend_r1r2r3_w40_40_20_fresh100_external_20260620/summary.json",
+              "external_240_top1": 0.492,
+              "external_240_reg1": 1.041
+            }
+          },
+          "script_updates": {
+            "evaluate_set_residual_gate.py": "Supports blended set checkpoints with --checkpoints and --weights so gates can be searched for R1/R2 blends."
+          },
+          "gate_search": {
+            "r1r2w50_gamma1p15_train_fresh100": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh100_20260620/gate_search_r1r2w50_gamma1p15_train_fresh100_eval_external_20260620/summary.json",
+            "best_replayed_external_240_top1": 0.504,
+            "best_replayed_external_240_reg1": 0.995
+          },
+          "decision": "Do not promote R3 or R1/R2/R3 blends. Fresh100 is useful independent training evidence, and R3 fits it strongly, but the gain does not externalize. Keep current R1/R2 50/50 gamma1.15 fixed candidate-rank gate as the best checked Top1 diagnostic; generate more independent fresh all-legal cap50 rows before another promotion attempt."
+        },
+        "fresh100b_fresh200_hardneg_top1_check_20260620": {
+          "fresh100b": {
+            "source": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh100b_20260620/inputs/t2_new_broad_fresh100b_source_all_actions.jsonl",
+            "exact": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh100b_20260620/t2_new_broad_fresh100b_alllegal_cap50.exact.jsonl",
+            "teacher": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh100b_20260620/t2_new_broad_fresh100b_alllegal_cap50.teacher.jsonl",
+            "reranker_data": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh100b_20260620/reranker_t2_new_broad_fresh100b_alllegal_cap50_dim520",
+            "records": 100,
+            "candidates": 2280,
+            "avg_legal_candidates": 23.97,
+            "source_elapsed_seconds": 43.7
+          },
+          "current_r1r2_fresh100b_eval": {
+            "gamma1p0": {
+              "fresh100b_top1": 0.69,
+              "fresh100b_top10": 0.96,
+              "fresh100b_top20": 1.0,
+              "external_240_top1": 0.504,
+              "external_240_top10": 0.925,
+              "external_240_top20": 0.992,
+              "external_240_reg1": 1.031
+            },
+            "gamma1p15": {
+              "fresh100b_top1": 0.67,
+              "fresh100b_top10": 0.96,
+              "fresh100b_top20": 1.0,
+              "external_240_top1": 0.504,
+              "external_240_top10": 0.929,
+              "external_240_top20": 0.992,
+              "external_240_reg1": 0.995
+            }
+          },
+          "miss_mining": {
+            "fresh100b_misses": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh100b_20260620/current_r1r2w50_gamma_sweep_fresh100b_external_20260620/fresh100b_misses.jsonl",
+            "misses": 31,
+            "ev_loss_gte_0p25": 23,
+            "ev_loss_gte_1": 13,
+            "ev_loss_gte_5": 5,
+            "mean_miss_ev_loss": 1.966,
+            "max_miss_ev_loss": 10.419
+          },
+          "training_data": {
+            "fresh100b_weighted": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh100b_20260620/reranker_t2_new_broad_fresh100b_gate1p0_top1miss_weighted_20260620",
+            "fresh200_hardneg_merged": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh200_hardneg_20260620/reranker_t2_new_broad_fresh100_100b_top1miss_weighted_20260620",
+            "groups": 200,
+            "samples": 4593
+          },
+          "models": {
+            "r4_r1_init": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh200_hardneg_20260620/models/t2-set-r1-init-fresh200-hardtop1-lr1e5-20260620",
+            "r5_r2_init": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh200_hardneg_20260620/models/t2-set-r2-init-fresh200-hardtop1-lr1e5-20260620"
+          },
+          "external_240_results": {
+            "baseline_r1r2_gamma1p15": {
+              "top1": 0.504,
+              "top3": 0.658,
+              "top10": 0.929,
+              "top20": 0.992,
+              "reg1": 0.995
+            },
+            "r4_final_gamma0p75": {
+              "top1": 0.508,
+              "top3": 0.696,
+              "top10": 0.917,
+              "top20": 0.992,
+              "reg1": 1.022
+            },
+            "r1r2r4_w40_40_20_gamma1p0": {
+              "top1": 0.508,
+              "top3": 0.662,
+              "top10": 0.925,
+              "top20": 0.992,
+              "reg1": 1.015
+            },
+            "r5_final_gamma1p0": {
+              "top1": 0.471,
+              "top3": 0.671,
+              "top10": 0.904,
+              "top20": 0.992,
+              "reg1": 0.828
+            }
+          },
+          "script_updates": {
+            "merge_action_value_reranker_data.py": "Merges group_sample_weights.npy as a group-level array so hard-negative group weights survive merged datasets."
+          },
+          "decision": "Do not promote R4 or R5. R4 gives only a tiny external Top1 lift from 50.4% to 50.8% and worsens Reg1; R5 lowers Reg1 but loses too much Top1. The strong fresh-shard precision does not yet hold on external tests. Generate several more independent fresh cap50/cap200 shards before the next Top1 promotion attempt."
+        },
+        "fresh100c_fresh300_hardneg_top1_check_20260620": {
+          "fresh100c": {
+            "source": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh100c_20260620/inputs/t2_new_broad_fresh100c_source_all_actions.jsonl",
+            "exact": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh100c_20260620/t2_new_broad_fresh100c_alllegal_cap50.exact.jsonl",
+            "teacher": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh100c_20260620/t2_new_broad_fresh100c_alllegal_cap50.teacher.jsonl",
+            "reranker_data": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh100c_20260620/reranker_t2_new_broad_fresh100c_alllegal_cap50_dim520",
+            "records": 100,
+            "candidates": 2286,
+            "avg_legal_candidates": 23.88,
+            "source_elapsed_seconds": 48.3
+          },
+          "current_r1r2_fresh100c_eval": {
+            "gamma1p15": {
+              "fresh100c_top1": 0.57,
+              "fresh100c_top3": 0.75,
+              "fresh100c_top10": 0.96,
+              "fresh100c_top20": 1.0,
+              "fresh100c_reg1": 0.697,
+              "external_240_top1": 0.504,
+              "external_240_top10": 0.929,
+              "external_240_top20": 0.992,
+              "external_240_reg1": 0.995
+            }
+          },
+          "miss_mining": {
+            "fresh100c_misses": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh100c_20260620/current_r1r2w50_gamma_sweep_fresh100c_external_20260620/fresh100c_misses.jsonl",
+            "misses": 43,
+            "ev_loss_gte_0p25": 31,
+            "ev_loss_gte_1": 17,
+            "ev_loss_gte_5": 2,
+            "mean_miss_ev_loss": 1.62,
+            "max_miss_ev_loss": 18.439
+          },
+          "training_data": {
+            "fresh100c_weighted": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh100c_20260620/reranker_t2_new_broad_fresh100c_gate1p15_top1miss_weighted_20260620",
+            "fresh300_hardneg_merged": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh300_hardneg_20260620/reranker_t2_new_broad_fresh100_100b_100c_top1miss_weighted_20260620",
+            "groups": 300,
+            "samples": 6879
+          },
+          "models": {
+            "r6_r1_init_lr1e5": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh300_hardneg_20260620/models/t2-set-r1-init-fresh300-hardtop1-lr1e5-20260620",
+            "r7_r1_init_lr5e6": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh300_hardneg_20260620/models/t2-set-r1-init-fresh300-hardtop1-lr5e6-20260620"
+          },
+          "external_240_results": {
+            "baseline_r1r2_gamma1p15": {
+              "top1": 0.504,
+              "top3": 0.658,
+              "top10": 0.929,
+              "top20": 0.992,
+              "reg1": 0.995
+            },
+            "r6_final_gamma0p75": {
+              "top1": 0.504,
+              "top3": 0.696,
+              "top10": 0.921,
+              "top20": 0.992,
+              "reg1": 0.993
+            },
+            "r1r2r6_w45_45_10_gamma1p15": {
+              "top1": 0.504,
+              "top3": 0.667,
+              "top10": 0.925,
+              "top20": 0.992,
+              "reg1": 1.003
+            },
+            "r7_best_gamma1p0": {
+              "top1": 0.504,
+              "top3": 0.679,
+              "top10": 0.925,
+              "top20": 0.992,
+              "reg1": 1.064
+            }
+          },
+          "decision": "Do not promote R6, R7, or R1/R2/R6 blends. Fresh300 internal Top1 improves, but external240 Top1 does not exceed the current 50.4% baseline. The repeated pattern suggests small fresh hard-negative fine-tunes overfit; next work needs much more diverse labels or a feature/model change."
+        },
+        "decision": "Strongest current Top1 diagnostic candidate. Candidate-rank gated gamma0.10 improves Top1 and Reg1 on held-out broad rows and checked external aggregate. Keep diagnostic pending broader fresh external replay; use as baseline for the next Top1-loss mining pass."
+      }
+    }
+  }
+}

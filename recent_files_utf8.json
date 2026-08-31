@@ -1,0 +1,120 @@
+﻿[
+    {
+        "FullName":  "C:\\Users\\Owner\\.gemini\\antigravity\\scratch\\ofc-pineapple\\recent_files.json",
+        "LastWriteTime":  "\/Date(1777988225358)\/"
+    },
+    {
+        "FullName":  "C:\\Users\\Owner\\.gemini\\antigravity\\worktrees\\ofc-pineapple\\verify-gcp-phase-one-20260501\\fix.py",
+        "LastWriteTime":  "\/Date(1777987760345)\/"
+    },
+    {
+        "FullName":  "C:\\Users\\Owner\\.gemini\\antigravity\\worktrees\\ofc-pineapple\\verify-gcp-phase-one-20260501\\ai\\rust_solver\\mcts_gen\\src\\mcts.rs",
+        "LastWriteTime":  "\/Date(1777987711643)\/"
+    },
+    {
+        "FullName":  "C:\\Users\\Owner\\.gemini\\antigravity\\worktrees\\ofc-pineapple\\verify-gcp-phase-one-20260501\\ai\\rust_solver\\mcts_gen\\src\\inference.rs",
+        "LastWriteTime":  "\/Date(1777987711642)\/"
+    },
+    {
+        "FullName":  "C:\\Users\\Owner\\.gemini\\antigravity\\worktrees\\ofc-pineapple\\verify-gcp-phase-one-20260501\\ai\\rust_solver\\Cargo.lock",
+        "LastWriteTime":  "\/Date(1777987412019)\/"
+    },
+    {
+        "FullName":  "C:\\Users\\Owner\\.gemini\\antigravity\\worktrees\\ofc-pineapple\\verify-gcp-phase-one-20260501\\ai\\rust_solver\\mcts_gen\\src\\bin\\self_play.rs",
+        "LastWriteTime":  "\/Date(1777986868218)\/"
+    },
+    {
+        "FullName":  "C:\\Users\\Owner\\.gemini\\antigravity\\worktrees\\ofc-pineapple\\verify-gcp-phase-one-20260501\\ai\\training\\train_selfplay.py",
+        "LastWriteTime":  "\/Date(1777967756067)\/"
+    },
+    {
+        "FullName":  "C:\\Users\\Owner\\.gemini\\antigravity\\worktrees\\ofc-pineapple\\verify-gcp-phase-one-20260501\\run_rl_remote.sh",
+        "LastWriteTime":  "\/Date(1777965280985)\/"
+    },
+    {
+        "FullName":  "C:\\Users\\Owner\\.gemini\\antigravity\\worktrees\\ofc-pineapple\\verify-gcp-phase-one-20260501\\rl_pipeline_2.log",
+        "LastWriteTime":  "\/Date(1777965206943)\/"
+    },
+    {
+        "FullName":  "C:\\Users\\Owner\\.gemini\\antigravity\\worktrees\\ofc-pineapple\\verify-gcp-phase-one-20260501\\rl_pipeline.log",
+        "LastWriteTime":  "\/Date(1777965051790)\/"
+    },
+    {
+        "FullName":  "C:\\Users\\Owner\\.gemini\\antigravity\\worktrees\\ofc-pineapple\\verify-gcp-phase-one-20260501\\remote_fix2.sh",
+        "LastWriteTime":  "\/Date(1777963440784)\/"
+    },
+    {
+        "FullName":  "C:\\Users\\Owner\\.gemini\\antigravity\\worktrees\\ofc-pineapple\\verify-gcp-phase-one-20260501\\remote_fix.sh",
+        "LastWriteTime":  "\/Date(1777963376523)\/"
+    },
+    {
+        "FullName":  "C:\\Users\\Owner\\.gemini\\antigravity\\worktrees\\ofc-pineapple\\verify-gcp-phase-one-20260501\\ai\\rust_solver\\mcts_gen\\Cargo.toml",
+        "LastWriteTime":  "\/Date(1777963342378)\/"
+    },
+    {
+        "FullName":  "C:\\Users\\Owner\\.gemini\\antigravity\\worktrees\\ofc-pineapple\\verify-gcp-phase-one-20260501\\startup.sh",
+        "LastWriteTime":  "\/Date(1777960154240)\/"
+    },
+    {
+        "FullName":  "C:\\Users\\Owner\\.gemini\\antigravity\\worktrees\\ofc-pineapple\\verify-gcp-phase-one-20260501\\deploy_ofc_rl_gcp.ps1",
+        "LastWriteTime":  "\/Date(1777960114175)\/"
+    },
+    {
+        "FullName":  "C:\\Users\\Owner\\.gemini\\antigravity\\worktrees\\ofc-pineapple\\verify-gcp-phase-one-20260501\\ai\\models\\selfplay\\sp_value_final.pt",
+        "LastWriteTime":  "\/Date(1777959791958)\/"
+    },
+    {
+        "FullName":  "C:\\Users\\Owner\\.gemini\\antigravity\\worktrees\\ofc-pineapple\\verify-gcp-phase-one-20260501\\ai\\models\\selfplay\\sp_policy_final.pt",
+        "LastWriteTime":  "\/Date(1777959791953)\/"
+    },
+    {
+        "FullName":  "C:\\Users\\Owner\\.gemini\\antigravity\\worktrees\\ofc-pineapple\\verify-gcp-phase-one-20260501\\ai\\models\\selfplay\\current_model.onnx",
+        "LastWriteTime":  "\/Date(1777959791939)\/"
+    },
+    {
+        "FullName":  "C:\\Users\\Owner\\.gemini\\antigravity\\worktrees\\ofc-pineapple\\verify-gcp-phase-one-20260501\\ai\\data\\selfplay_replays\\replays_6f6051616b408a05.jsonl",
+        "LastWriteTime":  "\/Date(1777959564481)\/"
+    },
+    {
+        "FullName":  "C:\\Users\\Owner\\.gemini\\antigravity\\worktrees\\ofc-pineapple\\verify-gcp-phase-one-20260501\\deploy_ofc_rl_gcp.sh",
+        "LastWriteTime":  "\/Date(1777959003474)\/"
+    },
+    {
+        "FullName":  "C:\\Users\\Owner\\.gemini\\antigravity\\worktrees\\ofc-pineapple\\verify-gcp-phase-one-20260501\\upload_bc_models.ps1",
+        "LastWriteTime":  "\/Date(1777958994088)\/"
+    },
+    {
+        "FullName":  "C:\\Users\\Owner\\.gemini\\antigravity\\worktrees\\ofc-pineapple\\verify-gcp-phase-one-20260501\\ai\\training\\config.py",
+        "LastWriteTime":  "\/Date(1777958930190)\/"
+    },
+    {
+        "FullName":  "C:\\Users\\Owner\\.gemini\\antigravity\\worktrees\\ofc-pineapple\\verify-gcp-phase-one-20260501\\ai\\data\\selfplay_replays\\replays_d9cda1ef8ad81b89.jsonl",
+        "LastWriteTime":  "\/Date(1777957453476)\/"
+    },
+    {
+        "FullName":  "C:\\Users\\Owner\\.gemini\\antigravity\\worktrees\\ofc-pineapple\\verify-gcp-phase-one-20260501\\ai\\data\\selfplay_replays\\replays_5653879733c85e9f.jsonl",
+        "LastWriteTime":  "\/Date(1777957294312)\/"
+    },
+    {
+        "FullName":  "C:\\Users\\Owner\\.gemini\\antigravity\\worktrees\\ofc-pineapple\\verify-gcp-phase-one-20260501\\ai\\data\\selfplay_replays\\replays_a2ffccfbe10e8714.jsonl",
+        "LastWriteTime":  "\/Date(1777956681687)\/"
+    },
+    {
+        "FullName":  "C:\\Users\\Owner\\.gemini\\antigravity\\worktrees\\ofc-pineapple\\verify-gcp-phase-one-20260501\\ai\\rust_solver\\mcts_gen\\src\\state.rs",
+        "LastWriteTime":  "\/Date(1777956281180)\/"
+    },
+    {
+        "FullName":  "C:\\Users\\Owner\\.gemini\\antigravity\\worktrees\\ofc-pineapple\\verify-gcp-phase-one-20260501\\ai\\training\\selfplay_dataset.py",
+        "LastWriteTime":  "\/Date(1777955833773)\/"
+    },
+    {
+        "FullName":  "C:\\Users\\Owner\\.gemini\\antigravity\\worktrees\\ofc-pineapple\\verify-gcp-phase-one-20260501\\ai\\rust_solver\\mcts_gen\\output\\replays_75c3e16bfc19fc1d.jsonl",
+        "LastWriteTime":  "\/Date(1777955468451)\/"
+    },
+    {
+        "FullName":  "C:\\Users\\Owner\\.gemini\\antigravity\\worktrees\\ofc-pineapple\\verify-gcp-phase-one-20260501\\ai\\rust_solver\\mcts_gen\\output\\replays_f94a9b1cdf3c90c0.jsonl",
+        "LastWriteTime":  "\/Date(1777955423199)\/"
+    },
+    {
+        "FullName":  "C:\\Users\\Owner\\.gemini\\antigravity\\worktrees\\ofc-pineapple\\verify-gcp-phase-one-20260501\\ai\\rust_solver\\temp_output\\replays_6610a950b6e56a38.jsonl",
+        "LastWriteTime":  "\/Date(1777954951144)\/"

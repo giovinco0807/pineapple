@@ -11,7 +11,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from ai.engine.game_engine import (
     evaluate_hand, get_top_royalty, get_middle_royalty,
-    get_bottom_royalty, check_fl_entry
+    get_bottom_royalty, check_fl_entry, hand_category,
 )
 
 
@@ -19,23 +19,23 @@ def test_full_house():
     """Full House (7000-7999) edge cases with jokers."""
     # Natural full house: AAA KK
     val = evaluate_hand(["Ah", "Ad", "Ac", "Kh", "Kd"], 5)
-    assert 7000 <= val < 8000, f"AAA KK should be FH, got {val}"
+    assert hand_category(val) == 6, f"AAA KK should be FH, got {val}"
 
     # Two pair + joker → FH: AA KK + X1
     val = evaluate_hand(["Ah", "Ad", "Kh", "Kd", "X1"], 5)
-    assert 7000 <= val < 8000, f"AA KK X1 should be FH, got {val}"
+    assert hand_category(val) == 6, f"AA KK X1 should be FH, got {val}"
 
     # Trips + 2 jokers → Quads (joker makes 4th): AAA + X1 X2
     val = evaluate_hand(["Ah", "Ad", "Ac", "X1", "X2"], 5)
-    assert 8000 <= val < 9000, f"AAA X1 X2 should be quads, got {val}"
+    assert hand_category(val) == 7, f"AAA X1 X2 should be quads, got {val}"
 
     # Pair + 3 distinct ranks + joker → Trips, NOT FH
     val = evaluate_hand(["Ah", "Ad", "Kh", "Qs", "X1"], 5)
-    assert val < 7000, f"AA K Q X1 should be trips not FH, got {val}"
+    assert hand_category(val) == 3, f"AA K Q X1 should be trips not FH, got {val}"
 
     # 4 distinct ranks + joker → Pair, NOT FH
     val = evaluate_hand(["Ah", "Kh", "Qs", "7d", "X1"], 5)
-    assert val < 7000, f"A K Q 7 X1 should be pair not FH, got {val}"
+    assert hand_category(val) == 1, f"A K Q 7 X1 should be pair not FH, got {val}"
 
     print("  ✅ Full house tests passed")
 
@@ -44,16 +44,15 @@ def test_straight_flush():
     """Straight flush (9000+) with jokers."""
     # Natural royal flush
     val = evaluate_hand(["Ah", "Kh", "Qh", "Jh", "Th"], 5)
-    assert val >= 9000, f"Royal flush should be 9000+, got {val}"
-    assert val >= 9014, f"Royal flush A-high should be 9014+, got {val}"
+    assert hand_category(val) == 8, f"Royal flush should be a straight flush, got {val}"
 
     # Flush + straight with joker
     val = evaluate_hand(["Ah", "Kh", "Qh", "Jh", "X1"], 5)
-    assert val >= 9000, f"A K Q J + joker (all hearts) should be SF, got {val}"
+    assert hand_category(val) == 8, f"A K Q J + joker (all hearts) should be SF, got {val}"
 
     # Non-SF: different suits
     val = evaluate_hand(["Ah", "Ks", "Qh", "Jh", "Th"], 5)
-    assert val < 9000, f"Mixed suit straight should not be SF, got {val}"
+    assert hand_category(val) == 4, f"Mixed suit straight should not be SF, got {val}"
 
     print("  ✅ Straight flush tests passed")
 
@@ -61,11 +60,11 @@ def test_straight_flush():
 def test_four_of_a_kind():
     """Four of a kind (8000-8999)."""
     val = evaluate_hand(["Ah", "Ad", "Ac", "As", "Kh"], 5)
-    assert 8000 <= val < 9000, f"AAAA K should be quads, got {val}"
+    assert hand_category(val) == 7, f"AAAA K should be quads, got {val}"
 
     # Trips + joker = quads
     val = evaluate_hand(["Ah", "Ad", "Ac", "X1", "Kh"], 5)
-    assert 8000 <= val < 9000, f"AAA X1 K should be quads, got {val}"
+    assert hand_category(val) == 7, f"AAA X1 K should be quads, got {val}"
 
     print("  ✅ Four of a kind tests passed")
 
@@ -74,14 +73,14 @@ def test_flush_and_straight():
     """Flush (6000) and Straight (5000)."""
     # Flush
     val = evaluate_hand(["Ah", "9h", "7h", "4h", "2h"], 5)
-    assert 6000 <= val < 7000, f"Five hearts should be flush, got {val}"
+    assert hand_category(val) == 5, f"Five hearts should be flush, got {val}"
 
     # Straight
     val = evaluate_hand(["Ah", "2s", "3h", "4d", "5c"], 5)
-    assert 5000 <= val < 6000, f"A-5 straight (wheel) should be straight, got {val}"
+    assert hand_category(val) == 4, f"A-5 straight (wheel) should be straight, got {val}"
 
     val = evaluate_hand(["Th", "Js", "Qh", "Kd", "Ac"], 5)
-    assert 5000 <= val < 6000, f"T-A straight should be straight, got {val}"
+    assert hand_category(val) == 4, f"T-A straight should be straight, got {val}"
 
     print("  ✅ Flush and straight tests passed")
 

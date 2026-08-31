@@ -60,6 +60,9 @@ pub struct T2Request {
     pub opponents: usize,
     /// T3 draws sampled per action.
     pub t3_draws: usize,
+    /// Price hero's own worth instead of the score against a best response.
+    /// With no opponent there is nothing left to sample below the T3 draw.
+    pub own_only: bool,
     /// T4 draws sampled under each T3 placement; 0 enumerates all C(40,3).
     ///
     /// Enumerating is exact and costs about thirteen times more.  A first lap
@@ -72,6 +75,24 @@ pub struct T2ActionValue {
     pub value: f64,
     pub t3_draws: usize,
     pub opponents: usize,
+}
+
+/// Every three-card draw from `pool_len`, in lexicographic order.
+///
+/// `t3_draws == 0` asks for this instead of a sample: the T3 draw is the only
+/// sampled quantity in an own-only T2 label, so enumerating it makes the label
+/// exact.  At a T2 root that is C(41,3) = 10,660 draws -- about 110x the
+/// 96-draw sample, which is why exactness is a flag and not the default.
+pub fn all_t3_draws(pool_len: usize) -> Vec<[usize; 3]> {
+    let mut out = Vec::with_capacity(pool_len * (pool_len - 1) * (pool_len - 2) / 6);
+    for a in 0..pool_len {
+        for b in (a + 1)..pool_len {
+            for c in (b + 1)..pool_len {
+                out.push([a, b, c]);
+            }
+        }
+    }
+    out
 }
 
 /// `count` draws of three from `pool_len`, deterministic in `stream`.
@@ -118,6 +139,24 @@ fn t2_placements(rows: &[Vec<Card>; 3], draw: &[Card; 3]) -> Vec<([Vec<Card>; 3]
     out
 }
 
+/// A fourth axis, and the only one used to *choose* rather than to measure.
+const T4_PILOT_STREAM: u64 = 0x7434;
+
+/// Price every placement cheaply, then price the shortlist properly.
+///
+/// `Some((pilot, keep))` runs `pilot` T4 draws over all placements, keeps the
+/// best `keep`, and prices those with the full count.  The two stages draw
+/// from **independent** streams: selecting and estimating on the same draws
+/// would retain whichever placement those particular draws flattered, and the
+/// value kept would carry that flattery.  With them separated, a surviving
+/// placement's value is the one the unnarrowed solve gives it, to the bit, and
+/// the only thing narrowing can cost is dropping the true best.
+#[derive(Clone, Copy)]
+pub struct T3Pilot {
+    pub draws: usize,
+    pub keep: usize,
+}
+
 /// The best eleven-card board one T3 draw reaches from a nine-card board.
 fn best_after_t3_draw(
     rows: &[Vec<Card>; 3],
@@ -127,39 +166,100 @@ fn best_after_t3_draw(
     fl_ev: &[f64; 4],
     t4_draws: usize,
     stream: u64,
+    pilot: Option<T3Pilot>,
+    own_only: bool,
 ) -> f64 {
-    t3_placements(rows, t3_draw)
-        .iter()
-        .enumerate()
-        .map(|(index, after)| {
-            if t4_draws == 0 {
-                let (total, draws) =
-                    completion_value(after, unseen_after, opponents, fl_ev, false, None);
-                total / draws.max(1) as f64
-            } else {
-                // The stream varies with the placement so two placements at one
-                // node are not compared on the same T4 draws by accident --
-                // sharing them there would bias the max toward whichever
-                // placement those particular draws happened to suit.
-                sampled_completion_value(
-                    after,
-                    unseen_after,
-                    t4_draws,
-                    stream.wrapping_add(index as u64),
-                    opponents,
-                    fl_ev,
-                )
-            }
-        })
+    let placements = t3_placements(rows, t3_draw);
+    // The stream varies with the placement so two placements at one node are
+    // not compared on the same T4 draws by accident -- sharing them there
+    // would bias the max toward whichever placement those particular draws
+    // happened to suit.
+    let price = |index: usize, after: &[Vec<Card>; 3]| -> f64 {
+        if t4_draws == 0 {
+            completion_value(after, unseen_after, opponents, fl_ev, own_only, None).mean()
+        } else {
+            crate::t3_labels::sampled_completion_value_with(
+                after,
+                unseen_after,
+                t4_draws,
+                stream.wrapping_add(index as u64),
+                opponents,
+                fl_ev,
+                own_only,
+            )
+        }
+    };
+
+    let shortlist: Vec<usize> = match pilot {
+        Some(T3Pilot { draws, keep }) if draws > 0 && keep < placements.len() => {
+            let mut scored: Vec<(usize, f64)> = placements
+                .iter()
+                .enumerate()
+                .map(|(index, after)| {
+                    (
+                        index,
+                        crate::t3_labels::sampled_completion_value_with(
+                            after,
+                            unseen_after,
+                            draws,
+                            stream ^ T4_PILOT_STREAM ^ (index as u64),
+                            opponents,
+                            fl_ev,
+                            own_only,
+                        ),
+                    )
+                })
+                .collect();
+            scored.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap().then(a.0.cmp(&b.0)));
+            scored.into_iter().take(keep).map(|(index, _)| index).collect()
+        }
+        _ => (0..placements.len()).collect(),
+    };
+
+    shortlist
+        .into_iter()
+        .map(|index| price(index, &placements[index]))
         .fold(f64::NEG_INFINITY, f64::max)
 }
 
 /// Every action's value at one T2 root.
+/// Every action of a T2 root, priced.
 pub fn solve(
     request: &T2Request,
     pool: &Pool,
     fl_ev: &[f64; 4],
     stream: u64,
+) -> Result<Vec<T2ActionValue>, ShortDraw> {
+    solve_selected(request, pool, fl_ev, stream, None, None)
+}
+
+/// The action keys of a T2 root, in the order the pricing indexes them.
+///
+/// Published so a caller can rank them with something this crate does not
+/// know about -- a trained chooser lives one crate up -- and hand the
+/// shortlist back to [`solve_selected`].
+pub fn action_keys(request: &T2Request) -> Vec<(String, [Vec<Card>; 3])> {
+    t2_placements(&request.rows, &request.draw)
+        .into_iter()
+        .map(|(rows, key, _)| (key, rows))
+        .collect()
+}
+
+/// Price only `keep`, or everything when it is `None`.
+///
+/// The kept actions come back with the values the full solve would have given
+/// them, to the bit: the opponents and the T3 draws are drawn per root, and
+/// the T4 stream is mixed from each action's position in the **unfiltered**
+/// enumeration.  Renumbering the survivors would silently reprice them, which
+/// is the one way a narrowing could look like a speedup while changing the
+/// answer.
+pub fn solve_selected(
+    request: &T2Request,
+    pool: &Pool,
+    fl_ev: &[f64; 4],
+    stream: u64,
+    keep: Option<&std::collections::BTreeSet<String>>,
+    pilot: Option<T3Pilot>,
 ) -> Result<Vec<T2ActionValue>, ShortDraw> {
     let mut seen: Vec<Card> = request.dead.clone();
     for row in &request.rows {
@@ -173,13 +273,25 @@ pub fn solve(
     // Action-independent, because hero's discard is seen either way.
     let unseen = unseen_from(&seen);
     // A separate stream from the opponents', so raising one sample count does
-    // not silently reshuffle the other.
-    let draws = sampled_t3_draws(unseen.len(), request.t3_draws, stream ^ T3_DRAW_STREAM);
+    // not silently reshuffle the other.  Zero means exact: enumerate every
+    // draw, and the stream never touches the list.
+    let draws = if request.t3_draws == 0 {
+        all_t3_draws(unseen.len())
+    } else {
+        sampled_t3_draws(unseen.len(), request.t3_draws, stream ^ T3_DRAW_STREAM)
+    };
 
     let actions = t2_placements(&request.rows, &request.draw);
+    let priced_action = |index: usize| -> bool {
+        match keep {
+            None => true,
+            Some(wanted) => wanted.contains(&actions[index].1),
+        }
+    };
     // Flat over (action, draw): twenty actions alone would leave most of a
     // sixteen-core machine idle, and the pairs are equal-cost.
     let work: Vec<(usize, usize)> = (0..actions.len())
+        .filter(|index| priced_action(*index))
         .flat_map(|a| (0..draws.len()).map(move |d| (a, d)))
         .collect();
     let priced: Vec<((usize, usize), f64)> = work
@@ -207,6 +319,8 @@ pub fn solve(
                         ^ T4_DRAW_STREAM
                         ^ ((*action_index as u64) << 32)
                         ^ (*draw_index as u64),
+                    pilot,
+                    request.own_only,
                 ),
             )
         })
@@ -219,6 +333,7 @@ pub fn solve(
     let mut values: Vec<T2ActionValue> = actions
         .iter()
         .enumerate()
+        .filter(|(index, _)| priced_action(*index))
         .map(|(index, (_, key, _))| T2ActionValue {
             action_key: key.clone(),
             value: totals[index] / draws.len() as f64,
@@ -257,6 +372,7 @@ mod tests {
             draw: [cards[8], cards[9], cards[10]],
             opponents,
             t3_draws,
+            own_only: false,
             t4_draws: 0,
         }
     }
@@ -365,7 +481,7 @@ mod tests {
                     .map(|(_, card)| *card)
                     .collect();
                 total += best_after_t3_draw(
-                    &rows, &t3_draw, &after, &opponents, &TABLE, 0, 0,
+                    &rows, &t3_draw, &after, &opponents, &TABLE, 0, 0, None, false,
                 );
             }
             let expected = total / draws.len() as f64;

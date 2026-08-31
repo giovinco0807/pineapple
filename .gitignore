@@ -58,3 +58,26 @@ nohup.out
 # Environment
 .env
 .env.local
+
+# experiment artifacts live on D:, not in git (2026-09-01)
+ai/data/
+ai/logs/
+ai/models/candidate_runs/
+*.npy
+*.npz
+*.pt
+events.out.tfevents.*
+ai/rust_solver/target/
+ai/rust_solver/target_gate/
+ai/rust_benchmark/results*/
+*.tar.gz
+*.rlib
+/t0_training_v3_aug24.jsonl
+/t0_training_all.jsonl
+/NUL
+/regular-ofc-pineapple/
+/target_gate/
+/gcp_all_data/
+ai/cfr/checkpoints/
+*.pkl
+/t0_training_v3.jsonl

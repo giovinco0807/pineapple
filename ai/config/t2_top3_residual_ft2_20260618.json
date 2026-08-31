@@ -1,0 +1,105 @@
+{
+  "name": "t2_top3_residual_ft2_20260618",
+  "status": "diagnostic",
+  "purpose": "T2 model-only Top3 EV-loss reduction experiment. This records the strongest checked blend for Top3 pruning-quality follow-up; it is not promoted as the runtime default until selected-action runtime loss and latency are revalidated.",
+  "base_config": "ai/config/t2_action_value_ensemble_20260615.json",
+  "source_data": {
+    "top5hard_config": "ai/config/t2_top5hard_ft2_20260618.json",
+    "top3_initial_hard_groups": "D:/ofc-pineapple-data/t2_next_20260614/top3_ev_loss_goal_20260618/hard_groups/top3_ev_loss_gt010_from_ft2_alpha1.jsonl",
+    "top3_residual_hard_groups": "D:/ofc-pineapple-data/t2_next_20260614/top3_ev_loss_goal_20260618/hard_groups/top3_residual_top3loss_gt010_alpha1p0_alpha1p5.jsonl",
+    "train_top3_ft1": "D:/ofc-pineapple-data/t2_next_20260614/top3_ev_loss_goal_20260618/av_dataset_top5hard55_r20_plus_top3hard25_r30_dim520",
+    "train_top3_ft2": "D:/ofc-pineapple-data/t2_next_20260614/top3_ev_loss_goal_20260618/av_dataset_top5hard55_r20_top3hard25_r30_plus_residual6_r60_dim520"
+  },
+  "models": {
+    "top5hard_ft2": "D:/ofc-pineapple-data/t2_next_20260614/top5_ev_loss_goal_20260618/models/t2-train1444-top5hard55-r20-ft2-top5-20260618/action_value_final.pt",
+    "top3hard_ft1": "D:/ofc-pineapple-data/t2_next_20260614/top3_ev_loss_goal_20260618/models/t2-top5hard55-top3hard25-r30-ft-top3-20260618/action_value_final.pt",
+    "top3_residual_ft2": "D:/ofc-pineapple-data/t2_next_20260614/top3_ev_loss_goal_20260618/models/t2-top5hard55-top3hard25-residual6-r60-ft2-top3-20260618/action_value_final.pt"
+  },
+  "recommended_diagnostic_blend": {
+    "mode": "t2_model_top3_residual_ft2_alpha1_diagnostic",
+    "checkpoints": [
+      "ai/models/candidate_runs/t2-stable-oracle56-cap500-cap1000-ft-from-exact53-20260603/model/action_value_best.pt",
+      "D:/ofc-pineapple-data/t2_next_20260614/teacher_top10_cap50_100/models/t2-cap50-100-ft-top3-20260614/action_value_final.pt",
+      "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/fresh_external360_varied_20260615/train160_more/models/t2-local444-more160-cap50-ft-top3-20260615/action_value_final.pt",
+      "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/fresh_external800_varied_20260615/train120_more6/models/t2-local924-more120-cap50-ft-top3-20260615/action_value_final.pt",
+      "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/fresh_external920_varied_20260615/train120_more7/models/t2-local1044-more120-cap50-ft-top3-20260615/action_value_final.pt",
+      "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/fresh_external920_varied_20260615/train120_more7/models/t2-train1164-current-top3miss-weighted-lowlr-20260615/action_value_final.pt",
+      "D:/ofc-pineapple-data/t2_next_20260614/top3_ev_loss_goal_20260618/models/t2-top5hard55-top3hard25-residual6-r60-ft2-top3-20260618/action_value_final.pt"
+    ],
+    "weights": [
+      0.025,
+      0.0625,
+      0.3375,
+      0.0625,
+      0.0075,
+      0.005,
+      0.5
+    ],
+    "raw_alpha": 1.0
+  },
+  "evidence": {
+    "summary": "D:/ofc-pineapple-data/t2_next_20260614/top3_ev_loss_goal_20260618/eval_top3_residual_ft2_blend/top3_residual_ft2_blend_summary.json",
+    "baseline": {
+      "groups": 1022,
+      "top1": 0.572,
+      "top3": 0.841,
+      "top5": 0.927,
+      "top10_min": 1.0,
+      "top3_regret": 0.231,
+      "top5_regret": 0.064,
+      "top3_misses": 163,
+      "top3_ev_loss_gt_0_1": 133,
+      "top3_ev_loss_gt_0_25": 109,
+      "max_top3_ev_loss": 22.265
+    },
+    "top3hard_ft1_alpha1": {
+      "groups": 1022,
+      "top1": 0.830,
+      "top3": 0.984,
+      "top5": 0.995,
+      "top10_min": 1.0,
+      "top3_regret": 0.009,
+      "top5_regret": 0.000,
+      "top3_misses": 16,
+      "top3_ev_loss_gt_0_1": 3,
+      "top3_ev_loss_gt_0_25": 1,
+      "max_top3_ev_loss": 8.368
+    },
+    "top3_residual_ft2_alpha1": {
+      "groups": 1022,
+      "top1": 0.851,
+      "top3": 0.987,
+      "top5": 0.995,
+      "top10_min": 1.0,
+      "top3_regret": 0.000293,
+      "top5_regret": 0.000100,
+      "top3_misses": 13,
+      "top3_ev_loss_gt_0_1": 0,
+      "top3_ev_loss_gt_0_25": 0,
+      "max_top3_ev_loss": 0.080
+    },
+    "rejected_alphas": {
+      "alpha_0_8": {
+        "top3_ev_loss_gt_0_1": 2,
+        "max_top3_ev_loss": 5.978
+      },
+      "alpha_1_2": {
+        "top3_ev_loss_gt_0_1": 1,
+        "max_top3_ev_loss": 0.480
+      },
+      "alpha_1_5": {
+        "top3_ev_loss_gt_0_1": 2,
+        "max_top3_ev_loss": 6.318
+      },
+      "alpha_2_0": {
+        "top3_ev_loss_gt_0_1": 4,
+        "max_top3_ev_loss": 6.318
+      }
+    }
+  },
+  "notes": [
+    "Top3 recall is not 100%; 13 groups still rank the exact best outside Top3, but exact rerank within Top3 loses at most 0.080 EV on the checked 1022 groups.",
+    "This is a pruning-quality diagnostic source. Do not use it as a product runtime default until T2 hybrid selected-action EV loss and wall-clock latency are rechecked.",
+    "The best checked alpha is 1.0. Higher alpha improves Top1 but reintroduces larger Top3 EV-loss tails."
+  ]
+}

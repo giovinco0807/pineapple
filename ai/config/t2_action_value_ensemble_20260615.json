@@ -1,0 +1,677 @@
+{
+  "name": "t2_action_value_ensemble_20260615",
+  "status": "active_t2_middle_fill_bottom_shift_rescue_selected_ev_loss",
+  "purpose": "T2 runtime using the corrected fixed710 alpha0.25 action-value ensemble, Top5-miss specialist, ref30 rank/bust-gated Top1 rescue, a strict model-rank rescue for noisy partial exact selections, a narrow model Top1 bust-improvement rescue, a tactical middle-fill to bottom-shift rescue, and a context switch from high-loss13 alpha0.10 to high-loss23 alpha0.10 when opponent top has at most one card and the dealt max rank is J or better. The default favors lower selected-action EV loss within the 5 second target without regressing checked external holdouts.",
+  "default_mode": "t2_fast_t3_union_top10_s10_tactical3_fixed710_alpha25_w0p5_post20_structtop_m5_min1000_top5miss_alpha05_top1rescue_fl010_ref30_rank4_bust075_highloss23_opp1highcard_switch_top1bust_midshift_experimental",
+  "models": {
+    "action_value": "ai/models/candidate_runs/t2-stable-oracle56-cap500-cap1000-ft-from-exact53-20260603/model/action_value_best.pt",
+    "turn_model_ensembles": {
+      "2": {
+        "checkpoints": [
+          "ai/models/candidate_runs/t2-stable-oracle56-cap500-cap1000-ft-from-exact53-20260603/model/action_value_best.pt",
+          "D:/ofc-pineapple-data/t2_next_20260614/teacher_top10_cap50_100/models/t2-cap50-100-ft-top3-20260614/action_value_final.pt",
+          "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/fresh_external360_varied_20260615/train160_more/models/t2-local444-more160-cap50-ft-top3-20260615/action_value_final.pt",
+          "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/fresh_external800_varied_20260615/train120_more6/models/t2-local924-more120-cap50-ft-top3-20260615/action_value_final.pt",
+          "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/fresh_external920_varied_20260615/train120_more7/models/t2-local1044-more120-cap50-ft-top3-20260615/action_value_final.pt",
+          "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/fresh_external920_varied_20260615/train120_more7/models/t2-train1164-current-top3miss-weighted-lowlr-20260615/action_value_final.pt"
+        ],
+        "weights": [
+          0.05,
+          0.125,
+          0.675,
+          0.125,
+          0.015,
+          0.010
+        ],
+        "evidence": {
+          "external_regret_top3_sum": 0.616922,
+          "external_regret_top5_sum": 0.395237,
+          "varied40_top3": 0.70,
+          "varied40_regret_top3": 0.407,
+          "fresh20_top3": 0.80,
+          "fresh20_regret_top3": 0.015,
+          "local50_top3": 0.86,
+          "local50_regret_top3": 0.139,
+          "cap200_first20_top3": 0.95,
+          "cap200_first20_regret_top3": 0.055,
+          "more80_traincheck_top3": 0.998,
+          "more80_traincheck_top5": 0.998,
+          "more80_traincheck_regret_top3": 0.006,
+          "more80_traincheck_regret_top5": 0.001,
+          "more3_80_traincheck_top3": 0.925,
+          "more3_80_traincheck_regret_top3": 0.113,
+          "more4_80_traincheck_top3": 0.887,
+          "more4_80_traincheck_top5": 0.963,
+          "more4_80_traincheck_regret_top3": 0.107,
+          "more5_80_traincheck_top3": 0.912,
+          "more5_80_traincheck_top5": 0.950,
+          "more5_80_traincheck_regret_top3": 0.110,
+          "more6_120_traincheck_top3": 0.942,
+          "more6_120_traincheck_top5": 0.958,
+          "more6_120_traincheck_regret_top3": 0.081,
+          "more7_120_traincheck_top3": 0.733,
+          "more7_120_traincheck_top5": 0.908,
+          "more7_120_traincheck_regret_top3": 0.685,
+          "more7_120_traincheck_regret_top5": 0.030,
+          "train1164_top3": 0.942,
+          "train1164_regret_top3": 0.110,
+          "cap200_check12_cap50_top1_agreement": 1.0,
+          "cap200_check12_top3": 1.0,
+          "cap200_check12_regret_top3": 0.0,
+          "grid": "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/fresh_external920_varied_20260615/train120_more7/grid_targeted_20260615/targeted_grid_summary.json",
+          "hardmiss2_grid": "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/fresh_external920_varied_20260615/train120_more7/grid_hardmiss2_20260615/hardmiss2_tiny_blend_summary.json",
+          "hardmiss2_model": "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/fresh_external920_varied_20260615/train120_more7/models/t2-train1164-current-top3miss-weighted-lowlr-20260615/action_value_final.pt",
+          "previous_grid": "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/fresh_external920_varied_20260615/train120_more7/eval_lowlr_blend_grid",
+          "cap200_check12_eval": "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/fresh_external920_varied_20260615/train120_more7/grid_targeted_20260615/targeted_grid_summary.json",
+          "runtime_smoke": "D:/ofc-pineapple-data/t2_next_20260614/runtime_smoke/t2_ensemble_tiny_hardmiss2_20260615_limit1_exact.jsonl",
+          "runtime_smoke_elapsed_ms": 493.58,
+          "alpha50_more2_more7_groups": 560,
+          "alpha50_more2_more7_top1": 0.914,
+          "alpha50_more2_more7_top3": 0.993,
+          "alpha50_more2_more7_top5": 0.996,
+          "alpha50_more2_more7_top10": 1.0,
+          "alpha50_more2_more7_top1_regret": 0.097,
+          "alpha50_more2_more7_top5_regret": 0.002,
+          "alpha50_smoke_limit5_elapsed_ms_mean": 523.7,
+          "alpha50_smoke_limit5_elapsed_ms_max": 712.1
+        }
+      }
+    }
+  },
+  "t2_fast_t3_union": {
+    "shortlist_k": 15,
+    "insurance_k": 5,
+    "sync_exact_k": 3,
+    "max_pool": 20,
+    "time_budget_ms": 5000,
+    "t1_refinement": "none",
+    "t2_refinement": "exact_partial",
+    "t2_exact_backend": "t3_union",
+    "t2_initial_samples_per_candidate": 1,
+    "t2_extra_samples_per_round": 1,
+    "t2_max_samples_per_candidate": 1,
+    "t2_close_candidate_limit": 4,
+    "t2_baseline_min_samples": 1,
+    "t3_pool_config": "ai/config/t3_ev_precision_pool_20260614.json",
+    "t3_pool_k": -1
+  },
+  "optional_modes": {
+    "t2_fast_t3_union_s2": {
+      "inherits": "t2_fast_t3_union",
+      "t2_max_samples_per_candidate": 2,
+      "t2_baseline_min_samples": 2,
+      "use_case": "Higher confidence when the caller can spend more of the 5 second budget."
+    },
+    "t2_fast_t3_union_top5_s2_modelblend": {
+      "inherits": "t2_fast_t3_union",
+      "t2_sync_exact_k": 5,
+      "t2_max_samples_per_candidate": 2,
+      "t2_baseline_min_samples": 2,
+      "t2_extra_samples_per_round": 1,
+      "t2_close_candidate_limit": 4,
+      "t2_selection_policy": "refined_plus_model",
+      "t2_selection_model_weight": 1.5,
+      "use_case": "Previous default T2 fast mode. It exact-refines model Top5, gives close candidates a second sample, and dampens noisy partial exact by adding 1.5x model score to the refined score. In the 370-row checked set this reduced chosen-action EV loss from 1.883 to 1.355 while staying under 5 seconds."
+    },
+    "t2_fast_t3_union_top5_s2_enriched_specialist_alpha50": {
+      "inherits": "t2_fast_t3_union_top5_s2_modelblend",
+      "models": {
+        "turn_model_ensembles": {
+          "2": {
+            "checkpoints": [
+              "ai/models/candidate_runs/t2-stable-oracle56-cap500-cap1000-ft-from-exact53-20260603/model/action_value_best.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/teacher_top10_cap50_100/models/t2-cap50-100-ft-top3-20260614/action_value_final.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/fresh_external360_varied_20260615/train160_more/models/t2-local444-more160-cap50-ft-top3-20260615/action_value_final.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/fresh_external800_varied_20260615/train120_more6/models/t2-local924-more120-cap50-ft-top3-20260615/action_value_final.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/fresh_external920_varied_20260615/train120_more7/models/t2-local1044-more120-cap50-ft-top3-20260615/action_value_final.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/fresh_external920_varied_20260615/train120_more7/models/t2-train1164-current-top3miss-weighted-lowlr-20260615/action_value_final.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/targeted_external_like_20260615/models/t2-enriched-fullrefined370-ft-from-train1164-20260615/action_value_best.pt"
+            ],
+            "weights": [
+              0.025,
+              0.0625,
+              0.3375,
+              0.0625,
+              0.0075,
+              0.005,
+              0.5
+            ]
+          }
+        }
+      },
+      "use_case": "Default T2 fast mode as of 2026-06-15. Internal 370-row enriched cap50 set improved Top5 from 86.5% to 96.5% and Top1 regret from 1.403 to 0.722; fresh20 smoke kept Top5 at 95.0% and reduced Top1 regret from 1.212 to 0.705; more2-more7 aggregate improved Top5 from 95.0% to 99.6% and Top1 regret from 0.820 to 0.097. A larger fully clean holdout is still the next validation step."
+    },
+    "t2_fast_t3_union_top5_s2_fixed710_alpha25_experimental": {
+      "inherits": "t2_fast_t3_union_top5_s2_modelblend",
+      "models": {
+        "turn_model_ensembles": {
+          "2": {
+            "checkpoints": [
+              "ai/models/candidate_runs/t2-stable-oracle56-cap500-cap1000-ft-from-exact53-20260603/model/action_value_best.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/teacher_top10_cap50_100/models/t2-cap50-100-ft-top3-20260614/action_value_final.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/fresh_external360_varied_20260615/train160_more/models/t2-local444-more160-cap50-ft-top3-20260615/action_value_final.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/fresh_external800_varied_20260615/train120_more6/models/t2-local924-more120-cap50-ft-top3-20260615/action_value_final.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/fresh_external920_varied_20260615/train120_more7/models/t2-local1044-more120-cap50-ft-top3-20260615/action_value_final.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/fresh_external920_varied_20260615/train120_more7/models/t2-train1164-current-top3miss-weighted-lowlr-20260615/action_value_final.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/targeted_external_like_20260615/models/t2-enriched-fullrefined370-ft-from-train1164-20260615/action_value_best.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/t2_train710_fixed_broad_more11_20260615/models/t2-clean410-broadfixed-more11-710-ft-20260615/action_value_best.pt"
+            ],
+            "weights": [
+              0.01875,
+              0.046875,
+              0.253125,
+              0.046875,
+              0.005625,
+              0.00375,
+              0.375,
+              0.25
+            ]
+          }
+        }
+      },
+      "use_case": "Experimental only. Adds the fixed broad100/broad160/more11 2026-06-15 specialist at alpha 0.25. Model-only checks improved fixed broad160_holdout40 Top10 from 85.0% to 87.5% and more10 Top5 from 97.5% to 100.0%, but runtime selection still needs validation."
+    },
+    "t2_fast_t3_union_top10_s10_tactical3_fixed710_alpha25_w0p5_post12_min2000_experimental": {
+      "inherits": "t2_fast_t3_union_top5_s2_fixed710_alpha25_experimental",
+      "time_budget_ms": 4900,
+      "t2_sync_exact_k": 10,
+      "t2_initial_samples_per_candidate": 5,
+      "t2_baseline_min_samples": 5,
+      "t2_max_samples_per_candidate": 10,
+      "t2_extra_samples_per_round": 1,
+      "t2_close_candidate_limit": 4,
+      "t2_selection_policy": "refined_plus_model",
+      "t2_selection_model_weight": 0.5,
+      "t2_tactical_insurance_k": 3,
+      "t2_post_refine_sync_exact_k": 12,
+      "t2_post_refine_min_remaining_ms": 2000,
+      "use_case": "Previous active default. Same fixed710 alpha0.25 candidate pool with Top10/s10/tactical3 refinement and post12 expansion when at least 2000 ms remain. Uses a 4900 ms internal budget to keep measured wall time inside the 5 second target. It reduced selected-action EV loss versus the previous Top5/s2 default on fixed broad160, clean_holdout4, and clean20c, while trading off some TopK recall on selected sets."
+    },
+    "t2_fast_t3_union_top10_s10_tactical3_fixed710_alpha25_w0p5_post12_modelins3_interleave_experimental": {
+      "inherits": "t2_fast_t3_union_top10_s10_tactical3_fixed710_alpha25_w0p5_post12_min2000_experimental",
+      "t2_sync_model_insurance_k": 3,
+      "use_case": "Experimental only. Interleaves model Top3 with tactical sync insurance before T2 exact refinement so model Top1 is less likely to be left unrefined by the 5 second budget. It improved clean_holdout4 selected EV loss from 0.962 to 0.594, but regressed fixed broad160 from 0.499 to 0.739 and clean20c from 1.208 to 1.276, so it is not the default. Keep for diagnostics and future gated ordering work."
+    },
+    "t2_fast_t3_union_top10_s10_tactical3_fixed710_alpha25_w0p5_post12_modelins3_kkgate031_experimental": {
+      "inherits": "t2_fast_t3_union_top10_s10_tactical3_fixed710_alpha25_w0p5_post12_modelins3_interleave_experimental",
+      "t2_sync_model_insurance_top1_kk_min": 0.03132572025060654,
+      "use_case": "Previous active default until the 2026-06-15 conditional post20 update. Uses the model Top3/tactical interleave order only when the model Top1 candidate predicts KK fantasyland at least 0.03132572025060654; otherwise it falls back to the tactical-first order. Runtime validation on clean_holdout4, fixed broad160, clean20c, clean20, and clean20b reduced combined selected EV loss from 0.958 to 0.817 while keeping all checked rows under the 5 second target."
+    },
+    "t2_fast_t3_union_top10_s10_tactical3_fixed710_alpha25_w0p5_post12_modelins3_kkgate031_hardloss10_diagnostic": {
+      "inherits": "t2_fast_t3_union_top10_s10_tactical3_fixed710_alpha25_w0p5_post12_modelins3_kkgate031_experimental",
+      "models": {
+        "turn_model_ensembles": {
+          "2": {
+            "checkpoints": [
+              "ai/models/candidate_runs/t2-stable-oracle56-cap500-cap1000-ft-from-exact53-20260603/model/action_value_best.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/teacher_top10_cap50_100/models/t2-cap50-100-ft-top3-20260614/action_value_final.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/fresh_external360_varied_20260615/train160_more/models/t2-local444-more160-cap50-ft-top3-20260615/action_value_final.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/fresh_external800_varied_20260615/train120_more6/models/t2-local924-more120-cap50-ft-top3-20260615/action_value_final.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/fresh_external920_varied_20260615/train120_more7/models/t2-local1044-more120-cap50-ft-top3-20260615/action_value_final.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/fresh_external920_varied_20260615/train120_more7/models/t2-train1164-current-top3miss-weighted-lowlr-20260615/action_value_final.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/targeted_external_like_20260615/models/t2-enriched-fullrefined370-ft-from-train1164-20260615/action_value_best.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/t2_train710_fixed_broad_more11_20260615/models/t2-clean410-broadfixed-more11-710-ft-20260615/action_value_best.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/t2_hardloss_kkgate031_20260615/models/t2-hardloss-kkgate031-ft-20260615/action_value_best.pt"
+            ],
+            "weights": [
+              0.016875,
+              0.0421875,
+              0.2278125,
+              0.0421875,
+              0.0050625,
+              0.003375,
+              0.3375,
+              0.225,
+              0.1
+            ]
+          }
+        }
+      },
+      "use_case": "Diagnostic only. Adds the 2026-06-15 hard-loss specialist at alpha 0.10. On the mined 5-set pool it improved model Top10 recall from 91.4% to 95.0% and Top10 rerank regret from 0.146 to 0.123. On separate more8-more11 external checks, Top10 stayed 100.0%, Top3 regret improved from 0.142 to 0.122, and Top1 regret improved from 0.651 to 0.610, but more11 Top1 regressed, so this is not the default until runtime selected-action loss improves on clean external rows."
+    },
+    "t2_fast_t3_union_top10_s10_tactical3_fixed710_alpha25_w0p5_post12_modelins3_kkgate031_top1rescue_fl040_ref2_diagnostic": {
+      "inherits": "t2_fast_t3_union_top10_s10_tactical3_fixed710_alpha25_w0p5_post12_modelins3_kkgate031_experimental",
+      "t2_model_top1_rescue_fl_min": 0.4,
+      "t2_model_top1_rescue_refined_delta_max": 2.0,
+      "use_case": "Diagnostic only. After normal T2 partial-exact selection, restores model Top1 only when it predicts FL at least 0.40 and trails the refined winner by no more than 2.0 EV. Offline rescue-grid mining found this conservative gate saved known high-loss modelTop1 rows without observed bad switches on the mined 5-set plus more8/more11 smoke candidates, but it is not default until larger external runtime validation confirms selected EV loss improvement."
+    },
+    "t2_fast_t3_union_top10_s10_tactical3_fixed710_alpha25_w0p5_post20_min1500_diagnostic": {
+      "inherits": "t2_fast_t3_union_top10_s10_tactical3_fixed710_alpha25_w0p5_post12_modelins3_kkgate031_experimental",
+      "t2_post_refine_sync_exact_k": 20,
+      "t2_post_refine_min_remaining_ms": 1500,
+      "use_case": "Diagnostic only. Expands post-refinement from Top12 to Top20 when at least 1500 ms remain. On correct clean_holdout4 cap50 teacher this cut selected EV loss from 1.011 to 0.503 by catching a rank20 teacher-best action. It is not default because clean20c did not improve and one row exceeded the 5 second wall-clock target."
+    },
+    "t2_fast_t3_union_top10_s10_tactical3_fixed710_alpha25_w0p5_post20_structtop_m5_min1000_experimental": {
+      "inherits": "t2_fast_t3_union_top10_s10_tactical3_fixed710_alpha25_w0p5_post12_modelins3_kkgate031_experimental",
+      "t2_post_refine_sync_exact_k": 20,
+      "t2_post_refine_min_remaining_ms": 1000,
+      "t2_post_refine_policy": "structured_top_model_min",
+      "t2_post_refine_extra_model_score_min": 5.0,
+      "use_case": "Active default as of 2026-06-15. Expands post-refinement to Top20 only when own top is already structurally valuable (pair or joker), an unrefined extra candidate has model_score at least 5.0, and at least 1000 ms remain. On correct fixed-teacher checks it improved clean_holdout4 mean/max selected EV loss from 1.011/12.137 to 0.505/6.257, kept clean20c unchanged at 0.545/4.989 while reducing latency, and improved broad160 holdout40 from 0.762/10.969 to 0.664/7.655. All 100 checked rows stayed under the 5 second target."
+    },
+    "t2_fast_t3_union_top10_s10_tactical3_fixed710_alpha25_w0p5_post20_structtop_m5_min1000_structw1_diagnostic": {
+      "inherits": "t2_fast_t3_union_top10_s10_tactical3_fixed710_alpha25_w0p5_post20_structtop_m5_min1000_experimental",
+      "t2_selection_structured_top_model_weight": 1.0,
+      "use_case": "Rejected diagnostic. Keeps the default refined+0.5*model selection, but when own top is structured (pair or joker) uses refined+1.0*model. Offline re-selection looked slightly better, but a clean_holdout4 rerun worsened selected EV loss from 0.505 to 0.510 and had one row over the 4900 ms internal budget, so this is not default."
+    },
+    "t2_fast_t3_union_top10_s10_tactical3_fixed710_alpha25_w0p5_post20_structtop_m5_min1000_rank5min10_diagnostic": {
+      "inherits": "t2_fast_t3_union_top10_s10_tactical3_fixed710_alpha25_w0p5_post20_structtop_m5_min1000_experimental",
+      "t2_model_rank_min_samples_k": 5,
+      "t2_model_rank_min_samples": 10,
+      "t2_model_rank_min_samples_min_remaining_ms": 1500,
+      "use_case": "Rejected diagnostic. After the initial T2 partial exact pass, ensures absolute model-rank Top5 candidates receive at least 10 sampled T3 deals when at least 1500 ms remain. On clean_holdout4 it worsened selected EV loss from 0.505 to 0.755 because it spent budget before conditional post20 could rescue wider-rank candidates."
+    },
+    "t2_fast_t3_union_top10_s10_tactical3_fixed710_alpha25_w0p5_post20_structtop_m5_min1000_top5miss_alpha05_diagnostic": {
+      "inherits": "t2_fast_t3_union_top10_s10_tactical3_fixed710_alpha25_w0p5_post20_structtop_m5_min1000_experimental",
+      "models": {
+        "turn_model_ensembles": {
+          "2": {
+            "checkpoints": [
+              "ai/models/candidate_runs/t2-stable-oracle56-cap500-cap1000-ft-from-exact53-20260603/model/action_value_best.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/teacher_top10_cap50_100/models/t2-cap50-100-ft-top3-20260614/action_value_final.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/fresh_external360_varied_20260615/train160_more/models/t2-local444-more160-cap50-ft-top3-20260615/action_value_final.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/fresh_external800_varied_20260615/train120_more6/models/t2-local924-more120-cap50-ft-top3-20260615/action_value_final.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/fresh_external920_varied_20260615/train120_more7/models/t2-local1044-more120-cap50-ft-top3-20260615/action_value_final.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/fresh_external920_varied_20260615/train120_more7/models/t2-train1164-current-top3miss-weighted-lowlr-20260615/action_value_final.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/targeted_external_like_20260615/models/t2-enriched-fullrefined370-ft-from-train1164-20260615/action_value_best.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/t2_train710_fixed_broad_more11_20260615/models/t2-clean410-broadfixed-more11-710-ft-20260615/action_value_best.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/t2_selection_recheck_20260615/models/t2-train710-default-top5miss-ft-20260615/action_value_best.pt"
+            ],
+            "weights": [
+              0.0178125,
+              0.04453125,
+              0.24046875,
+              0.04453125,
+              0.00534375,
+              0.0035625,
+              0.35625,
+              0.2375,
+              0.05
+            ]
+          }
+        }
+      },
+      "use_case": "Diagnostic source mode. Adds the local train710 default-ensemble Top5-miss specialist at alpha 0.05. Model-only alpha sweep improved train710 Top5 recall from 93.7% to 95.6% and Top10 recall from 97.6% to 98.3%. Runtime fixed-teacher checks later showed selected EV-loss improvement or neutrality, so the promoted default inherits this mode through the alpha05 experimental alias."
+    },
+    "t2_fast_t3_union_top10_s10_tactical3_fixed710_alpha25_w0p5_post20_structtop_m5_min1000_top5miss_alpha05_experimental": {
+      "inherits": "t2_fast_t3_union_top10_s10_tactical3_fixed710_alpha25_w0p5_post20_structtop_m5_min1000_top5miss_alpha05_diagnostic",
+      "use_case": "Active default as of 2026-06-15. Adds the Top5-miss specialist at alpha 0.05 on top of the conditional post20 default. Correct fixed-teacher runtime checks improved clean_holdout4 mean/max selected EV loss from 0.505/6.257 to 0.348/4.823, kept clean20c unchanged at 0.545/4.989, and improved broad160 holdout40 mean loss from 0.664 to 0.578 while keeping max at 7.655. All 100 checked rows stayed under the 5 second target."
+    },
+    "t2_fast_t3_union_top10_s10_tactical3_fixed710_alpha25_w0p5_post20_structtop_m5_min1000_top5miss_alpha05_top1rescue_fl010_ref25_diagnostic": {
+      "inherits": "t2_fast_t3_union_top10_s10_tactical3_fixed710_alpha25_w0p5_post20_structtop_m5_min1000_top5miss_alpha05_experimental",
+      "t2_model_top1_rescue_fl_min": 0.1,
+      "t2_model_top1_rescue_refined_delta_max": 2.5,
+      "use_case": "Diagnostic source mode. After the alpha0.05 selected-action output, restores model Top1 when predicted FL is at least 0.10 and it trails the current winner's refined score by no more than 2.5. Offline replay over the 100 fixed-teacher runtime rows reduced mean selected EV loss from 0.479 to 0.437; runtime reruns later improved all three checked fixed-teacher sets, so the promoted default inherits this mode through the matching experimental alias."
+    },
+    "t2_fast_t3_union_top10_s10_tactical3_fixed710_alpha25_w0p5_post20_structtop_m5_min1000_top5miss_alpha05_top1rescue_fl010_ref25_experimental": {
+      "inherits": "t2_fast_t3_union_top10_s10_tactical3_fixed710_alpha25_w0p5_post20_structtop_m5_min1000_top5miss_alpha05_top1rescue_fl010_ref25_diagnostic",
+      "use_case": "Active default as of 2026-06-16. Adds a strict model Top1 rescue gate to the alpha0.05 Top5-miss specialist default. Runtime fixed-teacher checks improved clean_holdout4 mean/max selected EV loss from 0.348/4.823 to 0.266/4.823, clean20c from 0.545/4.989 to 0.539/4.989, and broad160 holdout40 from 0.578/7.655 to 0.559/7.655. All 100 checked rows stayed under the 5 second target."
+    },
+    "t2_fast_t3_union_top10_s10_tactical3_fixed710_alpha25_w0p5_post20_structtop_m5_min1000_top5miss_alpha05_top1rescue_fl010_ref30_diagnostic": {
+      "inherits": "t2_fast_t3_union_top10_s10_tactical3_fixed710_alpha25_w0p5_post20_structtop_m5_min1000_top5miss_alpha05_experimental",
+      "t2_model_top1_rescue_fl_min": 0.1,
+      "t2_model_top1_rescue_refined_delta_max": 3.0,
+      "use_case": "Diagnostic source mode. Widens the strict Top1 rescue refined-score delta from 2.5 to 3.0. This catches a clean20b high-loss row where model Top1 was teacher-best but trailed the sampled refined winner by 2.75, while keeping the same FL gate."
+    },
+    "t2_fast_t3_union_top10_s10_tactical3_fixed710_alpha25_w0p5_post20_structtop_m5_min1000_top5miss_alpha05_top1rescue_fl010_ref30_experimental": {
+      "inherits": "t2_fast_t3_union_top10_s10_tactical3_fixed710_alpha25_w0p5_post20_structtop_m5_min1000_top5miss_alpha05_top1rescue_fl010_ref30_diagnostic",
+      "use_case": "Active default as of 2026-06-16. Compared with the ref25 default, runtime fixed-teacher validation reduced clean20b selected EV loss from 0.705/13.140 to 0.048/0.650, kept clean20c neutral at 0.539/4.989, kept broad160 holdout40 neutral at 0.559/7.655, and improved more10_40 from 0.859/7.178 to 0.836/7.178. All checked rows stayed under the 5 second target."
+    },
+    "t2_fast_t3_union_top10_s10_tactical3_fixed710_alpha25_w0p5_post20_structtop_m5_min1000_top5miss_alpha05_top1rescue_fl010_ref30_rank4_bust075_diagnostic": {
+      "inherits": "t2_fast_t3_union_top10_s10_tactical3_fixed710_alpha25_w0p5_post20_structtop_m5_min1000_top5miss_alpha05_top1rescue_fl010_ref30_diagnostic",
+      "t2_model_top1_rescue_bust_max": 0.75,
+      "t2_model_top1_rescue_selected_model_rank_min": 4,
+      "use_case": "Diagnostic source mode. Keeps the ref30 Top1 rescue but only restores model Top1 when the current selected candidate is model-rank 4 or worse and model Top1 predicted bust is at most 0.75. Post-hoc replay on the saved ref30 runtime outputs kept the clean20b max-loss fix while reducing more10 selected EV loss."
+    },
+    "t2_fast_t3_union_top10_s10_tactical3_fixed710_alpha25_w0p5_post20_structtop_m5_min1000_top5miss_alpha05_top1rescue_fl010_ref30_rank4_bust075_experimental": {
+      "inherits": "t2_fast_t3_union_top10_s10_tactical3_fixed710_alpha25_w0p5_post20_structtop_m5_min1000_top5miss_alpha05_top1rescue_fl010_ref30_rank4_bust075_diagnostic",
+      "use_case": "Active default as of 2026-06-16. Versus the ref30 default, runtime validation kept clean20b at 0.048/0.650, kept clean20c effectively neutral at 0.538/4.989, improved more10_40 from 0.836/7.178 to 0.451/6.278, and reran broad160 holdout40 at 0.644/7.655. On the same saved broad runtime output the gate itself was near-neutral, so the broad mean shift is attributed mostly to T3 sample/refinement variance. The change affects only final Top1 rescue selection and adds no latency."
+    },
+    "t2_fast_t3_union_top10_s10_tactical3_fixed710_alpha25_w0p5_post20_structtop_m5_min1000_top5miss_alpha05_top1rescue_fl010_ref25_highloss24_alpha10_diagnostic": {
+      "inherits": "t2_fast_t3_union_top10_s10_tactical3_fixed710_alpha25_w0p5_post20_structtop_m5_min1000_top5miss_alpha05_top1rescue_fl010_ref25_experimental",
+      "models": {
+        "turn_model_ensembles": {
+          "2": {
+            "checkpoints": [
+              "ai/models/candidate_runs/t2-stable-oracle56-cap500-cap1000-ft-from-exact53-20260603/model/action_value_best.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/teacher_top10_cap50_100/models/t2-cap50-100-ft-top3-20260614/action_value_final.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/fresh_external360_varied_20260615/train160_more/models/t2-local444-more160-cap50-ft-top3-20260615/action_value_final.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/fresh_external800_varied_20260615/train120_more6/models/t2-local924-more120-cap50-ft-top3-20260615/action_value_final.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/fresh_external920_varied_20260615/train120_more7/models/t2-local1044-more120-cap50-ft-top3-20260615/action_value_final.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/fresh_external920_varied_20260615/train120_more7/models/t2-train1164-current-top3miss-weighted-lowlr-20260615/action_value_final.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/targeted_external_like_20260615/models/t2-enriched-fullrefined370-ft-from-train1164-20260615/action_value_best.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/t2_train710_fixed_broad_more11_20260615/models/t2-clean410-broadfixed-more11-710-ft-20260615/action_value_best.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/t2_selection_recheck_20260615/models/t2-train710-default-top5miss-ft-20260615/action_value_best.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/t2_selection_recheck_20260616/models/t2-train710-plus-runtime-highloss24-ft-20260616/action_value_best.pt"
+            ],
+            "weights": [
+              0.01603125,
+              0.040078125,
+              0.216421875,
+              0.040078125,
+              0.004809375,
+              0.00320625,
+              0.320625,
+              0.21375,
+              0.045,
+              0.1
+            ]
+          }
+        }
+      },
+      "use_case": "Diagnostic only. Adds a 2026-06-16 specialist trained from 24 current-default runtime rows with selected EV loss >= 0.5 at alpha 0.10. Model-only external checks improved more8 Top1 regret from 0.525 to 0.354, more9 from 0.096 to 0.089, and more10 from 1.146 to 0.967 while keeping Top5/Top10 unchanged; runtime selected-action validation is required before promotion."
+    },
+    "t2_fast_t3_union_top10_s10_tactical3_fixed710_alpha25_w0p5_post20_structtop_m5_min1000_top5miss_alpha05_top1rescue_fl010_ref30_rank4_bust075_highloss13_alpha10_diagnostic": {
+      "inherits": "t2_fast_t3_union_top10_s10_tactical3_fixed710_alpha25_w0p5_post20_structtop_m5_min1000_top5miss_alpha05_top1rescue_fl010_ref30_rank4_bust075_experimental",
+      "models": {
+        "turn_model_ensembles": {
+          "2": {
+            "checkpoints": [
+              "ai/models/candidate_runs/t2-stable-oracle56-cap500-cap1000-ft-from-exact53-20260603/model/action_value_best.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/teacher_top10_cap50_100/models/t2-cap50-100-ft-top3-20260614/action_value_final.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/fresh_external360_varied_20260615/train160_more/models/t2-local444-more160-cap50-ft-top3-20260615/action_value_final.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/fresh_external800_varied_20260615/train120_more6/models/t2-local924-more120-cap50-ft-top3-20260615/action_value_final.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/fresh_external920_varied_20260615/train120_more7/models/t2-local1044-more120-cap50-ft-top3-20260615/action_value_final.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/fresh_external920_varied_20260615/train120_more7/models/t2-train1164-current-top3miss-weighted-lowlr-20260615/action_value_final.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/targeted_external_like_20260615/models/t2-enriched-fullrefined370-ft-from-train1164-20260615/action_value_best.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/t2_train710_fixed_broad_more11_20260615/models/t2-clean410-broadfixed-more11-710-ft-20260615/action_value_best.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/t2_selection_recheck_20260615/models/t2-train710-default-top5miss-ft-20260615/action_value_best.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/t2_selection_recheck_20260616/models/t2-train734-plus-ref30-rank4-highloss13-ft-20260616/action_value_best.pt"
+            ],
+            "weights": [
+              0.01603125,
+              0.040078125,
+              0.216421875,
+              0.040078125,
+              0.004809375,
+              0.00320625,
+              0.320625,
+              0.21375,
+              0.045,
+              0.1
+            ]
+          }
+        }
+      },
+      "use_case": "Active default as of 2026-06-16. Adds a specialist trained from 13 ref30/rank4/bust075 runtime rows with selected EV loss >= 1.0 at alpha 0.10. Runtime fixed-teacher validation kept clean20b at 0.048/0.650, improved clean20c from 0.538/4.989 to 0.389/1.882, improved broad160 fixed from 0.644/7.655 to 0.619/7.655, and improved more10_40 from 0.451/6.278 to 0.371/6.278. All 120 checked rows stayed under the 5 second target."
+    },
+    "t2_fast_t3_union_top10_s10_tactical3_fixed710_alpha25_w0p5_post20_structtop_m5_min1000_top5miss_alpha05_top1rescue_fl010_ref30_rank4_bust075_highloss13_alpha20_diagnostic": {
+      "inherits": "t2_fast_t3_union_top10_s10_tactical3_fixed710_alpha25_w0p5_post20_structtop_m5_min1000_top5miss_alpha05_top1rescue_fl010_ref30_rank4_bust075_experimental",
+      "models": {
+        "turn_model_ensembles": {
+          "2": {
+            "checkpoints": [
+              "ai/models/candidate_runs/t2-stable-oracle56-cap500-cap1000-ft-from-exact53-20260603/model/action_value_best.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/teacher_top10_cap50_100/models/t2-cap50-100-ft-top3-20260614/action_value_final.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/fresh_external360_varied_20260615/train160_more/models/t2-local444-more160-cap50-ft-top3-20260615/action_value_final.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/fresh_external800_varied_20260615/train120_more6/models/t2-local924-more120-cap50-ft-top3-20260615/action_value_final.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/fresh_external920_varied_20260615/train120_more7/models/t2-local1044-more120-cap50-ft-top3-20260615/action_value_final.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/fresh_external920_varied_20260615/train120_more7/models/t2-train1164-current-top3miss-weighted-lowlr-20260615/action_value_final.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/targeted_external_like_20260615/models/t2-enriched-fullrefined370-ft-from-train1164-20260615/action_value_best.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/t2_train710_fixed_broad_more11_20260615/models/t2-clean410-broadfixed-more11-710-ft-20260615/action_value_best.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/t2_selection_recheck_20260615/models/t2-train710-default-top5miss-ft-20260615/action_value_best.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/t2_selection_recheck_20260616/models/t2-train734-plus-ref30-rank4-highloss13-ft-20260616/action_value_best.pt"
+            ],
+            "weights": [
+              0.01425,
+              0.035625,
+              0.192375,
+              0.035625,
+              0.004275,
+              0.00285,
+              0.285,
+              0.19,
+              0.04,
+              0.2
+            ]
+          }
+        }
+      },
+      "use_case": "Diagnostic only. Adds the 2026-06-16 ref30/rank4/bust075 high-loss specialist at alpha 0.20. Runtime checks improved clean20b, clean20c, and more10, but broad160 fixed regressed from 0.644/7.655 to 0.666/7.655, so alpha0.10 remains the default despite alpha0.20's lower weighted mean over the four checked sets."
+    },
+    "t2_fast_t3_union_top10_s10_tactical3_fixed710_alpha25_w0p5_post20_structtop_m5_min1000_top5miss_alpha05_top1rescue_fl010_ref30_rank4_bust075_highloss23_alpha10_diagnostic": {
+      "inherits": "t2_fast_t3_union_top10_s10_tactical3_fixed710_alpha25_w0p5_post20_structtop_m5_min1000_top5miss_alpha05_top1rescue_fl010_ref30_rank4_bust075_highloss13_alpha10_diagnostic",
+      "models": {
+        "turn_model_ensembles": {
+          "2": {
+            "checkpoints": [
+              "ai/models/candidate_runs/t2-stable-oracle56-cap500-cap1000-ft-from-exact53-20260603/model/action_value_best.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/teacher_top10_cap50_100/models/t2-cap50-100-ft-top3-20260614/action_value_final.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/fresh_external360_varied_20260615/train160_more/models/t2-local444-more160-cap50-ft-top3-20260615/action_value_final.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/fresh_external800_varied_20260615/train120_more6/models/t2-local924-more120-cap50-ft-top3-20260615/action_value_final.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/fresh_external920_varied_20260615/train120_more7/models/t2-local1044-more120-cap50-ft-top3-20260615/action_value_final.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/fresh_external920_varied_20260615/train120_more7/models/t2-train1164-current-top3miss-weighted-lowlr-20260615/action_value_final.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/targeted_external_like_20260615/models/t2-enriched-fullrefined370-ft-from-train1164-20260615/action_value_best.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/t2_train710_fixed_broad_more11_20260615/models/t2-clean410-broadfixed-more11-710-ft-20260615/action_value_best.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/t2_selection_recheck_20260615/models/t2-train710-default-top5miss-ft-20260615/action_value_best.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/t2_selection_recheck_20260616/models/t2-train770-plus-alpha10-highloss23-ft-20260616/action_value_best.pt"
+            ],
+            "weights": [
+              0.01603125,
+              0.040078125,
+              0.216421875,
+              0.040078125,
+              0.004809375,
+              0.00320625,
+              0.320625,
+              0.21375,
+              0.045,
+              0.1
+            ]
+          }
+        }
+      },
+      "use_case": "Rejected diagnostic for default promotion. Replaces the alpha0.10 highloss13 specialist with the next fine-tune trained from 23 alpha0.10 runtime rows with selected EV loss >= 0.5. Runtime improved broad160 fixed from 0.619/7.655 to 0.538/7.655 and kept more10/clean20b neutral, but regressed clean20c from 0.389/1.882 to 0.507/4.989, so the highloss13 alpha0.10 default is retained."
+    },
+    "t2_fast_t3_union_top10_s10_tactical3_fixed710_alpha25_w0p5_post20_structtop_m5_min1000_top5miss_alpha05_top1rescue_fl010_ref30_rank4_bust075_highloss23_opp1switch_diagnostic": {
+      "inherits": "t2_fast_t3_union_top10_s10_tactical3_fixed710_alpha25_w0p5_post20_structtop_m5_min1000_top5miss_alpha05_top1rescue_fl010_ref30_rank4_bust075_highloss13_alpha10_diagnostic",
+      "models": {
+        "turn_model_conditional_switch_ensembles": {
+          "2": {
+            "base_checkpoints": [
+              "ai/models/candidate_runs/t2-stable-oracle56-cap500-cap1000-ft-from-exact53-20260603/model/action_value_best.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/teacher_top10_cap50_100/models/t2-cap50-100-ft-top3-20260614/action_value_final.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/fresh_external360_varied_20260615/train160_more/models/t2-local444-more160-cap50-ft-top3-20260615/action_value_final.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/fresh_external800_varied_20260615/train120_more6/models/t2-local924-more120-cap50-ft-top3-20260615/action_value_final.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/fresh_external920_varied_20260615/train120_more7/models/t2-local1044-more120-cap50-ft-top3-20260615/action_value_final.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/fresh_external920_varied_20260615/train120_more7/models/t2-train1164-current-top3miss-weighted-lowlr-20260615/action_value_final.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/targeted_external_like_20260615/models/t2-enriched-fullrefined370-ft-from-train1164-20260615/action_value_best.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/t2_train710_fixed_broad_more11_20260615/models/t2-clean410-broadfixed-more11-710-ft-20260615/action_value_best.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/t2_selection_recheck_20260615/models/t2-train710-default-top5miss-ft-20260615/action_value_best.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/t2_selection_recheck_20260616/models/t2-train734-plus-ref30-rank4-highloss13-ft-20260616/action_value_best.pt"
+            ],
+            "base_weights": [
+              0.01603125,
+              0.040078125,
+              0.216421875,
+              0.040078125,
+              0.004809375,
+              0.00320625,
+              0.320625,
+              0.21375,
+              0.045,
+              0.1
+            ],
+            "challenger_checkpoints": [
+              "ai/models/candidate_runs/t2-stable-oracle56-cap500-cap1000-ft-from-exact53-20260603/model/action_value_best.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/teacher_top10_cap50_100/models/t2-cap50-100-ft-top3-20260614/action_value_final.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/fresh_external360_varied_20260615/train160_more/models/t2-local444-more160-cap50-ft-top3-20260615/action_value_final.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/fresh_external800_varied_20260615/train120_more6/models/t2-local924-more120-cap50-ft-top3-20260615/action_value_final.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/fresh_external920_varied_20260615/train120_more7/models/t2-local1044-more120-cap50-ft-top3-20260615/action_value_final.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/fresh_external920_varied_20260615/train120_more7/models/t2-train1164-current-top3miss-weighted-lowlr-20260615/action_value_final.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/targeted_external_like_20260615/models/t2-enriched-fullrefined370-ft-from-train1164-20260615/action_value_best.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/t2_train710_fixed_broad_more11_20260615/models/t2-clean410-broadfixed-more11-710-ft-20260615/action_value_best.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/t2_selection_recheck_20260615/models/t2-train710-default-top5miss-ft-20260615/action_value_best.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/t2_selection_recheck_20260616/models/t2-train770-plus-alpha10-highloss23-ft-20260616/action_value_best.pt"
+            ],
+            "challenger_weights": [
+              0.01603125,
+              0.040078125,
+              0.216421875,
+              0.040078125,
+              0.004809375,
+              0.00320625,
+              0.320625,
+              0.21375,
+              0.045,
+              0.1
+            ],
+            "gate": "opp_top_len_le_1_dealt_max_rank_ge_j_context"
+          }
+        }
+      },
+      "use_case": "Diagnostic only. Runtime-compatible version of the saved highloss13-vs-highloss23 gate audit: use the current highloss13 alpha0.10 ensemble normally, but switch the whole T2 model ensemble to the highloss23 alpha0.10 variant only when the opponent top row has at most one visible card and the dealt max rank is J or better. A broader opp_top_len<=1 gate improved clean20c and broad160 but left uncertainty on more10 rows with incomplete teacher candidate coverage, so this tightened high-card gate must be live-runtime validated before promotion."
+    },
+    "t2_fast_t3_union_top10_s10_tactical3_fixed710_alpha25_w0p5_post20_structtop_m5_min1000_top5miss_alpha05_top1rescue_fl010_ref30_rank4_bust075_highloss23_opp1highcard_switch_experimental": {
+      "inherits": "t2_fast_t3_union_top10_s10_tactical3_fixed710_alpha25_w0p5_post20_structtop_m5_min1000_top5miss_alpha05_top1rescue_fl010_ref30_rank4_bust075_highloss23_opp1switch_diagnostic",
+      "t2_model_top1_rescue_selected_model_rank_min": 2,
+      "t2_model_rank_rescue_k": 4,
+      "t2_model_rank_rescue_selected_model_rank_min": 5,
+      "t2_model_rank_rescue_refined_delta_max": 0.8,
+      "t2_model_rank_rescue_model_delta_min": 0.7,
+      "t2_model_rank_rescue_min_refined_score": 1.0,
+      "use_case": "Active default as of 2026-06-16. Switches from the highloss13 alpha0.10 T2 ensemble to the highloss23 alpha0.10 ensemble only when opponent top has at most one visible card and dealt max rank is J or better. It restores model Top1 when the refined winner is model-rank 2 or worse under the existing FL/refined/bust gate, and also restores a model-rank Top4 challenger only when the sampled refined winner is model-rank 5 or worse, the challenger trails by at most 0.8 refined EV, and the model score advantage is at least 0.7. Runtime fixed-teacher validation improved clean20c from 0.389/1.882 to 0.326/1.882 while keeping clean20b near-neutral at 0.051/0.650. Current reruns improved more10_40 from 0.371/6.278 to 0.249/2.499 and broad160 from 0.977/11.478 to 0.791/11.478. All checked rows stayed under the 5 second product target."
+    },
+    "t2_fast_t3_union_top10_s10_tactical3_fixed710_alpha25_w0p5_post20_structtop_m5_min1000_top5miss_alpha05_top1rescue_fl010_ref30_rank4_bust075_highloss23_opp1highcard_switch_top1bust_delta001_experimental": {
+      "inherits": "t2_fast_t3_union_top10_s10_tactical3_fixed710_alpha25_w0p5_post20_structtop_m5_min1000_top5miss_alpha05_top1rescue_fl010_ref30_rank4_bust075_highloss23_opp1highcard_switch_experimental",
+      "t2_model_top1_bust_rescue_selected_model_rank_min": 5,
+      "t2_model_top1_bust_rescue_refined_delta_max": 12.0,
+      "t2_model_top1_bust_rescue_model_delta_min": 2.0,
+      "t2_model_top1_bust_rescue_bust_delta_min": 0.08,
+      "t2_model_top1_bust_rescue_top_bust_max": 0.75,
+      "t2_model_top1_bust_rescue_top_fl_min": 0.15,
+      "t2_model_top1_bust_rescue_current_fl_min": 0.1,
+      "t2_model_top1_bust_rescue_fl_delta_min": 0.01,
+      "use_case": "Active default as of 2026-06-17. Adds a narrow model Top1 bust-improvement rescue after the standard Top1 rescue and before model-rank rescue. It only fires when the sampled refined winner is model-rank 5 or worse, model Top1 trails by at most 12.0 refined EV, model Top1 leads by at least 2.0 model score, model Top1 lowers predicted bust by at least 0.08, model Top1 bust is at most 0.75, both candidates have meaningful FL signal, and model Top1 improves max FL type by at least 0.01. Runtime validation kept more10_40 unchanged at 0.249/2.499, clean20c unchanged at 0.326/1.882, kept clean20b near-neutral at 0.048/0.650, and improved broad160 from 0.791/11.478 to 0.565/8.080 with all checked rows under the 5 second target."
+    },
+    "t2_fast_t3_union_top10_s10_tactical3_fixed710_alpha25_w0p5_post20_structtop_m5_min1000_top5miss_alpha05_top1rescue_fl010_ref30_rank4_bust075_highloss23_opp1highcard_switch_top1bust_midshift_experimental": {
+      "inherits": "t2_fast_t3_union_top10_s10_tactical3_fixed710_alpha25_w0p5_post20_structtop_m5_min1000_top5miss_alpha05_top1rescue_fl010_ref30_rank4_bust075_highloss23_opp1highcard_switch_top1bust_delta001_experimental",
+      "t2_middle_fill_bottom_shift_rescue_selected_model_rank_max": 3,
+      "t2_middle_fill_bottom_shift_rescue_challenger_model_rank_max": 4,
+      "t2_middle_fill_bottom_shift_rescue_model_gap_max": 1.0,
+      "t2_middle_fill_bottom_shift_rescue_bust_delta_min": 0.04,
+      "t2_middle_fill_bottom_shift_rescue_fl_delta_min": 0.02,
+      "t2_middle_fill_bottom_shift_rescue_challenger_bust_max": 0.55,
+      "t2_middle_fill_bottom_shift_rescue_challenger_fl_min": 0.20,
+      "t2_middle_fill_bottom_shift_rescue_selected_bust_min": 0.50,
+      "use_case": "Active default as of 2026-06-17 after the Top1 bust rescue. Adds a very narrow tactical rescue for T2 positions where the current sampled winner fills a four-card middle row, while a model-rank 4-or-better challenger keeps the same discard and top placement but moves exactly that card to bottom. The challenger must be within 1.0 model score, lower predicted bust by at least 0.04, improve max FL type by at least 0.02, have bust at most 0.55, and have max FL at least 0.20. Runtime validation fixed more10 source_line 3 and improved more10_40 from 0.249/2.499 to 0.166/2.197, while clean20b and clean20c were unchanged with zero fires. broad160 had zero direct fires; the rerun was 0.617/8.080 versus the previous Top1-bust run 0.565/8.080 due to partial-exact sampling variance, and still improved over the pre-Top1-bust default 0.791/11.478. All checked rows stayed under the 5 second target."
+    },
+    "t2_fast_t3_union_top10_s10_tactical3_fixed710_alpha25_w0p5_post20_structtop_m5_min1000_top5miss_alpha05_top1rescue2_lowfl_rank5_diagnostic": {
+      "inherits": "t2_fast_t3_union_top10_s10_tactical3_fixed710_alpha25_w0p5_post20_structtop_m5_min1000_top5miss_alpha05_top1rescue_fl010_ref25_experimental",
+      "t2_model_top1_rescue2_fl_min": 0.1,
+      "t2_model_top1_rescue2_fl_max": 0.2,
+      "t2_model_top1_rescue2_bust_max": 0.7,
+      "t2_model_top1_rescue2_selected_model_rank_min": 5,
+      "t2_model_top1_rescue2_refined_delta_max": 20.0,
+      "use_case": "Rejected diagnostic. Adds a secondary model Top1 rescue gate for cases where sampled T3 refinement strongly favors a lower-ranked candidate while model Top1 has modest FL, acceptable bust, and the current winner is model-rank 5 or worse. The original fl_max 0.20 did not fire on the intended broad160 max-loss rows because the rescue feature uses max FL type, not scalar predicted_fl. Relaxing fl_max to 0.30 cut broad160 max loss from 7.655 to 3.469 but badly regressed clean_holdout4, so this is not default."
+    },
+    "t2_fast_t3_union_top10_s10_tactical3_w2_experimental": {
+      "inherits": "t2_fast_t3_union_top5_s2_enriched_specialist_alpha50",
+      "t2_sync_exact_k": 10,
+      "t2_initial_samples_per_candidate": 5,
+      "t2_baseline_min_samples": 5,
+      "t2_max_samples_per_candidate": 10,
+      "t2_extra_samples_per_round": 1,
+      "t2_close_candidate_limit": 4,
+      "t2_selection_policy": "refined_plus_model",
+      "t2_selection_model_weight": 2.0,
+      "t2_tactical_insurance_k": 3,
+      "use_case": "Experimental only. On clean20c this reduced chosen EV loss from 1.315 to 0.448 while staying under 5 seconds, but it regressed clean20/clean20b, so it is not the default."
+    },
+    "t2_fast_t3_union_top10_s10_tactical3_w2_new510_alpha50_experimental": {
+      "inherits": "t2_fast_t3_union_top10_s10_tactical3_w2_experimental",
+      "models": {
+        "turn_model_ensembles": {
+          "2": {
+            "checkpoints": [
+              "ai/models/candidate_runs/t2-stable-oracle56-cap500-cap1000-ft-from-exact53-20260603/model/action_value_best.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/teacher_top10_cap50_100/models/t2-cap50-100-ft-top3-20260614/action_value_final.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/fresh_external360_varied_20260615/train160_more/models/t2-local444-more160-cap50-ft-top3-20260615/action_value_final.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/fresh_external800_varied_20260615/train120_more6/models/t2-local924-more120-cap50-ft-top3-20260615/action_value_final.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/fresh_external920_varied_20260615/train120_more7/models/t2-local1044-more120-cap50-ft-top3-20260615/action_value_final.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/fresh_external920_varied_20260615/train120_more7/models/t2-train1164-current-top3miss-weighted-lowlr-20260615/action_value_final.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/targeted_external_like_20260615/models/t2-enriched-fullrefined370-ft-from-train1164-20260615/action_value_best.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/broad100_20260615/models/t2-enriched510-broad100-alllegal-ft-20260615/action_value_best.pt"
+            ],
+            "weights": [
+              0.0125,
+              0.03125,
+              0.16875,
+              0.03125,
+              0.00375,
+              0.0025,
+              0.25,
+              0.5
+            ]
+          }
+        }
+      },
+      "use_case": "Experimental only. Adds the broad100-trained 2026-06-15 specialist at alpha 0.50. It improved broad100 runtime chosen EV loss from 1.056 to 0.945 and more2-more7 model Top1 regret from 0.097 to 0.063, but was slightly worse than the non-new510 tactical mode on clean20c."
+    },
+    "t2_fast_t3_union_top10_s10_tactical3_new510_alpha50_refined_only_experimental": {
+      "inherits": "t2_fast_t3_union_top10_s10_tactical3_w2_new510_alpha50_experimental",
+      "t2_selection_model_weight": 0.0,
+      "use_case": "Experimental only. Uses the broad100-trained 2026-06-15 specialist candidate pool, but chooses among refined candidates by refined_score only. On clean_holdout4 it reduced selected-action EV loss from 0.624 for the default and 0.928 for the w2 new510 mode to 0.452 at about 2.95s mean runtime."
+    },
+    "t2_fast_t3_union_top10_s10_tactical3_new510_alpha50_w0p5_experimental": {
+      "inherits": "t2_fast_t3_union_top10_s10_tactical3_w2_new510_alpha50_experimental",
+      "t2_selection_model_weight": 0.5,
+      "use_case": "Experimental only. Same new510 Top10/s10/tactical3 candidate pool, but final selection uses refined_score + 0.5 * model_score. Re-scoring broad100 + clean20c + clean_holdout4 runtime candidates gave the best three-set selected-action EV loss among fixed weights tested: 0.788 versus 0.829 for w0 and 0.895 for w2."
+    },
+    "t2_fast_t3_union_top12_s10_tactical3_new510_alpha50_w0p5_experimental": {
+      "inherits": "t2_fast_t3_union_top10_s10_tactical3_new510_alpha50_w0p5_experimental",
+      "t2_sync_exact_k": 12,
+      "use_case": "Experimental only. Expands sync refinement from Top10 to Top12 while keeping the same new510 alpha0.50 pool and refined_score + 0.5 * model_score selection. With Rust-fallback disabled in the T3 runtime path, broad160_holdout40 was 0.673 chosen EV loss, clean20c was 0.320, and clean_holdout4 worsened to 0.612. It returns under 5 seconds but remains a comparison mode rather than the default."
+    },
+    "t2_fast_t3_union_top10_s10_tactical3_new510_alpha50_w0p5_post12_min2000_experimental": {
+      "inherits": "t2_fast_t3_union_top10_s10_tactical3_new510_alpha50_w0p5_experimental",
+      "t2_post_refine_sync_exact_k": 12,
+      "t2_post_refine_min_remaining_ms": 2000,
+      "use_case": "Experimental only. Runs the Top10/s10/new510/w0.5 mode first, then expands to Top12 only if at least 2000 ms remain after the initial refinement. With Rust-fallback disabled this kept all checked rows under 5 seconds and improved combined chosen EV loss across clean20c, clean_holdout4, and broad160_holdout40 from 0.648 for Top10 to 0.565."
+    },
+    "t2_fast_t3_union_gated_ft1444": {
+      "inherits": "t2_fast_t3_union",
+      "models": {
+        "turn_model_conditional_ensembles": {
+          "2": {
+            "checkpoints": [
+              "ai/models/candidate_runs/t2-stable-oracle56-cap500-cap1000-ft-from-exact53-20260603/model/action_value_best.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/teacher_top10_cap50_100/models/t2-cap50-100-ft-top3-20260614/action_value_final.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/fresh_external360_varied_20260615/train160_more/models/t2-local444-more160-cap50-ft-top3-20260615/action_value_final.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/fresh_external800_varied_20260615/train120_more6/models/t2-local924-more120-cap50-ft-top3-20260615/action_value_final.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/fresh_external920_varied_20260615/train120_more7/models/t2-local1044-more120-cap50-ft-top3-20260615/action_value_final.pt",
+              "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/fresh_external920_varied_20260615/train120_more7/models/t2-train1164-current-top3miss-weighted-lowlr-20260615/action_value_final.pt"
+            ],
+            "weights": [
+              0.05,
+              0.125,
+              0.675,
+              0.125,
+              0.015,
+              0.010
+            ],
+            "specialist": "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/targeted_external_like_20260615/models/t2-train1444-target80-ft-top3-20260615/action_value_final.pt",
+            "specialist_weight": 0.35,
+            "gate": "target_like_strict_context"
+          }
+        }
+      },
+      "use_case": "Experimental T2 context-gated specialist for visible-joker top-structure spots; not the default until a larger holdout confirms it."
+    }
+  },
+  "cli_example": [
+    "python",
+    "-m",
+    "ai.tutor.hybrid_t1t2",
+    "--input",
+    "INPUT.jsonl",
+    "--output",
+    "OUTPUT.jsonl",
+    "--runtime-config",
+    "ai/config/t2_action_value_ensemble_20260615.json",
+    "--turns",
+    "2",
+    "--device",
+    "cpu"
+  ]
+}

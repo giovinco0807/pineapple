@@ -1,0 +1,51 @@
+{
+  "name": "t3_canonical_joker_pool_candidate_20260711",
+  "objective": "Add the canonical-Joker T3 specialist to the existing union8 pool without replacing legacy sources.",
+  "base_preset": "ai/config/t3_ev_loss_fresh_pool_20260607.json",
+  "turn": 3,
+  "status": {
+    "serving": "candidate",
+    "rule_version": "canonical_joker_bottom_middle_top_20260711",
+    "note": "Requires exact reranking; do not use model Top1 directly."
+  },
+  "candidate_pool_policy": {
+    "fast": {
+      "per_source_top_k": 10,
+      "exact_rerank": true
+    },
+    "conservative": {
+      "per_source_top_k": 20,
+      "exact_rerank": true
+    }
+  },
+  "action_value_checkpoints": {
+    "bb": [
+      "D:\\ofc-pineapple-data\\t3_jokerfix_extra_20260605\\models\\t3-20k-plus-gen5k-hardneginit-bb\\action_value_best.pt",
+      "D:\\ofc-pineapple-data\\branch_t0t2_top10_100k_20260605\\models\\t3-top10-100k-bb-20260605\\action_value_best.pt",
+      "D:\\ofc-pineapple-data\\branch_t0t2_top10_100k_20260605\\models\\t3-top10-100k-hardneg-w10-bb-20260606\\action_value_best.pt",
+      "D:\\ofc-pineapple-data\\branch_t0t2_top10_100k_20260605\\models\\t3-top10-100k-top5miss-w10-bb-20260606\\action_value_best.pt",
+      "ai/models/candidate_runs/t3-canonical-joker-20k-bb-20260711/action_value_best.pt"
+    ],
+    "btn": [
+      "D:\\ofc-pineapple-data\\t3_jokerfix_extra_20260605\\models\\t3-20k-plus-gen5k-hardneginit-btn\\action_value_best.pt",
+      "D:\\ofc-pineapple-data\\branch_t0t2_top10_100k_20260605\\models\\t3-top10-100k-btn-20260605\\action_value_best.pt",
+      "D:\\ofc-pineapple-data\\branch_t0t2_top10_100k_20260605\\models\\t3-top10-100k-hardneg-w10-btn-20260606\\action_value_best.pt",
+      "D:\\ofc-pineapple-data\\branch_t0t2_top10_100k_20260605\\models\\t3-top10-100k-top5miss-w10-btn-20260606\\action_value_best.pt",
+      "ai/models/candidate_runs/t3-canonical-joker-20k-btn-20260711/action_value_best.pt"
+    ]
+  },
+  "set_checkpoints_union8": {
+    "bb": [
+      "D:\\ofc-pineapple-data\\branch_t0t2_top10_100k_20260605\\models\\t3-set-top5-w10-bb-20260606\\action_value_set_best.pt",
+      "D:\\ofc-pineapple-data\\branch_t0t2_top10_100k_20260605\\models\\t3-set-poolmiss-union5-bb-20260606\\action_value_set_best.pt",
+      "D:\\ofc-pineapple-data\\branch_t0t2_top10_100k_20260605\\models\\t3-set-evloss-w11-top10-bb-20260607\\action_value_set_best.pt",
+      "D:\\ofc-pineapple-data\\t3_evloss_fresh_20260607\\models\\t3-set-evloss-fresh-top8-bb-20260607\\action_value_set_best.pt"
+    ],
+    "btn": [
+      "D:\\ofc-pineapple-data\\branch_t0t2_top10_100k_20260605\\models\\t3-set-top5-w10-btn-20260606\\action_value_set_best.pt",
+      "D:\\ofc-pineapple-data\\branch_t0t2_top10_100k_20260605\\models\\t3-set-poolmiss-union5-btn-20260606\\action_value_set_best.pt",
+      "D:\\ofc-pineapple-data\\branch_t0t2_top10_100k_20260605\\models\\t3-set-evloss-w11-top10-btn-20260607\\action_value_set_best.pt",
+      "D:\\ofc-pineapple-data\\t3_evloss_fresh_20260607\\models\\t3-set-evloss-fresh-top8-btn-20260607\\action_value_set_best.pt"
+    ]
+  }
+}

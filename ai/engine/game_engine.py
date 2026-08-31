@@ -8,6 +8,8 @@ import copy
 import random
 from collections import Counter
 from dataclasses import dataclass, field
+from functools import lru_cache
+from itertools import combinations
 from typing import Dict, List, Optional, Tuple
 
 from .encoding import Board, Observation, ALL_CARDS
@@ -35,9 +37,11 @@ class HandResult:
 class Hand:
     """A single hand of OFC Pineapple."""
 
-    def __init__(self, deck: List[str], btn: int = 0):
+    def __init__(self, deck: List[str], btn: int = 0,
+                 is_fl: Optional[List[bool]] = None):
         self.deck = list(deck)
         self.btn = btn
+        self.is_fl = is_fl or [False, False]  # Per-seat FL status
         self.boards = [Board(), Board()]
         self.dealt_cards: List[List[str]] = [[], []]
         self.discards: List[List[str]] = [[], []]
@@ -58,6 +62,8 @@ class Hand:
             known_discards_self=list(self.discards[seat]),
             turn=self.turn,
             is_btn=(seat == self.btn),
+            is_fl=self.is_fl[seat],
+            opp_is_fl=self.is_fl[1 - seat],
         )
 
     def apply_action(self, seat: int, action: Action):
@@ -126,33 +132,32 @@ class GameEngine:
         hand_names = [{}, {}]
         fl_entry = [False, False]
         fl_card_count = [0, 0]
-
         hand_values = [{}, {}]
+
         for seat in [0, 1]:
             board = hand.boards[seat]
-            top_val = evaluate_hand(board.top, 3)
-            mid_val = evaluate_hand(board.middle, 5)
-            bot_val = evaluate_hand(board.bottom, 5)
-            hand_values[seat] = {"top": top_val, "middle": mid_val, "bottom": bot_val}
+
+            # Use constrained evaluation for bust checks and royalties
+            eval_res = evaluate_board_with_joker_constraint(board.top, board.middle, board.bottom)
+
+            # All terminal consumers use the values/bonuses produced by the
+            # canonical bottom-up Joker evaluator.  Re-evaluating the raw rows
+            # here used to let other scoring paths silently pick a different
+            # Joker interpretation.
+            hand_values[seat] = dict(eval_res["values"])
 
             # Bust check
-            if top_val > mid_val or mid_val > bot_val:
+            if eval_res["busted"]:
                 busted[seat] = True
             else:
-                royalties[seat]["top"] = get_top_royalty(board.top)
-                royalties[seat]["middle"] = get_middle_royalty(board.middle)
-                royalties[seat]["bottom"] = get_bottom_royalty(board.bottom)
-                royalties[seat]["total"] = (
-                    royalties[seat]["top"] + royalties[seat]["middle"] + royalties[seat]["bottom"]
-                )
-                fl, cards = check_fl_entry(board.top)
-                fl_entry[seat] = fl
-                fl_card_count[seat] = cards
+                royalties[seat] = dict(eval_res["royalties"])
+                fl_entry[seat] = bool(eval_res["fl_entry"])
+                fl_card_count[seat] = int(eval_res["fl_card_count"])
 
             hand_names[seat] = {
-                "top": get_hand_name(board.top, 3),
-                "middle": get_hand_name(board.middle, 5),
-                "bottom": get_hand_name(board.bottom, 5),
+                "top": get_hand_name(eval_res["top"], 3),
+                "middle": get_hand_name(eval_res["middle"], 5),
+                "bottom": get_hand_name(eval_res["bottom"], 5),
             }
 
         # Line results (P0 perspective)
@@ -203,6 +208,117 @@ class GameEngine:
 # Hand evaluation (base-15 multi-rank encoding)
 # ============================================================
 
+def is_joker(card: str) -> bool:
+    return card in ("X1", "X2", "JK")
+
+
+def available_subs(cards: List[str]) -> List[str]:
+    used = {c for c in cards if not is_joker(c)}
+    subs = []
+    for rank in "23456789TJQKA":
+        for suit in "shdc":
+            card = rank + suit
+            if card not in used:
+                subs.append(card)
+    return subs
+
+
+def constrain_row(cards: List[str], ref_val: int, expected_count: int) -> List[str]:
+    """Return the strongest Joker substitution whose value is <= ``ref_val``.
+
+    If the row is already within the bound it is returned unchanged.  If no
+    legal Joker substitution can satisfy the bound, the unchanged row is
+    returned so the caller's final ordering check marks the board as busted.
+    """
+    val = evaluate_hand(cards, expected_count)
+    if val <= ref_val:
+        return list(cards)
+
+    non_jokers = [c for c in cards if not is_joker(c)]
+    n_jokers = len(cards) - len(non_jokers)
+    subs = available_subs(cards)
+
+    best = None
+    best_val = -1
+
+    if n_jokers == 1:
+        for sub in subs:
+            test = non_jokers + [sub]
+            val = evaluate_hand(test, expected_count)
+            if val <= ref_val and val > best_val:
+                best = test
+                best_val = val
+    elif n_jokers == 2:
+        for i in range(len(subs)):
+            for j in range(i + 1, len(subs)):
+                test = non_jokers + [subs[i], subs[j]]
+                val = evaluate_hand(test, expected_count)
+                if val <= ref_val and val > best_val:
+                    best = test
+                    best_val = val
+
+    return best if best is not None else list(cards)
+
+
+def evaluate_row_with_joker_constraint(
+    cards: List[str], expected_count: int, max_value: int
+) -> Tuple[List[str], int]:
+    """Evaluate one row using the canonical bust-prevention rule."""
+    constrained = constrain_row(cards, max_value, expected_count)
+    return constrained, evaluate_hand(constrained, expected_count)
+
+
+def evaluate_board_with_joker_constraint(
+    top: List[str], mid: List[str], bot: List[str]
+) -> Dict[str, object]:
+    """Canonical complete-board evaluation for the Joker ruleset.
+
+    Rows are evaluated bottom-up.  Bottom takes its strongest value, Middle
+    takes its strongest value not exceeding Bottom, and Top takes its strongest
+    value not exceeding Middle.  Every terminal scoring path must consume this
+    result instead of independently re-evaluating the three raw rows.
+    """
+    bottom_final = list(bot)
+    bottom_value = evaluate_hand(bottom_final, 5)
+
+    middle_final, middle_value = evaluate_row_with_joker_constraint(
+        list(mid), 5, bottom_value
+    )
+    top_final, top_value = evaluate_row_with_joker_constraint(
+        list(top), 3, middle_value
+    )
+
+    busted = top_value > middle_value or middle_value > bottom_value
+    values = {
+        "top": top_value,
+        "middle": middle_value,
+        "bottom": bottom_value,
+    }
+
+    royalties = {"top": 0, "middle": 0, "bottom": 0, "total": 0}
+    fl_entry = False
+    fl_card_count = 0
+    if not busted:
+        royalties["top"] = get_top_royalty(top_final)
+        royalties["middle"] = get_middle_royalty(middle_final)
+        royalties["bottom"] = get_bottom_royalty(bottom_final)
+        royalties["total"] = (
+            royalties["top"] + royalties["middle"] + royalties["bottom"]
+        )
+        fl_entry, fl_card_count = check_fl_entry(top_final)
+
+    return {
+        "busted": busted,
+        "top": top_final,
+        "middle": middle_final,
+        "bottom": bottom_final,
+        "values": values,
+        "royalties": royalties,
+        "fl_entry": fl_entry,
+        "fl_card_count": fl_card_count,
+    }
+
+
 _B = 15
 _B5 = _B ** 5  # 759375
 
@@ -251,15 +367,53 @@ def evaluate_hand(cards: List[str], expected_count: int) -> int:
     if len(cards) != expected_count:
         return 0
 
+    # Card order and Joker identity do not affect hand strength.  Normalizing
+    # both gives the exhaustive Joker evaluator a high cache hit rate during
+    # rollouts and exact-teacher generation.
+    key = tuple(sorted("JK" if is_joker(card) else card for card in cards))
+    if "JK" in key:
+        return _evaluate_joker_hand_cached(key, expected_count)
+    return _evaluate_natural_hand_cached(key, expected_count)
+
+
+@lru_cache(maxsize=100_000)
+def _evaluate_joker_hand_cached(
+    cards_key: Tuple[str, ...], expected_count: int
+) -> int:
+    cards = list(cards_key)
+    jokers = sum(1 for card in cards if is_joker(card))
+    non_jokers = [card for card in cards if not is_joker(card)]
+    used = set(non_jokers)
+    available = [
+        rank + suit
+        for rank in "23456789TJQKA"
+        for suit in "shdc"
+        if rank + suit not in used
+    ]
+    best_value = -1
+    for substitutions in combinations(available, jokers):
+        natural_key = tuple(sorted([*non_jokers, *substitutions]))
+        best_value = max(
+            best_value,
+            _evaluate_natural_hand_cached(natural_key, expected_count),
+        )
+    return best_value
+
+
+@lru_cache(maxsize=200_000)
+def _evaluate_natural_hand_cached(
+    cards_key: Tuple[str, ...], expected_count: int
+) -> int:
+    cards = list(cards_key)
+
     ranks = []
     suits = []
-    jokers = 0
     for c in cards:
-        if c in ("X1", "X2", "JK"):
-            jokers += 1
-        else:
-            ranks.append(RANK_VALUES.get(c[0], 0))
-            suits.append(c[1])
+        ranks.append(RANK_VALUES.get(c[0], 0))
+        suits.append(c[1])
+
+    # Joker rows returned above after exhaustive natural-card substitution.
+    jokers = 0
 
     rank_counts = Counter(ranks)
     suit_counts = Counter(suits)
@@ -372,23 +526,14 @@ def check_straight(sorted_ranks: List[int], jokers: int = 0) -> bool:
 
 def get_top_royalty(cards: List[str]) -> int:
     """Top row: 66=1, 77=2, ..., AA=9. Trips: 222=10, ..., AAA=22."""
-    ranks = []
-    jokers = 0
-    for c in cards:
-        if c in ("X1", "X2", "JK"):
-            jokers += 1
-        else:
-            ranks.append(RANK_VALUES.get(c[0], 0))
-    rank_counts = Counter(ranks)
-
-    best = 0
-    for r in sorted(rank_counts.keys(), reverse=True):
-        count = rank_counts[r]
-        if count + jokers >= 3:
-            return 10 + (r - 2)
-        if count + jokers >= 2 and r >= 6:
-            best = max(best, r - 5)
-    return best
+    val = evaluate_hand(cards, 3)
+    cat = hand_category(val)
+    rank = (val // (_B ** 4)) % _B
+    if cat == 3:
+        return 10 + (rank - 2)
+    if cat == 1 and rank >= 6:
+        return rank - 5
+    return 0
 
 
 def get_middle_royalty(cards: List[str]) -> int:
@@ -422,23 +567,15 @@ def get_bottom_royalty(cards: List[str]) -> int:
 
 def check_fl_entry(top_cards: List[str]) -> Tuple[bool, int]:
     """Check if top row qualifies for Fantasyland entry."""
-    ranks = []
-    jokers = 0
-    for c in top_cards:
-        if c in ("X1", "X2"):
-            jokers += 1
-        else:
-            ranks.append(RANK_VALUES.get(c[0], 0))
-    rank_counts = Counter(ranks)
-
-    for r in sorted(rank_counts.keys(), reverse=True):
-        count = rank_counts[r]
-        if count + jokers >= 3:
-            return True, 17  # Trips
-        if count + jokers >= 2:
-            if r == 14:    return True, 16  # AA
-            elif r == 13:  return True, 15  # KK
-            elif r == 12:  return True, 14  # QQ
+    val = evaluate_hand(top_cards, 3)
+    cat = hand_category(val)
+    rank = (val // (_B ** 4)) % _B
+    if cat == 3:
+        return True, 17
+    if cat == 1:
+        if rank == 14:    return True, 16
+        elif rank == 13:  return True, 15
+        elif rank == 12:  return True, 14
     return False, 0
 
 

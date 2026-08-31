@@ -14,13 +14,25 @@ _solver_name = "fl_solver.exe" if platform.system() == "Windows" else "fl_solver
 FL_SOLVER_PATH = Path(__file__).parent.parent.parent / "ai" / "rust_solver" / "target" / "release" / _solver_name
 
 
-def solve_fantasyland(cards: list[str]) -> Optional[dict]:
+def _card_to_solver(card: str) -> dict:
+    """Convert card string to solver format."""
+    if card in ["X1", "X2"]:
+        return {"rank": 0, "suit": 4}
+    rank_map = {'2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8,
+               '9': 9, 'T': 10, 'J': 11, 'Q': 12, 'K': 13, 'A': 14}
+    suit_map = {'h': 0, 'd': 1, 'c': 2, 's': 3}
+    return {"rank": rank_map.get(card[0], 0), "suit": suit_map.get(card[1], 0)}
+
+
+def solve_fantasyland(cards: list[str], opponent_board: Optional[dict] = None) -> Optional[dict]:
     """
     Call Rust FL solver for optimal placement.
-    
+
     Args:
         cards: List of cards (14-17), e.g., ["Ah", "Kd", "X1", ...]
-    
+        opponent_board: Optional opponent board {"top": [...], "middle": [...], "bottom": [...]}
+                        When provided, solver maximizes score vs opponent (lines+scoop+royalty+FL stay EV)
+
     Returns:
         {
             "top": ["Ah", "Ad", "Ac"],
@@ -34,22 +46,20 @@ def solve_fantasyland(cards: list[str]) -> Optional[dict]:
     """
     if not FL_SOLVER_PATH.exists():
         raise FileNotFoundError(f"FL Solver not found at {FL_SOLVER_PATH}")
-    
-    # Convert cards to solver format
-    solver_cards = []
-    for card in cards:
-        if card in ["X1", "X2"]:
-            solver_cards.append({"rank": 0, "suit": 4})  # Joker
-        else:
-            rank_map = {'2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8,
-                       '9': 9, 'T': 10, 'J': 11, 'Q': 12, 'K': 13, 'A': 14}
-            suit_map = {'h': 0, 'd': 1, 'c': 2, 's': 3}
-            solver_cards.append({
-                "rank": rank_map.get(card[0], 0),
-                "suit": suit_map.get(card[1], 0)
-            })
-    
-    request = json.dumps({"cards": solver_cards, "version": 2})
+
+    solver_cards = [_card_to_solver(c) for c in cards]
+
+    req_data = {"cards": solver_cards, "version": 2}
+
+    # Add opponent board if provided (enables vs_normal mode)
+    if opponent_board:
+        req_data["opponent"] = {
+            "top": [_card_to_solver(c) for c in opponent_board["top"]],
+            "middle": [_card_to_solver(c) for c in opponent_board["middle"]],
+            "bottom": [_card_to_solver(c) for c in opponent_board["bottom"]],
+        }
+
+    request = json.dumps(req_data)
     
     try:
         result = subprocess.run(

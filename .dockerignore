@@ -5,6 +5,14 @@
 **/.venv
 **/training
 **/models
+!ai/models/
+!ai/models/__init__.py
+!ai/models/networks.py
+!ai/models/expectimax_bc_v3/
+!ai/models/expectimax_bc_v3/bc_policy_best.pt
+!ai/models/value_v3/
+!ai/models/value_v3/value_best.pt
+!ai/models/value_v3/norm_stats.json
 **/*.pyc
 **/ai/docs
 **/ai/logs

@@ -1,0 +1,23 @@
+[
+  {
+    "iteration": 0,
+    "type": "baseline",
+    "vn_model": "ai/models/value_v1/value_best.pt",
+    "score": 16.92,
+    "bust_rate": 36.0,
+    "fl_rate": 17.0
+  },
+  {
+    "iteration": 1,
+    "type": "rejected",
+    "vn_model": "ai/models/improve_iter1/value_best.pt",
+    "score": 15.9,
+    "bust_rate": 42.0,
+    "fl_rate": 13.0,
+    "data_files": [
+      "data/value_data_v4_merged.npz",
+      "data/improve_iter1.npz"
+    ],
+    "n_total_samples": 80000
+  }
+]

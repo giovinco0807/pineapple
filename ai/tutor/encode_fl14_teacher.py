@@ -10,8 +10,9 @@ any deal.
     rowwise 41  per-row completion outlook over the unseen pool
     joint    8  what the rows can achieve simultaneously
     context  7  deck composition
-    ----------
-            104
+    allocation ranks 6  incomplete-row leading rank tiebreaks (v2)
+    -------------------
+            104 / 110
 
 Seven context dims, not twelve: at a fixed Fantasyland width the opponent's
 card-count one-hot (4) and `fl_ev[width]` (1) are constants, and a constant
@@ -45,6 +46,7 @@ from pathlib import Path
 import numpy as np
 
 from ai.engine.encoding import ALL_CARDS
+from ai.tutor.fl14_allocation_features import ALLOCATION_RANK_SIZE, allocation_rank_block
 from ai.tutor.solver_paths import _solver_path
 from ai.tutor.t3_second_features import actor_block
 from ai.tutor.t4_vs_fl import CARD_INDEX, seen_mask
@@ -54,13 +56,37 @@ ACTOR_SIZE = 48
 ROWWISE_SIZE = 41
 JOINT_SIZE = 8
 CONTEXT_SIZE = 7
-FEATURE_SIZE = ACTOR_SIZE + ROWWISE_SIZE + JOINT_SIZE + CONTEXT_SIZE  # 104
+FEATURE_SIZE_V1 = ACTOR_SIZE + ROWWISE_SIZE + JOINT_SIZE + CONTEXT_SIZE  # 104
+FEATURE_SIZE = FEATURE_SIZE_V1 + ALLOCATION_RANK_SIZE  # 110, historical alias
+FEATURE_SIZE_V2 = FEATURE_SIZE
+FEATURE_SIZES = {"v1": FEATURE_SIZE_V1, "v2": FEATURE_SIZE_V2}
 
 
 def split_of(root: int, street: str) -> str:
     digest = hashlib.sha256(f"fl14-{street}-teacher-v1/{root}".encode()).digest()
     bucket = int.from_bytes(digest[:4], "big") % 100
     return "fit" if bucket < 80 else ("dev" if bucket < 90 else "test")
+
+
+def stable_root_id(record: dict) -> int:
+    """A decision identity that survives sharding and concatenation.
+
+    `root` is only the worker-local ordinal in the Rust labeler.  Lap two
+    concatenated two resumed runs and therefore reused 2,173 ordinals; grouping
+    on that field made unrelated hands one giant decision for regret.  The
+    played-deal `id` is global.  Numeric ids are kept verbatim, while arbitrary
+    ids are deterministically mapped into positive int64 for the npz format.
+    """
+    raw = str(record.get("id", record["root"]))
+    try:
+        value = int(raw)
+    except ValueError:
+        value = int.from_bytes(hashlib.sha256(raw.encode()).digest()[:8], "big")
+        value &= (1 << 63) - 1
+    if not -(1 << 63) <= value < (1 << 63):
+        value = int.from_bytes(hashlib.sha256(raw.encode()).digest()[:8], "big")
+        value &= (1 << 63) - 1
+    return value
 
 
 class JokerNamer:
@@ -120,7 +146,7 @@ def context_block(pool_cards: list[str]) -> list[float]:
 def fetch_blocks(
     requests: list[dict], workspace_root: Path, joint_samples: int, solver: str
 ) -> dict:
-    """rowwise (41) and joint (8) from the Rust encoder, in one batch."""
+    """Rust rowwise and joint blocks in one batch."""
     with tempfile.TemporaryDirectory() as tmp:
         in_path = Path(tmp) / "in.jsonl"
         out_path = Path(tmp) / "out.jsonl"
@@ -157,6 +183,12 @@ def main() -> None:
     parser.add_argument("--street", choices=["t2", "t3", "t4"], required=True)
     parser.add_argument("--labels", type=Path, required=True)
     parser.add_argument("--out-dir", type=Path, required=True)
+    parser.add_argument(
+        "--feature-version",
+        choices=("v1", "v2"),
+        default="v2",
+        help="v1=104; v2 appends 6 allocation ranks.",
+    )
     # 0 means enumerate every completion instead of sampling it.  A T3
     # placement leaves two open slots (C(40,2) = 780) and a T4 placement
     # leaves none, so exact is affordable at both -- and the labels those
@@ -206,6 +238,7 @@ def main() -> None:
     pending: list[tuple] = []
     processed = 0
     dropped = 0
+    root_sources: dict[int, str] = {}
 
     def flush() -> None:
         """Fetch the Rust blocks for one batch and encode its rows."""
@@ -255,7 +288,10 @@ def main() -> None:
                 + [float(v) for v in joint]
                 + context_block(pool)
             )
-            if len(vector) != FEATURE_SIZE:
+            if args.feature_version == "v2":
+                vector += allocation_rank_block(rows_after)
+            expected_size = FEATURE_SIZES[args.feature_version]
+            if len(vector) != expected_size:
                 raise AssertionError(f"feature size drifted: {len(vector)}")
             bucket = buffers[split_of(root, args.street)]
             bucket["x"].append(vector)
@@ -271,7 +307,16 @@ def main() -> None:
             if not line.strip():
                 continue
             record = json.loads(line)
-            root = int(record["root"])
+            root = stable_root_id(record)
+            source_id = str(record.get("id", record["root"]))
+            previous = root_sources.get(root)
+            if previous is not None:
+                raise RuntimeError(
+                    f"duplicate decision id {source_id!r}"
+                    if previous == source_id
+                    else f"decision ids {previous!r} and {source_id!r} map to the same root key"
+                )
+            root_sources[root] = source_id
             if args.street in ("t2", "t3"):
                 # Both streets write `action_key` as the board this action
                 # reaches plus the card it threw away: top|mid|bot|discard --
@@ -334,15 +379,20 @@ def main() -> None:
     flush()
 
     manifest = {
-        "schema": f"ofc_fl14_{args.street}_teacher/v1_best_response",
-        "feature_size": FEATURE_SIZE,
+        "schema": f"ofc_fl14_{args.street}_teacher/{args.feature_version}_best_response",
+        "encoder_role": f"fl14_full_{args.feature_version}",
+        "feature_size": FEATURE_SIZES[args.feature_version],
+        "legacy_prefix_size": FEATURE_SIZE_V1,
         "blocks": {"actor": ACTOR_SIZE, "rowwise": ROWWISE_SIZE,
-                   "joint": JOINT_SIZE, "context": CONTEXT_SIZE},
+                   "joint": JOINT_SIZE, "context": CONTEXT_SIZE,
+                   **({"allocation_rank": ALLOCATION_RANK_SIZE}
+                      if args.feature_version == "v2" else {})},
         "labels": str(args.labels),
         "opponent": "best_response_over_frontier_pool",
         "rows_encoded": processed,
         "actions_dropped_as_illegal": dropped,
-        "split_rule": f"sha256('fl14-{args.street}-teacher-v1/<root>') % 100 -> 80/10/10",
+        "root_identity": "record id (global), not worker-local root ordinal",
+        "split_rule": f"sha256('fl14-{args.street}-teacher-v1/<id>') % 100 -> 80/10/10",
         "elapsed_seconds": time.time() - started,
         "splits": {},
     }

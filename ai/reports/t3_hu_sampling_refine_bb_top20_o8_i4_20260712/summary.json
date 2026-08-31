@@ -1,0 +1,211 @@
+{
+  "schema": "ofc_hu_gate/v1",
+  "overall": {
+    "positions": 20,
+    "strict_top1_agreement": 0.75,
+    "ci_compatible_agreement": 1.0,
+    "cross_regret": {
+      "mean": 0.827667101919826,
+      "p95": 6.195239271598044,
+      "max": 7.12029750141169
+    },
+    "candidate_ev_drift": {
+      "mean": 2.347419156418368,
+      "p95": 7.25473182355963,
+      "max": 7.747230260681525
+    },
+    "runtime_ms": {
+      "p50": 7979.746300261468,
+      "p95": 23751.170800067484,
+      "max": 25637.915700208396,
+      "over_5s": 36
+    }
+  },
+  "by_position": {
+    "bb": {
+      "positions": 20,
+      "strict_top1_agreement": 0.75,
+      "ci_compatible_agreement": 1.0,
+      "cross_regret": {
+        "mean": 0.827667101919826,
+        "p95": 6.195239271598044,
+        "max": 7.12029750141169
+      },
+      "candidate_ev_drift": {
+        "mean": 2.347419156418368,
+        "p95": 7.25473182355963,
+        "max": 7.747230260681525
+      },
+      "runtime_ms": {
+        "p50": 7979.746300261468,
+        "p95": 23751.170800067484,
+        "max": 25637.915700208396,
+        "over_5s": 36
+      }
+    }
+  },
+  "by_stratum": {
+    "bb_joker0": {
+      "positions": 10,
+      "strict_top1_agreement": 0.6,
+      "ci_compatible_agreement": 1.0,
+      "cross_regret": {
+        "mean": 1.5592255434782758,
+        "p95": 7.12029750141169,
+        "max": 7.12029750141169
+      },
+      "candidate_ev_drift": {
+        "mean": 2.898644761305411,
+        "p95": 7.747230260681525,
+        "max": 7.747230260681525
+      },
+      "runtime_ms": {
+        "p50": 7979.746300261468,
+        "p95": 17641.057999804616,
+        "max": 17893.87369994074,
+        "over_5s": 20
+      }
+    },
+    "bb_joker1": {
+      "positions": 4,
+      "strict_top1_agreement": 0.75,
+      "ci_compatible_agreement": 1.0,
+      "cross_regret": {
+        "mean": 0.24027165090344038,
+        "p95": 0.9610866036137615,
+        "max": 0.9610866036137615
+      },
+      "candidate_ev_drift": {
+        "mean": 1.2158477311379137,
+        "p95": 1.9949606423597506,
+        "max": 1.9949606423597506
+      },
+      "runtime_ms": {
+        "p50": 10088.946299627423,
+        "p95": 23751.170800067484,
+        "max": 23751.170800067484,
+        "over_5s": 8
+      }
+    },
+    "bb_joker2": {
+      "positions": 6,
+      "strict_top1_agreement": 1.0,
+      "ci_compatible_agreement": 1.0,
+      "cross_regret": {
+        "mean": 0.0,
+        "p95": 0.0,
+        "max": 0.0
+      },
+      "candidate_ev_drift": {
+        "mean": 2.1830907651269325,
+        "p95": 5.6395564451078455,
+        "max": 5.6395564451078455
+      },
+      "runtime_ms": {
+        "p50": 6149.449800141156,
+        "p95": 25637.915700208396,
+        "max": 25637.915700208396,
+        "over_5s": 8
+      }
+    }
+  },
+  "input": "ai\\reports\\t3_hu_sampling_pilot_100_20260712\\positions.jsonl",
+  "input_sha256": "630e163c6f3d86220ffaccf682eaa0184078ad9ef438819524ac1cf3a81289bf",
+  "selection": {
+    "schema": "ofc_hu_gate/v1",
+    "mode": "positions_input",
+    "input": "ai\\reports\\t3_hu_sampling_pilot_100_20260712\\positions.jsonl",
+    "input_sha256": "630e163c6f3d86220ffaccf682eaa0184078ad9ef438819524ac1cf3a81289bf",
+    "selected": 100,
+    "refinement": {
+      "source_positions": 100,
+      "position_filter": "bb",
+      "after_position_filter": 50,
+      "comparisons_supplied": true,
+      "disagreements_only": true,
+      "after_disagreement_filter": 24,
+      "ranked_by": "max_cross_regret_desc_then_decision_id",
+      "before_limit": 24,
+      "limit": 20,
+      "requested_positions": 20,
+      "positions_input": "ai/reports/t3_hu_sampling_pilot_100_20260712/positions.jsonl",
+      "comparisons_input": "ai/reports/t3_hu_sampling_pilot_100_20260712/comparisons.jsonl",
+      "comparisons_input_sha256": "b88fbff5b2f767a31999dd7a1f5e6e8e5af1c43568b4cbd201097e8f6e049104"
+    }
+  },
+  "refinement": {
+    "source_positions": 100,
+    "position_filter": "bb",
+    "after_position_filter": 50,
+    "comparisons_supplied": true,
+    "disagreements_only": true,
+    "after_disagreement_filter": 24,
+    "ranked_by": "max_cross_regret_desc_then_decision_id",
+    "before_limit": 24,
+    "limit": 20,
+    "requested_positions": 20,
+    "positions_input": "ai/reports/t3_hu_sampling_pilot_100_20260712/positions.jsonl",
+    "comparisons_input": "ai/reports/t3_hu_sampling_pilot_100_20260712/comparisons.jsonl",
+    "comparisons_input_sha256": "b88fbff5b2f767a31999dd7a1f5e6e8e5af1c43568b4cbd201097e8f6e049104"
+  },
+  "resume": {
+    "runs": [
+      {
+        "seed": 20260712,
+        "output": "ai\\reports\\t3_hu_sampling_refine_bb_top20_o8_i4_20260712\\runs\\seed_20260712.jsonl",
+        "requested_rows": 20,
+        "existing_rows": 0,
+        "resumed": false,
+        "complete_before_run": false,
+        "new_rows": 20,
+        "legacy_rows_without_run_config": 0,
+        "run_config": {
+          "schema": "ofc_hu_gate/v1",
+          "method": "hu_sampled_pimc_exact_t4",
+          "information_model": "pimc_determinization_v1",
+          "seed": 20260712,
+          "btn_outer": 8,
+          "bb_outer": 8,
+          "bb_inner": 4,
+          "rust_solver_path": null,
+          "rust_timeout_s": 300.0
+        }
+      },
+      {
+        "seed": 20260713,
+        "output": "ai\\reports\\t3_hu_sampling_refine_bb_top20_o8_i4_20260712\\runs\\seed_20260713.jsonl",
+        "requested_rows": 20,
+        "existing_rows": 0,
+        "resumed": false,
+        "complete_before_run": false,
+        "new_rows": 20,
+        "legacy_rows_without_run_config": 0,
+        "run_config": {
+          "schema": "ofc_hu_gate/v1",
+          "method": "hu_sampled_pimc_exact_t4",
+          "information_model": "pimc_determinization_v1",
+          "seed": 20260713,
+          "btn_outer": 8,
+          "bb_outer": 8,
+          "bb_inner": 4,
+          "rust_solver_path": null,
+          "rust_timeout_s": 300.0
+        }
+      }
+    ],
+    "total_existing_rows": 0,
+    "total_new_rows": 40
+  },
+  "eval_seeds": [
+    20260712,
+    20260713
+  ],
+  "btn_outer": 8,
+  "bb_outer": 8,
+  "bb_inner": 4,
+  "elapsed_s": 436.52522019995376,
+  "method": "hu_sampled_pimc_exact_t4",
+  "information_model": "pimc_determinization_v1",
+  "hu_exact": false,
+  "inner_t4_exact": true
+}

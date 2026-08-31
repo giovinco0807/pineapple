@@ -1,0 +1,272 @@
+{
+  "schema": "ofc_promotion_gate/v1",
+  "gate_id": "promotion_gate_v1",
+  "created_date": "2026-07-13",
+  "milestone": "M2",
+  "scope": {
+    "name": "reduced_t3_t4_public_tree",
+    "turns": [3, 4],
+    "positions": ["bb", "btn"],
+    "deck_model": "explicit_reduced_physical_deck_with_distinct_X1_X2",
+    "promotion_result": "m2_reduced_reference_ready",
+    "does_not_promote": [
+      "full_card_t3_policy",
+      "full_card_t4_bb_policy",
+      "serving_policy",
+      "t2_t1_t0_continuation_targets"
+    ],
+    "required_false_claims": {
+      "hu_exact": false,
+      "full_card_policy_promoted": false
+    }
+  },
+  "threshold_basis": {
+    "decision_epsilon_score": 0.5,
+    "decision_family_wise_alpha": 0.01,
+    "source": "ai/reports/t3_hu_sampling_pilot_100_20260712/README.md",
+    "note": "The epsilon and alpha are retained from the pilot. PIMC Top-1 rates are diagnostic only and are not promotion evidence for a public-information policy."
+  },
+  "contracts": {
+    "position_contract_version": "bb_first_v1",
+    "rules_version": "canonical_joker_bottom_middle_top_20260711",
+    "fl_ev_path": "ai/config/fl_ev.json",
+    "fl_ev_sha256": "098efd3e3a5ad7cf2d9da4841e5fc1234b7895ffdd6ea1de4c523823b5591788",
+    "actor_sequence": [
+      {
+        "phase": "t3_first",
+        "actor": "bb",
+        "bb_board_cards": 9,
+        "btn_board_cards": 9,
+        "next_draw_owner": "btn"
+      },
+      {
+        "phase": "t3_second",
+        "actor": "btn",
+        "bb_board_cards": 11,
+        "btn_board_cards": 9,
+        "next_draw_owner": "bb"
+      },
+      {
+        "phase": "t4_first",
+        "actor": "bb",
+        "bb_board_cards": 11,
+        "btn_board_cards": 11,
+        "next_draw_owner": "btn"
+      },
+      {
+        "phase": "t4_second",
+        "actor": "btn",
+        "bb_board_cards": 13,
+        "btn_board_cards": 11,
+        "next_draw_owner": null
+      },
+      {
+        "phase": "terminal",
+        "actor": null,
+        "bb_board_cards": 13,
+        "btn_board_cards": 13,
+        "next_draw_owner": null
+      }
+    ],
+    "street_action": {
+      "draw_cards": 3,
+      "placed_cards": 2,
+      "discarded_cards": 1
+    }
+  },
+  "strata": {
+    "dimensions": ["actor", "visible_joker_count"],
+    "required": [
+      "bb_joker0",
+      "bb_joker1",
+      "bb_joker2",
+      "btn_joker0",
+      "btn_joker1",
+      "btn_joker2"
+    ],
+    "minimum_canonical_reduced_fixtures_per_stratum": 1,
+    "no_pooled_pass": true
+  },
+  "gates": {
+    "correctness": {
+      "required": true,
+      "legal_action_rate_eq": 1.0,
+      "candidate_coverage_rate_eq": 1.0,
+      "reachable_transition_coverage_rate_eq": 1.0,
+      "chance_probability_mass_abs_error_lte": 1e-12,
+      "terminal_zero_sum_abs_error_lte": 1e-12,
+      "python_rust_leaf_metric_abs_error_lte": 1e-9,
+      "duplicate_or_impossible_physical_card_failures_eq": 0,
+      "deterministic_replay_hash_mismatches_eq": 0,
+      "all_action_vectors_aggregated_before_selection": true
+    },
+    "information_leakage": {
+      "required": true,
+      "failures_eq": 0,
+      "hidden_only_mutation_policy_tv_lte": 1e-12,
+      "hidden_only_mutation_pairs_per_stratum_min": 1,
+      "pimc_counterexample_goldens_per_actor_min": 1,
+      "same_observation_same_infoset_key": true,
+      "same_infoset_one_action_distribution": true,
+      "forbidden_policy_inputs": [
+        "opponent_private_draw",
+        "opponent_private_discards",
+        "future_draw",
+        "physical_remaining_deck",
+        "particle_id",
+        "determinization_id",
+        "rng_seed"
+      ]
+    },
+    "exploitability": {
+      "required": true,
+      "best_response_method": "exact_infoset_aware_best_response",
+      "best_response_uses_same_information_boundary": true,
+      "both_players_evaluated": true,
+      "max_unilateral_improvement_score_lte": 0.5,
+      "nash_conv_score_lte": 1.0,
+      "exploitability_score_lte": 0.5,
+      "best_response_numerical_residual_lte": 1e-12,
+      "final_trace_not_above_initial": true
+    },
+    "strategy_drift": {
+      "required": true,
+      "independent_runs_min": 3,
+      "pairwise_comparisons_min": 3,
+      "policy": "reach_weighted_average_strategy_at_shared_infosets",
+      "reach_weighted_mean_total_variation_lte": 0.02,
+      "reach_weighted_p95_total_variation_lte": 0.05,
+      "max_total_variation_lte": 0.1,
+      "max_game_value_drift_score_lte": 0.25,
+      "max_exploitability_drift_score_lte": 0.1,
+      "same_seed_replay_hash_mismatches_eq": 0
+    },
+    "joker": {
+      "required": true,
+      "visible_joker_counts": [0, 1, 2],
+      "x1_x2_identity_preservation_failures_eq": 0,
+      "joker_chance_branch_coverage_rate_eq": 1.0,
+      "canonical_board_scoring_failures_eq": 0,
+      "python_rust_joker_leaf_parity_failures_eq": 0
+    },
+    "ordering": {
+      "required": true,
+      "position_contract_mismatches_eq": 0,
+      "actor_sequence_mismatches_eq": 0,
+      "decision_board_shape_mismatches_eq": 0,
+      "public_history_order_mismatches_eq": 0,
+      "first_actor": "bb",
+      "second_actor": "btn"
+    },
+    "runtime": {
+      "required": true,
+      "scope": "offline_reduced_reference_not_serving_latency",
+      "warmup_runs_min": 3,
+      "measured_runs_min": 5,
+      "environment_manifest_required": true,
+      "calibration_must_pass_before_recursive_timing": true,
+      "hard_threshold_environment": "reference_machine_or_faster_by_reduced_bluff_calibration",
+      "reduced_bluff_20000_iterations_wall_ms_max_lte": 2000,
+      "canonical_recursive_fixture_wall_ms_p95_lte": 120000,
+      "canonical_recursive_fixture_wall_ms_max_lte": 300000,
+      "complete_gate_wall_s_lte": 7200,
+      "peak_rss_mb_report_required": true,
+      "basis": "The current deterministic reduced bluff reference measured 407-427 ms for 20000 iterations on the recorded 2026-07-13 local machine. Recursive limits are offline developer-loop regression ceilings, not serving or full-card speed claims."
+    },
+    "artifact_metadata": {
+      "required": true,
+      "required_fields": [
+        "schema",
+        "gate_id",
+        "scope",
+        "status",
+        "created_at_utc",
+        "position_contract_version",
+        "rules_version",
+        "fl_ev_sha256",
+        "action_contract_sha256",
+        "infoset_contract_sha256",
+        "reduced_fixture_sha256",
+        "chance_model_sha256",
+        "range_model",
+        "range_model_sha256",
+        "range_particle_count",
+        "range_effective_sample_size",
+        "solver_config_sha256",
+        "solver_code_sha256",
+        "source_tree_manifest_sha256",
+        "artifact_sha256",
+        "method",
+        "information_model",
+        "strategy_fusion",
+        "equilibrium_approx",
+        "reduced_tree_enumeration_exact",
+        "hu_exact",
+        "iterations",
+        "seeds",
+        "exploitability_method",
+        "runtime_environment",
+        "metrics",
+        "tests"
+      ],
+      "sha256_fields": [
+        "fl_ev_sha256",
+        "action_contract_sha256",
+        "infoset_contract_sha256",
+        "reduced_fixture_sha256",
+        "chance_model_sha256",
+        "range_model_sha256",
+        "solver_config_sha256",
+        "solver_code_sha256",
+        "source_tree_manifest_sha256",
+        "artifact_sha256"
+      ],
+      "required_values": {
+        "strategy_fusion": false,
+        "equilibrium_approx": true,
+        "reduced_tree_enumeration_exact": true,
+        "hu_exact": false,
+        "range_model": "exact_reduced_physical_particles_v1",
+        "position_contract_version": "bb_first_v1",
+        "rules_version": "canonical_joker_bottom_middle_top_20260711"
+      },
+      "checkpoint_round_trip_metric_mismatches_eq": 0,
+      "checkpoint_round_trip_strategy_hash_mismatches_eq": 0,
+      "range_particle_count_min": 1,
+      "range_effective_sample_size_gt": 0,
+      "range_effective_sample_size_must_not_exceed_particle_count": true,
+      "provenance": {
+        "require_source_tree_manifest": true,
+        "git_commit_and_dirty_state_report_required": true
+      }
+    }
+  },
+  "evidence_baselines": {
+    "reduced_bluff_reference": {
+      "date": "2026-07-13",
+      "iterations": 20000,
+      "exploitability_score": 0.00046214230817029356,
+      "observed_wall_ms_min": 407.4206999503076,
+      "observed_wall_ms_max": 426.6956001520157,
+      "machine": "DESKTOP-P7NH9F9",
+      "cpu": "Intel(R) Core(TM) i9-9900KF CPU @ 3.60GHz",
+      "python": "3.13.5"
+    },
+    "pimc_pilot": {
+      "path": "ai/reports/t3_hu_sampling_pilot_100_20260712/summary.json",
+      "input_sha256": "9eecbcd1ea1edf95369329403cf36555e363058d5cf13954bdfe9993b5006861",
+      "promotion_evidence": false,
+      "reason": "The evaluator is PIMC, BB Top-1 agreement was 52 percent, and hidden worlds did not share one public policy."
+    }
+  },
+  "decision_rule": {
+    "all_required_gates_must_pass": true,
+    "all_required_strata_must_pass": true,
+    "missing_or_non_finite_metric_is_failure": true,
+    "pooled_metric_cannot_override_stratum_failure": true,
+    "threshold_changes_require_new_gate_version": true,
+    "on_pass": "mark_M2_reduced_reference_ready_only",
+    "on_failure": "keep_M2_in_progress",
+    "full_card_root_disjoint_accuracy_gate": "deferred_to_M3_and_not_satisfied_by_this_gate"
+  }
+}

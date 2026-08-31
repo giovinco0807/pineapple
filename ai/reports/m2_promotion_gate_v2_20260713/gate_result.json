@@ -1,0 +1,20 @@
+{
+  "evaluated_strata": [
+    "bb_joker0",
+    "bb_joker1",
+    "bb_joker2",
+    "btn_joker0",
+    "btn_joker1",
+    "btn_joker2"
+  ],
+  "evidence_sha256": "72e8c80dcb7ecbb9ff97ca82db70f05845c1814251a5da9a817b42fe441fd3dc",
+  "failures": [],
+  "full_card_policy_promoted": false,
+  "gate_config_sha256": "ad1f657dc098f5d35ebd593550e250c2f27f16e2315cf74721465e8c03e92fb2",
+  "gate_id": "promotion_gate_v2",
+  "passed": true,
+  "promotion_result": "m2_reduced_reference_ready",
+  "schema": "ofc_promotion_gate_result/v2",
+  "scope": "reduced_t3_t4_public_tree",
+  "status": "m2_reduced_reference_ready"
+}

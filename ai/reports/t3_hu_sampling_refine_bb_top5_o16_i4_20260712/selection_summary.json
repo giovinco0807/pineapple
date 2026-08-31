@@ -1,0 +1,22 @@
+{
+  "schema": "ofc_hu_gate/v1",
+  "mode": "positions_input",
+  "input": "ai\\reports\\t3_hu_sampling_refine_bb_top20_o8_i4_20260712\\positions.jsonl",
+  "input_sha256": "621dec437dc38a036993d7bbbaaeb89f145e7e38a416600a9f2ec08eceda6227",
+  "selected": 20,
+  "refinement": {
+    "source_positions": 20,
+    "position_filter": "bb",
+    "after_position_filter": 20,
+    "comparisons_supplied": true,
+    "disagreements_only": true,
+    "after_disagreement_filter": 5,
+    "ranked_by": "max_cross_regret_desc_then_decision_id",
+    "before_limit": 5,
+    "limit": 5,
+    "requested_positions": 5,
+    "positions_input": "ai/reports/t3_hu_sampling_refine_bb_top20_o8_i4_20260712/positions.jsonl",
+    "comparisons_input": "ai/reports/t3_hu_sampling_refine_bb_top20_o8_i4_20260712/comparisons.jsonl",
+    "comparisons_input_sha256": "eb6065f939a6b78ba19447450a939e0a79d57c4a3bf6e8acdb3db7ec23ffd436"
+  }
+}

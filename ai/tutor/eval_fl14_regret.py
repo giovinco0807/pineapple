@@ -39,6 +39,8 @@ from pathlib import Path
 
 import numpy as np
 
+from ai.tutor.encode_fl14_teacher import stable_root_id
+
 
 def charged(values: list[float], pick: int) -> float:
     """What taking `pick` costs against this root's best action."""
@@ -87,7 +89,11 @@ def read_actions(path: Path) -> dict[int, dict[str, float]]:
             if not line.strip():
                 continue
             record = json.loads(line)
-            root = int(record["root"])
+            # The played-deal `id`, not the labeler's `root`: that field is the
+            # worker-local ordinal, so six concatenated shards reuse each
+            # ordinal six times and the merge below would fuse unrelated hands
+            # into one decision.  Same key the encoder splits and groups on.
+            root = stable_root_id(record)
             if "action_key" in record["actions"][0]:
                 actions = {a["action_key"]: float(a["value"]) for a in record["actions"]}
             else:

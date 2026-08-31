@@ -1,0 +1,2588 @@
+{
+  "name": "t2_pairwise_pool_top1_diag_20260620",
+  "status": "diagnostic",
+  "purpose": "T2 model-only Top1 improvement experiment using a pairwise reranker inside a selector-union pool. This is not promoted as runtime default because fresh100t was used for diagnostic selection.",
+  "turn": 2,
+  "candidate_pool": {
+    "mode": "selector_union",
+    "pool_k_per_selector": 5,
+    "feature_scope": "selector",
+    "pair_mode": "full",
+    "selectors": [
+      "base_scores",
+      "old_pair_g115",
+      "old_all4_g130",
+      "new_score_g115",
+      "new_score_g100",
+      "new_resid_g115",
+      "lgbm_gap63"
+    ],
+    "eval_fresh100t_ceiling": {
+      "recall": 0.94,
+      "avg_pool": 7.12,
+      "max_pool": 12,
+      "mean_ev_loss": 0.1674796748161316,
+      "max_ev_loss": 7.385653972625732
+    }
+  },
+  "training_data": {
+    "base_train": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/av_dataset_dim693_full_ghij_plus_fresh20no_top1miss_r3_20260620",
+    "fresh100q": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh100q_20260620/reranker_t2_new_broad_fresh100q_alllegal_cap50_dim693",
+    "fresh100r": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh100r_20260620/reranker_t2_new_broad_fresh100r_alllegal_cap50_dim693",
+    "fresh100s": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh100s_20260620/reranker_t2_new_broad_fresh100s_alllegal_cap50_dim693"
+  },
+  "external_eval": {
+    "fresh100t": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh100t_20260620/reranker_t2_new_broad_fresh100t_alllegal_cap50_dim693",
+    "baseline_default": {
+      "top1": 0.43,
+      "top3": 0.74,
+      "top5": 0.86,
+      "top10": 0.98,
+      "top20": 1.0,
+      "reg1": 1.2200372094660998,
+      "reg10": 0.01061235673725605
+    },
+    "best_pairwise_pool5_full_bpw5_gw15": {
+      "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/pairwise_pool_reranker_trainfull_qrs_eval_fresh100t_pool5_selector_full_hgb_bpw5_gw15_20260620/summary.json",
+      "model": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/pairwise_pool_reranker_trainfull_qrs_eval_fresh100t_pool5_selector_full_hgb_bpw5_gw15_20260620/hgb_l31.joblib",
+      "top1": 0.48,
+      "top3": 0.77,
+      "top5": 0.88,
+      "top10": 0.97,
+      "top20": 1.0,
+      "reg1": 1.078,
+      "reg10": 0.016
+    }
+  },
+  "fixed_external_eval": {
+    "fresh100u": {
+      "source": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh100u_20260620/inputs/t2_new_broad_fresh100u_source_all_actions.jsonl",
+      "exact": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh100u_20260620/t2_new_broad_fresh100u_alllegal_cap50.exact.jsonl",
+      "teacher": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh100u_20260620/t2_new_broad_fresh100u_alllegal_cap50.teacher.jsonl",
+      "dim693": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh100u_20260620/reranker_t2_new_broad_fresh100u_alllegal_cap50_dim693",
+      "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/pairwise_pool_reranker_fixed_eval_fresh100u_20260620/summary.json",
+      "records": 100,
+      "source_candidates": 2424,
+      "teacher_candidates": 2322,
+      "source_top1_same_as_cap50": 0.35,
+      "avg_cap50_elapsed_ms": 62264.836845,
+      "avg_source_top1_ev_loss": 2.591995011907065,
+      "max_source_top1_ev_loss": 26.371448275862058,
+      "pool5_ceiling": {
+        "recall": 0.93,
+        "avg_pool": 7.15,
+        "max_pool": 14,
+        "mean_ev_loss": 0.10436525531113147,
+        "max_ev_loss": 5.15966272354126
+      },
+      "pool10_ceiling": {
+        "recall": 0.97,
+        "avg_pool": 13.24,
+        "max_pool": 21,
+        "mean_ev_loss": 0.027921309471130373,
+        "max_ev_loss": 2.792130947113037
+      },
+      "baseline_new_score_g100": {
+        "top1": 0.54,
+        "top3": 0.75,
+        "top5": 0.86,
+        "top10": 0.93,
+        "top20": 0.99,
+        "reg1": 0.922842457331717,
+        "reg10": 0.0929194901138544
+      },
+      "pairwise_pool5_saved_full": {
+        "top1": 0.57,
+        "top3": 0.73,
+        "top5": 0.85,
+        "top10": 0.96,
+        "top20": 1.0,
+        "reg1": 0.9628741081990302,
+        "reg10": 0.042175925150513646
+      },
+      "pairwise_pool5_full_bpw5_gw15": {
+        "top1": 0.57,
+        "top3": 0.74,
+        "top5": 0.85,
+        "top10": 0.96,
+        "top20": 1.0,
+        "reg1": 0.9775699337758124,
+        "reg10": 0.042175925150513646
+      }
+    },
+    "fresh100t_plus_fresh100u_aggregate": {
+      "baseline_new_score_g100": {
+        "top1": 0.485,
+        "reg1": 1.0714398333989084
+      },
+      "pairwise_pool5_full_bpw5_gw15": {
+        "top1": 0.525,
+        "reg1": 1.0278100036177784
+      },
+      "pairwise_pool5_saved_full": {
+        "top1": 0.525,
+        "reg1": 1.0217146562132986
+      }
+    }
+  },
+  "ev_safe_switch_gate": {
+    "status": "diagnostic",
+    "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/pairwise_pool5_ev_safe_switch_gate_train_qrst_eval_fresh100u_20260620/summary.json",
+    "manifest": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/pairwise_pool5_ev_safe_switch_gate_train_qrst_eval_fresh100u_20260620/gate_manifest.json",
+    "train_data": [
+      "fresh100q",
+      "fresh100r",
+      "fresh100s",
+      "fresh100t"
+    ],
+    "eval_data": "fresh100u",
+    "best_saved_full_gate": {
+      "pair_model": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/pairwise_pool_reranker_trainfull_qrs_eval_fresh100t_pool5_selector_full_20260620/hgb_l31.joblib",
+      "gate_model": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/pairwise_pool5_ev_safe_switch_gate_train_qrst_eval_fresh100u_20260620/pool5_saved_full_extra_d8_t075.joblib",
+      "gate_kind": "extra_d8",
+      "threshold": 0.75,
+      "switch_count": 28,
+      "auc_eval": 0.7997008777334502,
+      "fresh100u": {
+        "top1": 0.59,
+        "top3": 0.75,
+        "top5": 0.84,
+        "top10": 0.95,
+        "top20": 1.0,
+        "reg1": 0.878157137427479,
+        "reg10": 0.033008215203881267
+      }
+    },
+    "best_bpw5_gate": {
+      "pair_model": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/pairwise_pool_reranker_trainfull_qrs_eval_fresh100t_pool5_selector_full_hgb_bpw5_gw15_20260620/hgb_l31.joblib",
+      "gate_model": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/pairwise_pool5_ev_safe_switch_gate_train_qrst_eval_fresh100u_20260620/pool5_bpw5_gw15_hgb_l15_t030.joblib",
+      "gate_kind": "hgb_l15",
+      "threshold": 0.3,
+      "switch_count": 28,
+      "auc_eval": 0.7272851438811145,
+      "fresh100u": {
+        "top1": 0.59,
+        "top3": 0.74,
+        "top5": 0.83,
+        "top10": 0.95,
+        "top20": 1.0,
+        "reg1": 0.8853599365986884,
+        "reg10": 0.045620602145791056
+      }
+    },
+    "fresh100u_comparison": {
+      "default_new_score_g100": {
+        "top1": 0.54,
+        "reg1": 0.922842457331717
+      },
+      "pairwise_pool5_always": {
+        "top1": 0.57,
+        "reg1": 0.9628741081990302
+      },
+      "switch_gate": {
+        "top1": 0.59,
+        "reg1": 0.878157137427479
+      },
+      "oracle_switch_upper_bound": {
+        "top1": 0.66,
+        "reg1": 0.6206366572715342
+      }
+    },
+    "fresh100v_fixed_eval": {
+      "source": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh100v_20260620/inputs/t2_new_broad_fresh100v_source_all_actions.jsonl",
+      "exact": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh100v_20260620/t2_new_broad_fresh100v_alllegal_cap50.exact.jsonl",
+      "teacher": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh100v_20260620/t2_new_broad_fresh100v_alllegal_cap50.teacher.jsonl",
+      "dim693": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh100v_20260620/reranker_t2_new_broad_fresh100v_alllegal_cap50_dim693",
+      "primary_summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/pairwise_pool5_ev_safe_switch_gate_fixed_eval_fresh100v_20260620/summary.json",
+      "second_gate_summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/pairwise_pool5_ev_safe_switch_gate_fixed_eval_fresh100v_20260620/second_gate_fixed_eval.json",
+      "threshold_diagnostic": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/pairwise_pool5_ev_safe_switch_gate_fixed_eval_fresh100v_20260620/threshold_diagnostic.json",
+      "records": 100,
+      "source_candidates": 2439,
+      "teacher_candidates": 2331,
+      "source_top1_same_as_cap50": 0.3,
+      "avg_cap50_elapsed_ms": 62843.722389,
+      "avg_source_top1_ev_loss": 2.8636179344472845,
+      "max_source_top1_ev_loss": 41.77156529477237,
+      "pool5_ceiling": {
+        "recall": 0.9,
+        "avg_pool": 7.48,
+        "max_pool": 15,
+        "mean_ev_loss": 0.1802298307418823,
+        "max_ev_loss": 7.614330291748047
+      },
+      "baseline_new_score_g100": {
+        "top1": 0.39,
+        "top3": 0.68,
+        "top5": 0.77,
+        "top10": 0.93,
+        "top20": 0.99,
+        "reg1": 1.363437400944531,
+        "reg10": 0.1411615664884448
+      },
+      "pairwise_pool5_saved_full": {
+        "top1": 0.44,
+        "top3": 0.68,
+        "top5": 0.82,
+        "top10": 0.92,
+        "top20": 1.0,
+        "reg1": 1.340401211231947,
+        "reg10": 0.17485852926969528
+      },
+      "primary_extra_d8_t075": {
+        "top1": 0.43,
+        "top3": 0.66,
+        "top5": 0.81,
+        "top10": 0.92,
+        "top20": 0.99,
+        "reg1": 1.3721931837499142,
+        "reg10": 0.1867132143303752,
+        "decision": "Fails EV-safety on fresh100v: Top1 improves but Reg1 is worse than default."
+      },
+      "secondary_bpw5_hgb_l15_t030": {
+        "top1": 0.44,
+        "top3": 0.67,
+        "top5": 0.8,
+        "top10": 0.92,
+        "top20": 0.99,
+        "reg1": 1.3371836620941757,
+        "reg10": 0.16617364648729563,
+        "decision": "Best predeclared gate on fresh100v: improves both Top1 and Reg1 versus default."
+      }
+    },
+    "fresh100w_fixed_eval": {
+      "source": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh100w_20260620/inputs/t2_new_broad_fresh100w_source_all_actions.jsonl",
+      "exact": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh100w_20260620/t2_new_broad_fresh100w_alllegal_cap50.exact.jsonl",
+      "teacher": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh100w_20260620/t2_new_broad_fresh100w_alllegal_cap50.teacher.jsonl",
+      "dim693": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh100w_20260620/reranker_t2_new_broad_fresh100w_alllegal_cap50_dim693",
+      "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/pairwise_pool5_ev_safe_switch_gate_fixed_eval_fresh100w_20260620/summary.json",
+      "records": 100,
+      "source_candidates": 2391,
+      "teacher_candidates": 2310,
+      "source_top1_same_as_cap50": 0.35,
+      "avg_cap50_elapsed_ms": 59464.150354,
+      "avg_source_top1_ev_loss": 2.6665472069217406,
+      "max_source_top1_ev_loss": 23.17524376832844,
+      "pool5_ceiling": {
+        "recall": 0.95,
+        "avg_pool": 7.11,
+        "max_pool": 12,
+        "mean_ev_loss": 0.020814483165740968,
+        "max_ev_loss": 1.7801685333251953
+      },
+      "baseline_new_score_g100": {
+        "top1": 0.45,
+        "top3": 0.78,
+        "top5": 0.89,
+        "top10": 0.99,
+        "top20": 1.0,
+        "reg1": 1.081239126995206,
+        "reg10": 0.0003825592994689941
+      },
+      "pairwise_pool5_bpw5_gw15_always": {
+        "top1": 0.5,
+        "top3": 0.81,
+        "top5": 0.9,
+        "top10": 0.98,
+        "top20": 1.0,
+        "reg1": 0.7986973338574171,
+        "reg10": 0.0003825592994689941,
+        "decision": "Best fresh100w external result: improves both Top1 and Reg1 versus default, but remains diagnostic because pool5 can still leak."
+      },
+      "secondary_bpw5_hgb_l15_t030": {
+        "top1": 0.46,
+        "top3": 0.78,
+        "top5": 0.89,
+        "top10": 0.99,
+        "top20": 1.0,
+        "reg1": 0.9641380242258311,
+        "reg10": 0.0003825592994689941,
+        "decision": "Confirms a conservative EV improvement on fresh100w, but underuses the stronger pairwise signal."
+      },
+      "oracle_switch_default_vs_bpw5_pairwise": {
+        "top1": 0.59,
+        "top3": 0.82,
+        "top5": 0.89,
+        "top10": 0.98,
+        "top20": 1.0,
+        "reg1": 0.6156480398029089,
+        "reg10": 0.0003825592994689941
+      }
+    },
+    "fresh100x_holdout_eval": {
+      "source": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh100x_20260621/inputs/t2_new_broad_fresh100x_source_all_actions.jsonl",
+      "exact": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh100x_20260621/t2_new_broad_fresh100x_alllegal_cap50.exact.jsonl",
+      "teacher": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh100x_20260621/t2_new_broad_fresh100x_alllegal_cap50.teacher.jsonl",
+      "dim693": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh100x_20260621/reranker_t2_new_broad_fresh100x_alllegal_cap50_dim693",
+      "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/pairwise_pool_fixed_eval_fresh100x_20260621/summary.json",
+      "records": 100,
+      "source_candidates": 2337,
+      "teacher_candidates": 2337,
+      "source_top1_same_as_cap50": 0.28,
+      "avg_cap50_elapsed_ms": 56834.180467000006,
+      "avg_source_top1_ev_loss": 2.9428343566588313,
+      "max_source_top1_ev_loss": 24.106372413792865,
+      "pool5_ceiling": {
+        "recall": 0.95,
+        "avg_pool": 7.73,
+        "max_pool": 14,
+        "mean_ev_loss": 0.05980224132537842,
+        "max_ev_loss": 4.360439300537109
+      },
+      "baseline_new_score_g100": {
+        "top1": 0.5,
+        "top3": 0.74,
+        "top5": 0.87,
+        "top10": 0.95,
+        "top20": 1.0,
+        "reg1": 1.263,
+        "reg10": 0.027
+      },
+      "pairwise_pool5_bpw5_gw15_always": {
+        "top1": 0.48,
+        "top3": 0.77,
+        "top5": 0.88,
+        "top10": 0.98,
+        "top20": 1.0,
+        "reg1": 1.225,
+        "reg10": 0.005
+      },
+      "retrain_qrstuv_l31": {
+        "top1": 0.5,
+        "top3": 0.8,
+        "top5": 0.88,
+        "top10": 0.97,
+        "top20": 1.0,
+        "reg1": 1.259,
+        "reg10": 0.007
+      },
+      "logreg_boost3_t020_qrstuv": {
+        "top1": 0.48,
+        "top3": 0.75,
+        "top5": 0.86,
+        "top10": 0.96,
+        "top20": 1.0,
+        "reg1": 1.11,
+        "reg10": 0.013
+      },
+      "selector_top_chooser": {
+        "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/selector_chooser_top1_eval_x_20260621/summary.json",
+        "train_data": [
+          "fresh100g",
+          "fresh100m",
+          "fresh100t",
+          "fresh100u",
+          "fresh100v",
+          "fresh100w"
+        ],
+        "eval_data": "fresh100x",
+        "feature_dim": 177,
+        "oracle_selector_top": {
+          "top1": 0.6,
+          "top3": 1.0,
+          "top5": 1.0,
+          "top10": 1.0,
+          "top20": 1.0,
+          "reg1": 0.779,
+          "reg10": 0.0
+        },
+        "best_learned_chooser": {
+          "name": "hgb_l31",
+          "top1": 0.5,
+          "top3": 0.74,
+          "top5": 0.86,
+          "top10": 0.96,
+          "top20": 1.0,
+          "reg1": 1.305,
+          "reg10": 0.013
+        },
+        "decision": "Choosing among existing model Top1 actions has only a 60% oracle ceiling on fresh100x, and learned choosers do not beat the default Top1. This means Top1 improvement needs better candidate-level scoring, not only a top-action switch gate."
+      },
+      "selector_feature_ranker_gmtuvw": {
+        "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/selector_feature_ranker_train_gmtuvw_eval_x_20260621/summary.json",
+        "train_data": [
+          "fresh100g",
+          "fresh100m",
+          "fresh100t",
+          "fresh100u",
+          "fresh100v",
+          "fresh100w"
+        ],
+        "eval_data": "fresh100x",
+        "best_selector": {
+          "name": "hgb_l31_selector_ev_rank_blend_top_weighted",
+          "model": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/selector_feature_ranker_train_gmtuvw_eval_x_20260621/hgb_l31_selector_ev_rank_blend_top_weighted.joblib",
+          "top1": 0.54,
+          "top3": 0.77,
+          "top5": 0.86,
+          "top10": 0.98,
+          "top20": 1.0,
+          "reg1": 1.121,
+          "reg10": 0.007
+        },
+        "fresh100y_fixed_eval": {
+          "source": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh100y_20260621/inputs/t2_new_broad_fresh100y_source_all_actions.jsonl",
+          "exact": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh100y_20260621/t2_new_broad_fresh100y_alllegal_cap50.exact.jsonl",
+          "teacher": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh100y_20260621/t2_new_broad_fresh100y_alllegal_cap50.teacher.jsonl",
+          "dim693": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh100y_20260621/reranker_t2_new_broad_fresh100y_alllegal_cap50_dim693",
+          "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/selector_feature_ranker_fixed_eval_fresh100y_20260621/summary.json",
+          "records": 100,
+          "source_candidates": 2397,
+          "source_top1_same_as_cap50": 0.25,
+          "avg_cap50_elapsed_ms": 59744.829,
+          "avg_source_top1_ev_loss": 2.383,
+          "max_source_top1_ev_loss": 15.041,
+          "baseline_new_score_g100": {
+            "top1": 0.39,
+            "top3": 0.63,
+            "top5": 0.76,
+            "top10": 0.9,
+            "top20": 0.99,
+            "reg1": 1.141,
+            "reg10": 0.032
+          },
+          "predeclared_x_best_hgb_l31_selector_ev_rank_blend_top_weighted": {
+            "top1": 0.42,
+            "top3": 0.63,
+            "top5": 0.79,
+            "top10": 0.91,
+            "top20": 0.99,
+            "reg1": 1.119,
+            "reg10": 0.16
+          },
+          "posthoc_y_best_hgb_l31_state_gap_to_best_top_weighted": {
+            "top1": 0.45,
+            "top3": 0.64,
+            "top5": 0.73,
+            "top10": 0.88,
+            "top20": 0.98,
+            "reg1": 0.959,
+            "reg10": 0.181
+          }
+        },
+        "decision": "This is the first repeated external Top1 lift over default after the pairwise/gate failure: fresh100x 50% to 54%, and the predeclared x-best model on fresh100y 39% to 42%. The direction is confirmed but not runtime-safe because Top10/Reg10 can regress; keep diagnostic and mine remaining high-EV-loss misses."
+      },
+      "top1_hard_negative_x_eval_y": {
+        "status": "diagnostic",
+        "train_data": [
+          "fresh100g",
+          "fresh100m",
+          "fresh100t",
+          "fresh100u",
+          "fresh100v",
+          "fresh100w",
+          "fresh100x"
+        ],
+        "eval_data": "fresh100y",
+        "miss_rows": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/selector_feature_ranker_train_gmtuvwx_missweighted_x_eval_y_20260621/fresh100x_top1_highloss_misses.jsonl",
+        "miss_count": 43,
+        "best_model": {
+          "name": "hgb_l31_state_gap_to_best_top_weighted",
+          "model": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/selector_feature_ranker_train_gmtuvwx_missweighted_x_eval_y_fullfeature_weight_sweep_20260621/w_g2_t4/hgb_l31_state_gap_to_best_top_weighted.joblib",
+          "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/selector_feature_ranker_train_gmtuvwx_missweighted_x_eval_y_fullfeature_weight_sweep_20260621/w_g2_t4/summary.json",
+          "miss_group_weight": 2.0,
+          "miss_teacher_weight": 4.0,
+          "top1": 0.65,
+          "top3": 0.72,
+          "top5": 0.78,
+          "top10": 0.86,
+          "top20": 0.96,
+          "reg1": 0.626,
+          "reg3": 0.414,
+          "reg10": 0.187
+        },
+        "comparison_on_fresh100y": {
+          "baseline_new_score_g100": {
+            "top1": 0.39,
+            "top3": 0.63,
+            "top10": 0.9,
+            "top20": 0.99,
+            "reg1": 1.141,
+            "reg10": 0.032
+          },
+          "previous_predeclared_x_best": {
+            "top1": 0.42,
+            "top3": 0.63,
+            "top10": 0.91,
+            "top20": 0.99,
+            "reg1": 1.119,
+            "reg10": 0.16
+          },
+          "x_only_hard_negative_best": {
+            "top1": 0.65,
+            "top3": 0.72,
+            "top10": 0.86,
+            "top20": 0.96,
+            "reg1": 0.626,
+            "reg10": 0.187
+          }
+        },
+        "union_pool_eval_fresh100y": {
+          "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/selector_feature_ranker_train_gmtuvwx_missweighted_x_eval_y_fullfeature_weight_sweep_20260621/union_eval_y_w_g2_t4.json",
+          "new_score_g100_top10": {
+            "recall": 0.88,
+            "avg_pool": 10.0,
+            "max_pool": 10,
+            "mean_ev_loss": 0.032,
+            "max_ev_loss": 1.383
+          },
+          "new_score_g100_top15": {
+            "recall": 0.94,
+            "avg_pool": 14.8,
+            "max_pool": 15,
+            "mean_ev_loss": 0.006,
+            "max_ev_loss": 0.314
+          },
+          "new_score_g100_top10_plus_hard_top3": {
+            "recall": 0.88,
+            "avg_pool": 10.0,
+            "max_pool": 11,
+            "mean_ev_loss": 0.032,
+            "max_ev_loss": 1.383
+          }
+        },
+        "fresh100z_fixed_eval": {
+          "source": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh100z_20260621/inputs/t2_new_broad_fresh100z_source_all_actions.jsonl",
+          "exact": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh100z_20260621/t2_new_broad_fresh100z_alllegal_cap50.exact.jsonl",
+          "teacher": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh100z_20260621/t2_new_broad_fresh100z_alllegal_cap50.teacher.jsonl",
+          "dim693": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh100z_20260621/reranker_t2_new_broad_fresh100z_alllegal_cap50_dim693",
+          "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/selector_feature_ranker_fixed_eval_fresh100z_20260621/summary.json",
+          "records": 100,
+          "source_candidates": 2406,
+          "source_top1_same_as_cap50": 0.36,
+          "avg_cap50_elapsed_ms": 24478.708,
+          "avg_source_top1_ev_loss": 1.881,
+          "max_source_top1_ev_loss": 22.132,
+          "baseline_new_score_g100": {
+            "top1": 0.44,
+            "top3": 0.74,
+            "top5": 0.9,
+            "top10": 0.95,
+            "top20": 0.99,
+            "reg1": 1.002,
+            "reg10": 0.032
+          },
+          "x_only_hard_negative_g2_t4": {
+            "top1": 0.77,
+            "top3": 0.84,
+            "top5": 0.86,
+            "top10": 0.95,
+            "top15": 0.98,
+            "top20": 0.99,
+            "reg1": 0.311,
+            "reg3": 0.153,
+            "reg10": 0.033
+          },
+          "xy_hard_negative_l31": {
+            "top1": 0.8,
+            "top3": 0.83,
+            "top5": 0.86,
+            "top10": 0.96,
+            "top15": 0.97,
+            "top20": 1.0,
+            "reg1": 0.305,
+            "reg3": 0.197,
+            "reg10": 0.054
+          },
+          "lgbm_gap63": {
+            "top1": 0.49,
+            "top3": 0.76,
+            "top5": 0.87,
+            "top10": 0.98,
+            "top15": 1.0,
+            "top20": 1.0,
+            "reg1": 0.959,
+            "reg10": 0.0
+          },
+          "pool_eval": {
+            "new_score_g100_top15": {
+              "recall": 0.97,
+              "avg_pool": 14.7,
+              "max_pool": 15,
+              "mean_ev_loss": 0.0,
+              "max_ev_loss": 0.0
+            },
+            "lgbm_gap63_top15": {
+              "recall": 0.98,
+              "avg_pool": 14.7,
+              "max_pool": 15,
+              "mean_ev_loss": 0.0,
+              "max_ev_loss": 0.0
+            },
+            "xyhard_top15": {
+              "recall": 0.98,
+              "avg_pool": 14.7,
+              "max_pool": 15,
+              "mean_ev_loss": 0.0,
+              "max_ev_loss": 0.0
+            },
+            "lgbm_gap63_top10": {
+              "recall": 0.96,
+              "avg_pool": 10.0,
+              "max_pool": 10,
+              "mean_ev_loss": 0.0,
+              "max_ev_loss": 0.025
+            }
+          }
+        },
+        "decision": "Hard-negative Top1 weighting from fresh100x generalizes strongly to fresh100y and fresh100z. On fresh100y it improves 39% to 65% and cuts Reg1 from 1.141 to 0.626; on fresh100z the x-only model reaches 77% Top1 and 0.311 Reg1, while the xy-hard model reaches 80% Top1 and 0.305 Reg1. This is now a strong Top1 source candidate, but not a complete standalone policy because small TopK coverage can still regress. Keep Top15/Top20 plus exact rerank as the accuracy backstop; next step is a larger untouched shard and then promotion only if the Top1 lift and Top15 zero-loss profile persist."
+      },
+      "decision": "Fresh100x rejects promotion of the fresh100w-selected pairwise Top1 improvements. A new candidate-level selector-feature ranker trained on fresh100g/m/t/u/v/w improves fresh100x Top1 to 54%, and its predeclared x-best model also improves fresh100y Top1 from 39% to 42%. This confirms a weak Top1 direction, but it is still diagnostic because Top10/Reg10 can regress."
+    },
+    "decision": "The switch gate fixes the main fresh100u weakness of pairwise-only selection: Top1 improves from 54% to 59% and Reg1 improves from 0.923 to 0.878. Keep diagnostic because the gate model and threshold were selected after inspecting fresh100u; freeze this gate and validate on a new untouched fresh100v before promotion."
+  },
+  "fresh100aa_top1_pool_arbitrator_eval": {
+    "status": "diagnostic",
+    "source": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh100aa_20260621/inputs/t2_new_broad_fresh100aa_source_all_actions.jsonl",
+    "exact": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh100aa_20260621/t2_new_broad_fresh100aa_alllegal_cap50.exact.jsonl",
+    "teacher": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh100aa_20260621/t2_new_broad_fresh100aa_alllegal_cap50.teacher.jsonl",
+    "dim693": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh100aa_20260621/reranker_t2_new_broad_fresh100aa_alllegal_cap50_dim693",
+    "selector_union_summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/selector_feature_union_fresh100aa_compare_xyz_20260621/summary.json",
+    "per_selector_metrics": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/selector_feature_union_fresh100aa_compare_xyz_20260621/per_selector_metrics.json",
+    "top1_pool_arbitrator_summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/selector_top1_pool_arbitrator_train_gmtuvwxyz_eval_aa_20260621/summary.json",
+    "records": 100,
+    "source_candidates": 2343,
+    "source_generation_elapsed_seconds": 78.251,
+    "source_top1_same_as_cap50": 0.28,
+    "avg_cap50_elapsed_ms": 56992.343,
+    "avg_source_top1_ev_loss": 3.419,
+    "max_source_top1_ev_loss": 37.164,
+    "baseline_new_score_g100": {
+      "top1": 0.54,
+      "top3": 0.78,
+      "top5": 0.84,
+      "top10": 0.93,
+      "top20": 1.0,
+      "reg1": 0.851,
+      "reg10": 0.078
+    },
+    "xyhard_single_selector": {
+      "top1": 0.8,
+      "top3": 0.82,
+      "top5": 0.86,
+      "top10": 0.94,
+      "top20": 1.0,
+      "reg1": 0.21,
+      "reg10": 0.005
+    },
+    "xyzw50gap_single_selector": {
+      "top1": 0.76,
+      "top3": 0.79,
+      "top5": 0.82,
+      "top10": 0.92,
+      "top20": 0.97,
+      "reg1": 0.595,
+      "reg10": 0.055
+    },
+    "selector_top1_union_oracle_ceiling": {
+      "top1": 0.89,
+      "top3": 0.92,
+      "top5": 0.94,
+      "top10": 0.99,
+      "top20": 1.0,
+      "avg_pool": 2.42,
+      "max_pool": 7,
+      "reg1": 0.104,
+      "reg10": 0.002
+    },
+    "learned_top1_pool_hgb_cls_l31": {
+      "model": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/selector_top1_pool_arbitrator_train_gmtuvwxyz_eval_aa_20260621/hgb_cls_l31.joblib",
+      "train_data": [
+        "fresh100g",
+        "fresh100m",
+        "fresh100t",
+        "fresh100u",
+        "fresh100v",
+        "fresh100w",
+        "fresh100x",
+        "fresh100y",
+        "fresh100z"
+      ],
+      "eval_data": "fresh100aa",
+      "top1": 0.83,
+      "top3": 0.92,
+      "top5": 0.97,
+      "top10": 1.0,
+      "top20": 1.0,
+      "reg1": 0.159,
+      "reg3": 0.028,
+      "reg10": 0.0
+    },
+    "decision": "Adding fresh100z hard negatives directly did not improve external fresh100aa Top1; xyzw50gap fell behind xyhard. The better direction is a learned selector-Top1 pool arbitrator: it improves fresh100aa Top1 from the best single selector 80% to 83%, with Top10 reaching 100%. Keep diagnostic until the arbitrator is validated on another untouched shard and its remaining high-EV-loss misses are mined."
+  },
+  "fresh100ab_external_followup": {
+    "status": "diagnostic",
+    "source": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh100ab_20260621/inputs/t2_new_broad_fresh100ab_source_all_actions.jsonl",
+    "exact": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh100ab_20260621/t2_new_broad_fresh100ab_alllegal_cap50.exact.jsonl",
+    "teacher": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh100ab_20260621/t2_new_broad_fresh100ab_alllegal_cap50.teacher.jsonl",
+    "dim693": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh100ab_20260621/reranker_t2_new_broad_fresh100ab_alllegal_cap50_dim693",
+    "selector_union_summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/selector_feature_union_fresh100ab_compare_xyz_20260621/summary.json",
+    "per_selector_metrics": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/selector_feature_union_fresh100ab_compare_xyz_20260621/per_selector_metrics.json",
+    "records": 100,
+    "source_candidates": 2412,
+    "source_generation_elapsed_seconds": 78.976,
+    "source_top1_same_as_cap50": 0.33,
+    "avg_cap50_elapsed_ms": 59806.549,
+    "avg_source_top1_ev_loss": 2.78,
+    "max_source_top1_ev_loss": 21.79,
+    "baseline_new_score_g100": {
+      "top1": 0.42,
+      "top3": 0.69,
+      "top5": 0.84,
+      "top10": 0.91,
+      "top20": 1.0,
+      "reg1": 1.471,
+      "reg10": 0.057
+    },
+    "xyhard_single_selector": {
+      "top1": 0.79,
+      "top3": 0.82,
+      "top5": 0.86,
+      "top10": 0.92,
+      "top20": 0.99,
+      "reg1": 0.284,
+      "reg10": 0.043
+    },
+    "xyzw50gap_single_selector": {
+      "top1": 0.74,
+      "top3": 0.77,
+      "top5": 0.82,
+      "top10": 0.92,
+      "top20": 0.99,
+      "reg1": 0.579,
+      "reg10": 0.041
+    },
+    "selector_top1_union_oracle_ceiling": {
+      "top1": 0.85,
+      "top3": 0.91,
+      "top5": 0.96,
+      "top10": 0.99,
+      "top20": 1.0,
+      "avg_pool": 2.53,
+      "max_pool": 6,
+      "reg1": 0.149,
+      "reg10": 0.002
+    },
+    "selector_top10_union_exact_rerank": {
+      "top10_recall": 0.99,
+      "avg_pool": 14.91,
+      "max_pool": 23,
+      "mean_ev_loss": 0.0019,
+      "max_ev_loss": 0.187
+    },
+    "selector_top20_union_exact_rerank": {
+      "top20_recall": 1.0,
+      "avg_pool": 23.08,
+      "max_pool": 27,
+      "mean_ev_loss": 0.0,
+      "max_ev_loss": 0.0
+    },
+    "decision": "Fresh100ab confirms the best single selector is external but around 80%, not 99%: xyhard is 79% Top1 here after 80% on fresh100aa. The selector Top1-pool oracle ceiling drops to 85%, so the pool itself limits any learned Top1 arbitrator on this shard. Accuracy backstop remains strong: Top10 union plus exact rerank is 99% with max EV loss 0.187, and Top20 union plus exact rerank is 100% with zero measured cap50 EV loss."
+  },
+  "fresh100ac_external_confirmation": {
+    "status": "diagnostic",
+    "source": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh100ac_20260621/inputs/t2_new_broad_fresh100ac_source_all_actions.jsonl",
+    "exact": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh100ac_20260621/t2_new_broad_fresh100ac_alllegal_cap50.exact.jsonl",
+    "teacher": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh100ac_20260621/t2_new_broad_fresh100ac_alllegal_cap50.teacher.jsonl",
+    "dim693": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh100ac_20260621/reranker_t2_new_broad_fresh100ac_alllegal_cap50_dim693",
+    "selector_union_summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/selector_feature_union_fresh100ac_compare_xyz_20260621/summary.json",
+    "pool3_reranker_summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/selector_feature_pool3_reranker_train_gmtuvwxyz_eval_ac_20260621/summary.json",
+    "pool5_reranker_summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/selector_feature_pool5_reranker_train_gmtuvwxyz_eval_ac_20260621/summary.json",
+    "records": 100,
+    "source_candidates": 2292,
+    "source_top1_same_as_cap50": 0.12,
+    "avg_cap50_elapsed_ms": 53546.327,
+    "avg_source_top1_ev_loss": 3.608,
+    "max_source_top1_ev_loss": 14.14,
+    "selector_top10_union_exact_rerank": {
+      "top10_recall": 0.99,
+      "avg_pool": 14.57,
+      "max_pool": 23,
+      "mean_ev_loss": 0.0089,
+      "max_ev_loss": 0.887
+    },
+    "selector_top12_union_exact_rerank": {
+      "top12_recall": 1.0,
+      "avg_pool": 16.76,
+      "max_pool": 24,
+      "mean_ev_loss": 0.0,
+      "max_ev_loss": 0.0
+    },
+    "selector_top20_union_exact_rerank": {
+      "top20_recall": 1.0,
+      "avg_pool": 21.63,
+      "max_pool": 24,
+      "mean_ev_loss": 0.0,
+      "max_ev_loss": 0.0
+    },
+    "pool3_hgb_cls_l31": {
+      "top1": 0.84,
+      "top3": 0.89,
+      "top5": 0.9,
+      "top10": 0.94,
+      "top20": 1.0,
+      "reg1": 0.2,
+      "reg3": 0.063,
+      "reg10": 0.022
+    },
+    "pool5_hgb_cls_l31": {
+      "top1": 0.84,
+      "top3": 0.89,
+      "top5": 0.91,
+      "top10": 0.94,
+      "top20": 0.99,
+      "reg1": 0.198,
+      "reg3": 0.049,
+      "reg10": 0.022
+    },
+    "decision": "Fresh100ac confirms the same broad conclusion on a harder untouched shard: model-only/pool-reranker Top1 is about 84%, not near 99%. Accuracy-first exact rerank is much stronger: Top10 union misses 1/100 with max EV loss 0.887, while Top12/Top20 union exact rerank has zero measured cap50 EV loss. Since the 5s target is only a rough guide, keep Top12-Top15 exact-rerank as the accuracy backstop while mining the remaining high-EV-loss misses."
+  },
+  "fresh100ac_retraining_and_fresh50ad_external": {
+    "status": "diagnostic_candidate",
+    "ac_miss_summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/selector_feature_union_fresh100ac_misses_20260621/summary.json",
+    "fresh50ad_source": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh50ad_20260621/inputs/t2_new_broad_fresh50ad_source_all_actions.jsonl",
+    "fresh50ad_exact": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh50ad_20260621/t2_new_broad_fresh50ad_alllegal_cap50.exact.jsonl",
+    "fresh50ad_teacher": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh50ad_20260621/t2_new_broad_fresh50ad_alllegal_cap50.teacher.jsonl",
+    "fresh50ad_dim693": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh50ad_20260621/reranker_t2_new_broad_fresh50ad_alllegal_cap50_dim693",
+    "rejected_direct_ranker": {
+      "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/selector_feature_ranker_train_gmtuvwxyzac_missweighted_ac_w20t50_eval_aa_ab_20260621/summary.json",
+      "eval": "fresh100aa+fresh100ab",
+      "top1": 0.53,
+      "top3": 0.735,
+      "top5": 0.835,
+      "top10": 0.94,
+      "top20": 0.995,
+      "reg1": 0.846,
+      "reg10": 0.006,
+      "decision": "reject"
+    },
+    "rejected_pool3_ac_missweighted": {
+      "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/selector_feature_pool3_reranker_train_gmtuvwxyzac_missweighted_ac_eval_aa_ab_20260621/summary.json",
+      "eval": "fresh100aa+fresh100ab",
+      "top1": 0.82,
+      "top3": 0.88,
+      "top5": 0.9,
+      "top10": 0.98,
+      "top20": 1.0,
+      "reg1": 0.187,
+      "reg10": 0.003,
+      "decision": "reject because Top1 gain worsens Reg1 versus old_pool3"
+    },
+    "candidate_top1_pool_ac_nomiss_aa_ab": {
+      "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/selector_top1_pool_arbitrator_train_gmtuvwxyzac_nomiss_eval_aa_ab_20260621/summary.json",
+      "eval": "fresh100aa+fresh100ab",
+      "pool_k": 1,
+      "top1": 0.825,
+      "top3": 0.89,
+      "top5": 0.945,
+      "top10": 0.99,
+      "top20": 1.0,
+      "reg1": 0.183,
+      "reg3": 0.092,
+      "reg10": 0.0
+    },
+    "fresh50ad_exact_summary": {
+      "records": 50,
+      "source_candidates": 1287,
+      "source_top1_same_as_cap50": 0.22,
+      "avg_cap50_elapsed_ms": 67237.479,
+      "avg_source_top1_ev_loss": 1.804,
+      "max_source_top1_ev_loss": 12.393
+    },
+    "fresh50ad_union_exact_rerank": {
+      "top1": {
+        "recall": 0.86,
+        "avg_pool": 3.2,
+        "max_pool": 6,
+        "mean_ev_loss": 0.01,
+        "max_ev_loss": 0.153
+      },
+      "top8": {
+        "recall": 1.0,
+        "avg_pool": 14.34,
+        "max_pool": 20,
+        "mean_ev_loss": 0.0,
+        "max_ev_loss": 0.0
+      },
+      "top10": {
+        "recall": 1.0,
+        "avg_pool": 17.24,
+        "max_pool": 23,
+        "mean_ev_loss": 0.0,
+        "max_ev_loss": 0.0
+      }
+    },
+    "fresh50ad_model_comparison": {
+      "old_top1_pool": {
+        "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/selector_top1_pool_arbitrator_train_gmtuvwxyz_eval_fresh50ad_20260621/summary.json",
+        "top1": 0.78,
+        "top3": 0.82,
+        "top5": 0.88,
+        "top10": 0.98,
+        "top20": 1.0,
+        "reg1": 0.188,
+        "reg10": 0.0
+      },
+      "new_top1_pool_ac_nomiss": {
+        "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/selector_top1_pool_arbitrator_train_gmtuvwxyzac_eval_fresh50ad_20260621/summary.json",
+        "top1": 0.8,
+        "top3": 0.82,
+        "top5": 0.9,
+        "top10": 0.98,
+        "top20": 1.0,
+        "reg1": 0.181,
+        "reg10": 0.0
+      },
+      "old_pool3": {
+        "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/selector_feature_pool3_reranker_train_gmtuvwxyz_eval_fresh50ad_20260621/summary.json",
+        "top1": 0.8,
+        "top3": 0.82,
+        "top5": 0.86,
+        "top10": 0.9,
+        "top20": 1.0,
+        "reg1": 0.181,
+        "reg10": 0.004
+      }
+    },
+    "decision": "The only clean improvement from this pass is the Top1-pool arbitrator trained with fresh100ac and no miss over-weighting. It improves fresh50ad Top1 from 78% to 80% and Reg1 from 0.188 to 0.181 versus the old Top1-pool, while matching old pool3 Top1/Reg1 with a much smaller pool. This is a small external improvement, not a solution; model-only Top1 remains far below 99%."
+  },
+  "decision": "Model-only T2 Top1 has improved into the high-80s/low-90s on some clean shards, but fresh50ae/fresh50af and the disagreement-weighted retrain show that neither blind shard appending nor simple overweighting is sufficient. Current diagnostic best remains pool3 extra_gap_d14 at 92% Top1 and Reg1 0.062 on fresh50af. Next work should generate more exact-labeled cases matching the 49 mined disagreement/high-loss patterns, then retrain and validate on untouched shards.",
+  "fresh50ae_external_check": {
+    "status": "diagnostic_reject_model_promotion",
+    "source": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh50ae_20260621/inputs/t2_new_broad_fresh50ae_source_all_actions.jsonl",
+    "exact": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh50ae_20260621/t2_new_broad_fresh50ae_alllegal_cap50.exact.jsonl",
+    "exact_summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh50ae_20260621/t2_new_broad_fresh50ae_alllegal_cap50.exact.summary.json",
+    "teacher": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh50ae_20260621/t2_new_broad_fresh50ae_alllegal_cap50.teacher.jsonl",
+    "dim693": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh50ae_20260621/reranker_t2_new_broad_fresh50ae_alllegal_cap50_dim693",
+    "selector_union_summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/selector_feature_union_fresh50ae_compare_xyz_20260621/summary.json",
+    "records": 50,
+    "source_candidates": 1107,
+    "source_top1_same_as_cap50": 0.44,
+    "avg_cap50_elapsed_ms": 42266.389,
+    "avg_source_top1_ev_loss": 8.106,
+    "max_source_top1_ev_loss": 26.958,
+    "selector_union_exact_rerank": {
+      "top1": {
+        "recall": 0.94,
+        "avg_pool": 2.54,
+        "max_pool": 7,
+        "mean_ev_loss": 0.176,
+        "max_ev_loss": 5.571
+      },
+      "top3": {
+        "recall": 0.96,
+        "avg_pool": 6.12,
+        "max_pool": 11,
+        "mean_ev_loss": 0.053,
+        "max_ev_loss": 1.328
+      },
+      "top5": {
+        "recall": 0.96,
+        "avg_pool": 8.0,
+        "max_pool": 13,
+        "mean_ev_loss": 0.03,
+        "max_ev_loss": 1.13
+      },
+      "top8": {
+        "recall": 0.98,
+        "avg_pool": 11.26,
+        "max_pool": 15,
+        "mean_ev_loss": 0.023,
+        "max_ev_loss": 1.13
+      },
+      "top10": {
+        "recall": 1.0,
+        "avg_pool": 13.3,
+        "max_pool": 17,
+        "mean_ev_loss": 0.0,
+        "max_ev_loss": 0.0
+      },
+      "top12": {
+        "recall": 1.0,
+        "avg_pool": 15.48,
+        "max_pool": 22,
+        "mean_ev_loss": 0.0,
+        "max_ev_loss": 0.0
+      },
+      "top15": {
+        "recall": 1.0,
+        "avg_pool": 18.44,
+        "max_pool": 24,
+        "mean_ev_loss": 0.0,
+        "max_ev_loss": 0.0
+      },
+      "top20": {
+        "recall": 1.0,
+        "avg_pool": 21.04,
+        "max_pool": 24,
+        "mean_ev_loss": 0.0,
+        "max_ev_loss": 0.0
+      }
+    },
+    "model_comparison": {
+      "old_top1_pool": {
+        "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/selector_top1_pool_arbitrator_train_gmtuvwxyz_eval_fresh50ae_20260621/summary.json",
+        "top1": 0.88,
+        "top3": 0.88,
+        "top5": 0.92,
+        "top10": 0.96,
+        "top20": 1.0,
+        "reg1": 1.083,
+        "reg3": 0.893,
+        "reg10": 0.03
+      },
+      "top1_pool_ac_nomiss": {
+        "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/selector_top1_pool_arbitrator_train_gmtuvwxyzac_eval_fresh50ae_20260621/summary.json",
+        "top1": 0.88,
+        "top3": 0.88,
+        "top5": 0.92,
+        "top10": 0.96,
+        "top20": 1.0,
+        "reg1": 1.083,
+        "reg3": 0.893,
+        "reg10": 0.03
+      },
+      "top1_pool_ac_ad": {
+        "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/selector_top1_pool_arbitrator_train_gmtuvwxyzac_ad_eval_fresh50ae_20260621/summary.json",
+        "top1": 0.88,
+        "top3": 0.88,
+        "top5": 0.94,
+        "top10": 0.96,
+        "top20": 1.0,
+        "reg1": 1.083,
+        "reg3": 0.893,
+        "reg10": 0.03
+      },
+      "old_pool3": {
+        "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/selector_feature_pool3_reranker_train_gmtuvwxyz_eval_fresh50ae_20260621/summary.json",
+        "top1": 0.88,
+        "top3": 0.88,
+        "top5": 0.94,
+        "top10": 0.96,
+        "top20": 1.0,
+        "reg1": 0.901,
+        "reg3": 0.893,
+        "reg10": 0.053
+      }
+    },
+    "decision": "Fresh50ae does not confirm a general Top1 model improvement from adding fresh100ac/fresh50ad: Top1 stays 88%. Do not promote the new Top1-pool model yet. Accuracy-first Top10 union plus exact rerank is confirmed on this untouched shard with 100% recall and zero measured cap50 EV loss, avg pool 13.30 and max pool 17."
+  },
+  "fresh50af_external_after_ae": {
+    "status": "diagnostic_reject_blind_append_promote_pool3_extra_gap_candidate",
+    "source": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh50af_20260621/inputs/t2_new_broad_fresh50af_source_all_actions.jsonl",
+    "exact": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh50af_20260621/t2_new_broad_fresh50af_alllegal_cap50.exact.jsonl",
+    "exact_summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh50af_20260621/t2_new_broad_fresh50af_alllegal_cap50.exact.summary.json",
+    "teacher": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh50af_20260621/t2_new_broad_fresh50af_alllegal_cap50.teacher.jsonl",
+    "dim693": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh50af_20260621/reranker_t2_new_broad_fresh50af_alllegal_cap50_dim693",
+    "selector_union_summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/selector_feature_union_fresh50af_compare_xyz_20260621/summary.json",
+    "records": 50,
+    "source_candidates": 1212,
+    "teacher_candidates": 1164,
+    "source_top1_same_as_cap50": 0.5,
+    "avg_cap50_elapsed_ms": 59172.502,
+    "avg_source_top1_ev_loss": 1.422,
+    "max_source_top1_ev_loss": 10.332,
+    "selector_union_exact_rerank": {
+      "top1": {
+        "recall": 0.94,
+        "avg_pool": 1.74,
+        "max_pool": 5,
+        "mean_ev_loss": 0.032,
+        "max_ev_loss": 1.592
+      },
+      "top3": {
+        "recall": 0.96,
+        "avg_pool": 4.88,
+        "max_pool": 7,
+        "mean_ev_loss": 0.032,
+        "max_ev_loss": 1.592
+      },
+      "top5": {
+        "recall": 0.98,
+        "avg_pool": 7.08,
+        "max_pool": 11,
+        "mean_ev_loss": 0.0,
+        "max_ev_loss": 0.0
+      },
+      "top8": {
+        "recall": 1.0,
+        "avg_pool": 13.1,
+        "max_pool": 18,
+        "mean_ev_loss": 0.0,
+        "max_ev_loss": 0.0
+      },
+      "top10": {
+        "recall": 1.0,
+        "avg_pool": 16.94,
+        "max_pool": 22,
+        "mean_ev_loss": 0.0,
+        "max_ev_loss": 0.0
+      }
+    },
+    "model_comparison": {
+      "old_top1_pool": {
+        "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/selector_top1_pool_arbitrator_train_gmtuvwxyz_eval_fresh50af_20260621/summary.json",
+        "top1": 0.9,
+        "top3": 0.96,
+        "top5": 0.96,
+        "top10": 1.0,
+        "top20": 1.0,
+        "reg1": 0.107,
+        "reg3": 0.032,
+        "reg10": 0.0
+      },
+      "top1_pool_ac_ad_ae": {
+        "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/selector_top1_pool_arbitrator_train_gmtuvwxyzac_ad_ae_eval_fresh50af_20260621/summary.json",
+        "top1": 0.9,
+        "top3": 0.96,
+        "top5": 0.96,
+        "top10": 1.0,
+        "top20": 1.0,
+        "reg1": 0.107,
+        "reg3": 0.032,
+        "reg10": 0.0
+      },
+      "old_pool3_hgb_cls_l31": {
+        "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/selector_feature_pool3_reranker_train_gmtuvwxyz_eval_fresh50af_20260621/summary.json",
+        "top1": 0.92,
+        "top3": 0.94,
+        "top5": 0.96,
+        "top10": 1.0,
+        "top20": 1.0,
+        "reg1": 0.077,
+        "reg3": 0.032,
+        "reg10": 0.0
+      },
+      "pool3_extra_gap_d14": {
+        "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/selector_feature_pool3_reranker_train_gmtuvwxyz_extended_eval_fresh50af_20260621/summary.json",
+        "top1": 0.92,
+        "top3": 0.96,
+        "top5": 0.96,
+        "top10": 1.0,
+        "top20": 1.0,
+        "reg1": 0.062,
+        "reg3": 0.032,
+        "reg10": 0.0
+      },
+      "pool5_extra_gap_d14": {
+        "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/selector_feature_pool5_reranker_train_gmtuvwxyz_extended_eval_fresh50af_20260621/summary.json",
+        "top1": 0.92,
+        "top3": 0.96,
+        "top5": 0.98,
+        "top10": 0.98,
+        "top20": 1.0,
+        "reg1": 0.062,
+        "reg3": 0.032,
+        "reg10": 0.0
+      },
+      "pool3_ac_ad_ae": {
+        "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/selector_feature_pool3_reranker_train_gmtuvwxyzac_ad_ae_eval_fresh50af_20260621/summary.json",
+        "top1": 0.9,
+        "top3": 0.94,
+        "top5": 0.96,
+        "top10": 1.0,
+        "top20": 1.0,
+        "reg1": 0.107,
+        "reg3": 0.032,
+        "reg10": 0.0
+      }
+    },
+    "pool3_switch_diagnostic": {
+      "hgb_cls_l31": {
+        "top1": 0.92,
+        "reg1": 0.077,
+        "max_loss": 2.247
+      },
+      "extra_gap_d14": {
+        "top1": 0.92,
+        "reg1": 0.062,
+        "max_loss": 1.592
+      },
+      "oracle_switch_hgb_cls_l31_extra_gap_d14": {
+        "top1": 0.94,
+        "reg1": 0.032,
+        "max_loss": 1.592
+      },
+      "learned_gate_best": {
+        "top1": 0.92,
+        "reg1": 0.062,
+        "max_loss": 1.592
+      },
+      "train_switch_positive_rate": 0.0067
+    },
+    "decision": "Fresh50af rejects blind promotion of adding fresh50ae: Top1-pool stays 90% and pool3 with ac/ad/ae regresses to 90%. The useful diagnostic candidate is pool3 extra_gap_d14: same Top1 as old pool3 at 92% but lower Reg1 0.062. Oracle switching with hgb_cls_l31 could reach 94%, but learned gates did not improve because positive switch examples are too rare in current training data."
+  },
+  "pool3_disagreement_mining_20260621": {
+    "status": "diagnostic_reject_weighted_retrain_keep_miner",
+    "script": "ai/training/mine_t2_pool_model_disagreements.py",
+    "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/pool3_model_disagreement_mining_gmtuvwxyz_20260621/summary.json",
+    "rows": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/pool3_model_disagreement_mining_gmtuvwxyz_20260621/rows.jsonl",
+    "train_data": [
+      "g",
+      "m",
+      "t",
+      "u",
+      "v",
+      "w",
+      "x",
+      "y",
+      "z"
+    ],
+    "pool_models": {
+      "hgb_cls_l31": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/selector_feature_pool3_reranker_train_gmtuvwxyz_extended_eval_fresh50af_20260621/hgb_cls_l31.joblib",
+      "extra_gap_d14": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/selector_feature_pool3_reranker_train_gmtuvwxyz_extended_eval_fresh50af_20260621/extra_gap_d14.joblib"
+    },
+    "mined": {
+      "groups_scanned": 900,
+      "rows": 49,
+      "reason_counts": {
+        "model_high_loss": 42,
+        "model_disagreement": 25,
+        "one_model_hits": 18
+      },
+      "ev_loss_mean": 1.817,
+      "ev_loss_max": 9.854
+    },
+    "weighted_retrains": {
+      "w4t8": {
+        "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/selector_feature_pool3_reranker_train_gmtuvwxyz_disagree_w4t8_eval_ae_af_20260621/summary.json",
+        "fresh50ae_hgb_cls_l31": {
+          "top1": 0.88,
+          "top3": 0.88,
+          "top5": 0.94,
+          "top10": 0.96,
+          "reg1": 1.083,
+          "reg3": 0.893,
+          "reg10": 0.053
+        },
+        "fresh50af_hgb_cls_l31": {
+          "top1": 0.9,
+          "top3": 0.94,
+          "top5": 0.94,
+          "top10": 1.0,
+          "reg1": 0.107,
+          "reg3": 0.032,
+          "reg10": 0.0
+        },
+        "decision": "reject"
+      },
+      "w8t12": {
+        "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/selector_feature_pool3_reranker_train_gmtuvwxyz_disagree_w8t12_eval_ae_af_20260621/summary.json",
+        "fresh50ae_hgb_cls_l31": {
+          "top1": 0.88,
+          "top3": 0.9,
+          "top5": 0.92,
+          "top10": 0.96,
+          "reg1": 1.031,
+          "reg3": 0.873,
+          "reg10": 0.053
+        },
+        "fresh50af_hgb_cls_l31": {
+          "top1": 0.92,
+          "top3": 0.94,
+          "top5": 0.96,
+          "top10": 1.0,
+          "reg1": 0.062,
+          "reg3": 0.032,
+          "reg10": 0.0
+        },
+        "fresh50ae_extra_gap_d14": {
+          "top1": 0.86,
+          "top3": 0.88,
+          "top5": 0.88,
+          "top10": 0.96,
+          "reg1": 1.145,
+          "reg3": 0.893,
+          "reg10": 0.053
+        },
+        "fresh50af_extra_gap_d14": {
+          "top1": 0.92,
+          "top3": 0.94,
+          "top5": 0.96,
+          "top10": 1.0,
+          "reg1": 0.062,
+          "reg3": 0.032,
+          "reg10": 0.0
+        },
+        "decision": "reject because no Top1 lift and fresh50ae EV loss worsens"
+      }
+    },
+    "decision": "The miner found useful hard cases, but directly overweighting 49 existing rows does not improve external Top1 and worsens fresh50ae Reg1. Keep the miner and generate more similar cases; do not promote weighted models."
+  },
+  "targeted_source_mining_pipeline_20260621": {
+    "status": "pipeline_ready_smoke_passed",
+    "purpose": "Generate many cheap T2 source rows, score them with existing pool models, exact only high-signal rows, then retrain Top1 selectors on exact labels.",
+    "scripts": {
+      "enrich_mined_rows": "ai/training/enrich_t2_mined_rows.py",
+      "normalize_source_model_teacher": "ai/training/normalize_t2_source_model_teacher.py",
+      "select_source_rows": "ai/training/select_t2_source_rows_from_mined.py",
+      "updated_miner": "ai/training/mine_t2_pool_model_disagreements.py"
+    },
+    "enriched_existing_misses": {
+      "rows": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/pool3_model_disagreement_mining_gmtuvwxyz_20260621/rows.enriched.jsonl",
+      "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/pool3_model_disagreement_mining_gmtuvwxyz_20260621/rows.enriched.jsonl.summary.json",
+      "rows_in": 49,
+      "source_hits": 49,
+      "teacher_hits": 49
+    },
+    "fresh50af_head5_smoke": {
+      "normalized_source": "D:/ofc-pineapple-data/tmp_source_teacher_fresh50af_head5_20260621.jsonl",
+      "normalized_records": 5,
+      "normalized_candidates": 123,
+      "converted_dim693": "D:/ofc-pineapple-data/tmp_source_convert_fresh50af_head5_dim693_20260621",
+      "base_scores_written": true,
+      "pool_mining_summary": "D:/ofc-pineapple-data/tmp_source_pool_mine_head5_20260621/summary.json",
+      "pool_mining_rows": 5,
+      "selected_source_for_exact": "D:/ofc-pineapple-data/tmp_source_pool_mine_head5_20260621/selected_source.jsonl",
+      "selected_source_rows_at_ev_loss_0p5": 3
+    },
+    "fresh200ag_source_preselection": {
+      "source": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh200ag_20260621/inputs/t2_new_broad_fresh200ag_source_all_actions.jsonl",
+      "records": 200,
+      "positions": {
+        "bb": 100,
+        "btn": 100
+      },
+      "source_generation_seconds": 37.953,
+      "candidate_total": 4860,
+      "t3_states_scored": 216675,
+      "source_model_teacher": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh200ag_20260621/t2_new_broad_fresh200ag_source_model.teacher.jsonl",
+      "dim693": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh200ag_20260621/reranker_t2_new_broad_fresh200ag_source_model_dim693",
+      "pool_mining_summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh200ag_20260621/source_pool3_mining_20260621/summary.json",
+      "pool_mining_rows": 73,
+      "pool_mining_reasons": {
+        "model_high_loss": 73,
+        "model_disagreement": 19,
+        "one_model_hits": 6
+      },
+      "source_estimated_ev_loss_mean": 2.288,
+      "source_estimated_ev_loss_max": 7.846,
+      "selected_source_for_exact": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh200ag_20260621/source_pool3_mining_20260621/selected_source_top50_for_exact.jsonl",
+      "selected_source_rows": 50,
+      "exact_smoke": {
+        "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh200ag_20260621/source_pool3_mining_20260621/exact_smoke_top1/t2_oracle_cap50_limit1.summary.json",
+        "records": 1,
+        "same_top1": 0,
+        "changed_top1": 1,
+        "avg_exact_elapsed_ms": 11921.024,
+        "exact_regret_of_source_top1": 9.626,
+        "source_action": "Tc->bottom; Ts->middle; discard Jc",
+        "exact_action": "Tc->bottom; Ts->bottom; discard Jc"
+      },
+      "targeted_top50_exact": {
+        "exact_top10_summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh200ag_20260621/source_pool3_mining_20260621/exact_top10/t2_oracle_cap50_limit10.summary.json",
+        "exact_rest40_summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh200ag_20260621/source_pool3_mining_20260621/exact_rest40/t2_oracle_cap50_skip10_limit40.summary.json",
+        "merged_exact": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh200ag_20260621/source_pool3_mining_20260621/t2_oracle_cap50_targeted_top50.jsonl",
+        "teacher": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh200ag_20260621/source_pool3_mining_20260621/t2_new_broad_fresh200ag_targeted_top50_cap50.teacher.jsonl",
+        "dim693": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh200ag_20260621/source_pool3_mining_20260621/reranker_t2_new_broad_fresh200ag_targeted_top50_cap50_dim693",
+        "records": 50,
+        "candidates": 1176,
+        "source_top1_changed_under_cap50_exact": 50,
+        "top10_avg_regret": 1.891,
+        "top10_max_regret": 9.626,
+        "rest40_avg_regret": 1.97,
+        "rest40_max_regret": 8.292
+      },
+      "targeted_top50_retrains": {
+        "pool3_added_summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/selector_feature_pool3_reranker_train_gmtuvwxyz_agtop50_eval_ae_af_20260621/summary.json",
+        "pool1_added_summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/selector_feature_pool1_reranker_train_gmtuvwxyz_agtop50_eval_ae_af_20260621/summary.json",
+        "ag50_exact_mining_summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh200ag_20260621/source_pool3_mining_20260621/ag50_exact_pool3_mining_20260621/summary.json",
+        "pool3_missweighted_summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/selector_feature_pool3_reranker_train_gmtuvwxyz_agtop50_missw_eval_ae_af_20260621/summary.json",
+        "best_observed": {
+          "model": "pool3 hgb_cls_l31 + ag50",
+          "fresh50ae_top1": 0.88,
+          "fresh50ae_top3": 0.94,
+          "fresh50ae_reg1": 0.953,
+          "fresh50af_top1": 0.92,
+          "fresh50af_top3": 0.94,
+          "fresh50af_reg1": 0.077
+        },
+        "decision": "No external Top1 lift from the 50-row targeted exact shard. Keep as diagnostic data; scale the same targeted pipeline to more exact rows before trying to promote a model."
+      }
+    },
+    "fresh1000ah_targeted_exact": {
+      "source": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh1000ah_20260621/inputs/t2_new_broad_fresh1000ah_source_all_actions.jsonl",
+      "records": 1000,
+      "positions": {
+        "bb": 500,
+        "btn": 500
+      },
+      "source_generation_seconds": 168.069,
+      "candidate_total": 22491,
+      "t3_states_scored": 990900,
+      "source_model_teacher": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh1000ah_20260621/t2_new_broad_fresh1000ah_source_model.teacher.jsonl",
+      "dim693": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh1000ah_20260621/reranker_t2_new_broad_fresh1000ah_source_model_dim693",
+      "pool_mining_summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh1000ah_20260621/source_pool3_mining_20260621/summary.json",
+      "pool_mining_rows": 268,
+      "pool_mining_reasons": {
+        "model_high_loss": 266,
+        "model_disagreement": 43,
+        "one_model_hits": 22
+      },
+      "source_estimated_ev_loss_mean": 4.191,
+      "source_estimated_ev_loss_max": 29.072,
+      "selected_source_for_exact": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh1000ah_20260621/source_pool3_mining_20260621/selected_source_top200_for_exact.jsonl",
+      "selected_source_rows": 200,
+      "exact_chunks": [
+        {
+          "range": "0-49",
+          "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh1000ah_20260621/source_pool3_mining_20260621/exact_chunk_000_050/t2_oracle_cap50_limit50.summary.json",
+          "same_top1": 5,
+          "changed_top1": 45,
+          "avg_exact_elapsed_ms": 11053.8,
+          "avg_regret": 4.802,
+          "max_regret": 39.586
+        },
+        {
+          "range": "50-99",
+          "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh1000ah_20260621/source_pool3_mining_20260621/exact_chunk_050_100/t2_oracle_cap50_skip50_limit50.summary.json",
+          "same_top1": 3,
+          "changed_top1": 47,
+          "avg_exact_elapsed_ms": 11004.4,
+          "avg_regret": 2.859,
+          "max_regret": 9.801
+        },
+        {
+          "range": "100-149",
+          "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh1000ah_20260621/source_pool3_mining_20260621/exact_chunk_100_150/t2_oracle_cap50_skip100_limit50.summary.json",
+          "same_top1": 4,
+          "changed_top1": 46,
+          "avg_exact_elapsed_ms": 12099.3,
+          "avg_regret": 4.671,
+          "max_regret": 22.617
+        },
+        {
+          "range": "150-199",
+          "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh1000ah_20260621/source_pool3_mining_20260621/exact_chunk_150_200/t2_oracle_cap50_skip150_limit50.summary.json",
+          "same_top1": 1,
+          "changed_top1": 49,
+          "avg_exact_elapsed_ms": 11727.8,
+          "avg_regret": 3.954,
+          "max_regret": 17.23
+        }
+      ],
+      "merged_exact": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh1000ah_20260621/source_pool3_mining_20260621/t2_oracle_cap50_targeted_top200.jsonl",
+      "teacher": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh1000ah_20260621/source_pool3_mining_20260621/t2_new_broad_fresh1000ah_targeted_top200_cap50.teacher.jsonl",
+      "dim693_exact": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh1000ah_20260621/source_pool3_mining_20260621/reranker_t2_new_broad_fresh1000ah_targeted_top200_cap50_dim693",
+      "dim693_low_weight": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh1000ah_20260621/source_pool3_mining_20260621/reranker_t2_new_broad_fresh1000ah_targeted_top200_cap50_dim693_loww",
+      "records_exact": 200,
+      "candidates_exact": 4068,
+      "source_top1_same_under_cap50_exact": 13,
+      "source_top1_changed_under_cap50_exact": 187,
+      "retrain_summaries": {
+        "ah200": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/selector_feature_pool3_reranker_train_gmtuvwxyz_ah200_eval_ae_af_20260621/summary.json",
+        "ah200_low_weight": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/selector_feature_pool3_reranker_train_gmtuvwxyz_ah200loww_eval_ae_af_20260621/summary.json"
+      },
+      "best_observed": {
+        "model": "pool3 hgb_cls_l31 + ah200",
+        "aggregate_top1": 0.89,
+        "aggregate_top3": 0.91,
+        "aggregate_reg1": 0.539,
+        "fresh50ae_top1": 0.88,
+        "fresh50ae_reg1": 0.971,
+        "fresh50af_top1": 0.9,
+        "fresh50af_reg1": 0.107
+      },
+      "decision": "The exact labels are real and high-signal, but hard-only append training did not improve untouched external Top1. Keep this as diagnostic data and train future models on a balanced broad exact plus targeted exact mixture."
+    },
+    "pool10_selection_diagnostics_20260621": {
+      "external_eval_shards": [
+        "fresh50ae",
+        "fresh50af"
+      ],
+      "pool_ceiling": {
+        "pool5": {
+          "recall": 0.97,
+          "avg_pool": 7.54,
+          "max_pool": 13,
+          "mean_ev_loss": 0.015,
+          "max_ev_loss": 1.13
+        },
+        "pool8": {
+          "recall": 0.99,
+          "avg_pool": 12.18,
+          "max_pool": 18,
+          "mean_ev_loss": 0.011,
+          "max_ev_loss": 1.13
+        },
+        "pool10": {
+          "recall": 1.0,
+          "avg_pool": 15.12,
+          "max_pool": 22,
+          "mean_ev_loss": 0.0,
+          "max_ev_loss": 0.0
+        }
+      },
+      "selector_feature_pool_sweep": {
+        "pool5_summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/selector_feature_pool5_reranker_train_gmtuvwxyz_eval_ae_af_20260621/summary.json",
+        "pool8_summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/selector_feature_pool8_reranker_train_gmtuvwxyz_eval_ae_af_20260621/summary.json",
+        "pool10_summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/selector_feature_pool10_reranker_train_gmtuvwxyz_eval_ae_af_20260621/summary.json",
+        "best_top1_model": "hgb_cls_l31",
+        "best_top1": 0.89,
+        "best_top3": 0.93,
+        "best_reg1": 0.53
+      },
+      "pairwise_feature_pool10": {
+        "selector_summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/pairwise_feature_pool10_selector_train_gmtuvwxyz_eval_ae_af_20260621/summary.json",
+        "bothdiff_summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/pairwise_feature_pool10_bothdiff_train_gmtuvwxyz_eval_ae_af_20260621/summary.json",
+        "best_top1": 0.9,
+        "best_top3": 0.91,
+        "best_top10": 1.0,
+        "best_reg1": 0.547,
+        "best_reg10": 0.0
+      },
+      "top1_oracle_switch": {
+        "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/top1_model_oracle_switch_eval_ae_af_20260621.json",
+        "aggregate_top1": 0.91,
+        "aggregate_top3": 1.0,
+        "aggregate_top10": 1.0,
+        "aggregate_reg1": 0.463,
+        "avg_unique_top1_actions": 1.1,
+        "max_unique_top1_actions": 4
+      },
+      "lgbm_ranker": {
+        "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/selector_feature_pool10_lgbmrank_train_gmtuvwxyz_eval_ae_af_20260621/summary.json",
+        "lgbm_rank_l31_top1": 0.88,
+        "lgbm_rank_l63_top1": 0.87,
+        "decision": "Reject. LightGBM lambdarank did not improve external Top1 or Reg1."
+      },
+      "neural_and_extended_data_20260621": {
+        "neural_pool10_both": {
+          "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/neural_pool10_reranker_train_gmtuvwxyz_eval_ae_af_20260621/summary.json",
+          "model": "mlp_256x128_seed20260621",
+          "top1": 0.85,
+          "top3": 0.91,
+          "reg1": 1.099,
+          "decision": "reject"
+        },
+        "neural_pool10_selector": {
+          "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/neural_pool10_selector_reranker_train_gmtuvwxyz_eval_ae_af_20260621/summary.json",
+          "model": "mlp_256x128_seed20260621",
+          "top1": 0.85,
+          "top3": 0.9,
+          "reg1": 0.672,
+          "decision": "reject"
+        },
+        "extended_clean": {
+          "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/selector_feature_pool10_reranker_train_extended_clean_eval_ae_af_20260621/summary.json",
+          "train_shards": 23,
+          "train_groups": 3150,
+          "train_pool_rows": 46829,
+          "best_model": "hgb_cls_l63",
+          "aggregate_top1": 0.91,
+          "aggregate_top3": 0.91,
+          "aggregate_top5": 0.94,
+          "aggregate_top10": 0.99,
+          "aggregate_reg1": 0.524,
+          "aggregate_reg10": 0.0,
+          "fresh50ae_top1": 0.88,
+          "fresh50ae_reg1": 1.015,
+          "fresh50af_top1": 0.94,
+          "fresh50af_reg1": 0.032
+        },
+        "extended_clean_plus_ah200": {
+          "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/selector_feature_pool10_reranker_train_extended_clean_ah200_eval_ae_af_20260621/summary.json",
+          "train_shards": 24,
+          "train_groups": 3350,
+          "train_pool_rows": 49766,
+          "best_model": "hgb_cls_l31",
+          "aggregate_top1": 0.91,
+          "aggregate_top3": 0.92,
+          "aggregate_top5": 0.93,
+          "aggregate_top10": 0.98,
+          "aggregate_reg1": 0.493,
+          "aggregate_reg10": 0.011,
+          "fresh50ae_top1": 0.88,
+          "fresh50ae_reg1": 0.953,
+          "fresh50af_top1": 0.94,
+          "fresh50af_reg1": 0.032
+        },
+        "extended_ah200_top1_weighted": {
+          "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/selector_feature_pool10_reranker_train_extended_ah200_top1w_eval_ae_af_20260621/summary.json",
+          "top1": 0.9,
+          "reg1": 0.504,
+          "reg10": 0.0,
+          "decision": "reject because Top1 fell below the extended-clean and extended-ah200 models"
+        },
+        "extended_top1_oracle_switch": {
+          "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/top1_oracle_switch_extended_eval_ae_af_20260621.json",
+          "aggregate_top1": 0.91,
+          "aggregate_top3": 1.0,
+          "aggregate_reg1": 0.463,
+          "avg_unique_top1_actions": 1.07,
+          "max_unique_top1_actions": 3,
+          "decision": "No useful switch-gate headroom: extended models still choose almost the same Top1 actions."
+        },
+        "targeted_ak80_synthetic_20260621": {
+          "fresh400ak_partial_source": {
+            "source": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh1000ak_20260621/inputs/t2_new_broad_fresh1000ak_source_all_actions.jsonl",
+            "source_rows": 400,
+            "unique_root_deals": 200,
+            "source_pool_mining": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh1000ak_20260621/source_pool_mining_partial400_20260621/summary.json",
+            "source_high_loss_rows": 101,
+            "selected_exact_rows": 80,
+            "source_top1_changed_under_cap50_exact": "75/80",
+            "exact_teacher": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh1000ak_20260621/source_pool_mining_partial400_20260621/t2_new_broad_fresh400ak_targeted_top80_cap50.teacher.jsonl",
+            "exact_rows_avg_latency_seconds": "20-22"
+          },
+          "synthetic_generator": {
+            "script": "ai/training/generate_t2_top_aa_aj_source.py",
+            "broad_source": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/synthetic_top_aa_aj_20260621/inputs/t2_synthetic_top_aa_aj_source.jsonl",
+            "broad_exact_teacher": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/synthetic_top_aa_aj_20260621/t2_synthetic_top_aa_aj_40_cap50.teacher.jsonl",
+            "ae_like_source": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/synthetic_top_aa_aj_aelike_20260621/inputs/t2_synthetic_top_aa_aj_aelike_source.jsonl",
+            "ae_like_exact_teacher": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/synthetic_top_aa_aj_aelike_20260621/t2_synthetic_top_aa_aj_aelike_40_cap50.teacher.jsonl"
+          },
+          "retrain_results": {
+            "ak80": {
+              "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/selector_feature_pool10_reranker_train_extended_ah200_ak80miss_eval_ae_af_20260621/summary.json",
+              "best_top1": 0.9,
+              "best_top3": 0.93,
+              "best_top5": 0.95,
+              "best_top10": "0.98-1.00",
+              "best_reg1": 0.504,
+              "decision": "reject for model-only Top1"
+            },
+            "ak80_plus_synthetic_broad40": {
+              "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/selector_feature_pool10_reranker_train_extended_ah200_ak80_syn40miss_eval_ae_af_20260621/summary.json",
+              "best_top1": 0.9,
+              "best_top3": 0.92,
+              "best_top5": 0.95,
+              "best_top10": "0.96-1.00",
+              "best_reg1": 0.513,
+              "decision": "reject"
+            },
+            "ak80_plus_synthetic_ae_like40": {
+              "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/selector_feature_pool10_reranker_train_extended_ah200_ak80_synae40miss_eval_ae_af_20260621/summary.json",
+              "best_top1": 0.88,
+              "best_top3": 0.93,
+              "best_top5": 0.96,
+              "best_top10": 1.0,
+              "best_reg1": 0.837,
+              "decision": "reject; targeted synthetic rows overfit and hurt external Top1"
+            }
+          },
+          "new_variant_oracle": {
+            "fresh50ae_top1": 0.88,
+            "fresh50af_top1": 0.94,
+            "fresh50ae_regret": 0.893,
+            "fresh50af_regret": 0.032,
+            "decision": "No useful switch/gate headroom. New variants did not hit the remaining large-loss external groups."
+          },
+          "decision": "Do not promote these targeted models. The new hard labels are valid, but the current feature-pool scorer did not improve external model-only Top1."
+        },
+        "pool_local_and_attention_20260621": {
+          "selector_poollocal_ah200": {
+            "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/selector_feature_pool10_poollocal_train_extended_clean_ah200_eval_ae_af_20260621/summary.json",
+            "best_model": "hgb_cls_l63",
+            "aggregate_top1": 0.91,
+            "aggregate_top3": 0.91,
+            "aggregate_top5": 0.93,
+            "aggregate_top10": 0.99,
+            "aggregate_reg1": 0.493,
+            "aggregate_reg10": 0.0,
+            "fresh50ae_top1": 0.88,
+            "fresh50ae_reg1": 0.953,
+            "fresh50af_top1": 0.94,
+            "fresh50af_reg1": 0.032
+          },
+          "selector_poollocal_ah200_ak80": {
+            "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/selector_feature_pool10_poollocal_train_extended_ah200_ak80_eval_ae_af_20260621/summary.json",
+            "best_model": "hgb_cls_l31_or_l63",
+            "aggregate_top1": 0.91,
+            "aggregate_top3": 0.91,
+            "aggregate_top5": 0.94,
+            "aggregate_top10": "0.99-1.00",
+            "aggregate_reg1": 0.489,
+            "aggregate_reg10": "0.000-0.0001",
+            "fresh50ae_top1": 0.88,
+            "fresh50ae_reg1": 0.945,
+            "fresh50af_top1": 0.94,
+            "fresh50af_reg1": 0.032
+          },
+          "poollocal_top1_oracle_switch": {
+            "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/poollocal_top1_oracle_switch_eval_ae_af_20260621.json",
+            "aggregate_top1": 0.91,
+            "aggregate_reg1": 0.463,
+            "avg_unique_top1_actions": 1.1,
+            "max_unique_top1_actions": 3,
+            "decision": "No useful switch/gate headroom. Base, pool-local, ak80 pool-local, and pairwise variants still choose almost the same Top1 actions."
+          },
+          "attention_poollocal": {
+            "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/neural_attention_pool10_poollocal_train_extended_clean_ah200_eval_ae_af_20260621/summary_partial_evaluated.json",
+            "model": "attention_256x128_seed20260621",
+            "aggregate_top1": 0.84,
+            "aggregate_top3": 0.91,
+            "aggregate_top5": 0.92,
+            "aggregate_top10": 0.98,
+            "aggregate_reg1": 1.133,
+            "decision": "reject"
+          },
+          "board_context_dim789_direct_nn": {
+            "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/dim789_boardctx_20260621/evals/t2-dim789-boardctx-extended-ah200-20260621/aggregate_summary.json",
+            "model": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/dim789_boardctx_20260621/models/t2-dim789-boardctx-extended-ah200-20260621/action_value_best.pt",
+            "train_groups": 3350,
+            "train_candidates": 77793,
+            "state_dim": 789,
+            "aggregate_top1": 0.64,
+            "aggregate_top3": 0.85,
+            "aggregate_top5": 0.88,
+            "aggregate_top10": 0.99,
+            "aggregate_top15": 1.0,
+            "aggregate_top20": 1.0,
+            "aggregate_reg1": 2.628,
+            "aggregate_reg10": 0.015,
+            "fresh50ae_top1": 0.56,
+            "fresh50ae_reg1": 4.917,
+            "fresh50af_top1": 0.72,
+            "fresh50af_reg1": 0.338,
+            "decision": "reject; richer board/deck context features did not make the direct NN a usable external Top1 scorer"
+          },
+          "old_selectors_dim789_fixedadapt": {
+            "base_scores_source": "copied from matching dim693 shards after verifying scores/group_ids/action_indices ordering",
+            "train_data": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/dim789_boardctx_20260621/merged_train_extended_clean_ah200_dim789_oldbase",
+            "both_hgbonly": {
+              "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/dim789_boardctx_20260621/selector_oldsources_dim789_fixedadapt_20260621/both_hgbonly/summary.json",
+              "best_model": "hgb_cls_l31",
+              "aggregate_top1": 0.9,
+              "aggregate_top3": 0.91,
+              "aggregate_top5": 0.94,
+              "aggregate_top10": 0.99,
+              "aggregate_reg1": 0.517,
+              "aggregate_reg10": 0.011
+            },
+            "both_poollocal_hgbonly": {
+              "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/dim789_boardctx_20260621/selector_oldsources_dim789_fixedadapt_20260621/both_poollocal_hgbonly/summary.json",
+              "best_model": "hgb_cls_l31",
+              "aggregate_top1": 0.91,
+              "aggregate_top3": 0.91,
+              "aggregate_top5": 0.95,
+              "aggregate_top10": 0.99,
+              "aggregate_reg1": 0.498,
+              "aggregate_reg10": 0.011,
+              "fresh50ae_top1": 0.88,
+              "fresh50af_top1": 0.94
+            },
+            "top1_oracle": {
+              "aggregate_top1": 0.92,
+              "aggregate_reg1": 0.463,
+              "avg_unique_top1_actions": 1.05,
+              "max_unique_top1_actions": 3
+            },
+            "train_selected_blend": {
+              "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/dim789_boardctx_20260621/selector_oldsources_dim789_fixedadapt_20260621/blend_weight_sweep_train_selected_eval_ae_af.json",
+              "best_external_top1": 0.91,
+              "decision": "train-selected fixed blends did not beat the existing 91% external Top1"
+            },
+            "switch_gates": {
+              "old_l31_vs_new789_poollocal_l31": {
+                "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/dim789_boardctx_20260621/selector_oldsources_dim789_fixedadapt_20260621/switch_gate_old_l31_vs_new_pl_l31_20260621/summary.json",
+                "selection": "fit on 80% train groups; threshold selected on 20% train dev",
+                "best_external_top1": 0.91,
+                "best_external_reg1": 0.489,
+                "decision": "reject for Top1"
+              },
+              "old_l31_vs_old_l63": {
+                "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/selector_feature_pool10_reranker_train_extended_clean_ah200_eval_ae_af_20260621/switch_gate_old_l31_vs_l63_20260621/summary.json",
+                "selection": "fit on 80% train groups; threshold selected on 20% train dev",
+                "best_external_top1": 0.91,
+                "best_external_top3": 0.98,
+                "best_external_top10": 1.0,
+                "best_external_reg1": 0.467,
+                "decision": "reject for Top1; useful only as EV-loss tail diagnostic"
+              }
+            },
+            "decision": "reject for Top1; preserving old selector sources and adding dim789 board/deck context to the final HGB reranker matches but does not beat the current external best"
+          },
+          "code_changes": [
+            "ai/training/train_t2_selector_feature_pool_reranker.py: add optional --pool-local-features",
+            "ai/training/train_t2_neural_pool_reranker.py: add optional attention architecture and --pool-local-features",
+            "ai/training/action_feature_encoding.py: add optional board/deck context feature vector for state_dim 789",
+            "ai/training/convert_action_value_teacher.py: record board context feature dim in metadata",
+            "ai/training/merge_action_value_reranker_data.py: allow missing base_scores.npy when merging converted data",
+            "ai/training/train_t2_selector_feature_ranker.py: adapt older sklearn models to newer state vectors by preserving runtime base/rank suffix features",
+            "ai/training/evaluate_t2_selector_feature_union.py: preserve selector features when adapting feature-selector inputs",
+            "ai/training/train_t2_pairwise_pool_reranker.py: adapt feature-selector inputs with predict_adapted for mixed 693/789 state vectors"
+          ],
+          "decision": "Pool-local features slightly improve Reg1 with ak80 but do not lift external model-only Top1 above 91%. Attention is worse. Board/deck context direct NN is worse, and old-selector dim789 reranking only matches 91%. Do not promote."
+        },
+        "decision": "Broad clean exact data improved external model-only Top1 from 90% to 91%. The ah200 targeted rows reduced Reg1 but did not add another Top1 point. Neural direct rerankers were worse.",
+        "extended_pairwise_pool10_20260621": {
+          "selector_full_gap002_best4": {
+            "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/pairwise_pool10_extended_clean_ah200_eval_ae_af_20260621/selector_full_gap002_best4/summary.json",
+            "oracle_switch_vs_baseline": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/pairwise_pool10_extended_clean_ah200_eval_ae_af_20260621/selector_full_gap002_best4/oracle_switch_vs_baseline.json",
+            "train_groups": 3350,
+            "pair_rows": 626076,
+            "feature_scope": "selector",
+            "pair_mode": "full",
+            "min_gap": 0.02,
+            "best_model": "hgb_l31_or_hgb_l63",
+            "aggregate_top1": 0.9,
+            "aggregate_top3": 0.91,
+            "aggregate_top5": 0.94,
+            "aggregate_top10": 1.0,
+            "aggregate_reg1": 0.531,
+            "aggregate_reg10": 0.0,
+            "fresh50ae_top1": 0.88,
+            "fresh50af_top1": 0.92,
+            "oracle_switch_with_baseline_top1": 0.91,
+            "oracle_switch_with_baseline_reg1": 0.463,
+            "decision": "reject for model-only Top1; pairwise fixes Top10 rerank coverage but does not add external Top1 hits over the existing 91% baseline"
+          },
+          "both_diff_gap010_best6_l31": {
+            "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/pairwise_pool10_extended_clean_ah200_eval_ae_af_20260621/both_diff_gap010_best6_l31/summary.json",
+            "train_groups": 3350,
+            "pair_rows": 573158,
+            "feature_scope": "both",
+            "pair_mode": "diff",
+            "min_gap": 0.1,
+            "best_pair_weight": 6.0,
+            "aggregate_top1": 0.88,
+            "aggregate_top3": 0.91,
+            "aggregate_top5": 0.93,
+            "aggregate_top10": 1.0,
+            "aggregate_reg1": 0.738,
+            "aggregate_reg10": 0.0,
+            "fresh50ae_top1": 0.84,
+            "fresh50af_top1": 0.92,
+            "decision": "reject; adding state features to pairwise diff made external Top1 worse"
+          },
+          "decision": "No promotion. The exact best remains inside the pool10 union on fresh50ae/fresh50af, but pairwise objectives still choose the same wrong Top1 families. The next Top1 work should add new balanced exact coverage or a materially different representation/objective."
+        },
+        "top1_miss_weighting_20260621": {
+          "status": "diagnostic_candidate_not_runtime_default",
+          "purpose": "Improve model-only T2 Top1 by mining high-EV-loss Top1 misses and adding hard-miss feature selectors as pool sources.",
+          "miss_report": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/top1_miss_weighting_extended_clean_ah200_20260621/top1_miss_report.json",
+          "feature_selector_training": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/top1_miss_weighting_extended_clean_ah200_20260621/feature_selector_state_miss025_w4_t14/summary.json",
+          "rejected_direct_weighted_pool": {
+            "normal_pool": {
+              "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/top1_miss_weighting_extended_clean_ah200_20260621/retrain_pool10_miss025_w4_t14/summary.json",
+              "external_top1": 0.9,
+              "external_reg1": 0.573
+            },
+            "pool_local": {
+              "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/top1_miss_weighting_extended_clean_ah200_20260621/retrain_pool10_poollocal_miss025_w4_t14/summary.json",
+              "external_top1": 0.91,
+              "external_reg1": 0.493
+            }
+          },
+          "best_checked_candidate": {
+            "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/top1_miss_weighting_extended_clean_ah200_20260621/retrain_pool10_poollocal_add_top1hardfs/summary.json",
+            "model": "hgb_cls_l31",
+            "pool_k": 10,
+            "pool_local_features": true,
+            "external_ae_af": {
+              "groups": 100,
+              "top1": 0.94,
+              "top3": 0.98,
+              "top5": 0.98,
+              "top10": 1.0,
+              "reg1": 0.07150774675421417,
+              "top3_rerank_regret": 0.00010021984577178956,
+              "top10_rerank_regret": 0.0,
+              "fresh50ae_top1": 0.98,
+              "fresh50af_top1": 0.9
+            },
+            "external_fresh20nop": {
+              "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/top1_miss_weighting_extended_clean_ah200_20260621/external_fresh20nop_check_20260621/top1hard_poollocal_fresh20nop/summary.json",
+              "groups": 60,
+              "top1": 0.9,
+              "top3": 0.95,
+              "top5": 0.9666666666666667,
+              "top10": 0.9833333333333333,
+              "reg1": 0.029256461064020793,
+              "top3_rerank_regret": 0.0015185753504435222,
+              "top10_rerank_regret": 0.0014674226442972819,
+              "fresh20n_top1": 0.95,
+              "fresh20o_top1": 0.9,
+              "fresh20p_top1": 0.85
+            },
+            "external_fresh10al_clean": {
+              "base_dir": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh10al_20260621",
+              "source": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh10al_20260621/inputs/t2_new_broad_fresh10al_source_all_actions.jsonl",
+              "exact": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh10al_20260621/exact_cap50/t2_oracle_cap50_limit10.jsonl",
+              "teacher": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh10al_20260621/t2_new_broad_fresh10al_alllegal_cap50.teacher.jsonl",
+              "dim693": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh10al_20260621/reranker_t2_new_broad_fresh10al_alllegal_cap50_dim693",
+              "groups": 10,
+              "positions": {
+                "bb": 5,
+                "btn": 5
+              },
+              "source_top1_changed": 5,
+              "avg_exact_elapsed_ms": 14268.55822,
+              "baseline_summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/top1_miss_weighting_extended_clean_ah200_20260621/external_fresh10al_check_20260621/baseline_fresh10al/summary.json",
+              "top1hard_summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/top1_miss_weighting_extended_clean_ah200_20260621/external_fresh10al_check_20260621/top1hard_poollocal_fresh10al/summary.json",
+              "baseline_top1": 1.0,
+              "top1hard_top1": 1.0,
+              "note": "Pipeline proof only; too small/easy for promotion evidence."
+            },
+            "external_fresh30am_clean": {
+              "base_dir": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh30am_20260621",
+              "source": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh30am_20260621/inputs/t2_new_broad_fresh30am_source_all_actions.jsonl",
+              "exact": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh30am_20260621/t2_new_broad_fresh30am_alllegal_cap50.exact.jsonl",
+              "teacher": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh30am_20260621/t2_new_broad_fresh30am_alllegal_cap50.teacher.jsonl",
+              "dim693": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh30am_20260621/reranker_t2_new_broad_fresh30am_alllegal_cap50_dim693",
+              "groups": 30,
+              "positions": {
+                "bb": 15,
+                "btn": 15
+              },
+              "source_records": 30,
+              "source_candidates": 687,
+              "source_generation_elapsed_seconds": 21.679059299989603,
+              "source_top1_changed": 22,
+              "exact_chunks": [
+                {
+                  "skip": 0,
+                  "limit": 10,
+                  "same_top1": 3,
+                  "changed_top1": 7,
+                  "avg_exact_elapsed_ms": 34831.69151,
+                  "reg1": 5.261896085043679,
+                  "max_regret": 13.507502558397286
+                },
+                {
+                  "skip": 10,
+                  "limit": 10,
+                  "same_top1": 2,
+                  "changed_top1": 8,
+                  "avg_exact_elapsed_ms": 31904.42851,
+                  "reg1": 2.1758432804124346,
+                  "max_regret": 11.16034897360576
+                },
+                {
+                  "skip": 20,
+                  "limit": 10,
+                  "same_top1": 3,
+                  "changed_top1": 7,
+                  "avg_exact_elapsed_ms": 34192.52876,
+                  "reg1": 1.9603901878347851,
+                  "max_regret": 10.188039222872604
+                }
+              ],
+              "baseline": {
+                "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/top1_miss_weighting_extended_clean_ah200_20260621/external_fresh30am_check_20260621/baseline_fresh30am/summary.json",
+                "top1": 0.7333333333333333,
+                "top3": 0.8,
+                "top5": 0.9,
+                "top10": 0.9333333333333333,
+                "top20": 1.0,
+                "reg1": 0.7018512765566508,
+                "top10_rerank_regret": 0.1076277256011963
+              },
+              "top1hard_poollocal": {
+                "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/top1_miss_weighting_extended_clean_ah200_20260621/external_fresh30am_check_20260621/top1hard_poollocal_fresh30am/summary.json",
+                "top1": 0.9,
+                "top3": 0.9333333333333333,
+                "top5": 0.9666666666666667,
+                "top10": 0.9666666666666667,
+                "top20": 0.9666666666666667,
+                "reg1": 0.08123610814412435,
+                "top10_rerank_regret": 0.027670749028523765
+              },
+              "top1hard_normal": {
+                "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/top1_miss_weighting_extended_clean_ah200_20260621/external_fresh30am_check_20260621/top1hard_normal_fresh30am/summary.json",
+                "top1": 0.9,
+                "top3": 0.9333333333333333,
+                "top5": 0.9666666666666667,
+                "top10": 0.9666666666666667,
+                "top20": 0.9666666666666667,
+                "reg1": 0.08123610814412435,
+                "top10_rerank_regret": 0.027670749028523765
+              },
+              "top1hard_high_loss_mining": {
+                "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/top1_miss_weighting_extended_clean_ah200_20260621/external_fresh30am_check_20260621/mine_top1hard_highloss/summary.json",
+                "rows": 2,
+                "groups": 30,
+                "ev_loss_mean": 1.2185416221618652,
+                "ev_loss_max": 1.6069607734680176,
+                "rows_path": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/top1_miss_weighting_extended_clean_ah200_20260621/external_fresh30am_check_20260621/mine_top1hard_highloss/rows.jsonl"
+              }
+            }
+          },
+          "followup_miss_retraining_20260621": {
+            "preferred_candidate": {
+              "name": "fresh30am_ao_miss4_w12t24",
+              "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/top1_miss_weighting_extended_clean_ah200_20260621/retrain_pool10_poollocal_add_top1hardfs_fresh30am_ao_miss4_w12t24_eval_aeaf_nop/summary.json",
+              "model": "hgb_cls_l31",
+              "pool_k": 10,
+              "pool_local_features": true,
+              "train_added_shards": [
+                "fresh30am",
+                "fresh30ao"
+              ],
+              "miss_rows_added": 4,
+              "aggregate_ae_af_nop": {
+                "groups": 160,
+                "top1": 0.93125,
+                "top3": 0.96875,
+                "top5": 0.98125,
+                "top10": 0.99375,
+                "top20": 1.0,
+                "reg1": 0.04750189084443264,
+                "top3_rerank_regret": 0.0006321031600236892,
+                "top10_rerank_regret": 0.0005502834916114807
+              }
+            },
+            "fresh30an_clean": {
+              "base_dir": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh30an_20260621",
+              "source": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh30an_20260621/inputs/t2_new_broad_fresh30an_source_all_actions.jsonl",
+              "exact": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh30an_20260621/t2_new_broad_fresh30an_alllegal_cap50.exact.jsonl",
+              "teacher": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh30an_20260621/t2_new_broad_fresh30an_alllegal_cap50.teacher.jsonl",
+              "dim693": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh30an_20260621/reranker_t2_new_broad_fresh30an_alllegal_cap50_dim693",
+              "groups": 30,
+              "positions": {
+                "bb": 15,
+                "btn": 15
+              },
+              "source_candidates": 714,
+              "teacher_candidates": 693,
+              "source_generation_elapsed_seconds": 22.7,
+              "source_top1_changed": 19,
+              "avg_exact_elapsed_ms": 36851.7,
+              "eval_summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/top1_miss_weighting_extended_clean_ah200_20260621/external_fresh30an_check_20260621/existing_and_miss2_eval_fresh30an.json",
+              "baseline": {
+                "top1": 0.8333333333333334,
+                "top3": 0.9,
+                "top10": 0.9333333333333333,
+                "top20": 1.0,
+                "reg1": 0.12280032157897949,
+                "top10_rerank_regret": 0.015907097657521566
+              },
+              "top1hard_poollocal": {
+                "top1": 0.8666666666666667,
+                "top3": 0.9333333333333333,
+                "top10": 0.9333333333333333,
+                "top20": 1.0,
+                "reg1": 0.06771136820316315,
+                "top10_rerank_regret": 0.006076606909434001
+              },
+              "fresh30am_miss2_w12t24": {
+                "top1": 0.9,
+                "top3": 0.9333333333333333,
+                "top10": 0.9666666666666667,
+                "top20": 1.0,
+                "reg1": 0.06594544152418772,
+                "top10_rerank_regret": 0.0031565300623575848
+              },
+              "fresh30am_ao_miss4_w12t24": {
+                "eval_summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/top1_miss_weighting_extended_clean_ah200_20260621/external_fresh30an_check_20260621/miss2_vs_miss4_eval_fresh30an.json",
+                "top1": 0.9,
+                "top3": 0.9333333333333333,
+                "top10": 0.9666666666666667,
+                "top20": 1.0,
+                "reg1": 0.06594542488455772,
+                "top10_rerank_regret": 0.0031565246482690174
+              },
+              "miss_mining": {
+                "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/top1_miss_weighting_extended_clean_ah200_20260621/external_fresh30an_check_20260621/mine_miss2_highloss/summary.json",
+                "rows": 3,
+                "ev_loss_mean": 0.659454,
+                "ev_loss_max": 1.796064
+              }
+            },
+            "fresh30am_an_miss5_candidate": {
+              "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/top1_miss_weighting_extended_clean_ah200_20260621/retrain_pool10_poollocal_add_top1hardfs_fresh30am_an_miss5_w12t24_eval_aeaf_nop/summary.json",
+              "train_added_shards": [
+                "fresh30am",
+                "fresh30an"
+              ],
+              "miss_rows_added": 5,
+              "aggregate_ae_af_nop": {
+                "groups": 160,
+                "top1": 0.93125,
+                "top3": 0.96875,
+                "top5": 0.96875,
+                "top10": 0.99375,
+                "top20": 1.0,
+                "reg1": 0.047501881420612335,
+                "top10_rerank_regret": 0.0005502834916114807
+              },
+              "decision": "Not preferred. It slightly improves ae/af/nop aggregate Top1, but loses the fresh30ao Top3=100% result that the miss2 candidate has."
+            },
+            "fresh30ao_clean": {
+              "base_dir": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh30ao_20260621",
+              "source": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh30ao_20260621/inputs/t2_new_broad_fresh30ao_source_all_actions.jsonl",
+              "exact": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh30ao_20260621/t2_new_broad_fresh30ao_alllegal_cap50.exact.jsonl",
+              "teacher": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh30ao_20260621/t2_new_broad_fresh30ao_alllegal_cap50.teacher.jsonl",
+              "dim693": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh30ao_20260621/reranker_t2_new_broad_fresh30ao_alllegal_cap50_dim693",
+              "groups": 30,
+              "positions": {
+                "bb": 15,
+                "btn": 15
+              },
+              "source_candidates": 681,
+              "teacher_candidates": 660,
+              "source_generation_elapsed_seconds": 22.0,
+              "source_top1_changed": 25,
+              "avg_exact_elapsed_ms": 32400.3,
+              "eval_summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/top1_miss_weighting_extended_clean_ah200_20260621/external_fresh30ao_check_20260621/existing_miss2_miss5_eval_fresh30ao.json",
+              "baseline": {
+                "top1": 0.8666666666666667,
+                "top3": 0.9333333333333333,
+                "top10": 1.0,
+                "top20": 1.0,
+                "reg1": 0.4101163737475872,
+                "top10_rerank_regret": 0.0
+              },
+              "fresh30am_miss2_w12t24": {
+                "top1": 0.9,
+                "top3": 1.0,
+                "top10": 1.0,
+                "top20": 1.0,
+                "reg1": 0.008218538264433544,
+                "top3_rerank_regret": 0.0,
+                "top10_rerank_regret": 0.0
+              },
+              "fresh30am_an_miss5_w12t24": {
+                "top1": 0.9,
+                "top3": 0.9666666666666667,
+                "top10": 1.0,
+                "top20": 1.0,
+                "reg1": 0.008218538264433544,
+                "top3_rerank_regret": 0.005718353887399038,
+                "top10_rerank_regret": 0.0
+              },
+              "miss2_high_loss_mining": {
+                "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/top1_miss_weighting_extended_clean_ah200_20260621/external_fresh30ao_check_20260621/mine_miss2_highloss/summary.json",
+                "rows": 2,
+                "groups": 30,
+                "ev_loss_mean": 0.12327807396650314,
+                "ev_loss_max": 0.17155061662197113,
+                "rows_path": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/top1_miss_weighting_extended_clean_ah200_20260621/external_fresh30ao_check_20260621/mine_miss2_highloss/rows.jsonl"
+              }
+            },
+            "fresh30ap_clean": {
+              "base_dir": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh30ap_20260621",
+              "source": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh30ap_20260621/inputs/t2_new_broad_fresh30ap_source_all_actions.jsonl",
+              "exact": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh30ap_20260621/t2_new_broad_fresh30ap_alllegal_cap50.exact.jsonl",
+              "teacher": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh30ap_20260621/t2_new_broad_fresh30ap_alllegal_cap50.teacher.jsonl",
+              "dim693": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh30ap_20260621/reranker_t2_new_broad_fresh30ap_alllegal_cap50_dim693",
+              "groups": 30,
+              "positions": {
+                "bb": 15,
+                "btn": 15
+              },
+              "source_candidates": 741,
+              "teacher_candidates": 717,
+              "source_generation_elapsed_seconds": 20.31289930001367,
+              "source_top1_changed": 21,
+              "avg_exact_elapsed_ms": 36871.887233333335,
+              "avg_source_top1_regret": 2.845917472528213,
+              "max_source_top1_regret": 20.056865850943165,
+              "eval_summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/top1_miss_weighting_extended_clean_ah200_20260621/external_fresh30ap_check_20260621/baseline_miss2_miss4_eval_fresh30ap.json",
+              "baseline": {
+                "top1": 0.9,
+                "top3": 0.9666666666666667,
+                "top10": 1.0,
+                "top20": 1.0,
+                "reg1": 0.26793708801269533,
+                "top3_rerank_regret": 0.24872023264567059,
+                "top10_rerank_regret": 0.0
+              },
+              "fresh30am_miss2_w12t24": {
+                "top1": 1.0,
+                "top3": 1.0,
+                "top10": 1.0,
+                "top20": 1.0,
+                "reg1": 0.0,
+                "top3_rerank_regret": 0.0,
+                "top10_rerank_regret": 0.0
+              },
+              "fresh30am_ao_miss4_w12t24": {
+                "top1": 1.0,
+                "top3": 1.0,
+                "top10": 1.0,
+                "top20": 1.0,
+                "reg1": 0.0,
+                "top3_rerank_regret": 0.0,
+                "top10_rerank_regret": 0.0
+              },
+              "miss4_high_loss_mining": {
+                "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/top1_miss_weighting_extended_clean_ah200_20260621/external_fresh30ap_check_20260621/mine_miss4_highloss/summary.json",
+                "rows": 0,
+                "groups": 30,
+                "ev_loss_mean": 0.0,
+                "ev_loss_max": 0.0
+              }
+            },
+            "fresh200ai_first100_clean": {
+              "base_dir": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh200ai_20260621",
+              "source": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh200ai_20260621/inputs/t2_new_broad_fresh200ai_source_all_actions.jsonl",
+              "exact": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh200ai_20260621/t2_new_broad_fresh200ai_first100_alllegal_cap50.exact.jsonl",
+              "teacher": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh200ai_20260621/t2_new_broad_fresh200ai_first100_alllegal_cap50.teacher.jsonl",
+              "dim693": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh200ai_20260621/reranker_t2_new_broad_fresh200ai_first100_alllegal_cap50_dim693",
+              "source_summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh200ai_20260621/inputs/t2_new_broad_fresh200ai_source_all_actions.summary.json",
+              "source_records": 200,
+              "groups": 100,
+              "positions": {
+                "bb": 100,
+                "btn": 0
+              },
+              "source_candidates": 2496,
+              "teacher_candidates": 2400,
+              "source_generation_elapsed_seconds": 66.61788779997732,
+              "source_top1_same": 23,
+              "source_top1_changed": 77,
+              "avg_exact_elapsed_ms": 69475.06086299999,
+              "avg_estimated_full_t2_elapsed_ms_from_cap": 9921038.6912364,
+              "avg_source_top1_regret": 0.776143152492671,
+              "max_source_top1_regret": 6.3077881231671435,
+              "eval_summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/top1_miss_weighting_extended_clean_ah200_20260621/external_fresh200ai_first100_check_20260621/baseline_miss2_miss4_eval_fresh200ai_first100.json",
+              "baseline": {
+                "top1": 0.71,
+                "top3": 0.94,
+                "top5": 0.96,
+                "top10": 1.0,
+                "top15": 1.0,
+                "top20": 1.0,
+                "reg1": 0.17370250765234233,
+                "top3_rerank_regret": 0.012195821776986122,
+                "top10_rerank_regret": 0.0
+              },
+              "top1hard_poollocal": {
+                "top1": 0.98,
+                "top3": 0.99,
+                "top5": 1.0,
+                "top10": 1.0,
+                "top15": 1.0,
+                "top20": 1.0,
+                "reg1": 0.0003961876779794693,
+                "top3_rerank_regret": 0.0001697947084903717,
+                "top10_rerank_regret": 0.0
+              },
+              "fresh30am_miss2_w12t24": {
+                "top1": 0.98,
+                "top3": 0.98,
+                "top5": 0.98,
+                "top10": 0.99,
+                "top15": 1.0,
+                "top20": 1.0,
+                "reg1": 0.0003961876779794693,
+                "top3_rerank_regret": 0.0003961876779794693,
+                "top10_rerank_regret": 0.00025535188615322113
+              },
+              "fresh30am_ao_miss4_w12t24": {
+                "top1": 0.98,
+                "top3": 1.0,
+                "top5": 1.0,
+                "top10": 1.0,
+                "top15": 1.0,
+                "top20": 1.0,
+                "reg1": 0.0003961876779794693,
+                "top3_rerank_regret": 0.0,
+                "top10_rerank_regret": 0.0
+              },
+              "miss4_top1_loss_mining": {
+                "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/top1_miss_weighting_extended_clean_ah200_20260621/external_fresh200ai_first100_check_20260621/mine_miss4_top1_losses/summary.json",
+                "rows": 2,
+                "groups": 100,
+                "ev_loss_mean": 0.019809383898973465,
+                "ev_loss_max": 0.025535188615322113,
+                "rows_path": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/top1_miss_weighting_extended_clean_ah200_20260621/external_fresh200ai_first100_check_20260621/mine_miss4_top1_losses/rows.jsonl"
+              }
+            },
+            "fresh200ai_second100_btn_clean": {
+              "base_dir": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh200ai_20260621",
+              "source": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh200ai_20260621/inputs/t2_new_broad_fresh200ai_second100_source_all_actions.jsonl",
+              "exact": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh200ai_20260621/t2_new_broad_fresh200ai_second100_alllegal_cap50.exact.jsonl",
+              "teacher": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh200ai_20260621/t2_new_broad_fresh200ai_second100_alllegal_cap50.teacher.jsonl",
+              "dim693": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh200ai_20260621/reranker_t2_new_broad_fresh200ai_second100_alllegal_cap50_dim693",
+              "groups": 100,
+              "positions": {
+                "bb": 0,
+                "btn": 100
+              },
+              "source_candidates": 2490,
+              "teacher_candidates": 2000,
+              "source_top1_same": 12,
+              "source_top1_changed": 88,
+              "avg_exact_elapsed_ms": 43748.51029400001,
+              "avg_source_top1_regret": 0.8370483648498319,
+              "max_source_top1_regret": 4.472472525027704,
+              "eval_summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/top1_miss_weighting_extended_clean_ah200_20260621/external_fresh200ai_second100_check_20260621/baseline_miss2_miss4_eval_fresh200ai_second100.json",
+              "baseline": {
+                "top1": 0.63,
+                "top3": 0.68,
+                "top5": 0.74,
+                "top10": 0.9,
+                "top15": 0.94,
+                "top20": 1.0,
+                "reg1": 0.42399649977684023,
+                "top3_rerank_regret": 0.22539385227486491,
+                "top10_rerank_regret": 0.014595016911625862
+              },
+              "fresh30am_ao_miss4_w12t24": {
+                "top1": 0.85,
+                "top3": 0.88,
+                "top5": 0.88,
+                "top10": 0.92,
+                "top15": 0.99,
+                "top20": 1.0,
+                "reg1": 0.0429702503234148,
+                "top3_rerank_regret": 0.030967847779393196,
+                "top10_rerank_regret": 0.0016821805387735368
+              },
+              "miss4_rank_loss_summary": {
+                "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/top1_miss_weighting_extended_clean_ah200_20260621/external_fresh200ai_second100_check_20260621/miss4_hgb_l63_rank_loss_summary.json",
+                "top1_misses": 15,
+                "top3_misses": 12,
+                "top10_misses": 8,
+                "top1_loss_rows": 10,
+                "top1_loss_mean": 0.42970250323414805,
+                "top1_loss_max": 2.7113031148910522,
+                "top10_rerank_regret_max": 0.03879421949386597
+              },
+              "btn_miss_retraining": {
+                "w12_t24_min005": {
+                  "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/top1_miss_weighting_extended_clean_ah200_20260621/retrain_pool10_poollocal_add_top1hardfs_fresh30am_ao_aiBTNmiss10_w12t24_eval_aeaf_nop_aiBB_20260621/summary.json",
+                  "train_second100": {
+                    "top1": 0.91,
+                    "top3": 0.95,
+                    "top10": 0.97,
+                    "reg1": 0.02876664638519287
+                  },
+                  "heldout_eval_aeafnop_plus_first100": {
+                    "groups": 260,
+                    "top1": 0.95,
+                    "top3": 0.9730769230769231,
+                    "top10": 0.9961538461538462,
+                    "reg1": 0.02938431270348911
+                  },
+                  "decision": "Diagnostic only. It improves the trained BTN second100 shard from Top1 85% to 91%, but held-out aggregate is effectively flat and fresh200ai_first100 Top3 drops to 98%."
+                },
+                "w24_t48_min0": {
+                  "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/top1_miss_weighting_extended_clean_ah200_20260621/retrain_pool10_poollocal_add_top1hardfs_fresh30am_ao_aiBTNmiss10_w24t48_min0_eval_aeaf_nop_aiBB_20260621/summary.json",
+                  "train_second100": {
+                    "top1": 0.91,
+                    "top3": 0.94,
+                    "top10": 0.98,
+                    "reg1": 0.02844784766435623
+                  },
+                  "heldout_eval_aeafnop_plus_first100": {
+                    "groups": 260,
+                    "top1": 0.9461538461538461,
+                    "top3": 0.9730769230769231,
+                    "top10": 0.9961538461538462,
+                    "reg1": 0.034406850411771585
+                  },
+                  "decision": "Rejected. Stronger weights do not improve held-out Top1 and add more Top3/Top10 side effects."
+                }
+              }
+            },
+            "decision": "The fresh30am_ao_miss4 candidate remains the preferred diagnostic model, but fresh200ai second100 shows a BTN weakness: Top1 85.0%, Top3 88.0%, Top10 92.0%. A one-root BTN hard-negative retrain fixes the trained shard but does not improve held-out aggregate, so the next improvement needs broader multi-root BTN exact coverage rather than promoting this retrain."
+          },
+          "fresh20nop_baseline_comparison": {
+            "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/top1_miss_weighting_extended_clean_ah200_20260621/external_fresh20nop_check_20260621/baseline_fresh20nop/summary.json",
+            "groups": 60,
+            "top1": 0.8333333333333334,
+            "top3": 0.9,
+            "top5": 0.9833333333333333,
+            "top10": 0.9833333333333333,
+            "reg1": 0.1477921704451243
+          },
+          "decision": "Promising but still diagnostic. The fresh30am_ao_miss4 model is strong on BB fresh200ai first100 but weak on BTN fresh200ai second100. BTN hard-negative retraining improved the trained BTN shard, not clean held-out aggregate, so there is not enough evidence to promote a new runtime default.",
+          "next_step": "Generate and exact-check broader multi-root BTN T2 coverage, then retrain with balanced BB/BTN hard negatives and validate on untouched mixed-position shards."
+        }
+      },
+      "decision": "On the checked external shards, the exact best action is inside pool10, but current scoring models cannot reliably choose it as Top1. Model-only Top1 is now 91% with the extended clean/ah200 training pass; pool10 plus exact rerank remains the reliable path."
+    },
+    "decision": "The source preselection path is mechanically valid. It generated real hard exact labels, but external model-only Top1 is not improved yet. The current bottleneck is candidate scoring inside a pool that already contains the exact best action."
+  },
+  "multi_root_btn_and_hardneg_followup_20260621": {
+    "status": "diagnostic",
+    "fresh100aj_btn_multiroot": {
+      "base_dir": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh100aj_btn_multiroot_20260621",
+      "source": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh100aj_btn_multiroot_20260621/inputs/t2_new_broad_fresh100aj_btn_multiroot_source_all_actions.jsonl",
+      "teacher": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh100aj_btn_multiroot_20260621/t2_new_broad_fresh100aj_btn_multiroot_alllegal_cap50.teacher.jsonl",
+      "dim693": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh100aj_btn_multiroot_20260621/reranker_t2_new_broad_fresh100aj_btn_multiroot_alllegal_cap50_dim693",
+      "records": 100,
+      "roots": "8000-8049",
+      "positions": {
+        "bb": 0,
+        "btn": 100
+      },
+      "source_candidates": 2367,
+      "source_generation_elapsed_seconds": 66.53,
+      "source_top1_changed": 80,
+      "avg_exact_elapsed_ms": 44764.995845,
+      "avg_source_top1_regret": 3.1588667986651036,
+      "max_source_top1_regret": 20.755501668520566,
+      "current_miss4_eval": {
+        "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/top1_miss_weighting_extended_clean_ah200_20260621/external_fresh100aj_btn_multiroot_check_20260621/baseline_miss2_miss4_btnretrain_eval_fresh100aj_btn_multiroot.json",
+        "top1": 0.96,
+        "top3": 0.96,
+        "top5": 0.98,
+        "top10": 1.0,
+        "top20": 1.0,
+        "reg1": 0.04394718080759048,
+        "top10_rerank_regret": 0.0
+      },
+      "top1_loss_mining": {
+        "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/top1_miss_weighting_extended_clean_ah200_20260621/external_fresh100aj_btn_multiroot_check_20260621/mine_miss4_top1_losses_both/summary.json",
+        "rows": 4,
+        "ev_loss_mean": 1.0986795201897621,
+        "ev_loss_max": 1.8757143020629883
+      }
+    },
+    "ak80_targeted_followup": {
+      "dim693": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad_fresh1000ak_20260621/source_pool_mining_partial400_20260621/reranker_t2_new_broad_fresh400ak_targeted_top80_cap50_dim693",
+      "extra_eval": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/top1_miss_weighting_extended_clean_ah200_20260621/external_extra_fresh30ap_10al_ak_check_20260621/pool_model_eval.json",
+      "current_miss4_eval": {
+        "groups": 80,
+        "top1": 0.8625,
+        "top3": 0.925,
+        "top10": 1.0,
+        "reg1": 0.09493,
+        "top10_rerank_regret": 0.0,
+        "max_top1_loss": 5.293
+      },
+      "top1_loss_mining": {
+        "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/top1_miss_weighting_extended_clean_ah200_20260621/external_extra_fresh30ap_10al_ak_check_20260621/mine_old_miss4_ak_top1_losses/summary.json",
+        "rows": 6,
+        "ev_loss_mean": 1.255164086818695,
+        "ev_loss_max": 5.29307746887207
+      }
+    },
+    "retrain_candidates": {
+      "fresh100aj_only_w12_t24": {
+        "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/top1_miss_weighting_extended_clean_ah200_20260621/retrain_pool10_poollocal_add_top1hardfs_fresh30am_ao_ajBTNmiss4_w12t24_eval_aeaf_nop_ai_20260621/summary.json",
+        "fresh100aj_traincheck": {
+          "top1": 0.98,
+          "top3": 0.98,
+          "top10": 1.0,
+          "reg1": 0.019190596640110014
+        },
+        "fresh200ai_second100_external": {
+          "top1": 0.85,
+          "top3": 0.87,
+          "top10": 0.9,
+          "reg1": 0.04415952727198601
+        },
+        "decision": "Rejected as a general improvement. It improves the trained fresh100aj shard but worsens the existing BTN second100 external check."
+      },
+      "second100_plus_fresh100aj_w12_t24": {
+        "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/top1_miss_weighting_extended_clean_ah200_20260621/retrain_pool10_poollocal_add_top1hardfs_fresh30am_ao_aiBTN_ajBTN_w12t24_eval_aeaf_nop_20260621/summary.json",
+        "fresh200ai_second100_traincheck": {
+          "top1": 0.94,
+          "top3": 0.96,
+          "top10": 0.97,
+          "reg1": 0.0013
+        },
+        "fresh100aj_traincheck": {
+          "top1": 0.98,
+          "top3": 0.98,
+          "top10": 1.0,
+          "reg1": 0.0192
+        },
+        "heldout_aeafnop_first100": {
+          "groups": 260,
+          "top1": 0.9461538461538461,
+          "top3": 0.9730769230769231,
+          "top10": 0.9961538461538462,
+          "reg1": 0.034406850411771585
+        },
+        "decision": "Diagnostic only. Hard shards improve, but the clean held-out aggregate is below the previous second100-only hard-negative candidate."
+      },
+      "second100_plus_fresh100aj_plus_ak80_hgb_w12_t24": {
+        "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/top1_miss_weighting_extended_clean_ah200_20260621/retrain_pool10_poollocal_add_top1hardfs_fresh30am_ao_aiBTN_ajBTN_ak80_w12t24_eval_extra_20260621/summary.json",
+        "heldout_aeafnop_first100_ap_al": {
+          "groups": 300,
+          "top1": 0.953333,
+          "top3": 0.976667,
+          "top10": 0.996667,
+          "reg1": 0.029819,
+          "top10_rerank_regret": 0.000293
+        },
+        "hard_trainchecks": {
+          "fresh200ai_second100_top1": 0.94,
+          "fresh100aj_top1": 0.96,
+          "fresh400ak_top1": 0.925
+        },
+        "decision": "Diagnostic only. It reduces hard-shard EV loss, but it does not clearly beat the earlier second100-only candidate for model-only Top1."
+      },
+      "ranker_same_data": {
+        "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/top1_miss_weighting_extended_clean_ah200_20260621/retrain_pool10_poollocal_add_top1hardfs_aiBTN_ajBTN_ak80_ranker_eval_extra_20260621/summary.json",
+        "best_ranker": "lgbm_rank_l31",
+        "heldout_aeafnop_first100_ap_al": {
+          "groups": 300,
+          "top1": 0.953333,
+          "top3": 0.97,
+          "top10": 0.996667,
+          "reg1": 0.029819,
+          "top10_rerank_regret": 0.000293
+        },
+        "decision": "Rejected for Top1. Ranker lowers some EV-loss tails and makes fresh100aj traincheck perfect, but it does not improve model-only Top1 over the HGB candidates and hurts some Top3 checks."
+      }
+    },
+    "neural_pool_scorer_probe": {
+      "mlp_256x128_seed20260621": {
+        "model": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/top1_miss_weighting_extended_clean_ah200_20260621/neural_pool10_all3_mlp_top1_20260621/mlp_256x128_seed20260621.pt",
+        "partial_eval": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/top1_miss_weighting_extended_clean_ah200_20260621/neural_pool10_all3_mlp_top1_20260621/partial_eval_mlp_256x128_seed20260621.json",
+        "aggregate_with_trainchecks": {
+          "groups": 580,
+          "top1": 0.9637931034482758,
+          "top3": 0.9827586206896551,
+          "top10": 0.9948275862068966,
+          "reg1": 0.0161033657973568,
+          "top10_rerank_regret": 0.00017689537128497815
+        },
+        "clean_heldout_aeafnop_first100_ap_al": {
+          "groups": 300,
+          "top1": 0.95,
+          "top3": 0.9766666666666667,
+          "top10": 0.9933333333333333,
+          "reg1": 0.030050025368109346,
+          "top10_rerank_regret": 0.0002934845288594564
+        },
+        "hard_trainchecks": {
+          "fresh200ai_second100_top1": 0.98,
+          "fresh100aj_top1": 1.0,
+          "fresh400ak_top1": 0.95
+        }
+      },
+      "attention_128x64_seed20260621": {
+        "model": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/top1_miss_weighting_extended_clean_ah200_20260621/neural_pool10_all3_attention_top1_20260621/attention_128x64_seed20260621.pt",
+        "partial_eval": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/top1_miss_weighting_extended_clean_ah200_20260621/neural_pool10_all3_attention_top1_20260621/partial_eval_attention_128x64_seed20260621.json",
+        "aggregate_with_trainchecks": {
+          "groups": 580,
+          "top1": 0.9620689655172414,
+          "top3": 0.9793103448275862,
+          "top10": 0.993103448275862,
+          "reg1": 0.017727007419834365,
+          "top10_rerank_regret": 0.00019417465503873495
+        },
+        "clean_heldout_aeafnop_first100_ap_al": {
+          "groups": 300,
+          "top1": 0.95,
+          "top3": 0.9733333333333334,
+          "top10": 0.99,
+          "reg1": 0.03318906583823264,
+          "top10_rerank_regret": 0.0003268911441167196
+        },
+        "hard_trainchecks": {
+          "fresh200ai_second100_top1": 0.97,
+          "fresh100aj_top1": 1.0,
+          "fresh400ak_top1": 0.95
+        }
+      },
+      "oracle_and_blend": {
+        "summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/top1_miss_weighting_extended_clean_ah200_20260621/neural_pool10_all3_mlp_top1_20260621/oracle_blend_diagnostic.json",
+        "clean_single_best": {
+          "model": "btn_second100_l63",
+          "top1": 0.96,
+          "top3": 0.9833333333333333,
+          "top10": 0.9966666666666667,
+          "reg1": 0.025466404343023896
+        },
+        "clean_oracle_all_models": {
+          "top1": 0.96,
+          "reg1": 0.025466404343023896,
+          "avg_unique_top1": 1.0066666666666666,
+          "max_unique_top1": 2
+        },
+        "blend_result": "Simple per-group z-score blends with the MLP improve hard trainchecks but do not lift clean Top1 above the best tree model."
+      },
+      "decision": "No promotion. Neural scorers improve trained hard shards, but clean held-out Top1 remains around 95-96%, and oracle switching shows almost no independent Top1 choices. The remaining misses require new information in the features/data, not just a different scorer on the same selector pool."
+    },
+    "decision": "No runtime promotion. Broader multi-root BTN data fixed the one-root concern and showed Top10 can be clean on fresh100aj, but model-only Top1 still does not generalize enough. The next Top1 step should be a larger, balanced hard-shard exact set or a stronger EV scorer/representation, not more small miss-weight tuning."
+  }
+}

@@ -1,0 +1,85 @@
+{
+  "name": "t3_ev_loss_pool_20260607",
+  "objective": "Use EV-loss-mined specialists to reduce costly T3 TopK misses before exact reranking.",
+  "base_preset": "ai/config/t3_ev_safe_pool_20260606.json",
+  "turn": 3,
+  "training": {
+    "source_pool": "union6 from old/new100k/top3-hardneg/top5miss plus broad-set/poolmiss-set",
+    "primary": {
+      "miss_k": 10,
+      "min_ev_loss": 0.1
+    },
+    "secondary": {
+      "miss_k": 5,
+      "min_ev_loss": 0.25
+    },
+    "confuser_k": 10,
+    "weighted_data": {
+      "bb": "D:\\ofc-pineapple-data\\branch_t0t2_top10_100k_20260605\\hardneg_worker10_train_worker11_holdout\\poolmiss_evloss_w11_top10sec5_bb",
+      "btn": "D:\\ofc-pineapple-data\\branch_t0t2_top10_100k_20260605\\hardneg_worker10_train_worker11_holdout\\poolmiss_evloss_w11_top10sec5_btn"
+    }
+  },
+  "new_set_checkpoints": {
+    "bb": "D:\\ofc-pineapple-data\\branch_t0t2_top10_100k_20260605\\models\\t3-set-evloss-w11-top10-bb-20260607\\action_value_set_best.pt",
+    "btn": "D:\\ofc-pineapple-data\\branch_t0t2_top10_100k_20260605\\models\\t3-set-evloss-w11-top10-btn-20260607\\action_value_set_best.pt"
+  },
+  "candidate_pool_policy": {
+    "ev_safe": {
+      "per_source_top_k": 20,
+      "exact_rerank": true
+    },
+    "fast_candidate": {
+      "per_source_top_k": 10,
+      "exact_rerank": true,
+      "status": "improved on worker11 replay, needs fresh holdout before treating as guaranteed"
+    }
+  },
+  "worker11_replay_metrics_union7": {
+    "bb": {
+      "top5": {
+        "recall": 0.991,
+        "ev_loss_max": 0.232,
+        "avg_pool_size": 9.1
+      },
+      "top8": {
+        "recall": 1.0,
+        "ev_loss_max": 0.0,
+        "avg_pool_size": 11.8
+      },
+      "top10": {
+        "recall": 1.0,
+        "ev_loss_max": 0.0,
+        "avg_pool_size": 13.1
+      }
+    },
+    "btn": {
+      "top5": {
+        "recall": 0.993,
+        "ev_loss_max": 1.097,
+        "avg_pool_size": 10.1
+      },
+      "top8": {
+        "recall": 1.0,
+        "ev_loss_max": 0.056,
+        "avg_pool_size": 12.7
+      },
+      "top10": {
+        "recall": 1.0,
+        "ev_loss_max": 0.0,
+        "avg_pool_size": 13.8
+      }
+    }
+  },
+  "worker10_sanity_metrics_union7": {
+    "bb": {
+      "top3_ev_loss_max": 0.019,
+      "top5_ev_loss_max": 0.0,
+      "top10_ev_loss_max": 0.0
+    },
+    "btn": {
+      "top3_ev_loss_max": 0.0,
+      "top5_ev_loss_max": 0.0,
+      "top10_ev_loss_max": 0.0
+    }
+  }
+}

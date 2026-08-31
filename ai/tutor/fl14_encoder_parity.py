@@ -1,4 +1,4 @@
-"""Python/Rust parity for the 104-dim FL14 teacher vector.
+"""Python/Rust parity for the 104/110-dim FL14 vectors.
 
 `ai/tutor/encode_fl14_teacher.py` is the truth: what it writes into the
 teacher arrays is what the FL14 evaluators were fitted on, so the playout's
@@ -6,14 +6,10 @@ teacher arrays is what the FL14 evaluators were fitted on, so the playout's
 the dangerous case -- the net answers confidently about a position it was
 never shown -- which is why this compares numbers rather than shapes.
 
-Only two of the four blocks cross the language boundary.  The rowwise 41 and
-the joint 8 come from the same Rust binary on both sides, since the Python
-encoder shells out to `--joint-outlook` for them; what those columns test is
-that `encode_for`'s memoized rowwise path and its sample-count rule reproduce
-what that mode returns.  The actor 48 and the deck 7 are computed
-independently in each language, and that is where drift would live -- a
-disagreement in the actor block would mean the Python and Rust encoders had
-already parted company, which reaches far past the FL14 teachers.
+The rowwise 41 and joint 8 come from the Rust block mode on the teacher side;
+these columns test that runtime assembly and its sample-count rule reproduce
+that mode.  The actor 48, deck 7, and v2 allocation 6 are computed independently
+in each language, where semantic drift would live.
 
 Boards come from the shipped label files rather than a generator, and are
 parsed with the encoder's own `JokerNamer`, so the positions compared are
@@ -39,24 +35,37 @@ from ai.engine.encoding import ALL_CARDS
 from ai.tutor.encode_fl14_teacher import (
     ACTOR_SIZE,
     CONTEXT_SIZE,
-    FEATURE_SIZE,
+    FEATURE_SIZE_V1,
+    FEATURE_SIZE_V2,
     JOINT_SIZE,
     ROWWISE_SIZE,
     JokerNamer,
     context_block,
     fetch_blocks,
 )
+from ai.tutor.fl14_allocation_features import allocation_rank_block
 from ai.tutor.solver_paths import _solver_path
 from ai.tutor.t3_second_features import actor_block
 
-SCHEMA = "ofc_fl14_encoder_parity/v1"
+SCHEMA = "ofc_fl14_encoder_parity/v2"
 
-BLOCKS = (
-    ("actor", 0, ACTOR_SIZE),
-    ("rowwise", ACTOR_SIZE, ACTOR_SIZE + ROWWISE_SIZE),
-    ("joint", ACTOR_SIZE + ROWWISE_SIZE, ACTOR_SIZE + ROWWISE_SIZE + JOINT_SIZE),
-    ("context", FEATURE_SIZE - CONTEXT_SIZE, FEATURE_SIZE),
-)
+
+def block_ranges(feature_size: int) -> tuple[tuple[str, int, int], ...]:
+    base = (
+        ("actor", 0, ACTOR_SIZE),
+        ("rowwise", ACTOR_SIZE, ACTOR_SIZE + ROWWISE_SIZE),
+        ("joint", ACTOR_SIZE + ROWWISE_SIZE, ACTOR_SIZE + ROWWISE_SIZE + JOINT_SIZE),
+        (
+            "context",
+            ACTOR_SIZE + ROWWISE_SIZE + JOINT_SIZE,
+            ACTOR_SIZE + ROWWISE_SIZE + JOINT_SIZE + CONTEXT_SIZE,
+        ),
+    )
+    if feature_size == FEATURE_SIZE_V1:
+        return base
+    if feature_size == FEATURE_SIZE_V2:
+        return base + (("allocation_rank", FEATURE_SIZE_V1, FEATURE_SIZE_V2),)
+    raise ValueError(f"unsupported FL14 feature width {feature_size}")
 
 # The rule `encode_for` uses to recover `--joint-samples` from the board, and
 # the value the FL14 teachers passed at each street: exact enumeration once a
@@ -126,7 +135,9 @@ def cases_from_labels(path: Path, street: str, scan: int) -> list[dict]:
     return [found[key] for key in sorted(found)]
 
 
-def python_vectors(cases: list[dict], workspace_root: Path, solver: str) -> list[list[float]]:
+def python_vectors(
+    cases: list[dict], workspace_root: Path, solver: str, feature_size: int
+) -> list[list[float]]:
     """The encoder's own assembly, block for block, on these boards."""
     blocks: dict[str, tuple] = {}
     by_samples: dict[int, list[dict]] = {}
@@ -158,7 +169,9 @@ def python_vectors(cases: list[dict], workspace_root: Path, solver: str) -> list
             + [float(value) for value in joint]
             + context_block(case["pool"])
         )
-        if len(vector) != FEATURE_SIZE:
+        if feature_size == FEATURE_SIZE_V2:
+            vector += allocation_rank_block(case["rows"])
+        if len(vector) != feature_size:
             raise AssertionError(f"feature size drifted: {len(vector)}")
         vectors.append(vector)
     return vectors
@@ -226,16 +239,18 @@ def run(
         raise SystemExit("no boards collected")
 
     fl_ev_config = workspace_root / "ai" / "config" / "fl_ev.json"
-    py = np.asarray(python_vectors(cases, workspace_root, solver), dtype=np.float32)
-    rs = np.asarray(
-        rust_vectors(cases, model, fl_ev_config, solver), dtype=np.float32
+    rs = np.asarray(rust_vectors(cases, model, fl_ev_config, solver), dtype=np.float32)
+    feature_size = int(rs.shape[1])
+    py = np.asarray(
+        python_vectors(cases, workspace_root, solver, feature_size), dtype=np.float32
     )
     if py.shape != rs.shape:
         raise AssertionError(f"shape mismatch: python {py.shape} rust {rs.shape}")
 
     delta = np.abs(py - rs)
     per_block = {
-        name: float(delta[:, start:stop].max()) for name, start, stop in BLOCKS
+        name: float(delta[:, start:stop].max())
+        for name, start, stop in block_ranges(feature_size)
     }
     rows = [
         {
@@ -253,7 +268,7 @@ def run(
     return {
         "schema": SCHEMA,
         "boards": len(cases),
-        "feature_size": FEATURE_SIZE,
+        "feature_size": feature_size,
         "tolerance": tolerance,
         "max_abs_delta": float(delta.max()),
         "max_abs_delta_by_block": per_block,
@@ -280,7 +295,7 @@ def main() -> None:
         "--model",
         type=Path,
         default=Path("D:/ofc_data/fl14_t2_model_v1/evaluator.bin"),
-        help="a 104-dim evaluator image; --encode-features reads its width",
+        help="a 104-dim v1 or 110-dim v2 evaluator image",
     )
     parser.add_argument("--workspace-root", type=Path, default=Path.cwd())
     parser.add_argument("--solver", default=None, help="override the solver binary")

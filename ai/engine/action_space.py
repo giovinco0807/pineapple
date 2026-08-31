@@ -2,8 +2,8 @@
 OFC Pineapple - Action Space
 
 Enumerates all valid actions for each turn:
-  - Turn 0: 5 cards → distribute to top/mid/bot (no discard)
-  - Turn 1-8: 3 cards → place 2, discard 1
+  - Turn 0: 5 cards ↁEdistribute to top/mid/bot (no discard)
+  - Turn 1-8: 3 cards ↁEplace 2, discard 1
 """
 import itertools
 from dataclasses import dataclass, field
@@ -12,6 +12,9 @@ from typing import List, Optional, Tuple
 from .encoding import Board
 
 MAX_ACTIONS = 250  # Upper bound on action count (initial turn can have up to 232)
+REGULAR_TURN_ACTIONS = 27  # discard slot (3) x row for card0 (3) x row for card1 (3)
+POSITIONS = ["top", "middle", "bottom"]
+ROW_LIMITS = {"top": 3, "middle": 5, "bottom": 5}
 
 
 @dataclass
@@ -50,7 +53,7 @@ def get_initial_actions(dealt_cards: List[str], board: Board) -> List[Action]:
     Returns deduplicated list of Actions.
     """
     assert len(dealt_cards) == 5, f"Turn 0 expects 5 cards, got {len(dealt_cards)}"
-    cards = dealt_cards
+    cards = sorted(dealt_cards)
 
     top_space = 3 - len(board.top)
     mid_space = 5 - len(board.middle)
@@ -90,21 +93,20 @@ def get_turn_actions(dealt_cards: List[str], board: Board) -> List[Action]:
     """
     Enumerate all valid actions for turns 1-8.
 
-    3 cards → choose 1 to discard, place remaining 2 in valid positions.
+    3 cards ↁEchoose 1 to discard, place remaining 2 in valid positions.
     """
     assert len(dealt_cards) == 3, f"Regular turn expects 3 cards, got {len(dealt_cards)}"
 
-    positions = ["top", "middle", "bottom"]
-    limits = {"top": 3, "middle": 5, "bottom": 5}
-
     actions = []
 
-    for discard_idx in range(3):
-        discard = dealt_cards[discard_idx]
-        remaining = [dealt_cards[i] for i in range(3) if i != discard_idx]
+    cards = sorted(dealt_cards)
 
-        for pos0 in positions:
-            for pos1 in positions:
+    for discard_idx in range(3):
+        discard = cards[discard_idx]
+        remaining = [cards[i] for i in range(3) if i != discard_idx]
+
+        for pos0 in POSITIONS:
+            for pos1 in POSITIONS:
                 # Check capacity
                 counts = {
                     "top": len(board.top),
@@ -112,10 +114,10 @@ def get_turn_actions(dealt_cards: List[str], board: Board) -> List[Action]:
                     "bottom": len(board.bottom),
                 }
                 counts[pos0] += 1
-                if counts[pos0] > limits[pos0]:
+                if counts[pos0] > ROW_LIMITS[pos0]:
                     continue
                 counts[pos1] += 1
-                if counts[pos1] > limits[pos1]:
+                if counts[pos1] > ROW_LIMITS[pos1]:
                     continue
 
                 action = Action(
@@ -136,17 +138,100 @@ def get_turn_actions(dealt_cards: List[str], board: Board) -> List[Action]:
     return unique
 
 
-def create_action_mask(valid_actions: List[Action]) -> "np.ndarray":
-    """Create boolean mask of shape (MAX_ACTIONS,) for valid actions."""
+def get_semantic_action_index(action: Action, dealt_cards: List[str]) -> int:
+    """
+    Map T1-T8 action to a stable semantic index [0, 26].
+    dealt_cards: list of 3 strings
+    """
+    assert action.discard is not None, "Discard must be specified for T1-T8"
+    cards = sorted(dealt_cards)
+    discard_idx = cards.index(action.discard)
+    remaining_cards = [c for i, c in enumerate(cards) if i != discard_idx]
+    
+    c2p = {c: p for c, p in action.placements}
+    pos0_idx = POSITIONS.index(c2p[remaining_cards[0]])
+    pos1_idx = POSITIONS.index(c2p[remaining_cards[1]])
+    
+    return discard_idx * 9 + pos0_idx * 3 + pos1_idx
+
+
+def get_action_from_semantic_index(index: int, dealt_cards: List[str]) -> Action:
+    """
+    Recover action from semantic index [0, 26].
+    """
+    discard_idx = index // 9
+    rem = index % 9
+    pos0_idx = rem // 3
+    pos1_idx = rem % 3
+    
+    cards = sorted(dealt_cards)
+    discard = cards[discard_idx]
+    remaining = [c for i, c in enumerate(cards) if i != discard_idx]
+    
+    pos0 = POSITIONS[pos0_idx]
+    pos1 = POSITIONS[pos1_idx]
+    
+    return Action(
+        placements=[(remaining[0], pos0), (remaining[1], pos1)],
+        discard=discard
+    )
+
+
+def is_turn_action_valid(action: Action, board: Board) -> bool:
+    """Return True if a regular-turn action fits the current board."""
+    counts = {
+        "top": len(board.top),
+        "middle": len(board.middle),
+        "bottom": len(board.bottom),
+    }
+    for _card, row in action.placements:
+        if row not in ROW_LIMITS:
+            return False
+        counts[row] += 1
+        if counts[row] > ROW_LIMITS[row]:
+            return False
+    return True
+
+
+def get_action_from_semantic_index_if_valid(index: int, dealt_cards: List[str], board: Board) -> Optional[Action]:
+    """Recover a regular-turn semantic action only when it is legal for board."""
+    if not 0 <= index < REGULAR_TURN_ACTIONS:
+        return None
+    action = get_action_from_semantic_index(index, dealt_cards)
+    return action if is_turn_action_valid(action, board) else None
+
+
+def create_regular_turn_mask(dealt_cards: List[str], board: Board) -> "np.ndarray":
+    """Create a 27-slot semantic mask for turns 1-8."""
     import numpy as np
-    mask = np.zeros(MAX_ACTIONS, dtype=bool)
-    for i in range(min(len(valid_actions), MAX_ACTIONS)):
-        mask[i] = True
+    mask = np.zeros(REGULAR_TURN_ACTIONS, dtype=bool)
+    for idx in range(REGULAR_TURN_ACTIONS):
+        action = get_action_from_semantic_index(idx, dealt_cards)
+        mask[idx] = is_turn_action_valid(action, board)
     return mask
 
 
-def encode_action(action: Action, valid_actions: List[Action]) -> int:
-    """Find the index of an action within the valid action list."""
+def create_action_mask(valid_actions: List[Action], turn: int = 0, dealt_cards: Optional[List[str]] = None) -> "np.ndarray":
+    """Create boolean mask of shape (MAX_ACTIONS,) for valid actions.
+    Uses list index for Turn 0, and semantic index for Turns 1-8.
+    """
+    import numpy as np
+    mask = np.zeros(MAX_ACTIONS, dtype=bool)
+    if turn == 0:
+        for i in range(min(len(valid_actions), MAX_ACTIONS)):
+            mask[i] = True
+    else:
+        assert dealt_cards is not None, "dealt_cards must be provided for T1-8"
+        for a in valid_actions:
+            idx = get_semantic_action_index(a, dealt_cards)
+            mask[idx] = True
+    return mask
+
+
+def encode_action(action: Action, valid_actions: List[Action], turn: int = 0, dealt_cards: Optional[List[str]] = None) -> int:
+    """Find the index of an action."""
+    if turn > 0 and dealt_cards is not None:
+        return get_semantic_action_index(action, dealt_cards)
     for i, a in enumerate(valid_actions):
         if a == action:
             return i

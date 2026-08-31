@@ -1,0 +1,370 @@
+{
+  "bias": 0.2974521571550614,
+  "correlations": {
+    "cat_slack_mid_bot": -0.3694296733589689,
+    "cat_slack_top_mid": 0.29360397922774756,
+    "exact_mean": -0.1658341797872438,
+    "hero_bust_mean": 0.5349827572459042,
+    "hero_fl_mean": NaN,
+    "hero_royalty_mean": NaN,
+    "indep_fl": 0.3546538809491998,
+    "indep_royalty": 0.16449017784064082,
+    "joint_ev": 0.12054252081285874,
+    "joint_fl": 0.2345256970214567,
+    "joint_foul_rate": -0.1642833087462977,
+    "joint_royalty": 0.09883368226719719,
+    "joint_std": -0.01880653444869355,
+    "locked_cat_any": NaN,
+    "opp_jokers": 0.005339669379333631,
+    "overstate_ev": 0.23343353196920144,
+    "overstate_royfl": 0.28672573673265556,
+    "pool_high_frac": 0.41820466691011915,
+    "pool_jokers": 0.01797175653299888
+  },
+  "elapsed_seconds": 2.391624927520752,
+  "mean_abs_common": 0.8519393035896825,
+  "model": "D:\\ofc_data\\t4_first_model_pass1\\evaluator_best.pt",
+  "per_root": [
+    {
+      "common": -1.2517052051348563,
+      "controls": {
+        "cat_slack_mid_bot": 0.0,
+        "cat_slack_top_mid": -0.125,
+        "indep_fl": 0.0,
+        "indep_royalty": 0.07692307692307693,
+        "locked_cat_any": 0.0,
+        "opp_jokers": 0.0,
+        "pool_high_frac": 0.19230769230769232,
+        "pool_jokers": 1.0
+      },
+      "exact_mean": -0.7384615384615385,
+      "hero_bust_mean": 0.0,
+      "hero_fl_mean": 0.0,
+      "hero_royalty_mean": 0.0,
+      "joint": {
+        "draws": 2600,
+        "foul_rate": 0.43846153846153846,
+        "joint_ev": -2.6307692307692307,
+        "joint_fl": 0.0,
+        "joint_royalty": 0.0,
+        "joint_std": 2.9771914011452565
+      },
+      "node_error": -0.6721581972562349,
+      "seed": 5000000,
+      "spread": 0.386364671919081
+    },
+    {
+      "common": -0.7037420981969588,
+      "controls": {
+        "cat_slack_mid_bot": 0.0,
+        "cat_slack_top_mid": -0.125,
+        "indep_fl": 1.2346153846153844,
+        "indep_royalty": 1.4615384615384615,
+        "locked_cat_any": 0.0,
+        "opp_jokers": 1.0,
+        "pool_high_frac": 0.19230769230769232,
+        "pool_jokers": 1.0
+      },
+      "exact_mean": -5.976923076923076,
+      "hero_bust_mean": 1.0,
+      "hero_fl_mean": 0.0,
+      "hero_royalty_mean": 0.0,
+      "joint": {
+        "draws": 2600,
+        "foul_rate": 0.0038461538461538464,
+        "joint_ev": -0.023076923076923078,
+        "joint_fl": 0.03292307692307692,
+        "joint_royalty": 0.024615384615384615,
+        "joint_std": 0.37138792937148657
+      },
+      "node_error": -0.6794880940363957,
+      "seed": 5000001,
+      "spread": 0.03233867221408419
+    },
+    {
+      "common": 0.40103352962396127,
+      "controls": {
+        "cat_slack_mid_bot": 0.125,
+        "cat_slack_top_mid": -0.125,
+        "indep_fl": 0.0,
+        "indep_royalty": 1.1153846153846154,
+        "locked_cat_any": 0.0,
+        "opp_jokers": 0.0,
+        "pool_high_frac": 0.23076923076923078,
+        "pool_jokers": 0.0
+      },
+      "exact_mean": -6.5830769230769235,
+      "hero_bust_mean": 1.0,
+      "hero_fl_mean": 0.0,
+      "hero_royalty_mean": 0.0,
+      "joint": {
+        "draws": 2600,
+        "foul_rate": 0.31384615384615383,
+        "joint_ev": 0.583076923076923,
+        "joint_fl": 0.0,
+        "joint_royalty": 2.4661538461538464,
+        "joint_std": 4.734491093788197
+      },
+      "node_error": 0.5244707753108102,
+      "seed": 5000002,
+      "spread": 0.16458299424913195
+    },
+    {
+      "common": -0.121281002729367,
+      "controls": {
+        "cat_slack_mid_bot": -0.125,
+        "cat_slack_top_mid": 0.125,
+        "indep_fl": 0.0,
+        "indep_royalty": 4.110769230769231,
+        "locked_cat_any": 0.0,
+        "opp_jokers": 2.0,
+        "pool_high_frac": 0.23076923076923078,
+        "pool_jokers": 0.0
+      },
+      "exact_mean": -6.003846153846154,
+      "hero_bust_mean": 1.0,
+      "hero_fl_mean": 0.0,
+      "hero_royalty_mean": 0.0,
+      "joint": {
+        "draws": 2600,
+        "foul_rate": 0.02346153846153846,
+        "joint_ev": 0.0038461538461538464,
+        "joint_fl": 0.0,
+        "joint_royalty": 3.9061538461538463,
+        "joint_std": 1.1929216781404866
+      },
+      "node_error": 0.1097211691049429,
+      "seed": 5000003,
+      "spread": 0.15400144788953993
+    },
+    {
+      "common": 0.8157739428984815,
+      "controls": {
+        "cat_slack_mid_bot": 0.125,
+        "cat_slack_top_mid": -0.125,
+        "indep_fl": 0.0,
+        "indep_royalty": 0.10461538461538462,
+        "locked_cat_any": 0.0,
+        "opp_jokers": 0.0,
+        "pool_high_frac": 0.2692307692307692,
+        "pool_jokers": 2.0
+      },
+      "exact_mean": -4.663846153846154,
+      "hero_bust_mean": 1.0,
+      "hero_fl_mean": 0.0,
+      "hero_royalty_mean": 0.0,
+      "joint": {
+        "draws": 2600,
+        "foul_rate": 0.2684615384615385,
+        "joint_ev": -1.3361538461538462,
+        "joint_fl": 0.0,
+        "joint_royalty": 0.2746153846153846,
+        "joint_std": 2.903194628896664
+      },
+      "node_error": 1.0420342870859,
+      "seed": 5000004,
+      "spread": 0.1508402294582791
+    },
+    {
+      "common": -1.2501945725465433,
+      "controls": {
+        "cat_slack_mid_bot": 0.125,
+        "cat_slack_top_mid": -0.125,
+        "indep_fl": 0.0,
+        "indep_royalty": 0.0,
+        "locked_cat_any": 0.0,
+        "opp_jokers": 1.0,
+        "pool_high_frac": 0.2692307692307692,
+        "pool_jokers": 1.0
+      },
+      "exact_mean": -3.2226923076923075,
+      "hero_bust_mean": 0.0,
+      "hero_fl_mean": 0.0,
+      "hero_royalty_mean": 0.0,
+      "joint": {
+        "draws": 2600,
+        "foul_rate": 0.09346153846153846,
+        "joint_ev": -0.5607692307692308,
+        "joint_fl": 0.0,
+        "joint_royalty": 0.0,
+        "joint_std": 1.746468795724066
+      },
+      "node_error": -1.2076942355816183,
+      "seed": 5000005,
+      "spread": 0.05666711595323348
+    },
+    {
+      "common": 0.483682979681553,
+      "controls": {
+        "cat_slack_mid_bot": 0.125,
+        "cat_slack_top_mid": -0.125,
+        "indep_fl": 0.0,
+        "indep_royalty": 0.18461538461538463,
+        "locked_cat_any": 0.0,
+        "opp_jokers": 1.0,
+        "pool_high_frac": 0.2692307692307692,
+        "pool_jokers": 0.0
+      },
+      "exact_mean": -6.492307692307693,
+      "hero_bust_mean": 1.0,
+      "hero_fl_mean": 0.0,
+      "hero_royalty_mean": 0.0,
+      "joint": {
+        "draws": 2600,
+        "foul_rate": 0.0,
+        "joint_ev": 0.49230769230769234,
+        "joint_fl": 0.0,
+        "joint_royalty": 0.49230769230769234,
+        "joint_std": 1.3141019387115458
+      },
+      "node_error": 0.5830807979290302,
+      "seed": 5000006,
+      "spread": 0.06626521216498481
+    },
+    {
+      "common": 1.6662885406689767,
+      "controls": {
+        "cat_slack_mid_bot": -0.375,
+        "cat_slack_top_mid": 0.0,
+        "indep_fl": 4.6,
+        "indep_royalty": 1.3846153846153846,
+        "locked_cat_any": 0.0,
+        "opp_jokers": 1.0,
+        "pool_high_frac": 0.2692307692307692,
+        "pool_jokers": 1.0
+      },
+      "exact_mean": -4.6984615384615385,
+      "hero_bust_mean": 1.0,
+      "hero_fl_mean": 0.0,
+      "hero_royalty_mean": 0.0,
+      "joint": {
+        "draws": 2600,
+        "foul_rate": 0.2169230769230769,
+        "joint_ev": -1.3015384615384615,
+        "joint_fl": 0.0575,
+        "joint_royalty": 0.01730769230769231,
+        "joint_std": 2.4728987853057927
+      },
+      "node_error": 1.7649803220308744,
+      "seed": 5000007,
+      "spread": 0.06579452090793188
+    },
+    {
+      "common": 0.3249953137911283,
+      "controls": {
+        "cat_slack_mid_bot": 0.0,
+        "cat_slack_top_mid": -0.375,
+        "indep_fl": 0.0,
+        "indep_royalty": 3.769230769230769,
+        "locked_cat_any": 0.0,
+        "opp_jokers": 2.0,
+        "pool_high_frac": 0.11538461538461539,
+        "pool_jokers": 0.0
+      },
+      "exact_mean": -9.811794871794874,
+      "hero_bust_mean": 0.6666666666666666,
+      "hero_fl_mean": 0.0,
+      "hero_royalty_mean": 0.0,
+      "joint": {
+        "draws": 2600,
+        "foul_rate": 0.0,
+        "joint_ev": 4.664615384615384,
+        "joint_fl": 0.0,
+        "joint_royalty": 4.683076923076923,
+        "joint_std": 3.228451916189542
+      },
+      "node_error": -1.1561266180185168,
+      "seed": 5000008,
+      "spread": 1.1597283113919767
+    },
+    {
+      "common": 1.5231111895732392,
+      "controls": {
+        "cat_slack_mid_bot": 0.0,
+        "cat_slack_top_mid": 0.0,
+        "indep_fl": 0.0,
+        "indep_royalty": 1.2676923076923077,
+        "locked_cat_any": 0.0,
+        "opp_jokers": 1.0,
+        "pool_high_frac": 0.3076923076923077,
+        "pool_jokers": 1.0
+      },
+      "exact_mean": -5.986153846153846,
+      "hero_bust_mean": 1.0,
+      "hero_fl_mean": 0.0,
+      "hero_royalty_mean": 0.0,
+      "joint": {
+        "draws": 2600,
+        "foul_rate": 0.002307692307692308,
+        "joint_ev": -0.013846153846153847,
+        "joint_fl": 0.0,
+        "joint_royalty": 0.5076923076923077,
+        "joint_std": 0.2878979109000128
+      },
+      "node_error": 1.9893770269247204,
+      "seed": 5000009,
+      "spread": 0.3108438915676541
+    },
+    {
+      "common": 0.7928045627398369,
+      "controls": {
+        "cat_slack_mid_bot": 0.0,
+        "cat_slack_top_mid": 0.0,
+        "indep_fl": 0.0,
+        "indep_royalty": 0.0,
+        "locked_cat_any": 0.0,
+        "opp_jokers": 0.0,
+        "pool_high_frac": 0.2692307692307692,
+        "pool_jokers": 0.0
+      },
+      "exact_mean": 1.9384615384615385,
+      "hero_bust_mean": 0.0,
+      "hero_fl_mean": 0.0,
+      "hero_royalty_mean": 0.0,
+      "joint": {
+        "draws": 2600,
+        "foul_rate": 0.18769230769230769,
+        "joint_ev": -1.126153846153846,
+        "joint_fl": 0.0,
+        "joint_royalty": 0.0,
+        "joint_std": 2.342797599391799
+      },
+      "node_error": 0.8271455801450289,
+      "seed": 5000010,
+      "spread": 0.022894011603461384
+    },
+    {
+      "common": 0.8886587054912859,
+      "controls": {
+        "cat_slack_mid_bot": 0.0,
+        "cat_slack_top_mid": 0.125,
+        "indep_fl": 0.0,
+        "indep_royalty": 4.0,
+        "locked_cat_any": 0.0,
+        "opp_jokers": 1.0,
+        "pool_high_frac": 0.23076923076923078,
+        "pool_jokers": 1.0
+      },
+      "exact_mean": -4.3189743589743586,
+      "hero_bust_mean": 0.8333333333333334,
+      "hero_fl_mean": 0.0,
+      "hero_royalty_mean": 0.0,
+      "joint": {
+        "draws": 2600,
+        "foul_rate": 0.01653846153846154,
+        "joint_ev": 0.10538461538461538,
+        "joint_fl": 0.0,
+        "joint_royalty": 3.933846153846154,
+        "joint_std": 1.184373351898121
+      },
+      "node_error": 0.23549962263840918,
+      "seed": 5000011,
+      "spread": 0.2410139563144781
+    }
+  ],
+  "r2_controls": 0.8578946359342745,
+  "r2_full": 1.0,
+  "roots": 12,
+  "schema": "ofc_t4_first_common_error_analysis/v1",
+  "seed_base": 5000000
+}

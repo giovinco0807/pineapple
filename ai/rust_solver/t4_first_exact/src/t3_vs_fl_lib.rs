@@ -12,8 +12,8 @@
 
 use anyhow::{bail, Result};
 use ofc_core::{
-    check_fl_entry, evaluate_hand_value, get_bottom_royalty, get_middle_royalty,
-    get_top_royalty, Card,
+    check_fl_entry, evaluate_hand_value, get_bottom_royalty, get_middle_royalty, get_top_royalty,
+    Card,
 };
 use rayon::prelude::*;
 use serde::Serialize;
@@ -141,7 +141,6 @@ pub(crate) struct MatchedRow {
     pub(crate) stay: bool,
     pub(crate) busted: bool,
 }
-
 
 /// Everything score_mean reads from a terminal: against a fixed matched set
 /// the score is a pure function of this key, so per-draw memoization over

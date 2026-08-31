@@ -1,0 +1,53 @@
+{
+  "label": "fresh6_next2_rows0_19_ensemble_exact31_exact38_uniform",
+  "checkpoint": "ensemble",
+  "checkpoints": [
+    "ai\\models\\candidate_runs\\t2-stable-oracle31-cap500-ft-from-t2resid200-20260603\\model\\action_value_final.pt",
+    "ai\\models\\candidate_runs\\t2-stable-oracle38-cap500-ft-from-exact36-20260603\\model\\action_value_final.pt"
+  ],
+  "weights": [
+    0.5,
+    0.5
+  ],
+  "data": "ai\\data\\hybrid_t1t2_active_20260531\\reranker_t2_fresh_next2_rows0_19_stable6_cap200_cap500_20260603",
+  "source_jsonl": "",
+  "topks": [
+    1,
+    3,
+    5,
+    10,
+    15,
+    20,
+    24
+  ],
+  "metrics": {
+    "groups": 6,
+    "samples": 117,
+    "score_mae": 3.462944269180298,
+    "score_corr": 0.6083525346599002,
+    "bust_mae": 0.14183470606803894,
+    "fl_mae": 0.042482808232307434,
+    "group_top1_regret": 0.15450791517893472,
+    "teacher_rank_mean": 4.5,
+    "teacher_rank_p95": 11.75,
+    "model_chose_full_bust_when_avoidable": 0,
+    "group_top1": 0.3333333333333333,
+    "group_top1_rerank_regret": 0.15450791517893472,
+    "group_top3": 0.6666666666666666,
+    "group_top3_rerank_regret": 0.06079991658528646,
+    "group_top5": 0.6666666666666666,
+    "group_top5_rerank_regret": 0.06079991658528646,
+    "group_top10": 0.8333333333333334,
+    "group_top10_rerank_regret": 0.0,
+    "group_top15": 1.0,
+    "group_top15_rerank_regret": 0.0,
+    "group_top20": 1.0,
+    "group_top20_rerank_regret": 0.0,
+    "group_top24": 1.0,
+    "group_top24_rerank_regret": 0.0
+  },
+  "miss_topk": 1,
+  "misses": 4,
+  "misses_path": "ai\\reports\\action_value_eval\\fresh6_next2_rows0_19_ensemble_exact31_exact38_uniform_20260603\\misses.jsonl",
+  "elapsed_seconds": 0.09161210060119629
+}

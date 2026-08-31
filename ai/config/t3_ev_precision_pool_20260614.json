@@ -1,0 +1,85 @@
+{
+  "name": "t3_ev_precision_pool_20260614",
+  "objective": "T3 candidate pool for low mean EV loss using four action-value sources plus shape insurance before exact rerank.",
+  "turn": 3,
+  "status": {
+    "summary": "Four action-value sources include 10-root 100k, many-root20k, random-T0 10k, and action-aware 617-dim many-root20k. General shape insurance adds low/top-avoidance candidates before exact rerank.",
+    "serving_recommendation": "Use per-source Top10 with 2 general shape-insurance candidates for the lower-latency pool; use per-source Top15 with 4 insurance candidates when minimizing EV loss is more important than the smallest pool."
+  },
+  "candidate_pool_policy": {
+    "fast": {
+      "per_source_top_k": 10,
+      "insurance_candidates": 2,
+      "insurance_mode": "general",
+      "near_full_expand_gap": 0,
+      "exact_rerank": true,
+      "external_holdout5k_seed20260704": {
+        "mean_ev_loss": 0.0010164755901619065,
+        "max_ev_loss": 2.2241105637657648,
+        "ev_loss_gt_0p1": 8,
+        "avg_pool_size": 13.6056,
+        "max_pool_size": 21
+      },
+      "external_holdout5k_diverse": {
+        "mean_ev_loss": 0.005463933365114764,
+        "max_ev_loss": 5.753859844271518,
+        "ev_loss_gt_0p1": 20,
+        "avg_pool_size": 13.5538,
+        "max_pool_size": 21
+      }
+    },
+    "safer": {
+      "per_source_top_k": 15,
+      "insurance_candidates": 4,
+      "insurance_mode": "general",
+      "near_full_expand_gap": 3,
+      "exact_rerank": true,
+      "external_holdout5k_seed20260704": {
+        "mean_ev_loss": 0.0,
+        "max_ev_loss": 0.0,
+        "ev_loss_gt_0p1": 0,
+        "avg_pool_size": 15.714,
+        "max_pool_size": 21
+      },
+      "external_holdout5k_diverse": {
+        "mean_ev_loss": 0.0,
+        "max_ev_loss": 0.0,
+        "ev_loss_gt_0p1": 0,
+        "avg_pool_size": 15.688,
+        "max_pool_size": 21
+      },
+      "external_holdout2k_seed20260706": {
+        "mean_ev_loss": 0.0,
+        "max_ev_loss": 0.0,
+        "ev_loss_gt_0p1": 0,
+        "avg_pool_size": 15.5795,
+        "max_pool_size": 21
+      }
+    },
+    "conservative": {
+      "per_source_top_k": 20,
+      "insurance_candidates": 0,
+      "near_full_expand_gap": 0,
+      "exact_rerank": true,
+      "known_result": "zero EV loss on external_holdout5k_seed20260704 with the same four sources"
+    }
+  },
+  "action_value_checkpoints": {
+    "bb": [
+      "D:\\ofc-pineapple-data\\t3_ev_precision_20260614\\branch100k_exact_run1\\models\\t3-ev-hardneg-bb\\action_value_best.pt",
+      "D:\\ofc-pineapple-data\\t3_ev_precision_20260614\\manyroot20k_exact_run1\\models\\t3-ev-hardneg-bb\\action_value_best.pt",
+      "D:\\ofc-pineapple-data\\t3_ev_precision_20260614\\random_t0_10k_exact_run1\\models\\t3-ev-hardneg-bb\\action_value_best.pt",
+      "D:\\ofc-pineapple-data\\t3_ev_precision_20260614\\manyroot20k_exact_run1\\models\\t3-ev-action617-bb\\action_value_best.pt"
+    ],
+    "btn": [
+      "D:\\ofc-pineapple-data\\t3_ev_precision_20260614\\branch100k_exact_run1\\models\\t3-ev-hardneg-btn\\action_value_best.pt",
+      "D:\\ofc-pineapple-data\\t3_ev_precision_20260614\\manyroot20k_exact_run1\\models\\t3-ev-hardneg-btn\\action_value_best.pt",
+      "D:\\ofc-pineapple-data\\t3_ev_precision_20260614\\random_t0_10k_exact_run1\\models\\t3-ev-hardneg-btn\\action_value_best.pt",
+      "D:\\ofc-pineapple-data\\t3_ev_precision_20260614\\manyroot20k_exact_run1\\models\\t3-ev-action617-btn\\action_value_best.pt"
+    ]
+  },
+  "set_checkpoints_union8": {
+    "bb": [],
+    "btn": []
+  }
+}

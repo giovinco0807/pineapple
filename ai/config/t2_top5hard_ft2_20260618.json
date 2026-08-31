@@ -1,0 +1,85 @@
+{
+  "name": "t2_top5hard_ft2_20260618",
+  "status": "diagnostic",
+  "purpose": "T2 model-only Top5 EV-loss reduction experiment. This is not promoted as the runtime default; it records the strongest checked blend for pruning-quality follow-up.",
+  "base_config": "ai/config/t2_action_value_ensemble_20260615.json",
+  "source_data": {
+    "baseline_eval": "D:/ofc-pineapple-data/t2_next_20260614/top5_ev_loss_goal_20260618/baseline_current",
+    "hard_groups_initial": "D:/ofc-pineapple-data/t2_next_20260614/top5_ev_loss_goal_20260618/hard_groups/top5_ev_loss_gt010.jsonl",
+    "hard_groups_ft2": "D:/ofc-pineapple-data/t2_next_20260614/top5_ev_loss_goal_20260618/hard_groups/top5_ev_loss_gt010_plus_alpha0p6_residual.jsonl",
+    "train_ft1": "D:/ofc-pineapple-data/t2_next_20260614/top5_ev_loss_goal_20260618/av_dataset_train1444_plus_top5hard53_r12_dim520",
+    "train_ft2": "D:/ofc-pineapple-data/t2_next_20260614/top5_ev_loss_goal_20260618/av_dataset_train1444_plus_top5hard55_r20_dim520"
+  },
+  "models": {
+    "top5hard_ft1": "D:/ofc-pineapple-data/t2_next_20260614/top5_ev_loss_goal_20260618/models/t2-train1444-top5hard53-r12-ft-top5-20260618/action_value_final.pt",
+    "top5hard_ft2": "D:/ofc-pineapple-data/t2_next_20260614/top5_ev_loss_goal_20260618/models/t2-train1444-top5hard55-r20-ft2-top5-20260618/action_value_final.pt"
+  },
+  "recommended_diagnostic_blend": {
+    "mode": "t2_model_top5hard_ft2_alpha1_diagnostic",
+    "checkpoints": [
+      "ai/models/candidate_runs/t2-stable-oracle56-cap500-cap1000-ft-from-exact53-20260603/model/action_value_best.pt",
+      "D:/ofc-pineapple-data/t2_next_20260614/teacher_top10_cap50_100/models/t2-cap50-100-ft-top3-20260614/action_value_final.pt",
+      "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/fresh_external360_varied_20260615/train160_more/models/t2-local444-more160-cap50-ft-top3-20260615/action_value_final.pt",
+      "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/fresh_external800_varied_20260615/train120_more6/models/t2-local924-more120-cap50-ft-top3-20260615/action_value_final.pt",
+      "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/fresh_external920_varied_20260615/train120_more7/models/t2-local1044-more120-cap50-ft-top3-20260615/action_value_final.pt",
+      "D:/ofc-pineapple-data/t2_next_20260614/fresh_t2_from_t0t1_topk_20260615/fresh_external920_varied_20260615/train120_more7/models/t2-train1164-current-top3miss-weighted-lowlr-20260615/action_value_final.pt",
+      "D:/ofc-pineapple-data/t2_next_20260614/top5_ev_loss_goal_20260618/models/t2-train1444-top5hard55-r20-ft2-top5-20260618/action_value_final.pt"
+    ],
+    "weights": [
+      0.025,
+      0.0625,
+      0.3375,
+      0.0625,
+      0.0075,
+      0.005,
+      0.5
+    ],
+    "raw_alpha": 1.0
+  },
+  "evidence": {
+    "summary": "D:/ofc-pineapple-data/t2_next_20260614/top5_ev_loss_goal_20260618/eval_top5hard_ft2/summary_compare.json",
+    "baseline": {
+      "groups": 1022,
+      "top1": 0.572,
+      "top3": 0.841,
+      "top5": 0.927,
+      "top10_min": 1.0,
+      "top5_regret": 0.064,
+      "top5_misses": 75,
+      "ev_loss_gt_0_1": 53,
+      "ev_loss_gt_0_25": 41,
+      "max_ev_loss": 7.626
+    },
+    "top5hard_ft2_alpha1": {
+      "groups": 1022,
+      "top1": 0.790,
+      "top3": 0.962,
+      "top5": 0.990,
+      "top10_min": 1.0,
+      "top5_regret": 0.000,
+      "top5_misses": 10,
+      "ev_loss_gt_0_1": 1,
+      "ev_loss_gt_0_25": 0,
+      "max_ev_loss": 0.248,
+      "remaining_ev_loss_gt_0_1": [
+        {
+          "dataset": "local_next50",
+          "group_id": 0,
+          "ev_loss": 0.248,
+          "teacher_rank_by_model": 7
+        }
+      ]
+    },
+    "rejected_higher_alpha": {
+      "alpha_1_5_ev_loss_gt_0_1": 3,
+      "alpha_2_0_ev_loss_gt_0_1": 5,
+      "alpha_2_0_max_ev_loss": 19.889,
+      "alpha_3_0_ev_loss_gt_0_1": 8,
+      "alpha_3_0_max_ev_loss": 19.889
+    }
+  },
+  "notes": [
+    "Use this as a pruning-quality diagnostic source, not as a runtime default, until selected-action runtime loss and latency are revalidated.",
+    "The alpha1 blend keeps Top10 at 100% on all checked datasets while reducing Top5 EV loss > 0.1 from 53 groups to 1 group."
+  ]
+}

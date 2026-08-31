@@ -1,0 +1,49 @@
+{
+  "label": "old_btn",
+  "checkpoint": "ai/models/candidate_runs/t3-jokerfix-20k-btn-20260605/action_value_best.pt",
+  "checkpoints": [
+    "ai/models/candidate_runs/t3-jokerfix-20k-btn-20260605/action_value_best.pt"
+  ],
+  "weights": [
+    1.0
+  ],
+  "data": "ai\\data\\joker_rule_migration_20260711\\t3_full\\reranker_t3_canonical",
+  "source_jsonl": "",
+  "topks": [
+    1,
+    3,
+    5,
+    10,
+    15,
+    20
+  ],
+  "position": "btn",
+  "metrics": {
+    "groups": 10000,
+    "samples": 135906,
+    "score_mae": 1.8320059776306152,
+    "score_corr": 0.8070673559856787,
+    "bust_mae": 0.2699577510356903,
+    "fl_mae": 0.027588915079832077,
+    "group_top1_regret": 0.8999411200658884,
+    "teacher_rank_mean": 3.1096,
+    "teacher_rank_p95": 9.0,
+    "model_chose_full_bust_when_avoidable": 729,
+    "group_top1": 0.3736,
+    "group_top1_rerank_regret": 0.8999411200658884,
+    "group_top3": 0.6951,
+    "group_top3_rerank_regret": 0.25206266162949614,
+    "group_top5": 0.8377,
+    "group_top5_rerank_regret": 0.11042775136251003,
+    "group_top10": 0.977,
+    "group_top10_rerank_regret": 0.0096058375954628,
+    "group_top15": 0.9958,
+    "group_top15_rerank_regret": 0.0006836618650704622,
+    "group_top20": 0.9999,
+    "group_top20_rerank_regret": 0.0
+  },
+  "miss_topk": 1,
+  "misses": 6264,
+  "misses_path": "ai\\reports\\joker_rule_migration_20260711\\t3_old_btn_on_canonical\\misses.jsonl",
+  "elapsed_seconds": 1.8434581756591797
+}

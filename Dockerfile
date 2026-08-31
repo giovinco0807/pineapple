@@ -1,38 +1,27 @@
-# Stage 1: Build frontend
-FROM node:20-slim AS frontend-build
-WORKDIR /app/frontend
-COPY frontend/package*.json ./
-RUN npm ci
-COPY frontend/ .
-RUN npm run build
-
-# Stage 2: Build Rust solver
-FROM rust:1.82-slim AS rust-build
-WORKDIR /app/ai/rust_solver
-COPY ai/rust_solver/ .
-RUN cargo build --release
-
-# Stage 3: Production
 FROM python:3.11-slim
+
 WORKDIR /app
 
-# Install Python deps
+ENV PYTHONUNBUFFERED=1
+
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy backend and dependencies
-COPY backend/ backend/
+COPY t0_tutor_app.py .
+COPY training_presets.json .
+COPY tutor_static/ tutor_static/
+
+COPY backend/__init__.py backend/ai_player.py backend/
+COPY ai/__init__.py ai/
 COPY ai/engine/ ai/engine/
-
-# Copy built frontend
-COPY --from=frontend-build /app/frontend/dist frontend/dist
-
-# Copy built Rust solver
-COPY --from=rust-build /app/ai/rust_solver/target/release/fl_solver ai/rust_solver/target/release/fl_solver
-
-# Create data directory
-RUN mkdir -p data
+COPY ai/mcts/ ai/mcts/
+COPY ai/config/ ai/config/
+COPY ai/models/__init__.py ai/models/networks.py ai/models/
+COPY ai/models/expectimax_bc_v3/bc_policy_best.pt ai/models/expectimax_bc_v3/bc_policy_best.pt
+COPY ai/models/value_v3/value_best.pt ai/models/value_v3/value_best.pt
+COPY ai/models/value_v3/norm_stats.json ai/models/value_v3/norm_stats.json
+COPY ai/data/tutor_route10_20260522/tutor_route10_review.json ai/data/tutor_route10_20260522/tutor_route10_review.json
 
 EXPOSE 8080
 
-CMD ["python", "backend/main.py"]
+CMD ["python", "t0_tutor_app.py"]

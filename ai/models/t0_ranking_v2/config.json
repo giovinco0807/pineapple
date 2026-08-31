@@ -1,0 +1,15 @@
+{
+  "model": "PolicyNetSmall",
+  "input_dim": 522,
+  "max_actions": 250,
+  "hidden": 256,
+  "n_blocks": 2,
+  "n_params": 728954,
+  "loss": "combined",
+  "temperature": 2.0,
+  "augment": true,
+  "n_train": 848,
+  "n_val": 150,
+  "best_epoch": 21,
+  "best_val_loss": 1.5339864540100097
+}

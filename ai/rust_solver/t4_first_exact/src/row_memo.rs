@@ -18,8 +18,8 @@
 //! interchangeable in evaluation.
 
 use ofc_core::{
-    check_fl_entry, evaluate_hand_value, get_bottom_royalty, get_middle_royalty,
-    get_top_royalty, Card,
+    check_fl_entry, evaluate_hand_value, get_bottom_royalty, get_middle_royalty, get_top_royalty,
+    Card,
 };
 use std::collections::HashMap;
 

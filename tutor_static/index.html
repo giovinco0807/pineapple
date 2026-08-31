@@ -1,0 +1,1192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Route10 Placement Quiz | OFC Pineapple AI Tutor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+    <style>
+        body {
+            font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background: #101827;
+            color: #f8fafc;
+            min-height: 100vh;
+        }
+        .panel {
+            background: rgba(31, 41, 55, 0.88);
+            border: 1px solid rgba(148, 163, 184, 0.22);
+            border-radius: 8px;
+            box-shadow: 0 18px 36px rgba(0, 0, 0, 0.24);
+        }
+        .card-button {
+            background: transparent;
+            border: 0;
+            border-radius: 7px;
+            padding: 0;
+        }
+        .card-button:not(:disabled):hover .playing-card {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 18px rgba(0, 0, 0, 0.28), inset 0 0 0 1px rgba(255, 255, 255, 0.65);
+        }
+        .playing-card {
+            position: relative;
+            width: 72px;
+            height: 104px;
+            border-radius: 7px;
+            background: linear-gradient(145deg, #ffffff 0%, #f1f5f9 72%, #e2e8f0 100%);
+            color: #111827;
+            border: 1px solid #cbd5e1;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.18), inset 0 0 0 1px rgba(255, 255, 255, 0.75);
+            display: block;
+            line-height: 1;
+            transition: transform 120ms ease, box-shadow 120ms ease, opacity 120ms ease;
+            user-select: none;
+            overflow: hidden;
+        }
+        .card-image {
+            width: 100%;
+            height: 100%;
+            display: block;
+            object-fit: contain;
+            border-radius: 7px;
+        }
+        .playing-card.selected {
+            box-shadow: 0 0 0 3px #60a5fa, 0 8px 18px rgba(0, 0, 0, 0.28);
+        }
+        .playing-card.muted {
+            opacity: 0.42;
+            filter: grayscale(0.35);
+        }
+        .playing-card.red-card {
+            color: #dc2626;
+        }
+        .playing-card.black-card {
+            color: #111827;
+        }
+        .playing-card.joker-card {
+            color: #4338ca;
+        }
+        .card-corner {
+            position: absolute;
+            width: 15px;
+            text-align: center;
+            font-weight: 900;
+            letter-spacing: -0.02em;
+        }
+        .card-corner.top {
+            top: 4px;
+            left: 4px;
+        }
+        .card-corner.bottom {
+            right: 4px;
+            bottom: 4px;
+            transform: rotate(180deg);
+        }
+        .card-rank {
+            display: block;
+            font-size: 10px;
+        }
+        .card-suit {
+            display: block;
+            margin-top: 1px;
+            font-size: 10px;
+        }
+        .card-center {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            font-weight: 900;
+        }
+        .playing-card.joker-card .card-center {
+            font-size: 21px;
+        }
+        .slot {
+            width: 76px;
+            height: 108px;
+            border-radius: 7px;
+            border: 1px dashed rgba(203, 213, 225, 0.42);
+            background: rgba(15, 23, 42, 0.52);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: border-color 120ms ease, background 120ms ease, box-shadow 120ms ease;
+        }
+        .drop-row {
+            transition: border-color 120ms ease, background 120ms ease, box-shadow 120ms ease;
+        }
+        .drop-row.ready {
+            border-color: rgba(96, 165, 250, 0.85);
+            background: rgba(37, 99, 235, 0.11);
+            box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.38);
+            cursor: pointer;
+        }
+        .drop-row.ready .slot {
+            border-color: rgba(96, 165, 250, 0.62);
+            background: rgba(30, 64, 175, 0.18);
+        }
+    </style>
+</head>
+<body>
+<div id="app">
+    <header class="sticky top-0 z-40 border-b border-slate-700/70 bg-gray-950/90 backdrop-blur">
+        <div class="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-4">
+            <div>
+                <div class="text-xl font-black tracking-wide">Route10 Placement Quiz</div>
+                <div class="text-xs text-slate-400">Place the opening hand, then reveal the Route10 answer</div>
+            </div>
+
+            <div v-if="user" class="flex flex-wrap items-center gap-3">
+                <div class="text-right text-xs">
+                    <div class="font-semibold text-slate-100">{{ user.email }}</div>
+                    <div class="font-bold uppercase text-emerald-300">{{ effectivePlan }}</div>
+                </div>
+                <button v-if="effectivePlan === 'free'" @click="upgradePlan('starter')" class="rounded-md bg-slate-700 px-3 py-2 text-xs font-bold text-white hover:bg-slate-600">Starter</button>
+                <button v-if="effectivePlan === 'free'" @click="upgradePlan('premium')" class="rounded-md bg-indigo-600 px-3 py-2 text-xs font-bold text-white hover:bg-indigo-500">Premium</button>
+                <button @click="openBillingPortal" class="rounded-md border border-slate-600 px-3 py-2 text-xs font-bold text-slate-200 hover:bg-slate-800">Billing</button>
+                <button @click="signOutUser" class="rounded-md border border-slate-600 px-3 py-2 text-xs font-bold text-slate-200 hover:bg-slate-800">Sign out</button>
+            </div>
+            <button v-else @click="signInWithGoogle" class="rounded-md bg-white px-4 py-2 text-sm font-bold text-slate-900 hover:bg-slate-100">
+                Sign in
+            </button>
+        </div>
+    </header>
+
+    <main class="mx-auto max-w-7xl px-4 py-8">
+        <div v-if="toast.message" class="mb-5 rounded-md border px-4 py-3 text-sm"
+             :class="toast.type === 'error' ? 'border-rose-500/40 bg-rose-500/10 text-rose-100' : toast.type === 'success' ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-100' : 'border-amber-500/40 bg-amber-500/10 text-amber-100'">
+            {{ toast.message }}
+        </div>
+
+        <section v-if="!user" class="panel p-6">
+            <h1 class="mb-2 text-2xl font-black">Route10 Placement Quiz</h1>
+            <p class="max-w-2xl text-sm leading-6 text-slate-300">
+                Work through 10 high-precision OFC Pineapple opening hands by placing the cards yourself.
+                Free users can play one sample. Starter and Premium unlock every BB/BTN answer with T1-T4 playback.
+            </p>
+            <button @click="signInWithGoogle" class="mt-5 rounded-md bg-blue-600 px-5 py-3 text-sm font-bold text-white hover:bg-blue-500">
+                Sign in
+            </button>
+        </section>
+
+        <section v-else class="grid grid-cols-1 gap-6 xl:grid-cols-12">
+            <aside class="panel order-2 p-5 xl:order-1 xl:col-span-4">
+                <div class="mb-4 flex items-start justify-between gap-3">
+                    <div>
+                        <h2 class="text-lg font-black">Hands</h2>
+                        <p class="text-sm text-slate-400">{{ route10Summary ? route10Summary.run : 'Loading Route10...' }}</p>
+                        <p v-if="route10Summary?.data_quality" class="mt-1 text-xs text-slate-500">{{ qualityLabel(route10Summary.data_quality) }}</p>
+                    </div>
+                    <button @click="loadRoute10Summary" class="rounded-md border border-slate-600 px-3 py-2 text-xs font-bold text-slate-300 hover:bg-slate-800">Refresh</button>
+                </div>
+
+                <div v-if="route10Summary && route10Summary.access === 'free'" class="mb-4 rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-100">
+                    Free preview is active. Unlock all Route10 placement puzzles with Starter or Premium.
+                </div>
+
+                <div class="max-h-[280px] space-y-3 overflow-y-auto pr-1 xl:max-h-[720px]">
+                    <div v-for="hand in route10Summary?.hands || []" :key="hand.hand" class="rounded-md bg-slate-900/70 p-3">
+                        <div class="mb-2 flex items-center justify-between gap-3">
+                            <div class="font-bold">Hand {{ hand.hand }}</div>
+                            <div class="text-right text-xs text-slate-500">
+                                <div>BB {{ hand.bb_dealt.join(' ') }}</div>
+                                <div>BTN {{ hand.btn_dealt.join(' ') }}</div>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button v-for="decision in hand.decisions" :key="hand.hand + decision.seat"
+                                    @click="selectReviewDecision(hand.hand, decision.seat, decision.locked)"
+                                    class="rounded-md border px-3 py-2 text-left text-xs"
+                                    :class="selectedReviewKey === hand.hand + ':' + decision.seat ? 'border-blue-400 bg-blue-500/15 text-blue-100' : decision.locked ? 'border-slate-700 bg-slate-800/60 text-slate-500' : 'border-slate-700 bg-slate-800 text-slate-200 hover:bg-slate-700'">
+                                <div class="mb-1 flex items-center justify-between">
+                                    <span class="font-bold uppercase">{{ decision.seat }}</span>
+                                    <span v-if="decision.locked">Locked</span>
+                                </div>
+                                <div class="truncate text-slate-400">{{ decision.locked ? 'Upgrade to play' : 'Placement puzzle' }}</div>
+                                <div class="mt-1 text-slate-500">{{ decision.dealt.join(' ') }}</div>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+            <section data-testid="quiz-panel" class="panel order-1 p-5 xl:order-2 xl:col-span-8">
+                <div v-if="reviewLoading" class="py-16 text-center text-slate-400">Loading Route10 decision...</div>
+                <div v-else-if="!selectedReview" class="py-16 text-center text-slate-400">Select a decision from the hand list.</div>
+                <div v-else class="space-y-6">
+                    <div class="flex flex-wrap items-start justify-between gap-4">
+                        <div>
+                            <h2 class="text-2xl font-black">Hand {{ selectedReview.hand }} / {{ selectedReview.decision.seat.toUpperCase() }}</h2>
+                            <p class="text-sm text-slate-400">{{ stageSummary() }}</p>
+                            <p v-if="selectedReview.data_quality" class="mt-1 text-xs text-slate-500">{{ qualityLabel(selectedReview.data_quality) }}</p>
+                        </div>
+                        <span class="rounded-md bg-emerald-500/15 px-3 py-2 text-xs font-bold uppercase text-emerald-200">{{ selectedReview.access }}</span>
+                    </div>
+
+                    <div v-if="activeTraceIndex === null" class="rounded-md border border-slate-700 bg-slate-900/80 p-4">
+                        <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+                            <div>
+                                <h3 class="text-sm font-bold uppercase tracking-wide text-slate-400">{{ answerRevealed ? 'T0 Answer' : 'Your Placement' }}</h3>
+                                <div class="mt-1 text-sm text-slate-300">{{ selectedReview.decision.dealt.join(' ') }}</div>
+                            </div>
+                            <div class="flex flex-wrap gap-2">
+                                <button data-testid="clear-placement" @click="clearPlacement" class="rounded-md border border-slate-600 px-3 py-2 text-xs font-bold text-slate-300 hover:bg-slate-800">Clear</button>
+                                <button v-if="!answerRevealed" data-testid="check-answer" @click="checkPlacement" :disabled="!placementComplete()"
+                                        class="rounded-md px-3 py-2 text-xs font-bold"
+                                        :class="placementComplete() ? 'bg-blue-600 text-white hover:bg-blue-500' : 'cursor-not-allowed bg-slate-700 text-slate-400'">
+                                    Complete T0
+                                </button>
+                                <button v-else-if="currentTraces().length" data-testid="deal-next-turn" @click="startTurnPractice(0)"
+                                        class="rounded-md bg-blue-600 px-3 py-2 text-xs font-bold text-white hover:bg-blue-500">
+                                    Deal T1
+                                </button>
+                            </div>
+                        </div>
+
+                        <div v-if="answerRevealed" class="mb-4 rounded-md border p-3"
+                             :class="resultCorrect ? 'border-emerald-500/40 bg-emerald-500/10' : 'border-amber-500/40 bg-amber-500/10'">
+                            <div class="font-black">{{ resultCorrect ? 'Correct' : 'Compare With Route10' }}</div>
+                            <div class="mt-1 text-sm text-slate-300">{{ selectedReview.decision.best.action }}</div>
+                        </div>
+
+                        <div v-if="answerRevealed" class="mb-4 rounded-md border border-slate-700 bg-slate-950/55 p-3">
+                            <div class="mb-2 flex flex-wrap items-center justify-between gap-3">
+                                <h3 class="text-sm font-bold uppercase tracking-wide text-slate-400">T0 Top 5 Candidates</h3>
+                                <div class="text-xs text-slate-500">{{ topCandidates().length }} candidates</div>
+                            </div>
+                            <div class="space-y-2">
+                                <div v-for="(candidate, idx) in topCandidates()" :key="'top5-' + idx"
+                                     class="rounded-md border border-slate-800 bg-slate-900/70 p-2"
+                                     :class="idx === 0 ? 'border-emerald-500/35' : ''">
+                                    <div class="mb-2 flex gap-2 text-xs">
+                                        <span class="font-black text-slate-100">#{{ idx + 1 }}</span>
+                                        <span class="font-semibold text-slate-200">{{ candidate.action }}</span>
+                                    </div>
+                                    <div class="grid grid-cols-2 gap-2 text-xs sm:grid-cols-5">
+                                        <div class="rounded bg-slate-950/70 px-2 py-1">
+                                            <div class="text-slate-500">Delta Score</div>
+                                            <div class="font-bold text-slate-100">{{ fmtDelta(candidate, 'score') }}</div>
+                                        </div>
+                                        <div class="rounded bg-slate-950/70 px-2 py-1">
+                                            <div class="text-slate-500">Delta EV</div>
+                                            <div class="font-bold text-slate-100">{{ fmtDelta(candidate, 'ev') }}</div>
+                                        </div>
+                                        <div class="rounded bg-slate-950/70 px-2 py-1">
+                                            <div class="text-slate-500">Delta FL</div>
+                                            <div class="font-bold text-slate-100">{{ pctDelta(candidate, 'fl_any') }}</div>
+                                        </div>
+                                        <div class="rounded bg-slate-950/70 px-2 py-1">
+                                            <div class="text-slate-500">Delta AA</div>
+                                            <div class="font-bold text-slate-100">{{ pctDelta(candidate, 'fl_aa') }}</div>
+                                        </div>
+                                        <div class="rounded bg-slate-950/70 px-2 py-1">
+                                            <div class="text-slate-500">Delta Bust</div>
+                                            <div class="font-bold text-slate-100">{{ pctDelta(candidate, 'bust') }}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-4 flex flex-wrap gap-2">
+                            <button v-for="card in selectedReview.decision.dealt" :key="'dealt-' + card"
+                                    :data-testid="'dealt-card-' + displayCard(card)"
+                                    @click="selectCard(card)" :disabled="answerRevealed || isCardPlaced(card)"
+                                    class="card-button">
+                                <playing-card :card="card" :selected="selectedCard === card" :muted="isCardPlaced(card)"></playing-card>
+                            </button>
+                        </div>
+
+                        <div class="space-y-3">
+                            <div v-for="row in boardRows" :key="'user-' + row"
+                                 @click="handlePlacementRowClick(row, $event)"
+                                 class="drop-row rounded-md border bg-slate-950/45 p-3"
+                                  :class="[answerRevealed ? rowResultClass(row) : 'border-slate-700', placementDropClass(row)]">
+                                <div class="mb-2 flex items-center justify-between gap-3">
+                                    <div class="text-xs font-bold uppercase tracking-wide text-slate-500">{{ rowLabel(row) }}</div>
+                                    <button :data-testid="'place-' + row"
+                                            @click="placeSelected(row)" :disabled="answerRevealed || !selectedCard || rowCards(row).length >= rowSize(row)"
+                                            class="rounded border border-slate-700 px-2 py-1 text-xs font-bold text-slate-300 disabled:cursor-not-allowed disabled:opacity-40">
+                                        Place
+                                    </button>
+                                </div>
+                                <div class="flex flex-wrap gap-1.5">
+                                    <button v-for="i in rowSize(row)" :key="'slot-' + row + i"
+                                            :data-testid="'slot-' + row + '-' + i"
+                                            @click="!answerRevealed && (slotCard(row, i - 1) ? removePlacedCard(row, i - 1) : placeSelected(row))"
+                                            class="slot">
+                                        <playing-card v-if="slotCard(row, i - 1)" :card="slotCard(row, i - 1)"></playing-card>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mt-4 flex flex-wrap justify-end gap-2">
+                            <button v-if="!answerRevealed" data-testid="check-answer-bottom" @click="checkPlacement" :disabled="!placementComplete()"
+                                    class="rounded-md px-4 py-3 text-sm font-bold"
+                                    :class="placementComplete() ? 'bg-blue-600 text-white hover:bg-blue-500' : 'cursor-not-allowed bg-slate-700 text-slate-400'">
+                                Complete T0
+                            </button>
+                            <button v-else-if="currentTraces().length" data-testid="deal-next-turn-bottom" @click="startTurnPractice(0)"
+                                    class="rounded-md bg-blue-600 px-4 py-3 text-sm font-bold text-white hover:bg-blue-500">
+                                Deal T1
+                            </button>
+                        </div>
+                    </div>
+
+                    <div v-if="currentTrace()" class="rounded-md border border-slate-700 bg-slate-900/80 p-4">
+                        <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+                            <div>
+                                <h3 class="text-lg font-black">T{{ currentTrace().turn }} Practice</h3>
+                                <p class="text-sm text-slate-400">Place two cards and discard one: {{ currentTrace().dealt.join(' ') }}</p>
+                            </div>
+                            <div class="flex flex-wrap gap-2">
+                                <button @click="resetTurnPractice()" class="rounded-md border border-slate-600 px-3 py-2 text-xs font-bold text-slate-300 hover:bg-slate-800">Reset Turn</button>
+                                <button v-if="turnAnswerRevealed && activeTraceIndex < currentTraces().length - 1"
+                                        data-testid="deal-next-turn"
+                                        @click="nextTurnPractice"
+                                        class="rounded-md bg-blue-600 px-3 py-2 text-xs font-bold text-white hover:bg-blue-500">
+                                    Deal T{{ currentTraces()[activeTraceIndex + 1].turn }}
+                                </button>
+                            </div>
+                        </div>
+
+                        <div v-if="turnAnswerRevealed" class="mb-4 rounded-md border p-3"
+                             :class="turnResultCorrect ? 'border-emerald-500/40 bg-emerald-500/10' : 'border-amber-500/40 bg-amber-500/10'">
+                            <div class="font-black">{{ turnResultCorrect ? 'Correct' : 'Compare With Route10' }}</div>
+                            <div class="mt-1 text-sm text-slate-300">
+                                {{ formatTurnPlacements() }} / discard {{ displayCard(currentTrace().chosen?.discard) }}
+                            </div>
+                        </div>
+
+                        <div class="mb-4 flex flex-wrap items-center gap-2">
+                            <button v-for="card in currentTrace().dealt" :key="'turn-dealt-' + card"
+                                    :data-testid="'turn-card-' + displayCard(card)"
+                                    @click="selectTurnCard(card)" :disabled="turnCardAssigned(card)"
+                                    class="card-button">
+                                <playing-card :card="card" :selected="turnSelectedCard === card" :muted="turnCardAssigned(card)"></playing-card>
+                            </button>
+                            <button data-testid="turn-discard"
+                                    @click="turnDiscard ? clearTurnDiscard() : discardTurnSelected()"
+                                    :disabled="!turnDiscard && !turnSelectedCard"
+                                    class="ml-0 rounded-md border border-slate-600 px-3 py-2 text-xs font-bold text-slate-300 disabled:cursor-not-allowed disabled:opacity-40 lg:ml-3"
+                                    :class="turnAnswerRevealed && !turnDiscardMatches() ? 'border-amber-500/50 bg-amber-500/10' : turnDiscard ? 'bg-slate-800' : turnSelectedCard ? 'border-blue-400 bg-blue-500/15 text-blue-100' : ''">
+                                Discard {{ turnDiscard ? displayCard(turnDiscard) : '-' }}
+                            </button>
+                        </div>
+
+                        <div class="space-y-3">
+                            <div v-for="row in boardRows" :key="'turn-' + row"
+                                 @click="handleTurnRowClick(row, $event)"
+                                 class="drop-row rounded-md border bg-slate-950/45 p-3"
+                                  :class="[turnRowResultClass(row), turnDropClass(row)]">
+                                <div class="mb-2 flex items-center justify-between gap-3">
+                                    <div class="text-xs font-bold uppercase tracking-wide text-slate-500">{{ rowLabel(row) }}</div>
+                                    <button :data-testid="'turn-place-' + row"
+                                            @click="placeTurnSelected(row)" :disabled="!turnSelectedCard || turnRowCards(row).length >= rowSize(row)"
+                                            class="rounded border border-slate-700 px-2 py-1 text-xs font-bold text-slate-300 disabled:cursor-not-allowed disabled:opacity-40">
+                                        Place
+                                    </button>
+                                </div>
+                                <div class="flex flex-wrap gap-1.5">
+                                    <button v-for="i in rowSize(row)" :key="'turn-slot-' + row + i"
+                                            :data-testid="'turn-slot-' + row + '-' + i"
+                                            @click="handleTurnSlotClick(row, i - 1)"
+                                            class="slot">
+                                        <playing-card v-if="turnSlotCard(row, i - 1)"
+                                                      :card="turnSlotCard(row, i - 1)"
+                                                      :muted="!turnIsDealtCard(turnSlotCard(row, i - 1))"></playing-card>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div v-if="turnAnswerRevealed" class="mt-4 rounded-md border border-slate-700 bg-slate-950/55 p-3">
+                            <div class="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">Route10 board after T{{ currentTrace().turn }}</div>
+                            <mini-board :board="currentTrace().chosen?.next_board"></mini-board>
+                        </div>
+
+                        <div class="mt-4 flex flex-wrap items-center justify-between gap-3">
+                            <div class="text-xs text-slate-500">T{{ currentTrace().turn }} route is based on the Route10 T0 answer path.</div>
+                            <div class="flex flex-wrap gap-2">
+                                <button v-if="!turnAnswerRevealed" data-testid="check-turn-answer" @click="checkTurnPlacement" :disabled="!turnComplete()"
+                                        class="rounded-md px-4 py-3 text-sm font-bold"
+                                        :class="turnComplete() ? 'bg-blue-600 text-white hover:bg-blue-500' : 'cursor-not-allowed bg-slate-700 text-slate-400'">
+                                    Complete T{{ currentTrace().turn }}
+                                </button>
+                                <button v-else-if="activeTraceIndex < currentTraces().length - 1"
+                                        data-testid="deal-next-turn-bottom"
+                                        @click="nextTurnPractice"
+                                        class="rounded-md bg-blue-600 px-4 py-3 text-sm font-bold text-white hover:bg-blue-500">
+                                    Deal T{{ currentTraces()[activeTraceIndex + 1].turn }}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div v-if="answerRevealed && activeTraceIndex === null" class="rounded-md border border-slate-700 bg-slate-900/80 p-4">
+                        <h3 class="mb-3 text-sm font-bold uppercase tracking-wide text-slate-400">Route10 Answer</h3>
+                        <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                            <div>
+                                <mini-board :board="selectedReview.decision.best.board"></mini-board>
+                            </div>
+                            <metric-grid :metrics="selectedReview.decision.best.metrics"></metric-grid>
+                        </div>
+                    </div>
+
+                    <div v-if="answerRevealed && activeTraceIndex === null">
+                        <h3 class="mb-3 text-sm font-bold uppercase tracking-wide text-slate-400">Candidate Boards</h3>
+                        <div class="grid grid-cols-1 gap-3 lg:grid-cols-2">
+                            <div v-for="(candidate, idx) in topCandidates()" :key="'cand' + idx"
+                                 class="rounded-md border border-slate-700 bg-slate-900/70 p-3">
+                                <div class="mb-2 flex items-center justify-between gap-2">
+                                    <div class="font-bold">#{{ idx + 1 }} {{ candidate.action }}</div>
+                                    <div class="text-xs text-slate-500">pool {{ candidate.pool_rank }}</div>
+                                </div>
+                                <mini-board :board="candidate.board"></mini-board>
+                                <metric-strip :metrics="candidate.metrics"></metric-strip>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </section>
+        </section>
+    </main>
+</div>
+
+<script>
+const { createApp, ref, onMounted } = Vue;
+
+const app = createApp({
+    setup() {
+        const boardRows = ['top', 'middle', 'bottom'];
+        const emptyPlacement = () => ({ top: [], middle: [], bottom: [] });
+
+        const user = ref(null);
+        const userToken = ref(null);
+        const effectivePlan = ref('free');
+        const firebaseReady = ref(false);
+        const devAuthAvailable = ref(false);
+        const route10Summary = ref(null);
+        const selectedReview = ref(null);
+        const selectedReviewKey = ref(null);
+        const reviewLoading = ref(false);
+        const selectedCard = ref(null);
+        const userPlacement = ref(emptyPlacement());
+        const answerRevealed = ref(false);
+        const resultCorrect = ref(null);
+        const activeTraceIndex = ref(null);
+        const turnSelectedCard = ref(null);
+        const turnUserBoard = ref(emptyPlacement());
+        const turnDiscard = ref(null);
+        const turnAnswerRevealed = ref(false);
+        const turnResultCorrect = ref(null);
+        const toast = ref({ message: '', type: 'info' });
+
+        function showToast(message, type = 'info') {
+            toast.value = { message, type };
+            window.clearTimeout(showToast._timer);
+            showToast._timer = window.setTimeout(() => { toast.value = { message: '', type: 'info' }; }, 4500);
+        }
+
+        function resetQuiz() {
+            userPlacement.value = emptyPlacement();
+            selectedCard.value = null;
+            answerRevealed.value = false;
+            resultCorrect.value = null;
+            activeTraceIndex.value = null;
+            resetTurnPractice();
+        }
+
+        async function initFirebase() {
+            try {
+                const response = await fetch('/api/config');
+                const config = await response.json();
+                const firebaseConfig = config.firebase || {};
+                if (!firebaseConfig.apiKey) {
+                    devAuthAvailable.value = !!config.dev_auth;
+                    if (devAuthAvailable.value) showToast('Local dev auth is enabled.', 'info');
+                    else showToast('Firebase public config is missing.', 'error');
+                    return;
+                }
+                if (!window.firebase.apps.length) window.firebase.initializeApp(firebaseConfig);
+                firebaseReady.value = true;
+                window.firebase.auth().onAuthStateChanged(async (fbUser) => {
+                    if (!fbUser) {
+                        user.value = null;
+                        userToken.value = null;
+                        effectivePlan.value = 'free';
+                        route10Summary.value = null;
+                        selectedReview.value = null;
+                        resetQuiz();
+                        return;
+                    }
+                    user.value = { email: fbUser.email, displayName: fbUser.displayName };
+                    userToken.value = await fbUser.getIdToken();
+                    await hydrateRoute10();
+                });
+            } catch (error) {
+                console.error(error);
+                showToast('Failed to initialize auth.', 'error');
+            }
+        }
+
+        async function signInWithDevAuth() {
+            user.value = { email: 'local-user@dev.local', displayName: 'Local Dev User' };
+            userToken.value = 'dev:local-user';
+            await hydrateRoute10();
+            showToast('Signed in with local dev auth.', 'success');
+        }
+
+        async function signInWithGoogle() {
+            if (!firebaseReady.value) await initFirebase();
+            if (devAuthAvailable.value && !firebaseReady.value) {
+                await signInWithDevAuth();
+                return;
+            }
+            if (!firebaseReady.value) return;
+            const provider = new window.firebase.auth.GoogleAuthProvider();
+            await window.firebase.auth().signInWithPopup(provider);
+        }
+
+        async function signOutUser() {
+            if (firebaseReady.value) await window.firebase.auth().signOut();
+            user.value = null;
+            userToken.value = null;
+            effectivePlan.value = 'free';
+            route10Summary.value = null;
+            selectedReview.value = null;
+            selectedReviewKey.value = null;
+            resetQuiz();
+            showToast('Signed out.', 'info');
+        }
+
+        function authHeaders(extra = {}) {
+            return { ...extra, Authorization: `Bearer ${userToken.value}` };
+        }
+
+        async function fetchUserPlan() {
+            const response = await fetch('/api/me', { headers: authHeaders() });
+            if (!response.ok) throw new Error('Failed to fetch user profile');
+            const data = await response.json();
+            effectivePlan.value = data.effective_plan || data.plan || 'free';
+        }
+
+        async function hydrateRoute10() {
+            await fetchUserPlan();
+            await loadRoute10Summary();
+            await selectReviewDecision(1, 'bb', false);
+        }
+
+        async function upgradePlan(plan) {
+            const response = await fetch('/api/create-checkout-session', {
+                method: 'POST',
+                headers: authHeaders({ 'Content-Type': 'application/json' }),
+                body: JSON.stringify({ plan, success_url: window.location.href, cancel_url: window.location.href }),
+            });
+            const data = await response.json();
+            if (data.url) window.location.href = data.url;
+            else showToast(data.message || data.error || 'Checkout failed.', 'error');
+        }
+
+        async function openBillingPortal() {
+            const response = await fetch('/api/create-billing-portal-session', {
+                method: 'POST',
+                headers: authHeaders({ 'Content-Type': 'application/json' }),
+                body: JSON.stringify({ return_url: window.location.href }),
+            });
+            const data = await response.json();
+            if (data.url) window.location.href = data.url;
+            else showToast(data.message || data.error || 'Billing portal is unavailable.', 'error');
+        }
+
+        async function loadRoute10Summary() {
+            if (!userToken.value) return;
+            const response = await fetch('/api/reviews/route10', { headers: authHeaders() });
+            const data = await response.json();
+            if (!response.ok || data.error) {
+                showToast(data.message || data.detail || data.error || 'Failed to load Route10.', 'error');
+                return;
+            }
+            route10Summary.value = data;
+        }
+
+        async function selectReviewDecision(hand, seat, locked) {
+            if (locked) {
+                showToast('Upgrade to unlock this Route10 puzzle.', 'error');
+                return;
+            }
+            reviewLoading.value = true;
+            selectedReviewKey.value = `${hand}:${seat}`;
+            try {
+                const response = await fetch(`/api/reviews/route10/hands/${hand}/decisions/${seat}`, { headers: authHeaders() });
+                const data = await response.json();
+                if (!response.ok) {
+                    showToast(data.detail || 'Route10 decision is locked.', 'error');
+                    return;
+                }
+                selectedReview.value = data;
+                resetQuiz();
+            } finally {
+                reviewLoading.value = false;
+            }
+        }
+
+        function clearPlacement() {
+            resetQuiz();
+        }
+
+        function rowSize(row) {
+            return row === 'top' ? 3 : 5;
+        }
+
+        function rowLabel(row) {
+            return row === 'middle' ? 'middle' : row;
+        }
+
+        function rowCards(row) {
+            return userPlacement.value[row] || [];
+        }
+
+        function slotCard(row, index) {
+            return rowCards(row)[index] || null;
+        }
+
+        function displayCard(card) {
+            if (!card) return '';
+            return card.startsWith('X') ? 'X' : card;
+        }
+
+        function cardClass(card) {
+            if (!card) return '';
+            return card[1] === 'h' || card[1] === 'd' ? 'red-suit' : 'black-suit';
+        }
+
+        function isCardPlaced(card) {
+            return boardRows.some((row) => rowCards(row).includes(card));
+        }
+
+        function selectCard(card) {
+            if (!card || isCardPlaced(card)) return;
+            selectedCard.value = selectedCard.value === card ? null : card;
+        }
+
+        function markPlacementDirty() {
+            answerRevealed.value = false;
+            resultCorrect.value = null;
+        }
+
+        function placeSelected(row) {
+            if (!selectedCard.value) {
+                showToast('Select a dealt card first.', 'info');
+                return;
+            }
+            if (rowCards(row).length >= rowSize(row)) {
+                showToast(`${rowLabel(row)} row is full.`, 'error');
+                return;
+            }
+            userPlacement.value[row] = [...rowCards(row), selectedCard.value];
+            selectedCard.value = null;
+            markPlacementDirty();
+        }
+
+        function placementDropClass(row) {
+            return !answerRevealed.value && selectedCard.value && rowCards(row).length < rowSize(row) ? 'ready' : '';
+        }
+
+        function handlePlacementRowClick(row, event) {
+            if (answerRevealed.value || event?.target?.closest?.('button')) return;
+            placeSelected(row);
+        }
+
+        function removePlacedCard(row, index) {
+            const nextRow = [...rowCards(row)];
+            const removed = nextRow.splice(index, 1)[0];
+            userPlacement.value[row] = nextRow;
+            selectedCard.value = removed || null;
+            markPlacementDirty();
+        }
+
+        function placementCount() {
+            return boardRows.reduce((total, row) => total + rowCards(row).length, 0);
+        }
+
+        function placementComplete() {
+            const dealtCount = selectedReview.value?.decision?.dealt?.length || 0;
+            return dealtCount > 0 && placementCount() === dealtCount;
+        }
+
+        function normalizeCard(card) {
+            return card && card.startsWith('X') ? 'X' : card;
+        }
+
+        function normalizeRow(cards) {
+            return [...(cards || [])].map(normalizeCard).sort().join('|');
+        }
+
+        function answerRow(row) {
+            return selectedReview.value?.decision?.best?.board?.[row] || [];
+        }
+
+        function rowMatches(row) {
+            return normalizeRow(rowCards(row)) === normalizeRow(answerRow(row));
+        }
+
+        function rowResultClass(row) {
+            return rowMatches(row) ? 'border-emerald-500/50 bg-emerald-500/10' : 'border-amber-500/50 bg-amber-500/10';
+        }
+
+        function isCorrectPlacement() {
+            return boardRows.every((row) => rowMatches(row));
+        }
+
+        function checkPlacement() {
+            if (!placementComplete()) {
+                showToast('Place all cards before checking.', 'error');
+                return;
+            }
+            resultCorrect.value = isCorrectPlacement();
+            answerRevealed.value = true;
+            showToast(resultCorrect.value ? 'Correct placement.' : 'Route10 answer revealed.', resultCorrect.value ? 'success' : 'info');
+        }
+
+        function stageSummary() {
+            if (!selectedReview.value) return '';
+            const trace = currentTrace();
+            if (trace) return `T${trace.turn} dealt. Place two cards and choose one discard.`;
+            if (answerRevealed.value) return currentTraces().length ? 'T0 answer shown. Deal T1 when ready.' : 'T0 answer shown.';
+            return `${placementCount()} / ${selectedReview.value.decision.dealt.length} placed`;
+        }
+
+        function currentTraces() {
+            return selectedReview.value?.decision?.turn_traces || [];
+        }
+
+        function currentTrace() {
+            if (activeTraceIndex.value === null) return null;
+            return currentTraces()[activeTraceIndex.value] || null;
+        }
+
+        function cloneBoard(board) {
+            return {
+                top: [...(board?.top || [])],
+                middle: [...(board?.middle || [])],
+                bottom: [...(board?.bottom || [])],
+            };
+        }
+
+        function resetTurnPractice(trace = currentTrace()) {
+            turnSelectedCard.value = null;
+            turnUserBoard.value = cloneBoard(trace?.board_before);
+            turnDiscard.value = null;
+            turnAnswerRevealed.value = false;
+            turnResultCorrect.value = null;
+        }
+
+        function startTurnPractice(index) {
+            const traces = currentTraces();
+            if (index < 0 || index >= traces.length) return;
+            activeTraceIndex.value = index;
+            resetTurnPractice(traces[index]);
+            scrollQuizTop();
+        }
+
+        function nextTurnPractice() {
+            if (activeTraceIndex.value === null) return;
+            if (activeTraceIndex.value >= currentTraces().length - 1) {
+                showToast('Route10 line complete.', 'success');
+                return;
+            }
+            startTurnPractice(activeTraceIndex.value + 1);
+        }
+
+        function scrollQuizTop() {
+            window.requestAnimationFrame(() => {
+                document.querySelector('[data-testid="quiz-panel"]')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            });
+        }
+
+        function turnRowCards(row) {
+            return turnUserBoard.value[row] || [];
+        }
+
+        function turnSlotCard(row, index) {
+            return turnRowCards(row)[index] || null;
+        }
+
+        function turnIsDealtCard(card) {
+            return !!card && (currentTrace()?.dealt || []).some((dealt) => normalizeCard(dealt) === normalizeCard(card));
+        }
+
+        function turnCardAssigned(card) {
+            if (!card) return false;
+            if (normalizeCard(turnDiscard.value) === normalizeCard(card)) return true;
+            return boardRows.some((row) => turnRowCards(row).some((placed) => normalizeCard(placed) === normalizeCard(card)));
+        }
+
+        function selectTurnCard(card) {
+            if (!card || turnCardAssigned(card)) return;
+            turnSelectedCard.value = turnSelectedCard.value === card ? null : card;
+        }
+
+        function markTurnDirty() {
+            turnAnswerRevealed.value = false;
+            turnResultCorrect.value = null;
+        }
+
+        function placeTurnSelected(row) {
+            if (!turnSelectedCard.value) {
+                showToast('Select a turn card first.', 'info');
+                return;
+            }
+            if (turnRowCards(row).length >= rowSize(row)) {
+                showToast(`${rowLabel(row)} row is full.`, 'error');
+                return;
+            }
+            turnUserBoard.value[row] = [...turnRowCards(row), turnSelectedCard.value];
+            turnSelectedCard.value = null;
+            markTurnDirty();
+        }
+
+        function turnDropClass(row) {
+            return turnSelectedCard.value && turnRowCards(row).length < rowSize(row) ? 'ready' : '';
+        }
+
+        function handleTurnRowClick(row, event) {
+            if (event?.target?.closest?.('button')) return;
+            placeTurnSelected(row);
+        }
+
+        function discardTurnSelected() {
+            if (!turnSelectedCard.value) {
+                showToast('Select a turn card first.', 'info');
+                return;
+            }
+            if (turnDiscard.value) {
+                showToast('Discard is already set.', 'error');
+                return;
+            }
+            turnDiscard.value = turnSelectedCard.value;
+            turnSelectedCard.value = null;
+            markTurnDirty();
+        }
+
+        function removeTurnCard(row, index) {
+            const card = turnSlotCard(row, index);
+            if (!turnIsDealtCard(card)) return;
+            const nextRow = [...turnRowCards(row)];
+            nextRow.splice(index, 1);
+            turnUserBoard.value[row] = nextRow;
+            turnSelectedCard.value = card;
+            markTurnDirty();
+        }
+
+        function handleTurnSlotClick(row, index) {
+            const card = turnSlotCard(row, index);
+            if (!card) {
+                placeTurnSelected(row);
+                return;
+            }
+            removeTurnCard(row, index);
+        }
+
+        function clearTurnDiscard() {
+            if (!turnDiscard.value) return;
+            turnSelectedCard.value = turnDiscard.value;
+            turnDiscard.value = null;
+            markTurnDirty();
+        }
+
+        function turnBoardPlacedCount() {
+            const dealt = currentTrace()?.dealt || [];
+            return boardRows.reduce((total, row) => {
+                return total + turnRowCards(row).filter((card) => dealt.some((dealtCard) => normalizeCard(dealtCard) === normalizeCard(card))).length;
+            }, 0);
+        }
+
+        function turnComplete() {
+            return turnBoardPlacedCount() === 2 && !!turnDiscard.value;
+        }
+
+        function turnAnswerCards(row) {
+            const placements = currentTrace()?.chosen?.placements || [];
+            return placements
+                .filter((placement) => placement[1] === row)
+                .map((placement) => placement[0]);
+        }
+
+        function turnUserNewCards(row) {
+            const before = currentTrace()?.board_before?.[row] || [];
+            return turnRowCards(row).filter((card) => !before.some((fixed) => normalizeCard(fixed) === normalizeCard(card)));
+        }
+
+        function turnRowMatches(row) {
+            return normalizeRow(turnUserNewCards(row)) === normalizeRow(turnAnswerCards(row));
+        }
+
+        function turnRowResultClass(row) {
+            if (!turnAnswerRevealed.value) return 'border-slate-700';
+            return turnRowMatches(row) ? 'border-emerald-500/50 bg-emerald-500/10' : 'border-amber-500/50 bg-amber-500/10';
+        }
+
+        function turnDiscardMatches() {
+            return normalizeCard(turnDiscard.value) === normalizeCard(currentTrace()?.chosen?.discard);
+        }
+
+        function turnSolutionMatches() {
+            return boardRows.every((row) => turnRowMatches(row)) && turnDiscardMatches();
+        }
+
+        function checkTurnPlacement() {
+            if (!turnComplete()) {
+                showToast('Place two cards and choose one discard.', 'error');
+                return;
+            }
+            turnResultCorrect.value = turnSolutionMatches();
+            turnAnswerRevealed.value = true;
+            showToast(turnResultCorrect.value ? `T${currentTrace().turn} correct.` : `T${currentTrace().turn} answer revealed.`, turnResultCorrect.value ? 'success' : 'info');
+        }
+
+        function formatTurnPlacements(trace = currentTrace()) {
+            const placements = trace?.chosen?.placements || [];
+            return placements.map((placement) => `${displayCard(placement[0])} to ${rowLabel(placement[1])}`).join(', ');
+        }
+
+        function topCandidates() {
+            return (selectedReview.value?.decision?.top_candidates || []).slice(0, 5);
+        }
+
+        function candidateMetric(candidate, key) {
+            const value = candidate?.metrics?.[key];
+            return value === null || value === undefined || Number.isNaN(Number(value)) ? null : Number(value);
+        }
+
+        function candidateDelta(candidate, key) {
+            const first = topCandidates()[0];
+            const value = candidateMetric(candidate, key);
+            const baseline = candidateMetric(first, key);
+            if (value === null || baseline === null) return null;
+            return value - baseline;
+        }
+
+        function fmt(value) {
+            if (value === null || value === undefined || Number.isNaN(Number(value))) return '-';
+            const numeric = Number(value);
+            return `${numeric > 0 ? '+' : ''}${numeric.toFixed(3)}`;
+        }
+
+        function fmtDelta(candidate, key) {
+            return fmt(candidateDelta(candidate, key));
+        }
+
+        function pct(value) {
+            if (value === null || value === undefined || Number.isNaN(Number(value))) return '-';
+            return `${(Number(value) * 100).toFixed(1)}%`;
+        }
+
+        function pctDelta(candidate, key) {
+            const delta = candidateDelta(candidate, key);
+            if (delta === null) return '-';
+            const points = delta * 100;
+            return `${points > 0 ? '+' : ''}${points.toFixed(1)}pt`;
+        }
+
+        function qualityLabel(quality) {
+            if (!quality) return '';
+            const t0 = quality.t0_sims ? `T0 ${quality.t0_sims} sims estimated` : 'T0 estimated';
+            const trace = quality.exact_terminal_available
+                ? 'T3/T4 exact terminal labels available'
+                : `T1-T4 ${quality.turn_trace_sims || 96} sims estimated`;
+            return `${t0} / ${trace}`;
+        }
+
+        onMounted(initFirebase);
+
+        return {
+            user, effectivePlan, route10Summary, selectedReview, selectedReviewKey, reviewLoading, toast,
+            boardRows, selectedCard, userPlacement, answerRevealed, resultCorrect,
+            activeTraceIndex, turnSelectedCard, turnUserBoard, turnDiscard, turnAnswerRevealed, turnResultCorrect,
+            signInWithGoogle, signOutUser, upgradePlan, openBillingPortal, loadRoute10Summary, selectReviewDecision,
+            clearPlacement, selectCard, placeSelected, placementDropClass, handlePlacementRowClick, removePlacedCard, checkPlacement,
+            rowSize, rowLabel, rowCards, slotCard, isCardPlaced, placementCount, placementComplete, rowResultClass,
+            currentTraces, currentTrace, startTurnPractice, nextTurnPractice, resetTurnPractice,
+            turnRowCards, turnSlotCard, turnIsDealtCard, turnCardAssigned, selectTurnCard, placeTurnSelected,
+            turnDropClass, handleTurnRowClick, discardTurnSelected, removeTurnCard, handleTurnSlotClick, clearTurnDiscard, turnComplete, checkTurnPlacement,
+            turnRowResultClass, turnDiscardMatches, formatTurnPlacements,
+            topCandidates, displayCard, cardClass, fmt, fmtDelta, pct, pctDelta, qualityLabel, stageSummary,
+        };
+    },
+});
+
+app.component('playing-card', {
+    props: {
+        card: String,
+        selected: Boolean,
+        muted: Boolean,
+    },
+    data() {
+        return { imageFailed: false };
+    },
+    template: `
+        <div class="playing-card" :class="[colorClass, { selected, muted, 'joker-card': isJoker }]">
+            <img v-if="imageUrl && !imageFailed" class="card-image" :src="imageUrl" :alt="cardAlt" @error="imageFailed = true">
+            <template v-else>
+                <div class="card-corner top">
+                    <span class="card-rank">{{ rank }}</span>
+                    <span class="card-suit" v-html="suitHtml"></span>
+                </div>
+                <div class="card-center" v-html="centerHtml"></div>
+                <div class="card-corner bottom">
+                    <span class="card-rank">{{ rank }}</span>
+                    <span class="card-suit" v-html="suitHtml"></span>
+                </div>
+            </template>
+        </div>
+    `,
+    computed: {
+        cardAlt() {
+            return this.card || 'card';
+        },
+        isJoker() {
+            return !!this.card && this.card.startsWith('X');
+        },
+        rank() {
+            if (!this.card) return '';
+            return this.isJoker ? 'X' : this.card[0];
+        },
+        suit() {
+            return this.card && this.card.length > 1 ? this.card[1] : '';
+        },
+        suitHtml() {
+            if (this.isJoker) return '&#9733;';
+            return {
+                s: '&spades;',
+                h: '&hearts;',
+                d: '&diams;',
+                c: '&clubs;',
+            }[this.suit] || '';
+        },
+        centerHtml() {
+            return this.isJoker ? '&#9733;' : this.suitHtml;
+        },
+        colorClass() {
+            if (this.isJoker) return 'joker-card';
+            return this.suit === 'h' || this.suit === 'd' ? 'red-card' : 'black-card';
+        },
+        imageUrl() {
+            const base = 'https://commons.wikimedia.org/wiki/Special:FilePath/';
+            if (!this.card) return '';
+            if (this.isJoker) return `${base}${encodeURIComponent('Black joker.svg')}?width=220`;
+            const rankMap = {
+                A: 'ace',
+                T: '10',
+                J: 'jack',
+                Q: 'queen',
+                K: 'king',
+            };
+            const suitMap = {
+                s: 'spades',
+                h: 'hearts',
+                d: 'diamonds',
+                c: 'clubs',
+            };
+            const rank = rankMap[this.card[0]] || this.card[0];
+            const suit = suitMap[this.suit];
+            const filename = rank && suit ? `English pattern ${rank} of ${suit}.svg` : '';
+            return filename ? `${base}${encodeURIComponent(filename)}?width=220` : '';
+        },
+    },
+});
+
+app.component('mini-board', {
+    props: ['board'],
+    template: `
+        <div class="space-y-2">
+            <div v-for="row in ['top','middle','bottom']" :key="row" class="flex items-center gap-2">
+                <div class="w-14 text-xs font-bold uppercase text-slate-500">{{ row === 'middle' ? 'mid' : row }}</div>
+                <div class="flex flex-wrap gap-1.5">
+                    <div v-for="i in rowSize(row)" :key="row + i" class="slot">
+                        <playing-card v-if="safeBoard(row)[i-1]" :card="safeBoard(row)[i-1]"></playing-card>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `,
+    methods: {
+        rowSize(row) { return row === 'top' ? 3 : 5; },
+        safeBoard(row) { return (this.board && this.board[row]) || []; },
+    },
+});
+
+app.component('metric-strip', {
+    props: ['metrics'],
+    template: `
+        <div class="mt-3 flex flex-wrap gap-2 text-xs text-slate-300">
+            <span class="rounded bg-slate-800 px-2 py-1">EV {{ $root.fmt(metric('ev')) }}</span>
+            <span class="rounded bg-slate-800 px-2 py-1">Score {{ $root.fmt(metric('score')) }}</span>
+            <span class="rounded bg-slate-800 px-2 py-1">FL {{ $root.pct(metric('fl_any')) }}</span>
+            <span class="rounded bg-slate-800 px-2 py-1">AA {{ $root.pct(metric('fl_aa')) }}</span>
+            <span class="rounded bg-slate-800 px-2 py-1">Bust {{ $root.pct(metric('bust')) }}</span>
+        </div>
+    `,
+    methods: {
+        metric(key) {
+            if (!this.metrics) return undefined;
+            if (key in this.metrics) return this.metrics[key];
+            if (key === 'fl_any' && 'fl_rate' in this.metrics) return this.metrics.fl_rate;
+            if (key === 'bust' && 'bust_rate' in this.metrics) return this.metrics.bust_rate;
+            if (key.startsWith('fl_') && this.metrics.fl_type_rates) {
+                return this.metrics.fl_type_rates[key.slice(3)];
+            }
+            return undefined;
+        },
+    },
+});
+
+app.component('metric-grid', {
+    props: ['metrics'],
+    template: `
+        <div class="grid grid-cols-2 gap-3 text-sm">
+            <div v-for="item in items" :key="item.key" class="rounded-md bg-slate-950/70 p-3">
+                <div class="text-xs uppercase tracking-wide text-slate-500">{{ item.label }}</div>
+                <div class="text-lg font-black">{{ item.percent ? $root.pct(metric(item.key)) : $root.fmt(metric(item.key)) }}</div>
+            </div>
+        </div>
+    `,
+    data() {
+        return {
+            items: [
+                { key: 'score', label: 'Score' },
+                { key: 'ev', label: 'EV' },
+                { key: 'fl_any', label: 'FL', percent: true },
+                { key: 'fl_aa', label: 'AA', percent: true },
+                { key: 'fl_kk', label: 'KK', percent: true },
+                { key: 'bust', label: 'Bust', percent: true },
+            ],
+        };
+    },
+    methods: {
+        metric(key) {
+            if (!this.metrics) return undefined;
+            if (key in this.metrics) return this.metrics[key];
+            if (key === 'fl_any' && 'fl_rate' in this.metrics) return this.metrics.fl_rate;
+            if (key === 'bust' && 'bust_rate' in this.metrics) return this.metrics.bust_rate;
+            if (key.startsWith('fl_') && this.metrics.fl_type_rates) {
+                return this.metrics.fl_type_rates[key.slice(3)];
+            }
+            return undefined;
+        },
+    },
+});
+
+app.mount('#app');
+</script>
+</body>
+</html>

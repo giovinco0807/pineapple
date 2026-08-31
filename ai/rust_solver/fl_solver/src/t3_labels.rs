@@ -58,6 +58,11 @@ pub struct T3ActionValue {
     pub value: f64,
     pub opponents: usize,
     pub t4_draws: usize,
+    /// Population standard deviation over the fully enumerated T4 draws.
+    /// The draw mean is exact; this is outcome spread, not label uncertainty.
+    pub t4_draw_stddev: f64,
+    /// Fraction of T4 draws for which no placement can avoid a foul.
+    pub forced_foul_rate: f64,
 }
 
 /// One T4 decision reached from a T3 action: the pair hero kept, where it went,
@@ -218,6 +223,33 @@ pub struct T4LeafRaw {
 /// Its own function because T2 needs it too: a T2 action is worth the average
 /// over sampled T3 draws of the best eleven-card board that draw reaches, and
 /// two copies of this loop would be two places for the T4 semantics to drift.
+pub struct CompletionValue {
+    pub total: f64,
+    pub draws: usize,
+    pub sum_squares: f64,
+    pub forced_fouls: usize,
+}
+
+impl CompletionValue {
+    pub fn mean(&self) -> f64 {
+        self.total / self.draws.max(1) as f64
+    }
+
+    /// Population standard deviation over the complete finite draw set.
+    pub fn stddev(&self) -> f64 {
+        if self.draws == 0 {
+            return 0.0;
+        }
+        let n = self.draws as f64;
+        let centred = (self.sum_squares - self.total * self.total / n).max(0.0);
+        (centred / n).sqrt()
+    }
+
+    pub fn forced_foul_rate(&self) -> f64 {
+        self.forced_fouls as f64 / self.draws.max(1) as f64
+    }
+}
+
 pub fn completion_value(
     after: &[Vec<Card>; 3],
     unseen: &[Card],
@@ -225,10 +257,11 @@ pub fn completion_value(
     fl_ev: &[f64; 4],
     own_only: bool,
     mut sink: Option<&mut Vec<T4LeafRaw>>,
-) -> (f64, usize) {
+) -> CompletionValue {
     let patterns = open_patterns(after);
     let pair_count = unseen.len() * (unseen.len() - 1) / 2;
     let mut table: Vec<f64> = vec![f64::NEG_INFINITY; pair_count * patterns.len()];
+    let mut legal: Vec<bool> = vec![false; pair_count * patterns.len()];
     // `after` does not move for the whole call, so a row keeps its value,
     // royalty and Fantasyland entry across every pair that does not touch it.
     let mut memo = crate::row_memo::TerminalMemo::new(after);
@@ -248,6 +281,7 @@ pub fn completion_value(
                     total / opponents.len() as f64
                 };
                 table[pair_index * patterns.len() + slot] = value;
+                legal[pair_index * patterns.len() + slot] = !hero.busted;
                 if let Some(out) = sink.as_deref_mut() {
                     out.push(T4LeafRaw {
                         cards: [unseen[first], unseen[second]],
@@ -265,25 +299,31 @@ pub fn completion_value(
         low * unseen.len() - low * (low + 1) / 2 + (high - low - 1)
     };
     let mut total = 0.0f64;
+    let mut sum_squares = 0.0f64;
     let mut draws = 0usize;
+    let mut forced_fouls = 0usize;
     for a in 0..unseen.len() {
         for b in (a + 1)..unseen.len() {
             for c in (b + 1)..unseen.len() {
                 let mut best = f64::NEG_INFINITY;
+                let mut has_legal = false;
                 for (first, second) in [(a, b), (a, c), (b, c)] {
                     let base = pair_at(first, second) * patterns.len();
                     for slot in 0..patterns.len() {
                         if table[base + slot] > best {
                             best = table[base + slot];
                         }
+                        has_legal |= legal[base + slot];
                     }
                 }
                 total += best;
+                sum_squares += best * best;
                 draws += 1;
+                forced_fouls += usize::from(!has_legal);
             }
         }
     }
-    (total, draws)
+    CompletionValue { total, draws, sum_squares, forced_fouls }
 }
 
 /// `completion_value` with the T4 draw sampled instead of enumerated.
@@ -307,6 +347,22 @@ pub fn sampled_completion_value(
     opponents: &[&PoolEntry],
     fl_ev: &[f64; 4],
 ) -> f64 {
+    sampled_completion_value_with(after, unseen, draws, stream, opponents, fl_ev, false)
+}
+
+/// `own_only` prices hero's finished board by its own worth -- royalty plus
+/// the Fantasyland entry it earns, a foul flat at -6 -- and never draws an
+/// opponent.  That removes the last sampled quantity below a T3 draw, so a
+/// label built this way is a deterministic function of the position.
+pub fn sampled_completion_value_with(
+    after: &[Vec<Card>; 3],
+    unseen: &[Card],
+    draws: usize,
+    stream: u64,
+    opponents: &[&PoolEntry],
+    fl_ev: &[f64; 4],
+    own_only: bool,
+) -> f64 {
     let patterns = open_patterns(after);
     let picks = crate::t2_labels::sampled_t3_draws(unseen.len(), draws, stream);
     let mut memo = crate::row_memo::TerminalMemo::new(after);
@@ -321,11 +377,15 @@ pub fn sampled_completion_value(
             for pattern in &patterns {
                 let hero = memo
                     .terminal(&[(pattern[0], unseen[first]), (pattern[1], unseen[second])]);
-                let value: f64 = opponents
-                    .iter()
-                    .map(|entry| hero_score(&hero, &entry.rows, fl_ev))
-                    .sum::<f64>()
-                    / opponents.len() as f64;
+                let value: f64 = if own_only {
+                    crate::vs_fl::hero_own(&hero, fl_ev)
+                } else {
+                    opponents
+                        .iter()
+                        .map(|entry| hero_score(&hero, &entry.rows, fl_ev))
+                        .sum::<f64>()
+                        / opponents.len() as f64
+                };
                 if value > best {
                     best = value;
                 }
@@ -393,7 +453,7 @@ pub fn solve_with_t4(
             }
 
             let mut sink: Vec<T4LeafRaw> = Vec::new();
-            let (total, draws) = completion_value(
+            let completion = completion_value(
                 &after,
                 &unseen,
                 opponents.as_slice(),
@@ -412,9 +472,11 @@ pub fn solve_with_t4(
             }
             values.push(T3ActionValue {
                 action_key,
-                value: total / draws as f64,
+                value: completion.mean(),
                 opponents: opponents.len(),
-                t4_draws: draws,
+                t4_draws: completion.draws,
+                t4_draw_stddev: completion.stddev(),
+                forced_foul_rate: completion.forced_foul_rate(),
             });
         }
     }
@@ -581,6 +643,10 @@ mod tests {
                 "action {} enumerated {} draws, not C(40,3)",
                 value.action_key, value.t4_draws
             );
+            assert!(value.t4_draw_stddev.is_finite());
+            assert!(value.t4_draw_stddev >= 0.0);
+            assert!(value.forced_foul_rate.is_finite());
+            assert!((0.0..=1.0).contains(&value.forced_foul_rate));
         }
     }
 

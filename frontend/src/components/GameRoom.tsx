@@ -29,6 +29,7 @@ export const GameRoom: React.FC = () => {
     const [isBtn, setIsBtn] = useState(false);
     const [waitingForOpponent, setWaitingForOpponent] = useState(false);
     const [handResult, setHandResult] = useState<any>(null);
+    const [isAIGame, setIsAIGame] = useState(false);
 
     useEffect(() => {
         if (!lastMessage) return;
@@ -135,6 +136,27 @@ export const GameRoom: React.FC = () => {
         setRoomId(newRoomId);
         connect(newRoomId);
         setJoined(true);
+    };
+
+    const handleCreateAIRoom = async () => {
+        try {
+            const apiBase = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+                ? 'http://localhost:8080'
+                : `${window.location.protocol}//${window.location.host}`;
+            const res = await fetch(`${apiBase}/api/rooms?vs_ai=true`, { method: 'POST' });
+            const data = await res.json();
+            if (data.error) {
+                setStatus(`Error: ${data.error}`);
+                return;
+            }
+            setRoomId(data.room_id);
+            setIsAIGame(true);
+            connect(data.room_id);
+            setJoined(true);
+        } catch (e) {
+            setStatus('Failed to create AI room');
+            console.error(e);
+        }
     };
 
     const handleStartGame = () => {
@@ -313,8 +335,12 @@ export const GameRoom: React.FC = () => {
             <div className="lobby">
                 <h1>🃏 OFC Pineapple</h1>
                 <div className="lobby-actions">
-                    <button onClick={handleCreateRoom} className="btn-primary">
-                        Create Room
+                    <button onClick={handleCreateAIRoom} className="btn-primary btn-ai">
+                        🤖 vs AI
+                    </button>
+                    <div className="lobby-divider">── or ──</div>
+                    <button onClick={handleCreateRoom} className="btn-secondary">
+                        Create PvP Room
                     </button>
                     <div className="join-section">
                         <input
@@ -349,7 +375,7 @@ export const GameRoom: React.FC = () => {
 
             <main className="game-area">
                 <div className="opponent-section">
-                    <h3>Opponent {!isBtn && '(BTN)'}</h3>
+                    <h3>{isAIGame ? '🤖 AI' : 'Opponent'} {!isBtn && '(BTN)'}</h3>
                     <Board {...opponentBoard} isOpponent={true} />
                 </div>
 
@@ -402,7 +428,7 @@ export const GameRoom: React.FC = () => {
 
                 <div className="turn-info">
                     Turn {turn}/8 | 配置: {pendingPlacements.length} 枚
-                    {waitingForOpponent && ' | ⏳ 相手を待っています...'}
+                    {waitingForOpponent && (isAIGame ? ' | 🤖 AI思考中...' : ' | ⏳ 相手を待っています...')}
                 </div>
             </main>
             {renderResultOverlay()}

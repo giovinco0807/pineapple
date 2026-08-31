@@ -1,0 +1,119 @@
+{
+  "name": "t3_ev_safe_pool_20260606",
+  "objective": "Minimize T3 candidate-pool EV loss before exact reranking.",
+  "turn": 3,
+  "policy": {
+    "serving_default": "ev_safe",
+    "ev_safe": {
+      "per_source_top_k": 20,
+      "exact_rerank": true,
+      "fallback": "run full T3 exact if the candidate source set is unavailable or the model pool cannot be built"
+    },
+    "balanced": {
+      "per_source_top_k": 12,
+      "exact_rerank": true,
+      "known_risk": "rare high-EV misses remain on worker11 holdout"
+    },
+    "fast": {
+      "per_source_top_k": 10,
+      "exact_rerank": true,
+      "known_risk": "faster, but not EV-safe on worker11 holdout"
+    }
+  },
+  "action_value_checkpoints": {
+    "bb": [
+      "D:\\ofc-pineapple-data\\t3_jokerfix_extra_20260605\\models\\t3-20k-plus-gen5k-hardneginit-bb\\action_value_best.pt",
+      "D:\\ofc-pineapple-data\\branch_t0t2_top10_100k_20260605\\models\\t3-top10-100k-bb-20260605\\action_value_best.pt",
+      "D:\\ofc-pineapple-data\\branch_t0t2_top10_100k_20260605\\models\\t3-top10-100k-hardneg-w10-bb-20260606\\action_value_best.pt",
+      "D:\\ofc-pineapple-data\\branch_t0t2_top10_100k_20260605\\models\\t3-top10-100k-top5miss-w10-bb-20260606\\action_value_best.pt"
+    ],
+    "btn": [
+      "D:\\ofc-pineapple-data\\t3_jokerfix_extra_20260605\\models\\t3-20k-plus-gen5k-hardneginit-btn\\action_value_best.pt",
+      "D:\\ofc-pineapple-data\\branch_t0t2_top10_100k_20260605\\models\\t3-top10-100k-btn-20260605\\action_value_best.pt",
+      "D:\\ofc-pineapple-data\\branch_t0t2_top10_100k_20260605\\models\\t3-top10-100k-hardneg-w10-btn-20260606\\action_value_best.pt",
+      "D:\\ofc-pineapple-data\\branch_t0t2_top10_100k_20260605\\models\\t3-top10-100k-top5miss-w10-btn-20260606\\action_value_best.pt"
+    ]
+  },
+  "set_checkpoints": {
+    "bb": [
+      "D:\\ofc-pineapple-data\\branch_t0t2_top10_100k_20260605\\models\\t3-set-top5-w10-bb-20260606\\action_value_set_best.pt",
+      "D:\\ofc-pineapple-data\\branch_t0t2_top10_100k_20260605\\models\\t3-set-poolmiss-union5-bb-20260606\\action_value_set_best.pt"
+    ],
+    "btn": [
+      "D:\\ofc-pineapple-data\\branch_t0t2_top10_100k_20260605\\models\\t3-set-top5-w10-btn-20260606\\action_value_set_best.pt",
+      "D:\\ofc-pineapple-data\\branch_t0t2_top10_100k_20260605\\models\\t3-set-poolmiss-union5-btn-20260606\\action_value_set_best.pt"
+    ]
+  },
+  "worker11_holdout_metrics": {
+    "bb": {
+      "groups": 5003,
+      "top10": {
+        "recall": 0.9912052768338997,
+        "ev_loss_mean": 0.003953612764525504,
+        "ev_loss_p99": 0.0,
+        "ev_loss_max": 5.645869255065918,
+        "avg_pool_size": 12.56486108334999,
+        "max_pool_size": 20
+      },
+      "top12": {
+        "recall": 0.994203477913252,
+        "ev_loss_mean": 0.0015082974065048277,
+        "ev_loss_p99": 0.0,
+        "ev_loss_max": 2.706824779510498,
+        "avg_pool_size": 13.657605436737958,
+        "max_pool_size": 21
+      },
+      "top15": {
+        "recall": 0.9980011992804317,
+        "ev_loss_mean": 0.0005643811436526756,
+        "ev_loss_p99": 0.0,
+        "ev_loss_max": 1.411799430847168,
+        "avg_pool_size": 14.858684789126524,
+        "max_pool_size": 21
+      },
+      "top20": {
+        "recall": 1.0,
+        "ev_loss_mean": 0.0,
+        "ev_loss_p99": 0.0,
+        "ev_loss_max": 0.0,
+        "avg_pool_size": 15.909454327403559,
+        "max_pool_size": 21
+      }
+    },
+    "btn": {
+      "groups": 4997,
+      "top10": {
+        "recall": 0.9965979587752651,
+        "ev_loss_mean": 0.0034901053719826403,
+        "ev_loss_p99": 0.0,
+        "ev_loss_max": 11.52193307876587,
+        "avg_pool_size": 13.221132679607765,
+        "max_pool_size": 21
+      },
+      "top12": {
+        "recall": 0.9995997598559135,
+        "ev_loss_mean": 0.00272055810896282,
+        "ev_loss_p99": 0.0,
+        "ev_loss_max": 11.52193307876587,
+        "avg_pool_size": 14.211126676005604,
+        "max_pool_size": 21
+      },
+      "top15": {
+        "recall": 0.9997998799279568,
+        "ev_loss_mean": 0.0004147880311629666,
+        "ev_loss_p99": 0.0,
+        "ev_loss_max": 2.072695791721344,
+        "avg_pool_size": 15.264358615169101,
+        "max_pool_size": 21
+      },
+      "top20": {
+        "recall": 1.0,
+        "ev_loss_mean": 0.0,
+        "ev_loss_p99": 0.0,
+        "ev_loss_max": 0.0,
+        "avg_pool_size": 15.903942365419251,
+        "max_pool_size": 21
+      }
+    }
+  }
+}

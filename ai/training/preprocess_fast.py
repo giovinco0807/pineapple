@@ -14,7 +14,12 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
-from ai.engine.encoding import Board, Observation, encode_state
+from ai.engine.encoding import Board, Observation, encode_state, STATE_DIM
+from ai.engine.action_space import (
+    create_action_mask,
+    get_initial_actions,
+    get_turn_actions,
+)
 
 MAX_ACTIONS = 250
 
@@ -78,13 +83,19 @@ def action_to_index(action: dict, turn: int,
                     h = h * 31 + ord(ch)
         return min(abs(h) % MAX_ACTIONS, MAX_ACTIONS - 1)
 
-    # Turn 1-8: 9 possible actions
-    positions = ["top", "middle", "bottom"]
-    pos0 = placements[0][1] if len(placements) > 0 else "top"
-    pos1 = placements[1][1] if len(placements) > 1 else "top"
-    pos0_idx = positions.index(pos0) if pos0 in positions else 0
-    pos1_idx = positions.index(pos1) if pos1 in positions else 0
-    return pos0_idx * 3 + pos1_idx
+    # Turn 1-8: 27 possible actions
+    from ai.engine.action_space import Action, get_semantic_action_index
+    
+    discard = action.get("discard")
+    if not discard and dealt_cards:
+        placed_cards = [c for c, p in placements]
+        for c in dealt_cards:
+            if c not in placed_cards:
+                discard = c
+                break
+                
+    act_obj = Action(placements=[(c, p) for c, p in placements], discard=discard)
+    return get_semantic_action_index(act_obj, dealt_cards)
 
 
 def count_lines(path: str) -> int:
@@ -108,7 +119,7 @@ def preprocess_fast(input_path: str, output_dir: str):
 
     # Create memmap files
     states_mm = np.memmap(output_dir / "states.npy.tmp", dtype=np.float32,
-                          mode='w+', shape=(n_lines, 490))
+                          mode='w+', shape=(n_lines, STATE_DIM))
     actions_mm = np.memmap(output_dir / "actions.npy.tmp", dtype=np.int64,
                            mode='w+', shape=(n_lines,))
     royalties_mm = np.memmap(output_dir / "royalties.npy.tmp", dtype=np.float32,
@@ -117,6 +128,13 @@ def preprocess_fast(input_path: str, output_dir: str):
                           mode='w+', shape=(n_lines,))
     fl_mm = np.memmap(output_dir / "fl_entry.npy.tmp", dtype=np.float32,
                       mode='w+', shape=(n_lines,))
+    rewards_mm = np.memmap(output_dir / "rewards.npy.tmp", dtype=np.float32,
+                           mode='w+', shape=(n_lines,))
+    masks_mm = np.memmap(output_dir / "valid_masks.npy.tmp", dtype=bool,
+                         mode='w+', shape=(n_lines, MAX_ACTIONS))
+    action_evs_mm = np.memmap(output_dir / "action_evs.npy.tmp",
+                              dtype=np.float32, mode='w+',
+                              shape=(n_lines, MAX_ACTIONS))
 
     start_time = time.time()
     total = 0
@@ -140,16 +158,40 @@ def preprocess_fast(input_path: str, output_dir: str):
                 )
 
                 states_mm[total] = encode_state(obs)
-                actions_mm[total] = action_to_index(
+                if tl["turn"] == 0:
+                    valid_actions = get_initial_actions(obs.dealt_cards, obs.board_self)
+                else:
+                    valid_actions = get_turn_actions(obs.dealt_cards, obs.board_self)
+                action_idx = action_to_index(
                     tl["action"], tl["turn"],
                     dealt_cards=tl["dealt_cards"],
                     board=tl["board_self"],
                 )
+                actions_mm[total] = action_idx
+                masks_mm[total] = create_action_mask(
+                    valid_actions,
+                    turn=tl["turn"],
+                    dealt_cards=tl["dealt_cards"],
+                )
+                action_evs_mm[total] = -1e9
+                evs = tl.get("action_evs")
+                idxs = tl.get("top_k_indices")
+                if evs and idxs:
+                    for idx, ev in zip(idxs, evs):
+                        if 0 <= int(idx) < MAX_ACTIONS:
+                            action_evs_mm[total, int(idx)] = float(ev)
+                else:
+                    action_evs_mm[total, action_idx] = 0.0
 
                 player = tl["player"]
-                royalties_mm[total] = hr["royalties"][player]["total"]
-                busted_mm[total] = float(hr["busted"][player])
-                fl_mm[total] = float(hr["fl_entry"][player])
+                pkey = str(player)
+                if "royalties" in hr and pkey in hr["royalties"]:
+                    royalties_mm[total] = hr["royalties"][pkey]["total"]
+                else:
+                    royalties_mm[total] = 0.0
+                busted_mm[total] = float(hr["busted"].get(pkey, False))
+                fl_mm[total] = float(hr["fl_entry"].get(pkey, False))
+                rewards_mm[total] = float(data.get("reward", 0.0))
                 total += 1
             except Exception:
                 skipped += 1
@@ -169,28 +211,33 @@ def preprocess_fast(input_path: str, output_dir: str):
     royalties_mm.flush()
     busted_mm.flush()
     fl_mm.flush()
-    del states_mm, actions_mm, royalties_mm, busted_mm, fl_mm
+    rewards_mm.flush()
+    masks_mm.flush()
+    action_evs_mm.flush()
+    del states_mm, actions_mm, royalties_mm, busted_mm, fl_mm, rewards_mm, masks_mm, action_evs_mm
 
     # Save as proper .npy files (read back + slice)
     print("Saving final numpy files...")
 
     for name, dtype in [("states", np.float32), ("actions", np.int64),
                          ("royalties", np.float32), ("busted", np.float32),
-                         ("fl_entry", np.float32)]:
+                         ("fl_entry", np.float32), ("rewards", np.float32),
+                         ("valid_masks", bool), ("action_evs", np.float32)]:
         tmp = output_dir / f"{name}.npy.tmp"
         if name == "states":
-            mm = np.memmap(tmp, dtype=dtype, mode='r', shape=(n_lines, 490))
+            mm = np.memmap(tmp, dtype=dtype, mode='r', shape=(n_lines, STATE_DIM))
+            np.save(output_dir / f"{name}.npy", mm[:total])
+        elif name == "valid_masks":
+            mm = np.memmap(tmp, dtype=dtype, mode='r', shape=(n_lines, MAX_ACTIONS))
+            np.save(output_dir / f"{name}.npy", mm[:total])
+        elif name == "action_evs":
+            mm = np.memmap(tmp, dtype=dtype, mode='r', shape=(n_lines, MAX_ACTIONS))
             np.save(output_dir / f"{name}.npy", mm[:total])
         else:
             mm = np.memmap(tmp, dtype=dtype, mode='r', shape=(n_lines,))
             np.save(output_dir / f"{name}.npy", mm[:total])
         del mm
         tmp.unlink()
-
-    # Create all-true mask (no action enumeration)
-    masks = np.ones((total, MAX_ACTIONS), dtype=bool)
-    np.save(output_dir / "valid_masks.npy", masks)
-    del masks
 
     bust_rate = float(np.load(output_dir / "busted.npy").mean())
     fl_rate = float(np.load(output_dir / "fl_entry.npy").mean())
@@ -199,7 +246,7 @@ def preprocess_fast(input_path: str, output_dir: str):
     metadata = {
         "total_samples": total,
         "skipped": skipped,
-        "state_dim": 490,
+        "state_dim": STATE_DIM,
         "max_actions": MAX_ACTIONS,
         "busted_ratio": bust_rate,
         "fl_ratio": fl_rate,

@@ -7,12 +7,14 @@ Communicates with the Rust solver via subprocess JSON stdin/stdout.
 import subprocess
 import json
 import os
+import sys
 from typing import List, Optional, Dict, Any
 from pathlib import Path
 
 
-# Default path to Rust solver
-RUST_SOLVER_PATH = Path(__file__).parent / "rust_solver" / "target" / "release" / "fl_solver.exe"
+# Default path to Rust solver (platform-aware)
+_ext = ".exe" if sys.platform == "win32" else ""
+RUST_SOLVER_PATH = Path(__file__).parent / "rust_solver" / "target" / "release" / f"fl_solver{_ext}"
 
 
 class RustFLSolver:
@@ -28,7 +30,7 @@ class RustFLSolver:
             [self.solver_path],
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,  # Discard stderr to avoid pipe deadlock
             text=True,
             bufsize=1
         )
@@ -59,13 +61,56 @@ class RustFLSolver:
                 rank, suit = c
             card_list.append({"rank": rank, "suit": suit})
         
-        request = {"cards": card_list}
+        request = {"cards": card_list, "version": 2}
         
         # Send request
         self.process.stdin.write(json.dumps(request) + "\n")
         self.process.stdin.flush()
         
         # Read response
+        response_line = self.process.stdout.readline()
+        if not response_line:
+            return None
+        
+        response = json.loads(response_line)
+        
+        if response.get("success") and response.get("placement"):
+            return response["placement"]
+        return None
+
+    def solve_vs_opponent(self, cards: List, opponent_top: List, opponent_mid: List, opponent_bot: List) -> Optional[Dict[str, Any]]:
+        """
+        Solve FL placement against a known opponent board.
+        
+        Uses Rust solver's exhaustive search with opponent-aware scoring,
+        FL Stay priority, and 4-point royalty margin.
+        
+        Args:
+            cards: FL cards dealt (14-17)
+            opponent_top: Opponent's top row cards (3 cards)
+            opponent_mid: Opponent's middle row cards (5 cards)
+            opponent_bot: Opponent's bottom row cards (5 cards)
+        """
+        def to_card_dict(c):
+            if hasattr(c, 'rank_value'):
+                rank = 0 if c.is_joker else c.rank_value
+                suit = 4 if c.is_joker else {'spades': 0, 'hearts': 1, 'diamonds': 2, 'clubs': 3}.get(c.suit, 0)
+            else:
+                rank, suit = c
+            return {"rank": rank, "suit": suit}
+        
+        card_list = [to_card_dict(c) for c in cards]
+        opp = {
+            "top": [to_card_dict(c) for c in opponent_top],
+            "middle": [to_card_dict(c) for c in opponent_mid],
+            "bottom": [to_card_dict(c) for c in opponent_bot],
+        }
+        
+        request = {"cards": card_list, "version": 2, "opponent": opp}
+        
+        self.process.stdin.write(json.dumps(request) + "\n")
+        self.process.stdin.flush()
+        
         response_line = self.process.stdout.readline()
         if not response_line:
             return None

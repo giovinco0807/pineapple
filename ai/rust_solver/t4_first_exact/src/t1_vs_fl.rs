@@ -44,6 +44,9 @@ pub struct T1VsFlRequest {
     /// Absent plays every line out; see `playout::Context`.
     #[serde(default)]
     pub truncate_depth: Option<usize>,
+    /// Price terminals by hero's own worth; see `playout::Context::own_only`.
+    #[serde(default)]
+    pub own_only: bool,
     /// Opponents drawn from the pool for this root, shared by every action.
     /// Ignored on the library path, which filters the whole shelf per leaf
     /// instead of sampling it.
@@ -186,6 +189,8 @@ pub fn solve(
         t4_draw_sample: request.t4_draw_sample,
         rowwise_memo: std::sync::Mutex::new(std::collections::HashMap::new()),
         truncate_depth: request.truncate_depth,
+        own_only: request.own_only,
+        t2_fence: None,
     };
 
     let actions = legal_actions(&base, &request.draw);
@@ -273,6 +278,7 @@ mod tests {
             draw: vec!["7d".into(), "3c".into(), "9c".into()],
             opp_count: 14,
             truncate_depth: None,
+            own_only: false,
             t2_samples: 4,
             t3_samples: 3,
             t4_draw_sample: 8,
@@ -335,7 +341,10 @@ mod tests {
         )
         .expect("pool solve");
         assert_eq!(pooled.leaf, "t2_t3_models_move_pool_best_response");
-        assert_eq!(pooled.opponent_stream, Some(playout::root_stream(&request.id)));
+        assert_eq!(
+            pooled.opponent_stream,
+            Some(playout::root_stream(&request.id))
+        );
         assert!(!pooled.actions.is_empty());
 
         // One draw per root: hero's seen cards do not depend on the action, so

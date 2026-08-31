@@ -1,0 +1,104 @@
+Exit code: 0
+Wall time: 1.7 seconds
+Output:
+{
+  "schema": "hu_m43_attempt10_distillation_config_v1",
+  "milestone": "M4.3-attempt10",
+  "status": "frozen_before_fit",
+  "scope": {
+    "street": "T1",
+    "seat": "second",
+    "whole_chain_baseline_profile": "stage19_p0",
+    "teacher_root_baseline_profile": "stage18_p1",
+    "first_seat_behavior": "exact_whole_chain_baseline",
+    "current_profile_mutated": false,
+    "runtime_activation_allowed_by_training": false
+  },
+  "schemas": {
+    "model": "hu_m43_attempt10_t1_second_distilled_selector_v1",
+    "artifact": "hu_m43_attempt10_t1_second_distilled_pickle_v1",
+    "feature": "hu_m43_attempt10_lambda_top12_public_infoset_features_v1",
+    "heads": "hu_m43_attempt10_policy_delta_safe_tail_heads_v1",
+    "training_manifest": "hu_m43_attempt10_distilled_training_manifest_v1",
+    "runtime_freeze": "hu_m43_attempt10_distilled_runtime_freeze_v1"
+  },
+  "data": {
+    "development_roots": 200,
+    "profiles": [
+      "stage19_p0",
+      "stage9f_p2",
+      "stage7_m5_r10",
+      "stage3_baseline",
+      "random_exact_final"
+    ],
+    "identity_grouped_folds": 5,
+    "audit50_may_fit_or_calibrate": false,
+    "opponent_profile_runtime_feature": false,
+    "opponent_private_discard_input": false
+  },
+  "fit_authorization": {
+    "development_decision_go_required": true,
+    "development_selector_receipt_required": true,
+    "immutable_development_pass_freeze_required": true,
+    "all_three_files_and_development_jsonl_sha256_bound": true,
+    "audit50_rows_used_for_fit": false
+  },
+  "candidate_generation": {
+    "source_model_sha256": "e7fa728308c8973e2e202baf79309e30b9b6f58c37431d8ea55850390abc28c3",
+    "source_model_id": "hu-m43-attempt05-lambda_rank-dev900-oof",
+    "nonbaseline_top_k": 8,
+    "explicit_baseline_included": true,
+    "complete_legal_action_set_rebuilt": true,
+    "action_order_tie_break": "ActionKey",
+    "feature_dimension": 4314
+  },
+  "training": {
+    "random_seed": 4308001,
+    "iterations": 180,
+    "smoke_iterations": 24,
+    "learning_rate": 0.04,
+    "num_leaves": 15,
+    "min_child_samples": 20,
+    "reg_lambda": 8.0,
+    "reg_alpha": 0.5,
+    "rank_objective": "lambdarank",
+    "delta_objective": "huber",
+    "safe_objective": "binary",
+    "tail_objective": "quantile",
+    "tail_quantile": 0.8,
+    "conformal_quantile": 0.95,
+    "profile_balanced_state_weights": true,
+    "threshold_sweep_allowed": false
+  },
+  "labels": {
+    "selected_action_relevance": 4,
+    "other_action_relevance": 0,
+    "delta_source": "R128_raw_paired_delta_mean_vs_explicit_baseline",
+    "safe_positive": "teacher_final_fire_action_and_disjoint_A256_mean_gt_0",
+    "tail_p95": "max(0,-R128_p05)",
+    "tail_p99": "max(0,-R128_p01)",
+    "tail_max": "max(0,-R128_min)"
+  },
+  "runtime_gate": {
+    "action_score_mode": "attempt10_lambda_top12_distilled_safe_selector_v1",
+    "safety_probability_threshold": 0.5,
+    "predicted_delta_strictly_greater_than": 0.0,
+    "tail_upper_limits": [25.0, 40.0, 50.0],
+    "minimum_agreeing_fold_votes": 4,
+    "fold_count": 5,
+    "conformal_cushions_frozen_from_identity_oof": true,
+    "teacher_ev_or_lcb_runtime_gate": false,
+    "no_eligible_action": "exact_baseline_fallback"
+  },
+  "promotion": {
+    "full_replacement": false,
+    "explicit_opt_in_profile_only": true,
+    "runtime_freeze_requires_development_go": true,
+    "runtime_freeze_requires_disjoint_audit50_go": true,
+    "runtime_freeze_requires_audit50_selector_receipt": true,
+    "population_acceptance_required": true,
+    "current_profile_change_allowed": false
+  }
+}
+
+

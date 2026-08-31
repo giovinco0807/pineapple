@@ -25,6 +25,7 @@
 //!   109 = actor + rowwise + joint + FL context  (full T3 evaluator; the
 //!         joint block needs exactly two open slots, so it is only ever
 //!         reachable from an 11-card board)
+//!   110 = the 104-dim FL14 vector plus six placed-card rank tiebreaks
 
 use anyhow::{anyhow, bail, Result};
 use fl_solver::pool::{Pool, PoolEntry};
@@ -59,17 +60,47 @@ use super::{CoreBoard, FlEv, Terminal};
 /// The 52 natural cards, in the pool's rank-major bit order.
 const POOL_NATURALS: u64 = (1u64 << 52) - 1;
 
-/// actor 48 + rowwise 41 + joint 8 + deck 7 = 104, the FL14 teachers' width.
-/// `OPPONENT_SIZE` is the rowwise 41 and the joint 8 together, which is what
-/// the block binary returns in one call.
-pub(crate) const FL14_FEATURE_SIZE: usize =
+/// actor 48 + rowwise 41 + joint 8 + deck 7 = 104, the legacy FL14 width.
+/// This prefix is frozen because existing models carry only their width, not
+/// an encoder schema identifier.
+pub(crate) const FL14_FEATURE_SIZE_V1: usize =
     evaluator::ACTOR_SIZE + evaluator::OPPONENT_SIZE + evaluator::FL14_CONTEXT_SIZE;
+/// v2 appends six category-aware placed-rank tiebreaks after the v1 prefix.
+pub(crate) const FL14_FEATURE_SIZE: usize = FL14_FEATURE_SIZE_V1 + evaluator::ALLOCATION_RANK_SIZE;
 
 /// The same blocks minus the joint one: what a search can afford.
 ///
 /// `OPPONENT_SIZE` is rowwise 41 and joint 8 added together, so the eight come
-/// off here by name rather than by a constant of their own.
-const FL14_RANKER_SIZE: usize = FL14_FEATURE_SIZE - 8;
+/// off here by name rather than by a constant of their own.  This remains the
+/// v1 96-dim ranker; a v2 ranker is deliberately not inferred from the full
+/// width and needs an explicit encoder role before it is introduced.
+const FL14_RANKER_SIZE: usize = FL14_FEATURE_SIZE_V1 - 8;
+
+/// The 96-dim ranker's blocks plus sixteen deterministic draw descriptors.
+///
+/// 112 collides with no other width this crate dispatches on (60, 96, 101,
+/// 104, 109, 110 here; 207 and the hybrid in `hu_encode`), which is what lets
+/// a model of this width select the encoder by width alone -- so shipping one
+/// is a model swap and nothing else.  The point of the width is that it costs
+/// what 96 costs: no sampling, no completions, just counts over the board and
+/// the unseen pool.
+const FL14_CHEAP_SIZE: usize = FL14_RANKER_SIZE + evaluator::CHEAP_DRAW_SIZE;
+
+/// v2 of the same idea, 24 dims wide: 120, likewise colliding with no other
+/// width this crate dispatches on.  v1 stays reachable so the two can be
+/// compared on one binary.
+const FL14_CHEAP_V2_SIZE: usize = FL14_RANKER_SIZE + evaluator::CHEAP_DRAW_V2_SIZE;
+
+/// 128 = the 120 assembly with the eight joint statistics appended -- the
+/// oracle-proven composition (dev regret 0.4036 vs 110's 0.4042 on the T2
+/// own corpus) at splitmix sampling cost.  The joint block here is drawn by
+/// `CompletionSampler::SplitMix`, never Sha256: at T2 the legacy sampler's
+/// SHA-256 shuffle is ~95% of the block's cost, and a width that has never
+/// shipped has no compatibility to keep.  Order: actor 48 | rowwise 41 |
+/// context 7 | cheap v2 24 | joint 8 -- joint LAST, unlike 104/110, because
+/// the corpus this width trains on is built by appending the joint to the
+/// 120 vector.
+const FL14_CHEAP_V2_JOINT_SIZE: usize = FL14_CHEAP_V2_SIZE + 8;
 
 /// What `encode_fl14_teacher` passes the block binary: `--joint-samples`
 /// defaults to 400 at T2 and to exact enumeration at T3/T4, and
@@ -171,6 +202,11 @@ pub(crate) struct Context<'a> {
     pub(crate) t4_draw_sample: usize,
     /// Root-wide rowwise cache; see RowwiseMemo.
     pub(crate) rowwise_memo: RowwiseMemo,
+    /// Price hero's finished board by its own worth -- royalty plus the
+    /// Fantasyland entry it earns, a foul flat at -6 -- and never consult an
+    /// opponent.  The 2026-08-14 objective: with it set, nothing at the leaf
+    /// is sampled and the T4 mean is exact over its draw set.
+    pub(crate) own_only: bool,
     /// Depth at which the chooser's own value is taken as the line's value
     /// instead of playing the line out.
     ///
@@ -185,6 +221,20 @@ pub(crate) struct Context<'a> {
     /// exactly that risk.  It exists to be measured against the untruncated
     /// labels on the same roots, not to be switched on by default.
     pub(crate) truncate_depth: Option<usize>,
+    /// A cheap pre-ranking pass for the T2 node: `(fence model, K)`.
+    ///
+    /// The T2 fan-out is where the chain's time goes -- the serving evaluator's
+    /// joint block samples 400 completions per candidate -- and the cheap
+    /// width-120 chooser scores the same candidates for nothing.  With the
+    /// fence set, every candidate is scored by the fence first and only its
+    /// top-K reach the serving model's argmax.  Offline on sharp labels,
+    /// K=12 matched full evaluation (regret 0.1237 vs 0.1245) at half the
+    /// cost; K=8 cost +0.003 for 2.8x.
+    ///
+    /// `None` is the untouched chain: `choose` must emit bit-identical
+    /// decisions in that case, so the fence is a strict addition and never a
+    /// re-ordering of the field.
+    pub(crate) t2_fence: Option<(&'a evaluator::Model, usize)>,
 }
 
 /// One candidate placement of two drawn cards into rows, at the Card level.
@@ -197,8 +247,7 @@ pub(crate) struct Candidate {
 pub(crate) fn candidates(board: &CoreBoard, draw: &[Card; 3]) -> Vec<Candidate> {
     let open = board.open_slots();
     let mut out: Vec<Candidate> = Vec::new();
-    let mut seen: std::collections::BTreeSet<(u32, u32, u32)> =
-        std::collections::BTreeSet::new();
+    let mut seen: std::collections::BTreeSet<(u32, u32, u32)> = std::collections::BTreeSet::new();
     let id = |card: &Card| -> u32 {
         if card.is_joker() {
             52
@@ -255,14 +304,32 @@ pub(crate) fn encode_for(
     pool_key: u64,
     node_seed: &str,
     out: &mut Vec<f32>,
+    // `joint`: a memo whose base board is the node above `board`, together
+    // with the placement that separates them.  `None` builds a private one,
+    // which is what a caller encoding a single board wants; `choose` passes
+    // one it keeps across the node's candidates.
+    joint: Option<(&mut TerminalMemo, &[(usize, Card)])>,
 ) -> Result<()> {
+    match model.input_dim {
+        // Historical actor/context, rowwise, FL14 v1/v2, and full-T3 widths.
+        // Width is the only encoder role in the v1 model image, so experimental
+        // 113/116 images must fail loudly instead of falling through to 109.
+        60 | FL14_RANKER_SIZE | 101 | FL14_FEATURE_SIZE_V1 | 109 | FL14_FEATURE_SIZE
+        | FL14_CHEAP_SIZE | FL14_CHEAP_V2_SIZE | FL14_CHEAP_V2_JOINT_SIZE => {}
+        unsupported => bail!("unsupported playout model input width {unsupported}"),
+    }
     out.clear();
     evaluator::actor_block(&board.rows, out);
     // 96 is below the 101 threshold but still wants the rowwise block -- it is
     // 104 with the joint eight removed, not a narrower feature set.
     if model.input_dim >= 101 || model.input_dim == FL14_RANKER_SIZE {
         let _categories = evaluator::opponent_rowwise_block_shared(
-            &board.rows, unseen, fl_table, memo, pool_key, out,
+            &board.rows,
+            unseen,
+            fl_table,
+            memo,
+            pool_key,
+            out,
         );
     }
     if model.input_dim == FL14_RANKER_SIZE {
@@ -276,22 +343,82 @@ pub(crate) fn encode_for(
         // per root.  So the street is served by the model that sees the most
         // and searched by the model that costs the least.
         evaluator::fl14_context_block(unseen, out);
-    } else if model.input_dim == FL14_FEATURE_SIZE {
+    } else if model.input_dim == FL14_CHEAP_SIZE {
+        // Exactly the 96-dim assembly, then the draw descriptors appended.
+        // Sharing the prefix is deliberate: a 112 model is a 96 model that has
+        // been told what the rows are reaching for, so the two must not be
+        // able to disagree about the first 96 dims.
+        evaluator::fl14_context_block(unseen, out);
+        evaluator::cheap_draw_block(&board.rows, unseen, out);
+    } else if model.input_dim == FL14_CHEAP_V2_SIZE {
+        evaluator::fl14_context_block(unseen, out);
+        evaluator::cheap_draw_block_v2(&board.rows, unseen, out);
+    } else if model.input_dim == FL14_CHEAP_V2_JOINT_SIZE {
+        evaluator::fl14_context_block(unseen, out);
+        evaluator::cheap_draw_block_v2(&board.rows, unseen, out);
         let open: usize = board.open_slots().iter().sum();
-        let block = joint_outlook::sampled_joint_block(
-            board,
-            unseen,
-            if open <= 2 { 0 } else { FL14_JOINT_SAMPLES },
-            FL14_JOINT_ARRANGEMENTS,
-            &format!("joint/{node_seed}"),
-            fl_ev,
-        )?;
+        let samples = if open <= 2 { 0 } else { FL14_JOINT_SAMPLES };
+        let seed = format!("joint/{node_seed}");
+        let block = match joint {
+            Some((shared, placement)) => joint_outlook::sampled_joint_block_shared(
+                shared,
+                placement,
+                board.open_slots(),
+                unseen,
+                samples,
+                FL14_JOINT_ARRANGEMENTS,
+                &seed,
+                fl_ev,
+                joint_outlook::CompletionSampler::SplitMix,
+            )?,
+            None => joint_outlook::sampled_joint_block(
+                board,
+                unseen,
+                samples,
+                FL14_JOINT_ARRANGEMENTS,
+                &seed,
+                fl_ev,
+                joint_outlook::CompletionSampler::SplitMix,
+            )?,
+        };
+        for value in block {
+            out.push(value as f32);
+        }
+    } else if model.input_dim == FL14_FEATURE_SIZE_V1 || model.input_dim == FL14_FEATURE_SIZE {
+        let open: usize = board.open_slots().iter().sum();
+        let samples = if open <= 2 { 0 } else { FL14_JOINT_SAMPLES };
+        let seed = format!("joint/{node_seed}");
+        let block = match joint {
+            Some((shared, placement)) => joint_outlook::sampled_joint_block_shared(
+                shared,
+                placement,
+                board.open_slots(),
+                unseen,
+                samples,
+                FL14_JOINT_ARRANGEMENTS,
+                &seed,
+                fl_ev,
+                joint_outlook::CompletionSampler::Sha256,
+            )?,
+            None => joint_outlook::sampled_joint_block(
+                board,
+                unseen,
+                samples,
+                FL14_JOINT_ARRANGEMENTS,
+                &seed,
+                fl_ev,
+                joint_outlook::CompletionSampler::Sha256,
+            )?,
+        };
         for value in block {
             out.push(value as f32);
         }
         evaluator::fl14_context_block(unseen, out);
+        if model.input_dim == FL14_FEATURE_SIZE {
+            evaluator::allocation_rank_block(&board.rows, out);
+        }
     } else {
-        if model.input_dim >= 109 {
+        if model.input_dim == 109 {
             for value in t3_second::joint_block(board, unseen, fl_ev)? {
                 out.push(value as f32);
             }
@@ -308,7 +435,51 @@ pub(crate) fn encode_for(
     Ok(())
 }
 
+/// The cards a T2 decision is taken with already on the board: T0 placed five
+/// and T1 placed two, so the draw the fence pre-ranks lands on a seven-card
+/// board.  Named because the fence must fire at exactly one street and a bare
+/// `7` in the middle of `choose` would not say which.
+pub(crate) const T2_BOARD_CARDS: usize = 7;
+
+/// The `topk` candidate indices by fence score, in the field's own order.
+///
+/// Two properties the fence rests on, both of them here rather than inline so
+/// they can be tested without a model:
+///
+///   * **Deterministic under ties.**  Equal scores keep the lower index, so a
+///     rerun cuts the same field.  `total_cmp` rather than `partial_cmp`: a
+///     NaN from a model would otherwise make the comparator intransitive and
+///     the surviving set arbitrary.  A NaN is ordered below every number
+///     rather than at `total_cmp`'s own position above `+inf`, so a broken
+///     fence score loses the cut the same way it loses the strict `>` argmax
+///     downstream -- a fence must not be able to promote what the evaluator
+///     would refuse.
+///   * **Order-preserving.**  The survivors come back ascending, so the
+///     evaluator's second pass walks them in the same relative order it would
+///     have walked the whole field -- which is what makes a K at or above the
+///     field size a no-op rather than a reshuffle, and keeps the strict `>`
+///     argmax breaking ties the way the unfenced chain breaks them.
+pub(crate) fn fence_topk(scores: &[f32], topk: usize) -> Vec<usize> {
+    let rank = |score: f32| -> f32 {
+        if score.is_nan() {
+            f32::NEG_INFINITY
+        } else {
+            score
+        }
+    };
+    let mut order: Vec<usize> = (0..scores.len()).collect();
+    order.sort_by(|a, b| rank(scores[*b]).total_cmp(&rank(scores[*a])).then(a.cmp(b)));
+    order.truncate(topk);
+    order.sort_unstable();
+    order
+}
+
 /// The board the model would choose from this draw.
+///
+/// With `context.t2_fence` set and the board at T2, the field is cut by the
+/// cheap fence before `model` sees it; see [`Context::t2_fence`].  Everything
+/// else -- the enumeration order, the memo, the strict `>` argmax -- is
+/// untouched, so an unfenced call emits the same bits it always did.
 fn choose(
     model: &evaluator::Model,
     board: &CoreBoard,
@@ -322,7 +493,52 @@ fn choose(
 ) -> Result<(Option<CoreBoard>, f32)> {
     let mut best_score = f32::NEG_INFINITY;
     let mut chosen: Option<CoreBoard> = None;
-    for candidate in candidates(board, draw) {
+    // One memo for the node, not one per candidate: they complete the same
+    // pool from the same board and differ only by where two cards went.  The
+    // fence pass shares it: it is a pure cache keyed on the placement, so a
+    // width that reads it only warms it for the pass that follows, and the
+    // width-120 fence never reaches it at all.
+    let mut joint_memo = TerminalMemo::new(board);
+    let field = candidates(board, draw);
+
+    // The pre-ranking pass.  Skipped outright when the field already fits
+    // under K, so the fence can only ever remove work.
+    let shortlist: Option<Vec<usize>> = match context.t2_fence {
+        Some((fence, topk)) if board.card_count() == T2_BOARD_CARDS && field.len() > topk => {
+            let mut scores: Vec<f32> = Vec::with_capacity(field.len());
+            for candidate in &field {
+                let mut next = board.clone();
+                next.rows[candidate.placements[0].0].push(candidate.placements[0].1);
+                next.rows[candidate.placements[1].0].push(candidate.placements[1].1);
+                encode_for(
+                    fence,
+                    &next,
+                    unseen,
+                    context.opp_count,
+                    context.fl_ev,
+                    context.fl_table,
+                    &context.rowwise_memo,
+                    pool_key,
+                    node_seed,
+                    features,
+                    Some((&mut joint_memo, &candidate.placements)),
+                )?;
+                scores.push(fence.predict(features, scratch));
+            }
+            Some(fence_topk(&scores, topk))
+        }
+        _ => None,
+    };
+
+    for (index, candidate) in field.iter().enumerate() {
+        if let Some(keep) = &shortlist {
+            // Linear over a list of at most K, and reached only on the fenced
+            // path: unfenced, this is a `None` test in front of the loop body
+            // that always was.
+            if !keep.contains(&index) {
+                continue;
+            }
+        }
         let mut next = board.clone();
         next.rows[candidate.placements[0].0].push(candidate.placements[0].1);
         next.rows[candidate.placements[1].0].push(candidate.placements[1].1);
@@ -337,6 +553,7 @@ fn choose(
             pool_key,
             node_seed,
             features,
+            Some((&mut joint_memo, &candidate.placements)),
         )?;
         let predicted = model.predict(features, scratch);
         if predicted > best_score {
@@ -432,6 +649,31 @@ fn terminal_value(
     context: &Context<'_>,
     seed: &str,
 ) -> Result<(f64, f64)> {
+    if context.own_only && context.t4_draw_sample == 0 {
+        // Exact T4 under the own-hand objective, through the pair table: one
+        // C(n,2) sweep answers every C(n,3) draw, the same arithmetic the T3
+        // teacher's `completion_value` is trusted for.  The sampled loop
+        // below reaches the same expectation in about twenty-seven times the
+        // work, which is what made `--t4-draw-sample 0` unaffordable here.
+        let to_fl = |cards: &[Card]| -> Vec<fl_solver::Card> {
+            cards
+                .iter()
+                .map(|c| fl_solver::Card {
+                    rank: c.rank,
+                    suit: c.suit,
+                })
+                .collect()
+        };
+        let rows: [Vec<fl_solver::Card>; 3] = [
+            to_fl(&board.rows[0]),
+            to_fl(&board.rows[1]),
+            to_fl(&board.rows[2]),
+        ];
+        let table = fl_ev_table(context.fl_ev);
+        let exact =
+            fl_solver::t3_labels::completion_value(&rows, &to_fl(unseen), &[], &table, true, None);
+        return Ok((exact.mean(), 1.0));
+    }
     let draw_sets = sampled_draws(unseen.len(), context.t4_draw_sample, seed);
     let patterns = t3_second::placement_patterns(board);
     let mut terminal_memo = TerminalMemo::new(board);
@@ -450,7 +692,12 @@ fn terminal_value(
     let mut sample_total = 0usize;
     for draw in &draw_sets {
         let draw_cards = [unseen[draw[0]], unseen[draw[1]], unseen[draw[2]]];
-        let opponents = match shortlist {
+        let opponents = if context.own_only {
+            // No opponent is consulted; one keeps the draw in the mean and
+            // keeps `mean_fl_samples` distinguishable from the bootstrap's
+            // hard 0.0.
+            1
+        } else { match shortlist {
             Shortlist::Library { library, indices } => {
                 let mut draw_mask = 0u64;
                 for card in &draw_cards {
@@ -485,7 +732,7 @@ fn terminal_value(
                 }
                 drawn.len()
             }
-        };
+        } };
         if opponents == 0 {
             continue;
         }
@@ -503,11 +750,23 @@ fn terminal_value(
             let value = match memo.get(&key) {
                 Some(cached) => *cached,
                 None => {
-                    let computed = match shortlist {
-                        Shortlist::Library { .. } => {
-                            score_mean(&terminal, &matched, context.opp_count, context.fl_ev)
+                    let computed = if context.own_only {
+                        let hero = HeroTerminal {
+                            busted: terminal.busted,
+                            top: terminal.values[0],
+                            mid: terminal.values[1],
+                            bot: terminal.values[2],
+                            royalty: terminal.royalty,
+                            entry_width: terminal.fl_card_count,
+                        };
+                        vs_fl::hero_own(&hero, &table)
+                    } else {
+                        match shortlist {
+                            Shortlist::Library { .. } => {
+                                score_mean(&terminal, &matched, context.opp_count, context.fl_ev)
+                            }
+                            Shortlist::Pool { .. } => pool_score_mean(&terminal, &drawn, &table),
                         }
-                        Shortlist::Pool { .. } => pool_score_mean(&terminal, &drawn, &table),
                     };
                     memo.insert(key, computed);
                     computed
@@ -703,7 +962,10 @@ mod tests {
     /// never about the line's joker accounting.
     fn hero_board() -> CoreBoard {
         let row = |names: &[&str]| -> Vec<Card> {
-            names.iter().map(|name| to_core_card(name).unwrap()).collect()
+            names
+                .iter()
+                .map(|name| to_core_card(name).unwrap())
+                .collect()
         };
         CoreBoard {
             rows: [
@@ -769,6 +1031,8 @@ mod tests {
             t4_draw_sample: draws,
             rowwise_memo: Mutex::new(HashMap::new()),
             truncate_depth: None,
+            own_only: false,
+            t2_fence: None,
         };
         let mut features: Vec<f32> = Vec::new();
         let mut scratch: Vec<f32> = Vec::new();
@@ -957,5 +1221,188 @@ mod tests {
             values: [100, 200, 300],
         };
         assert_eq!(pool_score_mean(&terminal, &[], &TABLE), 0.0);
+    }
+
+    /// A seven-card board: the position a T2 decision is taken from, and the
+    /// only card count the fence is allowed to fire at.  Two open slots in the
+    /// top row would collapse the field, so the rows are left uneven.
+    fn t2_board() -> CoreBoard {
+        let row = |names: &[&str]| -> Vec<Card> {
+            names
+                .iter()
+                .map(|name| to_core_card(name).unwrap())
+                .collect()
+        };
+        CoreBoard {
+            rows: [
+                row(&["Ks", "Kh"]),
+                row(&["Qs", "7d", "3c"]),
+                row(&["As", "9c"]),
+            ],
+        }
+    }
+
+    /// A one-layer linear model of the given width, assembled as an image so
+    /// it arrives through exactly the reader a shipped model arrives through.
+    /// `seed` moves every weight, which is what lets a fence rank a field
+    /// differently from the evaluator it stands in front of.
+    fn linear_model(input_dim: usize, seed: u32) -> evaluator::Model {
+        let mut bytes: Vec<u8> = Vec::new();
+        bytes.extend_from_slice(b"T4F1");
+        bytes.extend_from_slice(&1u32.to_le_bytes()); // version
+        bytes.extend_from_slice(&1u32.to_le_bytes()); // one layer
+        bytes.extend_from_slice(&(input_dim as u32).to_le_bytes());
+        for _ in 0..input_dim {
+            bytes.extend_from_slice(&0.0f32.to_le_bytes()); // mean
+        }
+        for _ in 0..input_dim {
+            bytes.extend_from_slice(&1.0f32.to_le_bytes()); // std
+        }
+        bytes.extend_from_slice(&(input_dim as u32).to_le_bytes());
+        bytes.extend_from_slice(&1u32.to_le_bytes());
+        for index in 0..input_dim as u32 {
+            let mixed = index.wrapping_mul(2_654_435_761).wrapping_add(seed);
+            bytes.extend_from_slice(&((mixed % 2_003) as f32 / 1_001.0 - 1.0).to_le_bytes());
+        }
+        bytes.extend_from_slice(&0.0f32.to_le_bytes()); // bias
+        evaluator::Model::load(&bytes).expect("synthetic model image")
+    }
+
+    /// A context carrying nothing but what `choose` reads.  No opponent is
+    /// ever consulted on this path: the fence decides which candidates get
+    /// encoded, and encoding is the whole of what it changes.
+    fn fence_context<'a>(
+        fl_ev: &'a FlEv,
+        fl_table: &'a evaluator::FlTable,
+        fence: Option<(&'a evaluator::Model, usize)>,
+    ) -> Context<'a> {
+        Context {
+            fl_ev,
+            opponents: Opponents::Pool(&[]),
+            fl_table,
+            models: &[],
+            samples: &[],
+            opp_count: 14,
+            t4_draw_sample: 0,
+            rowwise_memo: Mutex::new(HashMap::new()),
+            truncate_depth: None,
+            own_only: true,
+            t2_fence: fence,
+        }
+    }
+
+    /// **The cut is a top-K, taken in descending score and handed back in the
+    /// field's own order.**
+    ///
+    /// Both halves matter: descending is what makes it a fence, ascending is
+    /// what makes the second pass walk the survivors in the order the unfenced
+    /// loop would have walked them -- so a strict `>` argmax breaks its ties
+    /// the same way either side of the cut.
+    #[test]
+    fn the_fence_keeps_the_top_k_in_the_fields_own_order() {
+        assert_eq!(fence_topk(&[1.0, 1.5, 0.5, 2.0, 1.0], 3), vec![0, 1, 3]);
+        assert_eq!(fence_topk(&[1.0, 1.5, 0.5, 2.0, 1.0], 1), vec![3]);
+        // Negative scores are ordinary scores, not an absent candidate.
+        assert_eq!(fence_topk(&[-9.0, -1.0, -5.0], 2), vec![1, 2]);
+    }
+
+    /// **A tie keeps the lower index, so a rerun cuts the same field.**
+    ///
+    /// An all-equal field is the case a naive comparator gets away with until
+    /// the sort implementation changes underneath it; pinning it here means a
+    /// fenced run is reproducible rather than reproducible-so-far.
+    #[test]
+    fn a_tied_fence_cuts_by_index_and_not_by_luck() {
+        assert_eq!(fence_topk(&[1.0, 1.0, 1.0, 1.0], 2), vec![0, 1]);
+        assert_eq!(fence_topk(&[2.0, 1.0, 2.0, 1.0, 2.0], 2), vec![0, 2]);
+        // A NaN cannot make the surviving set arbitrary, and cannot promote
+        // the candidate carrying it: it is ordered below every number, which
+        // is where the strict `>` argmax downstream would put it too.
+        assert_eq!(fence_topk(&[f32::NAN, 3.0, 1.0], 2), vec![1, 2]);
+        assert_eq!(fence_topk(&[f32::NAN, -3.0, -1.0], 1), vec![2]);
+    }
+
+    /// **A K at or above the field size is a no-op, not a reshuffle.**
+    ///
+    /// The identity permutation is what the bit-identity claim rests on: with
+    /// nothing to cut, the second pass is the original loop.
+    #[test]
+    fn a_fence_wider_than_the_field_selects_everything_in_order() {
+        for topk in 3..8usize {
+            assert_eq!(fence_topk(&[0.5, 2.0, 1.0], topk), vec![0, 1, 2]);
+        }
+        assert!(fence_topk(&[1.0, 2.0], 0).is_empty());
+        assert!(fence_topk(&[], 4).is_empty());
+    }
+
+    /// **A fence that cannot bite leaves the decision bit-identical.**
+    ///
+    /// Three ways of not biting, all against the same unfenced run: no fence,
+    /// a K the field already fits under, and a fence that IS the evaluator --
+    /// the last one actually runs the pre-ranking pass and cuts the field, so
+    /// it pins the cut itself rather than only the guard in front of it.  The
+    /// score is compared by bits because a fence that moved a decision by an
+    /// ulp would still be a fence that moved a decision.
+    #[test]
+    fn a_fence_that_cannot_bite_changes_no_decision() {
+        let fl_ev = fl_ev();
+        let fl_table: evaluator::FlTable = [0.0, 10.7, 29.9, 63.5];
+        let board = t2_board();
+        assert_eq!(board.card_count(), T2_BOARD_CARDS);
+        let draw = [
+            to_core_card("Td").unwrap(),
+            to_core_card("4h").unwrap(),
+            to_core_card("8s").unwrap(),
+        ];
+        let placed: Vec<Card> = board.rows.iter().flatten().copied().collect();
+        let unseen: Vec<Card> = all_cards()
+            .iter()
+            .map(|name| to_core_card(name).unwrap())
+            .filter(|card| !placed.contains(card) && !draw.contains(card))
+            .collect();
+        let field = candidates(&board, &draw).len();
+        assert!(field > 4, "the fixture leaves no field to cut ({field})");
+
+        // Width 60 is the cheapest encoder this crate dispatches on -- actor
+        // block plus FL context, nothing sampled -- so the test measures the
+        // fence and not the joint block.
+        let served = linear_model(60, 0x1234_5678);
+        let other = linear_model(60, 0x9E37_79B9);
+
+        let run = |fence: Option<(&evaluator::Model, usize)>| -> ([Vec<Card>; 3], u32) {
+            let context = fence_context(&fl_ev, &fl_table, fence);
+            let mut features: Vec<f32> = Vec::new();
+            let mut scratch: Vec<f32> = Vec::new();
+            let (chosen, best) = choose(
+                &served,
+                &board,
+                &draw,
+                &unseen,
+                &context,
+                2,
+                "fence/t2",
+                &mut features,
+                &mut scratch,
+            )
+            .expect("a seven-card board has a legal placement");
+            (chosen.expect("a chosen board").rows, best.to_bits())
+        };
+
+        let plain = run(None);
+        assert_eq!(
+            run(Some((&other, field))),
+            plain,
+            "a K at the field size cut something"
+        );
+        assert_eq!(
+            run(Some((&other, field + 5))),
+            plain,
+            "a K above the field size cut something"
+        );
+        assert_eq!(
+            run(Some((&served, 3))),
+            plain,
+            "the evaluator's own argmax did not survive its own cut"
+        );
     }
 }

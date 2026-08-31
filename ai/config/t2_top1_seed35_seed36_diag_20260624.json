@@ -1,0 +1,142 @@
+{
+  "name": "t2_top1_seed35_seed36_diag_20260624",
+  "status": "diagnostic",
+  "purpose": "T2 Top1 EV-loss diagnostic after seed35 exact hard-negative retrain. This records checked old/new selector-feature ranker blends. It is not a runtime default because the Top1-improving candidate still has only 20 clean external hard rows and slightly weakens Top8 on seed36.",
+  "base_configs": [
+    "ai/config/t2_top1_no_leak_20260620.json",
+    "ai/config/t2_top1hard_ft2_20260619.json"
+  ],
+  "source_data": {
+    "seed35_exact_top20": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/eval_data/seed20260635_both500_mined_top20_cap100_dim789",
+    "seed36_exact_top20_external": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/eval_data/seed20260636_both500_newhard_top20_cap100_dim789",
+    "seed37_first20_exact_external": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/eval_data/seed20260637_first20_cap100_dim789",
+    "seed37_zblendhard_top20_exact_external": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/eval_data/seed20260637_both500_zblendhard_top20_cap100_dim789"
+  },
+  "models": {
+    "old_score": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/t2_selector_retrain_seed27_29_34_seed28resid12_exttop200_exttop300_rankeronly_20260627/hgb_l63_state_score_top_weighted.joblib",
+    "old_ev": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/t2_selector_retrain_seed27_29_34_seed28resid12_exttop200_exttop300_rankeronly_20260627/hgb_l63_state_ev_rank_blend_top_weighted.joblib",
+    "new_score_seed35top20": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/t2_selector_retrain_seed27_29_34_seed28resid12_exttop200_exttop300_seed35top20_rankeronly_20260627/hgb_l63_state_score_top_weighted.joblib",
+    "new_ev_seed35top20": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/t2_selector_retrain_seed27_29_34_seed28resid12_exttop200_exttop300_seed35top20_rankeronly_20260627/hgb_l63_state_ev_rank_blend_top_weighted.joblib",
+    "new_score_seed35_seed36top20": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/t2_selector_retrain_seed27_29_34_seed28resid12_exttop200_exttop300_seed35_seed36top20_rankeronly_20260624/hgb_l63_state_score_top_weighted.joblib",
+    "new_ev_seed35_seed36top20": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/t2_selector_retrain_seed27_29_34_seed28resid12_exttop200_exttop300_seed35_seed36top20_rankeronly_20260624/hgb_l63_state_ev_rank_blend_top_weighted.joblib"
+  },
+  "external_checks_20260624": {
+    "seed37_first20_exact_external": {
+      "note": "Clean first 20 rows from untouched seed37 source. Small sample; not hard-mined.",
+      "old_ev": {
+        "top1_ev_hit": 1.0,
+        "reg1": 0.0,
+        "top3": 1.0,
+        "top10": 1.0,
+        "top20": 1.0
+      },
+      "new_ev_seed35_seed36top20": {
+        "top1_ev_hit": 1.0,
+        "reg1": 0.0,
+        "top3": 1.0,
+        "top10": 1.0,
+        "top20": 1.0
+      },
+      "top1_reg1_candidate": {
+        "top1_ev_hit": 0.7,
+        "reg1": 2.165018081665039,
+        "max_reg1": 7.905470848083496,
+        "top3": 1.0,
+        "top10": 1.0,
+        "top20": 1.0
+      }
+    },
+    "seed37_zblendhard_top20_exact_external": {
+      "note": "Untouched seed37 source, hard rows selected by pseudo z-blend Top1 EV loss, then cap100 exact-labeled. This is an external stress set.",
+      "new_ev_seed35_seed36top20": {
+        "top1_ev_hit": 0.4,
+        "reg1": 0.29426145915640517,
+        "max_reg1": 3.7578022480010986,
+        "top3": 0.6,
+        "reg3": 0.14769165770849213,
+        "top5": 0.8,
+        "reg5": 0.07917122840881348,
+        "top8": 1.0,
+        "top10": 1.0,
+        "top20": 1.0
+      },
+      "old_ev": {
+        "top1_ev_hit": 0.3,
+        "reg1": 0.5148168386076577,
+        "max_reg1": 5.844402015209198,
+        "top3": 0.8,
+        "reg3": 0.09039843732025474,
+        "top8": 1.0,
+        "top10": 1.0,
+        "top20": 1.0
+      },
+      "top1_reg1_candidate": {
+        "top1_ev_hit": 0.1,
+        "reg1": 1.0327849142428023,
+        "max_reg1": 8.061735153198242,
+        "top3": 0.45,
+        "top5": 0.55,
+        "top8": 0.55,
+        "top10": 0.55,
+        "top20": 0.95
+      }
+    }
+  },
+  "recommended_diagnostic_candidates": {
+    "top1_reg1_candidate": {
+      "mode": "group_z_blend",
+      "weights": {
+        "old_score": 0.55,
+        "new_score_seed35top20": 0.35,
+        "old_ev": 0.1
+      },
+      "seed36_exact_top20_external": {
+        "top1_ev_hit": 0.3,
+        "reg1": 0.7002795973792673,
+        "max_reg1": 4.21833610534668,
+        "top3": 0.7,
+        "reg3": 0.05982046537101269,
+        "top5": 0.8,
+        "reg5": 0.023593656718730927,
+        "top8": 0.95,
+        "reg8": 0.006905791535973549,
+        "top10": 1.0,
+        "reg10": 0.0,
+        "top20": 1.0
+      },
+      "reason": "Improves seed36 hard exact Top1 from old score 25% to 30%, Reg1 from 1.106665 to 0.700280, and preserves Top10 at 100%. Top8 drops from 100% to 95%, so this remains diagnostic."
+    },
+    "topk_safe_candidate": {
+      "mode": "group_z_blend",
+      "weights": {
+        "old_score": 0.75,
+        "new_score_seed35top20": 0.25
+      },
+      "seed36_exact_top20_external": {
+        "top1_ev_hit": 0.25,
+        "reg1": 0.7115465441718698,
+        "max_reg1": 4.21833610534668,
+        "top3": 0.75,
+        "reg3": 0.0403960507363081,
+        "top5": 0.85,
+        "reg5": 0.017895618826150893,
+        "top8": 1.0,
+        "top10": 1.0,
+        "reg10": 0.0,
+        "top20": 1.0
+      },
+      "reason": "Preserves old score Top8/Top10 at 100% and improves Reg1 from 1.106665 to 0.711547, but does not improve Top1 hit rate."
+    }
+  },
+  "evidence": {
+    "blend_sweep": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/t2_selector_blend_sweep_seed35_seed36_exact_20260624/old_new_score_ev_blend_sweep_exact_seed35_seed36.json",
+    "seed37_first20_exact_eval": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/t2_selector_blend_sweep_seed37_first20_exact_20260624/seed37_first20_exact_eval.json",
+    "seed37_zblendhard_exact_eval": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/t2_selector_blend_sweep_seed37_zblendhard_exact_20260624/seed37_zblendhard_exact_eval.json",
+    "seed35_retrain_run": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/t2_selector_retrain_seed27_29_34_seed28resid12_exttop200_exttop300_seed35top20_rankeronly_20260627",
+    "seed36_exact_oracle": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/source1000_seed20260636_both500_pool_mining_new_ev_ranker_pseudo_20260627/exact_cap100_top20/t2_oracle_cap100_limit20.summary.json",
+    "seed37_first20_exact_oracle": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/exact_cap100_seed20260637_first20/t2_oracle_cap100_limit20.summary.json",
+    "seed37_zblendhard_exact_oracle": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/source1000_seed20260637_both500_pool_mining_zblend_pseudo_20260624/exact_cap100_top20/t2_oracle_cap100_limit20.summary.json",
+    "status_doc": "docs/t2_t3_next_status_20260614.md"
+  },
+  "decision": "Keep diagnostic only. The seed36 Top1/Reg1 z-blend did not generalize to seed37 zblend-hard exact rows. The current best seed37 hard signal is new_ev_seed35_seed36top20: Top1 40%, Reg1 0.294261, Top8/Top10/Top20 100%. Next promotion gate should optimize Top1 only under a strict Top8/Top10 no-regression constraint across multiple clean and hard external exact seeds."
+}

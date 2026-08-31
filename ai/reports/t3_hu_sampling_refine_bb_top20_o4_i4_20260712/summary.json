@@ -1,0 +1,211 @@
+{
+  "schema": "ofc_hu_gate/v1",
+  "overall": {
+    "positions": 20,
+    "strict_top1_agreement": 0.75,
+    "ci_compatible_agreement": 1.0,
+    "cross_regret": {
+      "mean": 0.760778514963314,
+      "p95": 2.6312499999999357,
+      "max": 10.031535855449343
+    },
+    "candidate_ev_drift": {
+      "mean": 3.0418329444343732,
+      "p95": 8.626943682611545,
+      "max": 10.484403036577184
+    },
+    "runtime_ms": {
+      "p50": 3833.2495000213385,
+      "p95": 12012.60339980945,
+      "max": 13292.453800328076,
+      "over_5s": 15
+    }
+  },
+  "by_position": {
+    "bb": {
+      "positions": 20,
+      "strict_top1_agreement": 0.75,
+      "ci_compatible_agreement": 1.0,
+      "cross_regret": {
+        "mean": 0.760778514963314,
+        "p95": 2.6312499999999357,
+        "max": 10.031535855449343
+      },
+      "candidate_ev_drift": {
+        "mean": 3.0418329444343732,
+        "p95": 8.626943682611545,
+        "max": 10.484403036577184
+      },
+      "runtime_ms": {
+        "p50": 3833.2495000213385,
+        "p95": 12012.60339980945,
+        "max": 13292.453800328076,
+        "over_5s": 15
+      }
+    }
+  },
+  "by_stratum": {
+    "bb_joker0": {
+      "positions": 10,
+      "strict_top1_agreement": 0.7,
+      "ci_compatible_agreement": 1.0,
+      "cross_regret": {
+        "mean": 1.066214709203882,
+        "p95": 10.031535855449343,
+        "max": 10.031535855449343
+      },
+      "candidate_ev_drift": {
+        "mean": 3.187197410831909,
+        "p95": 8.626943682611545,
+        "max": 8.626943682611545
+      },
+      "runtime_ms": {
+        "p50": 4026.173500344157,
+        "p95": 7436.530500184745,
+        "max": 7762.601799797267,
+        "over_5s": 7
+      }
+    },
+    "bb_joker1": {
+      "positions": 4,
+      "strict_top1_agreement": 0.75,
+      "ci_compatible_agreement": 1.0,
+      "cross_regret": {
+        "mean": 0.48054330180688076,
+        "p95": 1.922173207227523,
+        "max": 1.922173207227523
+      },
+      "candidate_ev_drift": {
+        "mean": 2.146688939080235,
+        "p95": 4.216989157322959,
+        "max": 4.216989157322959
+      },
+      "runtime_ms": {
+        "p50": 4010.526299942285,
+        "p95": 12061.963700223714,
+        "max": 12061.963700223714,
+        "over_5s": 4
+      }
+    },
+    "bb_joker2": {
+      "positions": 6,
+      "strict_top1_agreement": 0.8333333333333334,
+      "ci_compatible_agreement": 1.0,
+      "cross_regret": {
+        "mean": 0.43854166666665595,
+        "p95": 2.6312499999999357,
+        "max": 2.6312499999999357
+      },
+      "candidate_ev_drift": {
+        "mean": 3.396321504007906,
+        "p95": 10.484403036577184,
+        "max": 10.484403036577184
+      },
+      "runtime_ms": {
+        "p50": 2896.0153004154563,
+        "p95": 13292.453800328076,
+        "max": 13292.453800328076,
+        "over_5s": 4
+      }
+    }
+  },
+  "input": "ai\\reports\\t3_hu_sampling_pilot_100_20260712\\positions.jsonl",
+  "input_sha256": "630e163c6f3d86220ffaccf682eaa0184078ad9ef438819524ac1cf3a81289bf",
+  "selection": {
+    "schema": "ofc_hu_gate/v1",
+    "mode": "positions_input",
+    "input": "ai\\reports\\t3_hu_sampling_pilot_100_20260712\\positions.jsonl",
+    "input_sha256": "630e163c6f3d86220ffaccf682eaa0184078ad9ef438819524ac1cf3a81289bf",
+    "selected": 100,
+    "refinement": {
+      "source_positions": 100,
+      "position_filter": "bb",
+      "after_position_filter": 50,
+      "comparisons_supplied": true,
+      "disagreements_only": true,
+      "after_disagreement_filter": 24,
+      "ranked_by": "max_cross_regret_desc_then_decision_id",
+      "before_limit": 24,
+      "limit": 20,
+      "requested_positions": 20,
+      "positions_input": "ai/reports/t3_hu_sampling_pilot_100_20260712/positions.jsonl",
+      "comparisons_input": "ai/reports/t3_hu_sampling_pilot_100_20260712/comparisons.jsonl",
+      "comparisons_input_sha256": "b88fbff5b2f767a31999dd7a1f5e6e8e5af1c43568b4cbd201097e8f6e049104"
+    }
+  },
+  "refinement": {
+    "source_positions": 100,
+    "position_filter": "bb",
+    "after_position_filter": 50,
+    "comparisons_supplied": true,
+    "disagreements_only": true,
+    "after_disagreement_filter": 24,
+    "ranked_by": "max_cross_regret_desc_then_decision_id",
+    "before_limit": 24,
+    "limit": 20,
+    "requested_positions": 20,
+    "positions_input": "ai/reports/t3_hu_sampling_pilot_100_20260712/positions.jsonl",
+    "comparisons_input": "ai/reports/t3_hu_sampling_pilot_100_20260712/comparisons.jsonl",
+    "comparisons_input_sha256": "b88fbff5b2f767a31999dd7a1f5e6e8e5af1c43568b4cbd201097e8f6e049104"
+  },
+  "resume": {
+    "runs": [
+      {
+        "seed": 20260712,
+        "output": "ai\\reports\\t3_hu_sampling_refine_bb_top20_o4_i4_20260712\\runs\\seed_20260712.jsonl",
+        "requested_rows": 20,
+        "existing_rows": 0,
+        "resumed": false,
+        "complete_before_run": false,
+        "new_rows": 20,
+        "legacy_rows_without_run_config": 0,
+        "run_config": {
+          "schema": "ofc_hu_gate/v1",
+          "method": "hu_sampled_pimc_exact_t4",
+          "information_model": "pimc_determinization_v1",
+          "seed": 20260712,
+          "btn_outer": 8,
+          "bb_outer": 4,
+          "bb_inner": 4,
+          "rust_solver_path": null,
+          "rust_timeout_s": 300.0
+        }
+      },
+      {
+        "seed": 20260713,
+        "output": "ai\\reports\\t3_hu_sampling_refine_bb_top20_o4_i4_20260712\\runs\\seed_20260713.jsonl",
+        "requested_rows": 20,
+        "existing_rows": 0,
+        "resumed": false,
+        "complete_before_run": false,
+        "new_rows": 20,
+        "legacy_rows_without_run_config": 0,
+        "run_config": {
+          "schema": "ofc_hu_gate/v1",
+          "method": "hu_sampled_pimc_exact_t4",
+          "information_model": "pimc_determinization_v1",
+          "seed": 20260713,
+          "btn_outer": 8,
+          "bb_outer": 4,
+          "bb_inner": 4,
+          "rust_solver_path": null,
+          "rust_timeout_s": 300.0
+        }
+      }
+    ],
+    "total_existing_rows": 0,
+    "total_new_rows": 40
+  },
+  "eval_seeds": [
+    20260712,
+    20260713
+  ],
+  "btn_outer": 8,
+  "bb_outer": 4,
+  "bb_inner": 4,
+  "elapsed_s": 206.12448159977794,
+  "method": "hu_sampled_pimc_exact_t4",
+  "information_model": "pimc_determinization_v1",
+  "hu_exact": false,
+  "inner_t4_exact": true
+}

@@ -46,7 +46,10 @@ export const useWebSocket = (serverUrl: string = getDefaultWsUrl()): UseWebSocke
         ws.onmessage = (event) => {
             try {
                 const data = JSON.parse(event.data);
-                setMessages(prev => [...prev, data]);
+                setMessages(prev => {
+                    const next = [...prev, data];
+                    return next.length > 50 ? next.slice(-50) : next;
+                });
                 setLastMessage(data);
             } catch (e) {
                 console.error('Failed to parse message:', e);

@@ -22,7 +22,9 @@ use super::evaluator;
 use super::row_memo::TerminalMemo;
 use super::t3_second;
 use super::t3_vs_fl::sampled_draws;
-use super::t3_vs_fl_lib::{card_bit, score_mean, terminal_key, FlLibrary, LibrarySet, MatchedRow, TerminalKey};
+use super::t3_vs_fl_lib::{
+    card_bit, score_mean, terminal_key, FlLibrary, LibrarySet, MatchedRow, TerminalKey,
+};
 use super::{all_cards, apply, legal_actions, to_core_card, BoardStr, CoreBoard, FlEv};
 
 #[derive(Deserialize)]
@@ -82,8 +84,7 @@ struct T3Candidate {
 fn t3_candidates(board: &CoreBoard, draw: &[Card; 3]) -> Vec<T3Candidate> {
     let open = board.open_slots();
     let mut out: Vec<T3Candidate> = Vec::new();
-    let mut seen: std::collections::BTreeSet<(u32, u32, u32)> =
-        std::collections::BTreeSet::new();
+    let mut seen: std::collections::BTreeSet<(u32, u32, u32)> = std::collections::BTreeSet::new();
     let id = |card: &Card| -> u32 {
         if card.is_joker() {
             52
@@ -108,10 +109,7 @@ fn t3_candidates(board: &CoreBoard, draw: &[Card; 3]) -> Vec<T3Candidate> {
                 pair.sort_unstable();
                 if seen.insert((pair[0], pair[1], id(&draw[discard_index]))) {
                     out.push(T3Candidate {
-                        placements: [
-                            (row_a, draw[kept[0]]),
-                            (row_b, draw[kept[1]]),
-                        ],
+                        placements: [(row_a, draw[kept[0]]), (row_b, draw[kept[1]])],
                         discard_index,
                     });
                 }
@@ -287,10 +285,8 @@ pub fn solve(
                 let mut chosen: Option<CoreBoard> = None;
                 for candidate in t3_candidates(&after, &t3_draw) {
                     let mut t3_after = after.clone();
-                    t3_after.rows[candidate.placements[0].0]
-                        .push(candidate.placements[0].1);
-                    t3_after.rows[candidate.placements[1].0]
-                        .push(candidate.placements[1].1);
+                    t3_after.rows[candidate.placements[0].0].push(candidate.placements[0].1);
+                    t3_after.rows[candidate.placements[1].0].push(candidate.placements[1].1);
                     let _ = candidate.discard_index;
                     features.clear();
                     evaluator::actor_block(&t3_after.rows, &mut features);
@@ -301,9 +297,7 @@ pub fn solve(
                             fl_table,
                             &mut features,
                         );
-                        for value in
-                            t3_second::joint_block(&t3_after, &unseen_t3, fl_ev)?
-                        {
+                        for value in t3_second::joint_block(&t3_after, &unseen_t3, fl_ev)? {
                             features.push(value as f32);
                         }
                     }
@@ -351,12 +345,8 @@ pub fn solve(
             }
             let effective = playouts.max(1);
             let mut rowwise: Vec<f32> = Vec::with_capacity(evaluator::OPPONENT_SIZE);
-            let _categories = evaluator::opponent_rowwise_block(
-                &after.rows,
-                &unseen_t2,
-                fl_table,
-                &mut rowwise,
-            );
+            let _categories =
+                evaluator::opponent_rowwise_block(&after.rows, &unseen_t2, fl_table, &mut rowwise);
             Ok(T2VsFlActionValue {
                 action_key: action.key(),
                 value: total / effective as f64,

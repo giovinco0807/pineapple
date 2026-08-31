@@ -1,0 +1,328 @@
+{
+  "teacher": "ai/data/joker_rule_migration_20260711/holdout/branch_t3_teacher_400.jsonl",
+  "topks": [
+    5,
+    8,
+    10,
+    20
+  ],
+  "models": {
+    "legacy_base": {
+      "bb": "D:\\ofc-pineapple-data\\t3_jokerfix_extra_20260605\\models\\t3-20k-plus-gen5k-hardneginit-bb\\action_value_best.pt",
+      "btn": "D:\\ofc-pineapple-data\\t3_jokerfix_extra_20260605\\models\\t3-20k-plus-gen5k-hardneginit-btn\\action_value_best.pt"
+    },
+    "branch_base": {
+      "bb": "D:\\ofc-pineapple-data\\branch_t0t2_top10_100k_20260605\\models\\t3-top10-100k-bb-20260605\\action_value_best.pt",
+      "btn": "D:\\ofc-pineapple-data\\branch_t0t2_top10_100k_20260605\\models\\t3-top10-100k-btn-20260605\\action_value_best.pt"
+    },
+    "branch_hardneg": {
+      "bb": "D:\\ofc-pineapple-data\\branch_t0t2_top10_100k_20260605\\models\\t3-top10-100k-hardneg-w10-bb-20260606\\action_value_best.pt",
+      "btn": "D:\\ofc-pineapple-data\\branch_t0t2_top10_100k_20260605\\models\\t3-top10-100k-hardneg-w10-btn-20260606\\action_value_best.pt"
+    },
+    "branch_top5": {
+      "bb": "D:\\ofc-pineapple-data\\branch_t0t2_top10_100k_20260605\\models\\t3-top10-100k-top5miss-w10-bb-20260606\\action_value_best.pt",
+      "btn": "D:\\ofc-pineapple-data\\branch_t0t2_top10_100k_20260605\\models\\t3-top10-100k-top5miss-w10-btn-20260606\\action_value_best.pt"
+    },
+    "canonical": {
+      "bb": "ai/models/candidate_runs/t3-canonical-joker-20k-bb-20260711/action_value_best.pt",
+      "btn": "ai/models/candidate_runs/t3-canonical-joker-20k-btn-20260711/action_value_best.pt"
+    }
+  },
+  "union": {
+    "rows": 400,
+    "pool": {
+      "5": {
+        "recall": 0.8175,
+        "ev_loss": {
+          "mean": 0.20363423954304877,
+          "p95": 0.2902613574165205,
+          "p99": 8.666506340378344,
+          "max": 12.314460511678048,
+          "gt_0p1": 23,
+          "gt_0p5": 20,
+          "gt_1": 11
+        },
+        "pool_size_avg": 7.265,
+        "pool_size_p95": 10.0,
+        "pool_size_max": 13,
+        "worst": {
+          "row": 334,
+          "position": "bb",
+          "loss": 12.314460511678048,
+          "dealt": [
+            "7c",
+            "5h",
+            "Kc"
+          ],
+          "exact_action": {
+            "placements": [
+              [
+                "7c",
+                "bottom"
+              ],
+              [
+                "Kc",
+                "bottom"
+              ]
+            ],
+            "discard": "5h"
+          },
+          "exact_score": 22.69999999999819,
+          "pool_size": 8
+        }
+      },
+      "8": {
+        "recall": 0.9125,
+        "ev_loss": {
+          "mean": 0.12540300598547943,
+          "p95": 0.0,
+          "p99": 5.641254060066807,
+          "max": 12.314460511678048,
+          "gt_0p1": 11,
+          "gt_0p5": 10,
+          "gt_1": 5
+        },
+        "pool_size_avg": 10.4225,
+        "pool_size_p95": 13.0,
+        "pool_size_max": 16,
+        "worst": {
+          "row": 334,
+          "position": "bb",
+          "loss": 12.314460511678048,
+          "dealt": [
+            "7c",
+            "5h",
+            "Kc"
+          ],
+          "exact_action": {
+            "placements": [
+              [
+                "7c",
+                "bottom"
+              ],
+              [
+                "Kc",
+                "bottom"
+              ]
+            ],
+            "discard": "5h"
+          },
+          "exact_score": 22.69999999999819,
+          "pool_size": 10
+        }
+      },
+      "10": {
+        "recall": 0.95,
+        "ev_loss": {
+          "mean": 0.07838975228207377,
+          "p95": 0.0,
+          "p99": 0.8020284760844177,
+          "max": 11.72075639599405,
+          "gt_0p1": 7,
+          "gt_0p5": 7,
+          "gt_1": 3
+        },
+        "pool_size_avg": 12.155,
+        "pool_size_p95": 15.049999999999955,
+        "pool_size_max": 18,
+        "worst": {
+          "row": 322,
+          "position": "bb",
+          "loss": 11.72075639599405,
+          "dealt": [
+            "7c",
+            "5h",
+            "Kc"
+          ],
+          "exact_action": {
+            "placements": [
+              [
+                "7c",
+                "bottom"
+              ],
+              [
+                "Kc",
+                "bottom"
+              ]
+            ],
+            "discard": "5h"
+          },
+          "exact_score": 23.32464961067679,
+          "pool_size": 16
+        }
+      },
+      "20": {
+        "recall": 1.0,
+        "ev_loss": {
+          "mean": 0.0,
+          "p95": 0.0,
+          "p99": 0.0,
+          "max": 0.0,
+          "gt_0p1": 0,
+          "gt_0p5": 0,
+          "gt_1": 0
+        },
+        "pool_size_avg": 17.225,
+        "pool_size_p95": 21.0,
+        "pool_size_max": 21,
+        "worst": {
+          "row": 0,
+          "position": "bb",
+          "loss": 0.0,
+          "dealt": [
+            "Jc",
+            "Td",
+            "Js"
+          ],
+          "exact_action": {
+            "placements": [
+              [
+                "Js",
+                "middle"
+              ],
+              [
+                "Td",
+                "middle"
+              ]
+            ],
+            "discard": "Jc"
+          },
+          "exact_score": 4.223181312569519,
+          "pool_size": 20
+        }
+      }
+    },
+    "by_position": {
+      "bb": {
+        "rows": 200,
+        "pool": {
+          "5": {
+            "recall": 0.805,
+            "ev_loss": {
+              "mean": 0.32468487208007496,
+              "p95": 0.8009343715237947,
+              "p99": 10.025929254727654,
+              "max": 12.314460511678048,
+              "gt_0p1": 16,
+              "gt_0p5": 15,
+              "gt_1": 9
+            },
+            "pool_size_avg": 7.18,
+            "pool_size_p95": 10.0,
+            "pool_size_max": 11
+          },
+          "8": {
+            "recall": 0.9,
+            "ev_loss": {
+              "mean": 0.24645461624025272,
+              "p95": 0.0005305895439374064,
+              "p99": 8.683625806451726,
+              "max": 12.314460511678048,
+              "gt_0p1": 9,
+              "gt_0p5": 9,
+              "gt_1": 5
+            },
+            "pool_size_avg": 10.37,
+            "pool_size_p95": 13.049999999999983,
+            "pool_size_max": 16
+          },
+          "10": {
+            "recall": 0.935,
+            "ev_loss": {
+              "mean": 0.15673982202446501,
+              "p95": 0.0,
+              "p99": 7.961621579532946,
+              "max": 11.72075639599405,
+              "gt_0p1": 7,
+              "gt_0p5": 7,
+              "gt_1": 3
+            },
+            "pool_size_avg": 12.11,
+            "pool_size_p95": 15.049999999999983,
+            "pool_size_max": 18
+          },
+          "20": {
+            "recall": 1.0,
+            "ev_loss": {
+              "mean": 0.0,
+              "p95": 0.0,
+              "p99": 0.0,
+              "max": 0.0,
+              "gt_0p1": 0,
+              "gt_0p5": 0,
+              "gt_1": 0
+            },
+            "pool_size_avg": 17.455,
+            "pool_size_p95": 21.0,
+            "pool_size_max": 21
+          }
+        }
+      },
+      "btn": {
+        "rows": 200,
+        "pool": {
+          "5": {
+            "recall": 0.83,
+            "ev_loss": {
+              "mean": 0.08258360700602264,
+              "p95": 0.0,
+              "p99": 0.7528557744936859,
+              "max": 11.156185002736962,
+              "gt_0p1": 7,
+              "gt_0p5": 5,
+              "gt_1": 2
+            },
+            "pool_size_avg": 7.35,
+            "pool_size_p95": 10.0,
+            "pool_size_max": 13
+          },
+          "8": {
+            "recall": 0.925,
+            "ev_loss": {
+              "mean": 0.0043513957307060765,
+              "p95": 0.0,
+              "p99": 0.010645867542416886,
+              "max": 0.5755336617405583,
+              "gt_0p1": 2,
+              "gt_0p5": 1,
+              "gt_1": 0
+            },
+            "pool_size_avg": 10.475,
+            "pool_size_p95": 13.0,
+            "pool_size_max": 16
+          },
+          "10": {
+            "recall": 0.965,
+            "ev_loss": {
+              "mean": 3.9682539682540096e-05,
+              "p95": 0.0,
+              "p99": 0.0,
+              "max": 0.00793650793650802,
+              "gt_0p1": 0,
+              "gt_0p5": 0,
+              "gt_1": 0
+            },
+            "pool_size_avg": 12.2,
+            "pool_size_p95": 15.049999999999983,
+            "pool_size_max": 17
+          },
+          "20": {
+            "recall": 1.0,
+            "ev_loss": {
+              "mean": 0.0,
+              "p95": 0.0,
+              "p99": 0.0,
+              "max": 0.0,
+              "gt_0p1": 0,
+              "gt_0p5": 0,
+              "gt_1": 0
+            },
+            "pool_size_avg": 16.995,
+            "pool_size_p95": 21.0,
+            "pool_size_max": 21
+          }
+        }
+      }
+    }
+  }
+}

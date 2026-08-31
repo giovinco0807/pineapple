@@ -25,7 +25,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from ai.engine.encoding import Board, Observation, encode_state, STATE_DIM, ALL_CARDS
 from ai.engine.action_space import get_initial_actions, MAX_ACTIONS
-from ai.models.networks import PolicyNetwork
+from ai.models.networks import PolicyNetwork, PolicyNetworkV2
 
 # Rust uses "JK" for jokers; Python encoding uses "X1"/"X2"
 # Rust card_to_string: rank_to_char(rank) + suit_to_char(suit)
@@ -100,15 +100,20 @@ def action_to_rust_placement(action, dealt_cards: list) -> str:
     return f"Top[{top_str}] Mid[{mid_str}] Bot[{bot_str}]"
 
 
-def load_policy_net(model_path: str, device: str = "cpu") -> PolicyNetwork:
+def load_policy_net(model_path: str, device: str = "cpu", v2: bool = False):
     """Load the trained T0 BC PolicyNet."""
     checkpoint = torch.load(model_path, map_location=device, weights_only=True)
     
-    # Detect input_dim from checkpoint
-    first_key = list(checkpoint.keys())[0]
-    input_dim = checkpoint[first_key].shape[1] if first_key == "net.0.weight" else STATE_DIM
+    if v2:
+        # Detect input_dim from V2 checkpoint
+        first_key = "input_proj.0.weight"
+        input_dim = checkpoint[first_key].shape[1] if first_key in checkpoint else STATE_DIM
+        model = PolicyNetworkV2(input_dim=input_dim, max_actions=MAX_ACTIONS)
+    else:
+        first_key = list(checkpoint.keys())[0]
+        input_dim = checkpoint[first_key].shape[1] if first_key == "net.0.weight" else STATE_DIM
+        model = PolicyNetwork(input_dim=input_dim, max_actions=MAX_ACTIONS)
     
-    model = PolicyNetwork(input_dim=input_dim, max_actions=MAX_ACTIONS)
     model.load_state_dict(checkpoint)
     model.eval()
     model.to(device)
@@ -196,12 +201,14 @@ def main():
     parser.add_argument("--output", type=str, default="ai/data/filtered_t0.json",
                         help="Output JSON file path")
     parser.add_argument("--model", type=str, 
-                        default="ai/models/t0_bc/bc_policy_best.pt",
+                        default="ai/models/t0_policynet_v2/bc_policy_best.pt",
                         help="Path to trained PolicyNet weights")
     parser.add_argument("--seed", type=int, default=42,
                         help="Random seed")
     parser.add_argument("--verbose", action="store_true",
                         help="Print detailed per-hand info")
+    parser.add_argument("--v2", action="store_true",
+                        help="Use V2 architecture (ResBlock + LayerNorm)")
     args = parser.parse_args()
     
     print(f"=== T0 PolicyNet Pre-Filter ===")
@@ -215,9 +222,12 @@ def main():
     # Load model
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"Device: {device}")
-    model = load_policy_net(args.model, device)
-    print(f"Model loaded: input_dim={model.net[0].in_features}, "
-          f"output_dim={model.net[-1].out_features}")
+    model = load_policy_net(args.model, device, v2=args.v2)
+    if args.v2:
+        print(f"Model loaded (V2): input_dim={model.input_proj[0].in_features}")
+    else:
+        print(f"Model loaded: input_dim={model.net[0].in_features}, "
+              f"output_dim={model.net[-1].out_features}")
     print()
     
     # Generate hands and filter

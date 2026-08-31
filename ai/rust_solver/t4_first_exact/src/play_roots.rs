@@ -53,6 +53,8 @@ use super::{all_cards, to_core_card, CoreBoard, FlEv};
 /// from arriving silently.
 const OPP_COUNT: u8 = 14;
 
+const ROW_CAPACITY: [usize; 3] = [3, 5, 5];
+
 /// One deal: five dealt at T0, then three drawn at each of T1, T2 and T3.
 #[derive(Deserialize)]
 pub struct PlayRequest {
@@ -68,6 +70,42 @@ pub struct PlayedRoot {
     pub rows: [Vec<String>; 3],
     pub dead: Vec<String>,
     pub draw: Vec<String>,
+}
+
+/// A board in the shape the T1 labeler accepts.
+#[derive(Clone, Serialize)]
+pub struct PlayedBoard {
+    pub top: Vec<String>,
+    pub middle: Vec<String>,
+    pub bottom: Vec<String>,
+}
+
+/// The T1 decision reached after the opening chooser places the first five.
+#[derive(Serialize)]
+pub struct PlayedT1Root {
+    pub id: String,
+    pub board: PlayedBoard,
+    pub dead: Vec<String>,
+    pub draw: Vec<String>,
+    pub opp_count: u8,
+}
+
+/// All training roots reached while one deal is played.  Keeping the three
+/// streets in one result guarantees they describe the same decisions and the
+/// same fourteen dealt cards.
+#[derive(Serialize)]
+pub struct PlayedTrace {
+    pub t1: PlayedT1Root,
+    pub t2: PlayedRoot,
+    pub t3: PlayedRoot,
+}
+
+fn played_board(names: &[Vec<String>; 3]) -> PlayedBoard {
+    PlayedBoard {
+        top: names[0].clone(),
+        middle: names[1].clone(),
+        bottom: names[2].clone(),
+    }
 }
 
 /// Seconds inside each street's fan-out, so a run can say where a deal went
@@ -126,6 +164,12 @@ fn slots_of(draw: &[Card; 3], placements: &[(usize, Card); 2]) -> Result<[usize;
 /// `node_seed` is the node's and not the candidate's: at T2 the joint block is
 /// sampled, and two candidates judged on different completions differ by the
 /// sampling noise before they differ by the move.
+///
+/// `fence` is the T2 cascade: `Some((cheap model, K))` pre-ranks the field and
+/// lets `model` argmax only the head of it.  It fires at the T2 node alone --
+/// a seven-card board -- and is `None` everywhere the chain has not been asked
+/// for it, in which case this is the loop it has always been.  See
+/// [`playout::Context::t2_fence`] for the measurement behind K.
 #[allow(clippy::too_many_arguments)]
 fn play_street(
     model: &evaluator::Model,
@@ -139,18 +183,64 @@ fn play_street(
     memo: &RowwiseMemo,
     pool_key: u64,
     node_seed: &str,
+    fence: Option<(&evaluator::Model, usize)>,
 ) -> Result<String> {
     let mut features: Vec<f32> = Vec::new();
     let mut scratch: Vec<f32> = Vec::new();
     let mut best = f32::NEG_INFINITY;
     let mut chosen: Option<[(usize, Card); 2]> = None;
-    for candidate in playout::candidates(board, draw) {
+    // Shared across this node's candidates; see `playout::choose`.
+    let mut joint_memo = crate::row_memo::TerminalMemo::new(board);
+    let field = playout::candidates(board, draw);
+    let shortlist: Option<Vec<usize>> = match fence {
+        Some((cheap, topk))
+            if board.card_count() == playout::T2_BOARD_CARDS && field.len() > topk =>
+        {
+            let mut scores: Vec<f32> = Vec::with_capacity(field.len());
+            for candidate in &field {
+                let mut next = board.clone();
+                next.rows[candidate.placements[0].0].push(candidate.placements[0].1);
+                next.rows[candidate.placements[1].0].push(candidate.placements[1].1);
+                playout::encode_for(
+                    cheap,
+                    &next,
+                    unseen,
+                    OPP_COUNT,
+                    fl_ev,
+                    fl_table,
+                    memo,
+                    pool_key,
+                    node_seed,
+                    &mut features,
+                    Some((&mut joint_memo, &candidate.placements)),
+                )?;
+                scores.push(cheap.predict(&features, &mut scratch));
+            }
+            Some(playout::fence_topk(&scores, topk))
+        }
+        _ => None,
+    };
+    for (index, candidate) in field.iter().enumerate() {
+        if let Some(keep) = &shortlist {
+            if !keep.contains(&index) {
+                continue;
+            }
+        }
         let mut next = board.clone();
         next.rows[candidate.placements[0].0].push(candidate.placements[0].1);
         next.rows[candidate.placements[1].0].push(candidate.placements[1].1);
         playout::encode_for(
-            model, &next, unseen, OPP_COUNT, fl_ev, fl_table, memo, pool_key, node_seed,
+            model,
+            &next,
+            unseen,
+            OPP_COUNT,
+            fl_ev,
+            fl_table,
+            memo,
+            pool_key,
+            node_seed,
             &mut features,
+            Some((&mut joint_memo, &candidate.placements)),
         )?;
         let predicted = model.predict(&features, &mut scratch);
         if predicted > best {
@@ -172,15 +262,215 @@ fn play_street(
     Ok(draw_names[discarded].clone())
 }
 
-/// Play T0, T1 and T2 with the trained models and hand back the T3 root.
-pub fn play(
+/// Every opening the T0 chooser can reach, with the score it gives each.
+///
+/// The chain's T0 is the argmax of this list.  It is a function rather than a
+/// loop inside `play_trace` because a referee needs the whole ordering, and an
+/// ordering built by a second encode written elsewhere would be auditing a
+/// different chooser than the one a hand runs.
+///
+/// `id` reaches the encoder only at the sampled FL14 widths; the 96-dim
+/// chooser this chain ships with never consults it, so two callers naming the
+/// same five cards differently still get the same ordering there.
+pub fn t0_scores(
+    id: &str,
+    cards: &[String],
+    fl_ev: &FlEv,
+    fl_table: &evaluator::FlTable,
+    t0_model: &evaluator::Model,
+) -> Result<Vec<([usize; 5], f32)>> {
+    if cards.len() < 5 {
+        bail!("a T0 decision is five cards, got {}", cards.len());
+    }
+    let memo: RowwiseMemo = std::sync::Mutex::new(std::collections::HashMap::new());
+    let mut dealt = [Card { rank: 0, suit: 0 }; 5];
+    for (slot, name) in cards[0..5].iter().enumerate() {
+        dealt[slot] = to_core_card(name)?;
+    }
+    let unseen_t0 = unseen_after(&cards[0..5])?;
+    let mut features: Vec<f32> = Vec::new();
+    let mut scratch: Vec<f32> = Vec::new();
+    let mut out: Vec<([usize; 5], f32)> = Vec::new();
+    for assignment in t0_candidates(&dealt) {
+        let mut next = CoreBoard {
+            rows: [Vec::new(), Vec::new(), Vec::new()],
+        };
+        for slot in 0..5 {
+            next.rows[assignment[slot]].push(dealt[slot]);
+        }
+        playout::encode_for(
+            t0_model,
+            &next,
+            &unseen_t0,
+            OPP_COUNT,
+            fl_ev,
+            fl_table,
+            &memo,
+            // Each street sees a different unseen pool, so the memo's rowwise
+            // slices must not carry across one; the street index is what keeps
+            // them apart.
+            0,
+            &format!("play/{id}/t0"),
+            &mut features,
+            // T0 fills five slots at once from an empty board, so a node memo
+            // would key every candidate's rows on a different addition list
+            // and never hit.
+            None,
+        )?;
+        out.push((assignment, t0_model.predict(&features, &mut scratch)));
+    }
+    Ok(out)
+}
+
+/// Which row each of the five opening cards went to, read off a named board.
+///
+/// The referee pins T0 by name because that is what a candidate key spells,
+/// while the chain downstream is indexed by deal slot.  Names are unique deck
+/// slots (X1 and X2 included), so the mapping is exact -- and a board that is
+/// not a partition of the five is refused rather than silently re-dealt.
+fn forced_opening(cards: &[String], rows: &[Vec<String>; 3]) -> Result<[usize; 5]> {
+    for row in 0..3 {
+        if rows[row].len() > ROW_CAPACITY[row] {
+            bail!(
+                "forced T0 puts {} cards in row {row} (capacity {})",
+                rows[row].len(),
+                ROW_CAPACITY[row]
+            );
+        }
+    }
+    let placed: usize = rows.iter().map(Vec::len).sum();
+    if placed != 5 {
+        bail!("a forced T0 places all five cards, got {placed}");
+    }
+    let mut out = [usize::MAX; 5];
+    for (slot, name) in cards.iter().take(5).enumerate() {
+        let row = (0..3)
+            .find(|row| rows[*row].iter().any(|placed| placed == name))
+            .ok_or_else(|| anyhow!("forced T0 does not contain {name}"))?;
+        out[slot] = row;
+    }
+    // Five distinct names landing in five slots is a partition only if the
+    // board holds nothing else; the count check above plus containment gives
+    // that, provided the board itself has no duplicate.
+    let mut seen: BTreeSet<&str> = BTreeSet::new();
+    for name in rows.iter().flatten() {
+        if !seen.insert(name.as_str()) {
+            bail!("forced T0 spells {name} twice");
+        }
+    }
+    Ok(out)
+}
+
+/// What the T1 chooser thinks of a board a T1 move reaches.
+///
+/// The gen-2 teacher races T1 moves by playing them out, which is expensive,
+/// so it uses this to cut the field first.  Same encoder the chooser is
+/// served through, so "the head of the list" means the same thing here as it
+/// does in a hand.
+pub fn t1_move_score(
+    rows: &[Vec<String>; 3],
+    seen: &[String],
+    fl_ev: &FlEv,
+    fl_table: &evaluator::FlTable,
+    model: &evaluator::Model,
+) -> Result<f32> {
+    let mut board = CoreBoard {
+        rows: [Vec::new(), Vec::new(), Vec::new()],
+    };
+    for row in 0..3 {
+        for name in &rows[row] {
+            board.rows[row].push(to_core_card(name)?);
+        }
+    }
+    let unseen = unseen_after(seen)?;
+    let memo: RowwiseMemo = std::sync::Mutex::new(std::collections::HashMap::new());
+    let mut features: Vec<f32> = Vec::new();
+    let mut scratch: Vec<f32> = Vec::new();
+    playout::encode_for(
+        model, &board, &unseen, OPP_COUNT, fl_ev, fl_table, &memo, 1, "teach/t1",
+        &mut features, None,
+    )?;
+    Ok(model.predict(&features, &mut scratch))
+}
+
+/// Which two drawn cards a pinned street placed, and where.
+///
+/// The caller names the board it wants reached; this recovers the placements
+/// by diffing against the board already held, so a pinned move cannot
+/// smuggle in a card the draw did not contain or lose one it did.
+fn forced_placements(
+    before: &[Vec<String>; 3],
+    after: &[Vec<String>; 3],
+    draw: &[String],
+    discard: &str,
+) -> Result<Vec<(usize, String)>> {
+    let mut out: Vec<(usize, String)> = Vec::new();
+    for row in 0..3 {
+        let mut held: Vec<&String> = before[row].iter().collect();
+        for name in &after[row] {
+            match held.iter().position(|h| *h == name) {
+                Some(slot) => {
+                    held.remove(slot);
+                }
+                None => out.push((row, name.clone())),
+            }
+        }
+        if !held.is_empty() {
+            bail!("a pinned move dropped {held:?} from row {row}");
+        }
+    }
+    if out.len() != 2 {
+        bail!("a pinned T1 places exactly two cards, got {}", out.len());
+    }
+    let mut wanted: Vec<&str> = draw.iter().map(String::as_str).collect();
+    for (_row, name) in &out {
+        match wanted.iter().position(|w| *w == name.as_str()) {
+            Some(slot) => {
+                wanted.remove(slot);
+            }
+            None => bail!("a pinned move places {name}, which the draw does not hold"),
+        }
+    }
+    if wanted != vec![discard] {
+        bail!("a pinned move discards {discard}, but {wanted:?} is what is left over");
+    }
+    Ok(out)
+}
+
+/// Play T0, T1 and T2 with the trained models and retain each reached root.
+pub fn play_trace(
     request: &PlayRequest,
     fl_ev: &FlEv,
     fl_table: &evaluator::FlTable,
     t0_model: &evaluator::Model,
     t1_model: &evaluator::Model,
     t2_model: &evaluator::Model,
-) -> Result<(PlayedRoot, StreetSeconds)> {
+) -> Result<(PlayedTrace, StreetSeconds)> {
+    play_trace_forced(request, fl_ev, fl_table, t0_model, t1_model, t2_model, None, None, None)
+}
+
+/// `play_trace` with T0 optionally pinned to a given board.
+///
+/// A deep evaluator judges a *placement*, so the placement under test is the
+/// one thing the chain must not choose for itself; every later street still
+/// runs the shipped choosers, because the referee audits production rather
+/// than a better chain.  `None` is the played chain, unchanged.
+///
+/// `t2_fence` cascades the T2 street: the cheap model pre-ranks the field and
+/// `t2_model` argmaxes only its top-K.  `None` is the uncascaded chain, byte
+/// for byte.
+#[allow(clippy::too_many_arguments)]
+pub fn play_trace_forced(
+    request: &PlayRequest,
+    fl_ev: &FlEv,
+    fl_table: &evaluator::FlTable,
+    t0_model: &evaluator::Model,
+    t1_model: &evaluator::Model,
+    t2_model: &evaluator::Model,
+    forced_t0: Option<&[Vec<String>; 3]>,
+    forced_t1: Option<&([Vec<String>; 3], String)>,
+    t2_fence: Option<(&evaluator::Model, usize)>,
+) -> Result<(PlayedTrace, StreetSeconds)> {
     if request.cards.len() != 14 {
         bail!(
             "a deal is fourteen cards -- five at T0 and three at each of T1, T2 \
@@ -218,47 +508,38 @@ pub fn play(
     for (slot, name) in request.cards[0..5].iter().enumerate() {
         dealt[slot] = to_core_card(name)?;
     }
-    let unseen_t0 = unseen_after(&request.cards[0..5])?;
-    let mut features: Vec<f32> = Vec::new();
-    let mut scratch: Vec<f32> = Vec::new();
-    let mut best = f32::NEG_INFINITY;
-    let mut opening: Option<[usize; 5]> = None;
-    for assignment in t0_candidates(&dealt) {
-        let mut next = CoreBoard {
-            rows: [Vec::new(), Vec::new(), Vec::new()],
-        };
-        for slot in 0..5 {
-            next.rows[assignment[slot]].push(dealt[slot]);
+    let opening = match forced_t0 {
+        Some(rows) => forced_opening(&request.cards, rows)?,
+        None => {
+            let mut best = f32::NEG_INFINITY;
+            let mut opening: Option<[usize; 5]> = None;
+            for (assignment, predicted) in
+                t0_scores(&request.id, &request.cards, fl_ev, fl_table, t0_model)?
+            {
+                if predicted > best {
+                    best = predicted;
+                    opening = Some(assignment);
+                }
+            }
+            opening.ok_or_else(|| anyhow!("no T0 opening for {}", request.id))?
         }
-        playout::encode_for(
-            t0_model,
-            &next,
-            &unseen_t0,
-            OPP_COUNT,
-            fl_ev,
-            fl_table,
-            &memo,
-            // Each street sees a different unseen pool, so the memo's rowwise
-            // slices must not carry across one; the street index is what keeps
-            // them apart.
-            0,
-            &format!("play/{}/t0", request.id),
-            &mut features,
-        )?;
-        let predicted = t0_model.predict(&features, &mut scratch);
-        if predicted > best {
-            best = predicted;
-            opening = Some(assignment);
-        }
-    }
-    let opening = opening.ok_or_else(|| anyhow!("no T0 opening for {}", request.id))?;
+    };
     for slot in 0..5 {
         board.rows[opening[slot]].push(dealt[slot]);
         names[opening[slot]].push(request.cards[slot].clone());
     }
     timing.t0 = started.elapsed().as_secs_f64();
 
+    let t1 = PlayedT1Root {
+        id: request.id.clone(),
+        board: played_board(&names),
+        dead: Vec::new(),
+        draw: request.cards[5..8].to_vec(),
+        opp_count: OPP_COUNT,
+    };
+
     let mut dead: Vec<String> = Vec::with_capacity(2);
+    let mut t2: Option<PlayedRoot> = None;
     for (street, first) in [(1usize, 5usize), (2, 8)] {
         let started = std::time::Instant::now();
         let draw_names = &request.cards[first..first + 3];
@@ -270,7 +551,31 @@ pub fn play(
         // cards -- the same unseen set every candidate at the node is judged
         // against, and the one the teacher's encoder built.
         let unseen = unseen_after(&request.cards[0..first + 3])?;
+        // A pinned T1 skips the chooser exactly the way a pinned T0 does: the
+        // teacher is measuring what a named move is worth, so the move under
+        // test must not also be the harness's own choice.
+        if street == 1 {
+            if let Some((rows, discard)) = forced_t1 {
+                let placed = forced_placements(&names, rows, draw_names, discard)?;
+                for (row, name) in placed {
+                    board.rows[row].push(to_core_card(&name)?);
+                    names[row].push(name);
+                }
+                dead.push(discard.clone());
+                timing.t1 = started.elapsed().as_secs_f64();
+                t2 = Some(PlayedRoot {
+                    id: request.id.clone(),
+                    rows: names.clone(),
+                    dead: dead.clone(),
+                    draw: request.cards[8..11].to_vec(),
+                });
+                continue;
+            }
+        }
         let model = if street == 1 { t1_model } else { t2_model };
+        // The fence is offered at both streets and gated inside on the board's
+        // card count, so the one place that decides which street it fires at
+        // is `play_street` -- and T1 acts on five cards, never seven.
         dead.push(play_street(
             model,
             &mut board,
@@ -283,24 +588,48 @@ pub fn play(
             &memo,
             street as u64,
             &format!("play/{}/t{street}", request.id),
+            t2_fence,
         )?);
         let elapsed = started.elapsed().as_secs_f64();
         if street == 1 {
             timing.t1 = elapsed;
+            t2 = Some(PlayedRoot {
+                id: request.id.clone(),
+                rows: names.clone(),
+                dead: dead.clone(),
+                draw: request.cards[8..11].to_vec(),
+            });
         } else {
             timing.t2 = elapsed;
         }
     }
 
     Ok((
-        PlayedRoot {
-            id: request.id.clone(),
-            rows: names,
-            dead,
-            draw: request.cards[11..14].to_vec(),
+        PlayedTrace {
+            t1,
+            t2: t2.expect("T1 always precedes T2"),
+            t3: PlayedRoot {
+                id: request.id.clone(),
+                rows: names,
+                dead,
+                draw: request.cards[11..14].to_vec(),
+            },
         },
         timing,
     ))
+}
+
+/// Backwards-compatible T3-only entry point used by existing evaluation code.
+pub fn play(
+    request: &PlayRequest,
+    fl_ev: &FlEv,
+    fl_table: &evaluator::FlTable,
+    t0_model: &evaluator::Model,
+    t1_model: &evaluator::Model,
+    t2_model: &evaluator::Model,
+) -> Result<(PlayedRoot, StreetSeconds)> {
+    let (trace, timing) = play_trace(request, fl_ev, fl_table, t0_model, t1_model, t2_model)?;
+    Ok((trace.t3, timing))
 }
 
 #[cfg(test)]
@@ -308,8 +637,6 @@ mod tests {
     use super::*;
     use fl_solver::pool;
     use std::path::Path;
-
-    const ROW_CAPACITY: [usize; 3] = [3, 5, 5];
 
     fn models() -> Option<(evaluator::Model, evaluator::Model, evaluator::Model)> {
         let paths = [
@@ -448,8 +775,45 @@ mod tests {
                 id: format!("play-test-{root}"),
                 cards: cards.clone(),
             };
-            let (played, _) = play(&request, &fl_ev, &fl_table, &t0, &t1, &t2)
+            let (trace, _) = play_trace(&request, &fl_ev, &fl_table, &t0, &t1, &t2)
                 .unwrap_or_else(|error| panic!("root {root} ({jokers} jokers): {error}"));
+            let played = trace.t3;
+
+            let t1_rows = [
+                trace.t1.board.top.clone(),
+                trace.t1.board.middle.clone(),
+                trace.t1.board.bottom.clone(),
+            ];
+            assert_eq!(t1_rows.iter().map(Vec::len).sum::<usize>(), 5);
+            assert!(trace.t1.dead.is_empty());
+            assert_eq!(trace.t1.draw, cards[5..8]);
+            let mut t1_visible: Vec<String> = t1_rows
+                .iter()
+                .flatten()
+                .chain(trace.t1.draw.iter())
+                .cloned()
+                .collect();
+            t1_visible.sort();
+            let mut first_eight = cards[0..8].to_vec();
+            first_eight.sort();
+            assert_eq!(t1_visible, first_eight, "root {root}: invalid T1 trace");
+
+            assert_eq!(trace.t2.rows.iter().map(Vec::len).sum::<usize>(), 7);
+            assert_eq!(trace.t2.dead.len(), 1);
+            assert_eq!(trace.t2.draw, cards[8..11]);
+            let mut t2_visible: Vec<String> = trace
+                .t2
+                .rows
+                .iter()
+                .flatten()
+                .chain(trace.t2.dead.iter())
+                .chain(trace.t2.draw.iter())
+                .cloned()
+                .collect();
+            t2_visible.sort();
+            let mut first_eleven = cards[0..11].to_vec();
+            first_eleven.sort();
+            assert_eq!(t2_visible, first_eleven, "root {root}: invalid T2 trace");
 
             for row in 0..3 {
                 assert!(
@@ -518,7 +882,8 @@ mod tests {
             }
         }
         assert_eq!(
-            differed, roots as usize,
+            differed,
+            roots as usize,
             "{} of {roots} played roots landed on the dealt arrangement",
             roots as usize - differed
         );

@@ -21,6 +21,7 @@ from ai.engine.action_space import (
     get_initial_actions, get_turn_actions, create_action_mask, MAX_ACTIONS, Action
 )
 from ai.engine.game_engine import GameEngine, Hand, HandResult
+from ai.engine.turn_order import action_order
 from ai.mcts.mcts import MCTS, MCTSConfig
 from ai.training.config import RewardConfig, compute_hand_reward, REWARD_CONFIG
 
@@ -54,7 +55,7 @@ def play_hand_with_mcts(
     trajectories: Dict[int, List[TrajectoryStep]] = {0: [], 1: []}
 
     # Turn 0: initial 5-card placement (both players)
-    for seat in [hand.btn, 1 - hand.btn]:
+    for seat in action_order(hand.btn):
         obs = hand.get_observation(seat)
         action_idx, action_probs, valid_actions = mcts.search(obs, {})
 
@@ -81,7 +82,7 @@ def play_hand_with_mcts(
             break
         hand.deal_next_turn()
 
-        for seat in [hand.btn, 1 - hand.btn]:
+        for seat in action_order(hand.btn):
             cards = hand.dealt_cards[seat]
             if not cards:
                 continue

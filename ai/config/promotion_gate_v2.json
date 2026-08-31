@@ -1,0 +1,115 @@
+{
+  "schema": "ofc_promotion_gate/v2",
+  "gate_id": "promotion_gate_v2",
+  "created_date": "2026-07-13",
+  "milestone": "M2",
+  "scope": {
+    "name": "reduced_t3_t4_public_tree",
+    "promotion_result": "m2_reduced_reference_ready",
+    "full_card_policy_promoted": false,
+    "hu_exact": false,
+    "explicit_full_deck_chance_enumeration": false,
+    "serving_policy_promoted": false
+  },
+  "contracts": {
+    "position_contract_version": "bb_first_v1",
+    "rules_version": "canonical_joker_bottom_middle_top_20260711",
+    "fl_ev_path": "ai/config/fl_ev.json",
+    "fl_ev_sha256": "098efd3e3a5ad7cf2d9da4841e5fc1234b7895ffdd6ea1de4c523823b5591788",
+    "range_model": "two_exact_reduced_hidden_worlds_uniform_v1",
+    "information_model": "public_infoset_with_actor_private_recall_v1",
+    "solver_method": "deterministic_synchronous_reduced_public_tree_cfr_plus",
+    "best_response_method": "exhaustive_pure_infoset_policy_enumeration_float64",
+    "forbidden_policy_inputs": [
+      "opponent_private_draw",
+      "opponent_private_discards",
+      "opponent_recall",
+      "future_draw",
+      "physical_remaining_deck",
+      "remaining_cards",
+      "undealt_cards",
+      "particle_id",
+      "determinization_id",
+      "world_id",
+      "rng_seed"
+    ]
+  },
+  "strata": {
+    "required": [
+      "bb_joker0",
+      "bb_joker1",
+      "bb_joker2",
+      "btn_joker0",
+      "btn_joker1",
+      "btn_joker2"
+    ],
+    "canonical_reduced_fixtures_per_stratum_min": 1,
+    "physical_hidden_worlds_per_fixture": 2
+  },
+  "per_stratum_thresholds": {
+    "legal_action_rate_eq": 1.0,
+    "candidate_coverage_rate_eq": 1.0,
+    "declared_reduced_transition_coverage_rate_eq": 1.0,
+    "chance_probability_mass_abs_error_lte": 1e-12,
+    "python_rust_leaf_metric_abs_error_lte": 1e-9,
+    "duplicate_or_impossible_physical_card_failures_eq": 0,
+    "selection_before_infoset_aggregation_failures_eq": 0,
+    "hidden_only_mutation_pairs_min": 1,
+    "hidden_only_mutation_policy_tv_lte": 1e-12,
+    "forbidden_policy_input_failures_eq": 0,
+    "best_response_numerical_residual_lte": 1e-12,
+    "max_unilateral_improvement_score_lte": 0.5,
+    "nash_conv_score_lte": 1.0,
+    "exploitability_score_lte": 0.5,
+    "final_trace_not_above_initial": true,
+    "deterministic_order_replays_min": 3,
+    "pairwise_comparisons_min": 3,
+    "reach_weighted_mean_total_variation_lte": 0.02,
+    "reach_weighted_p95_total_variation_lte": 0.05,
+    "max_total_variation_lte": 0.1,
+    "max_game_value_drift_score_lte": 0.25,
+    "max_exploitability_drift_score_lte": 0.1,
+    "x1_x2_identity_preservation_failures_eq": 0,
+    "visible_joker_stratum_match": true,
+    "position_contract_mismatches_eq": 0,
+    "actor_sequence_mismatches_eq": 0,
+    "decision_board_shape_mismatches_eq": 0,
+    "public_history_order_mismatches_eq": 0
+  },
+  "global_thresholds": {
+    "pimc_counterexample_goldens_per_actor_min": 1,
+    "solution_snapshot_round_trip_mismatches_eq": 0,
+    "reduced_bluff_20000_iterations_wall_ms_max_lte": 2000,
+    "runtime_warmup_runs_min": 3,
+    "runtime_measured_runs_min": 5,
+    "canonical_recursive_solve_wall_ms_p95_lte": 120000,
+    "canonical_recursive_solve_wall_ms_max_lte": 300000,
+    "complete_gate_wall_s_lte": 7200,
+    "peak_rss_mb_gt": 0,
+    "all_provenance_hashes_bound": true,
+    "artifact_status_matches_result": true
+  },
+  "provenance": {
+    "canonical_json": "utf8_sort_keys_compact_no_nan",
+    "artifact_sha256_semantics": "canonical_sha256_of_artifact_without_artifact_sha256",
+    "required_hash_manifests": [
+      "action_contract",
+      "infoset_contract",
+      "reduced_fixtures",
+      "chance_model",
+      "range_model",
+      "solver_config",
+      "solver_code",
+      "source_tree"
+    ],
+    "git_commit_and_dirty_state_required": true,
+    "rust_executable_sha256_required": true
+  },
+  "decision_rule": {
+    "all_required_strata_must_pass": true,
+    "all_thresholds_must_pass": true,
+    "missing_or_non_finite_metric_is_failure": true,
+    "on_pass": "mark_M2_reduced_reference_ready_only",
+    "on_failure": "keep_M2_in_progress"
+  }
+}

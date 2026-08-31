@@ -1,0 +1,70 @@
+{
+  "opponent_avg_royalty": 5.0,
+  "reward_mode": "direct",
+  "fl_ev_direct": {
+    "14": 6.57,
+    "15": 16.61,
+    "16": 38.76,
+    "17": 70.07
+  },
+  "fl_stats": {
+    "14": {
+      "R": 15.28,
+      "stay_rate": 0.351
+    },
+    "15": {
+      "R": 19.74,
+      "stay_rate": 0.502
+    },
+    "16": {
+      "R": 23.36,
+      "stay_rate": 0.645
+    },
+    "17": {
+      "R": 27.68,
+      "stay_rate": 0.781
+    }
+  },
+  "fl_ev_first_hand": {
+    "14": 14.0,
+    "15": 21.7,
+    "16": 24.1,
+    "17": 26.7
+  },
+  "fl_ev": {
+    "14": 6.57,
+    "15": 16.61,
+    "16": 38.76,
+    "17": 70.07
+  },
+  "source": "selfplay_gen2_onpolicy_60k_20260819, injected at union generation boundary 20260821",
+  "bust_penalty": 12.3,
+  "fl_ev_prev": {
+    "14": 0,
+    "15": 10.7,
+    "16": 29.9,
+    "17": 63.5
+  },
+  "fl_ev_se": {
+    "14": 0.65,
+    "15": 0.46,
+    "16": 0.43,
+    "17": 3.58
+  },
+  "fl_ev_measurement": {
+    "method": "episodic chain sum, paid settlements, gen-2 self-play 60k hands (analyze_selfplay_flev)",
+    "stay_rate": {
+      "14": 0.349,
+      "15": 0.49,
+      "16": 0.627,
+      "17": 0.748
+    },
+    "note": "width-14 fixed-point sequence 0 -> 3.17 -> 5.28 -> 6.57 (ratio ~0.63, expect 8-9 at convergence); widths 15/16 converged, 17 unmeasurable (n=389). Prior table (5.28) priced all t0l2/lap2 labels."
+  },
+  "fl_ev_gen2": {
+    "14": 3.17,
+    "15": 16.61,
+    "16": 38.76,
+    "17": 70.07
+  }
+}

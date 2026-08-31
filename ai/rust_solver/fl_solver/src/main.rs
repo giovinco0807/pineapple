@@ -1806,6 +1806,36 @@ fn card_of_name(name: &str) -> Card {
     Card { rank, suit }
 }
 
+/// The thirteen-card board a T4 action key spells, back as rows.
+///
+/// `t4_labels` names an action by the board it leaves -- `top|mid|bot|discard`
+/// -- so the finished hand is already in the label and needs no replay of the
+/// position against the placement.  Reading it back is how the measurement
+/// learns whether a chain fouled, and a key parsed into the wrong rows would
+/// score a legal board as a foul without anything failing.
+fn rows_of_action_key(key: &str) -> [Vec<Card>; 3] {
+    let parts: Vec<&str> = key.split('|').collect();
+    assert_eq!(parts.len(), 4, "not a T4 action key: {key}");
+    let row_of = |text: &str| -> Vec<Card> {
+        text.split(',')
+            .filter(|name| !name.is_empty())
+            .map(card_of_name)
+            .collect()
+    };
+    let rows = [row_of(parts[0]), row_of(parts[1]), row_of(parts[2])];
+    let capacity = [3usize, 5, 5];
+    for row in 0..3 {
+        assert_eq!(
+            rows[row].len(),
+            capacity[row],
+            "action key {key} leaves row {row} with {} of {}",
+            rows[row].len(),
+            capacity[row]
+        );
+    }
+    rows
+}
+
 /// The roots a `--roots-file` supplies, in file order.
 ///
 /// The dealt path derives a root's position from the seed and can afford to;
@@ -1870,6 +1900,38 @@ fn read_roots_file(path: &str, placed_expected: usize) -> Vec<FileRoot> {
     out
 }
 
+
+/// The canonical Fantasyland EV table, from `ai/config/fl_ev.json`.
+///
+/// Every mode used to hardcode `[0.0, 10.7, 29.9, 63.5]`, which meant a table
+/// update in the config silently did not reach the labels this binary writes.
+/// Reading the config at every entry point makes the config the single source
+/// and makes a missing config a loud failure instead of a stale number.  The
+/// table is printed so a run's provenance is in its log.
+fn fl_ev_table_from_config() -> [f64; 4] {
+    let path = "ai/config/fl_ev.json";
+    let raw = std::fs::read_to_string(path)
+        .unwrap_or_else(|e| panic!("cannot read {path} (run from the workspace root): {e}"));
+    let parsed: serde_json::Value =
+        serde_json::from_str(&raw).unwrap_or_else(|e| panic!("{path} is not JSON: {e}"));
+    let table = parsed
+        .get("fl_ev")
+        .and_then(|v| v.as_object())
+        .unwrap_or_else(|| panic!("{path} has no object field `fl_ev`"));
+    let mut out = [0.0f64; 4];
+    for (slot, key) in ["14", "15", "16", "17"].iter().enumerate() {
+        out[slot] = table
+            .get(*key)
+            .and_then(|v| v.as_f64())
+            .unwrap_or_else(|| panic!("{path}: fl_ev[{key}] missing or not a number"));
+    }
+    eprintln!(
+        "fl_ev table: 14={} 15={} 16={} 17={} (from {path})",
+        out[0], out[1], out[2], out[3]
+    );
+    out
+}
+
 fn main() {
     let args: Vec<String> = std::env::args().collect();
 
@@ -1916,7 +1978,7 @@ fn main() {
             }
             index += 1;
         }
-        let table = [0.0f64, 10.7, 29.9, 63.5];
+        let table = fl_ev_table_from_config();
         let bytes = std::fs::read(&pool_path).expect("read pool");
         let loaded = pool::deserialize(&bytes, 14, table).expect("load pool");
         eprintln!("pool: {} entries, width {}", loaded.entries.len(), loaded.width);
@@ -1990,8 +2052,9 @@ fn main() {
                         let actions: Vec<String> = values
                             .iter()
                             .map(|v| format!(
-                                "{{\"action_key\":\"{}\",\"value\":{},\"t4_draws\":{}}}",
-                                v.action_key, v.value, v.t4_draws))
+                                "{{\"action_key\":\"{}\",\"value\":{},\"t4_draws\":{},\"t4_draw_stddev\":{},\"forced_foul_rate\":{}}}",
+                                v.action_key, v.value, v.t4_draws,
+                                v.t4_draw_stddev, v.forced_foul_rate))
                             .collect();
                         // The file carries the position it labels.  A teacher
                         // whose consumer has to re-derive the deal is one
@@ -2061,8 +2124,14 @@ fn main() {
         let mut t4_draws = 0usize;
         let mut seed = 0xD00E_0001u64;
         let mut stream_offset = 0u64;
+        let mut root_offset = 0u64;
         let mut out_dir = String::from("D:/ofc_data/fl14_t2_teacher_v1");
         let mut roots_file: Option<String> = None;
+        let mut keep_file: Option<String> = None;
+        let mut enumerate_only = false;
+        let mut t3_pilot_draws = 0usize;
+        let mut t3_keep = 0usize;
+        let mut t2_own_only = false;
         let mut index = 2;
         while index < args.len() {
             match args[index].as_str() {
@@ -2073,7 +2142,28 @@ fn main() {
                 "--t4-draws" => { index += 1; t4_draws = args[index].parse().expect("t4-draws"); }
                 "--seed" => { index += 1; seed = args[index].parse().expect("seed"); }
                 "--stream-offset" => { index += 1; stream_offset = args[index].parse().expect("stream-offset"); }
+                // Global ordinal of the first line in a resumed/sharded roots
+                // file.  It preserves both the emitted root number and the
+                // opponent stream that an uninterrupted run would have used.
+                "--root-offset" => { index += 1; root_offset = args[index].parse().expect("root-offset"); }
                 "--out-dir" => { index += 1; out_dir = args[index].clone(); }
+                // Price only the listed actions per root.  The list is chosen
+                // one crate up, by the trained chooser: this crate ranks
+                // nothing.  Kept actions keep the values the full solve gives
+                // them, so a narrowed teacher and a full one can be diffed.
+                "--keep-file" => { index += 1; keep_file = Some(args[index].clone()); }
+                // Write each root's action keys and stop.  What the chooser
+                // needs to rank, without paying for a single T3 draw.
+                "--enumerate-only" => { enumerate_only = true; }
+                // Hero's own worth instead of the score against a best
+                // response: with no opponent drawn, the T3 draw is the only
+                // sampled quantity left in a T2 label.
+                "--own-only" => { t2_own_only = true; }
+                // Two-stage T3 narrowing inside the label: price every
+                // placement on `--t3-pilot-draws` T4 draws, keep
+                // `--t3-keep`, price those on the full count.
+                "--t3-pilot-draws" => { index += 1; t3_pilot_draws = args[index].parse().expect("t3-pilot-draws"); }
+                "--t3-keep" => { index += 1; t3_keep = args[index].parse().expect("t3-keep"); }
                 // Positions from a file instead of dealt ones.  The dealt shape
                 // is `cards[0..2]/[2..5]/[5..7]`, i.e. (2,3,2) for every root --
                 // one arrangement out of the many a played hand reaches, which
@@ -2088,7 +2178,7 @@ fn main() {
             roots = list.len();
             eprintln!("teach-t2: {} roots from file", roots);
         }
-        let table = [0.0f64, 10.7, 29.9, 63.5];
+        let table = fl_ev_table_from_config();
         let bytes = std::fs::read(&pool_path).expect("read pool");
         let loaded = pool::deserialize(&bytes, 14, table).expect("load pool");
         eprintln!("pool: {} entries, width {}", loaded.entries.len(), loaded.width);
@@ -2105,14 +2195,40 @@ fn main() {
         // A T2 teacher is hours long; a run that publishes nothing until it
         // finishes is a run whose whole cost is lost to one interruption.
         use std::io::Write;
+        // Keyed by request id, not by root ordinal: a sharded run restarts the
+        // ordinal and the shortlist has to follow the position, not the line.
+        let keep_by_id: Option<std::collections::HashMap<String, std::collections::BTreeSet<String>>> =
+            keep_file.as_ref().map(|path| {
+                let text = std::fs::read_to_string(path).expect("read keep file");
+                let mut out = std::collections::HashMap::new();
+                for line in text.lines().filter(|line| !line.trim().is_empty()) {
+                    let value: serde_json::Value =
+                        serde_json::from_str(line).expect("keep line");
+                    let id = value["id"].as_str().expect("keep id").to_string();
+                    let set: std::collections::BTreeSet<String> = value["keep"]
+                        .as_array()
+                        .expect("keep array")
+                        .iter()
+                        .map(|key| key.as_str().expect("keep key").to_string())
+                        .collect();
+                    out.insert(id, set);
+                }
+                eprintln!("teach-t2: shortlists for {} roots from {path}", out.len());
+                out
+            });
         let mut file = std::io::BufWriter::new(
-            std::fs::File::create(format!("{out_dir}/t2_labels.jsonl")).expect("t2 out"),
+            std::fs::File::create(format!(
+                "{out_dir}/{}",
+                if enumerate_only { "t2_actions.jsonl" } else { "t2_labels.jsonl" }
+            ))
+            .expect("t2 out"),
         );
         let mut written = 0usize;
-        for root in 0..roots as u64 {
+        for local_root in 0..roots as u64 {
+            let root = root_offset + local_root;
             let request = match &file_roots {
                 Some(list) => {
-                    let entry = &list[root as usize];
+                    let entry = &list[local_root as usize];
                     t2_labels::T2Request {
                         id: entry.id.clone(),
                         rows: entry.rows.clone(),
@@ -2120,6 +2236,7 @@ fn main() {
                         draw: entry.draw,
                         opponents,
                         t3_draws,
+                        own_only: t2_own_only,
                         t4_draws,
                     }
                 }
@@ -2132,12 +2249,43 @@ fn main() {
                         draw: [cards[8], cards[9], cards[10]],
                         opponents,
                         t3_draws,
+                        own_only: t2_own_only,
                         t4_draws,
                     }
                 }
             };
             let stream = pool::stream_of(root, stream_offset);
-            match t2_labels::solve(&request, &loaded, &table, stream) {
+            if enumerate_only {
+                let keys: Vec<String> = t2_labels::action_keys(&request)
+                    .into_iter()
+                    .map(|(key, _)| format!("\"{key}\""))
+                    .collect();
+                written += 1;
+                let line = format!(
+                    "{{\"id\":\"{}\",\"root\":{},\"board\":\"{}\",\"dead\":\"{}\",\"draw\":\"{}\",\"action_keys\":[{}]}}\n",
+                    request.id, root,
+                    t3_labels::rows_key(&request.rows),
+                    t3_labels::cards_key(&request.dead),
+                    t3_labels::cards_key(&request.draw),
+                    keys.join(","));
+                file.write_all(line.as_bytes()).expect("write");
+                let seen = done.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
+                if seen % 500 == 0 || seen == roots {
+                    file.flush().expect("flush");
+                }
+                continue;
+            }
+            let keep = keep_by_id.as_ref().map(|table| {
+                table
+                    .get(&request.id)
+                    .unwrap_or_else(|| panic!("root {} has no shortlist", request.id))
+            });
+            let pilot = if t3_pilot_draws > 0 && t3_keep > 0 {
+                Some(t2_labels::T3Pilot { draws: t3_pilot_draws, keep: t3_keep })
+            } else {
+                None
+            };
+            match t2_labels::solve_selected(&request, &loaded, &table, stream, keep, pilot) {
                 Ok(values) => {
                     let actions: Vec<String> = values
                         .iter()
@@ -2179,6 +2327,111 @@ fn main() {
         return;
     }
 
+    // The last street, played rather than labelled.
+    //
+    // `teach` and `teach-t2` emit every action's value because a teacher's
+    // consumer needs the whole ranking.  A measurement needs one number a hand,
+    // so this takes the argmax and then says what the finished board *is*:
+    // royalty, foul, Fantasyland width.  Those three are not derivable from the
+    // value -- a chain that trades fouls for royalty and one that does not can
+    // report the same mean -- and nothing else in the chain emits them.
+    if args.len() > 1 && args[1] == "finish-t4" {
+        use rayon::prelude::*;
+        let mut pool_path = String::from("D:/ofc_data/fl_pools/fl14_v1.jfl1");
+        let mut opponents = 240usize;
+        let mut stream_offset = 0u64;
+        let mut roots_file = String::new();
+        let mut out_path = String::from("t4_finished.jsonl");
+        let mut index = 2;
+        while index < args.len() {
+            match args[index].as_str() {
+                "--pool" => { index += 1; pool_path = args[index].clone(); }
+                "--opponents" => { index += 1; opponents = args[index].parse().expect("opponents"); }
+                "--roots-file" => { index += 1; roots_file = args[index].clone(); }
+                "--stream-offset" => { index += 1; stream_offset = args[index].parse().expect("stream-offset"); }
+                "--out" => { index += 1; out_path = args[index].clone(); }
+                _ => {}
+            }
+            index += 1;
+        }
+        assert!(!roots_file.is_empty(), "finish-t4 needs --roots-file");
+        let table = fl_ev_table_from_config();
+        let bytes = std::fs::read(&pool_path).expect("read pool");
+        let loaded = pool::deserialize(&bytes, 14, table).expect("load pool");
+        eprintln!("pool: {} entries, width {}", loaded.entries.len(), loaded.width);
+        // Eleven placed, not nine: this is a complete T4 position, and a nine-card
+        // file handed to it would otherwise be solved as if two rows were open.
+        let supplied = read_roots_file(&roots_file, 11);
+        eprintln!("roots: {} complete positions, from {roots_file}", supplied.len());
+        let started = std::time::Instant::now();
+
+        let lines: Vec<Option<String>> = supplied
+            .par_iter()
+            .enumerate()
+            .map(|(root, position)| {
+                let request = t4_labels::T4Request {
+                    id: position.id.clone(),
+                    rows: position.rows.clone(),
+                    dead: position.dead.clone(),
+                    draw: position.draw,
+                    opponents,
+                };
+                let stream = pool::stream_of(root as u64, stream_offset);
+                let values = t4_labels::solve(&request, &loaded, &table, stream).ok()?;
+                // `solve` hands back its actions sorted by key, so folding for a
+                // strict improvement makes the tie-break the key order rather
+                // than the iteration order -- two runs of this must agree on the
+                // hand they played, not only on its value.
+                let best = values.iter().fold(&values[0], |best, value| {
+                    if value.value > best.value { value } else { best }
+                });
+                let rows = rows_of_action_key(&best.action_key);
+                let hero = t3_labels::hero_terminal(&rows);
+                // How many of this position's placements do not foul, so a
+                // foul in the output can be read as forced or chosen.  Without
+                // it a chain's foul rate is a property of the whole hand and
+                // cannot be attributed to the street that paid for it.
+                let unfouled = values
+                    .iter()
+                    .filter(|value| {
+                        !t3_labels::hero_terminal(&rows_of_action_key(&value.action_key)).busted
+                    })
+                    .count();
+                Some(format!(
+                    "{{\"id\":\"{}\",\"root\":{},\"stream\":{},\"opponents\":{},\"actions\":{},\
+                     \"unfouled\":{},\"board\":\"{}\",\"dead\":\"{}\",\"draw\":\"{}\",\"best\":\"{}\",\
+                     \"value\":{},\"royalty\":{},\"busted\":{},\"entry_width\":{}}}\n",
+                    request.id, root, stream, best.opponents, values.len(),
+                    unfouled,
+                    t3_labels::rows_key(&request.rows),
+                    t3_labels::cards_key(&request.dead),
+                    t3_labels::cards_key(&request.draw),
+                    best.action_key,
+                    best.value,
+                    hero.royalty,
+                    hero.busted,
+                    hero.entry_width,
+                ))
+            })
+            .collect();
+
+        let mut file = std::io::BufWriter::new(
+            std::fs::File::create(&out_path).expect("finish-t4 out"),
+        );
+        let mut written = 0usize;
+        for line in lines.iter().flatten() {
+            file.write_all(line.as_bytes()).expect("write");
+            written += 1;
+        }
+        file.flush().expect("flush");
+        eprintln!(
+            "finish-t4: {written} finished, {} short draws, {opponents} opponents, {:.1} s total",
+            lines.len() - written,
+            started.elapsed().as_secs_f64(),
+        );
+        return;
+    }
+
     if args.len() > 1 && args[1] == "t3-bench" {
         let mut pool_path = String::from("D:/ofc_data/fl_pools/fl14_v1.jfl1");
         let mut roots = 5usize;
@@ -2193,7 +2446,7 @@ fn main() {
             }
             index += 1;
         }
-        let table = [0.0f64, 10.7, 29.9, 63.5];
+        let table = fl_ev_table_from_config();
         let bytes = std::fs::read(&pool_path).expect("read pool");
         let loaded = pool::deserialize(&bytes, 14, table).expect("load pool");
         eprintln!("pool: {} entries", loaded.entries.len());
@@ -2253,7 +2506,7 @@ fn main() {
             }
             index += 1;
         }
-        let table = [0.0f64, 10.7, 29.9, 63.5];
+        let table = fl_ev_table_from_config();
         let loading = std::time::Instant::now();
         let bytes = std::fs::read(&pool_path).expect("read pool");
         let loaded = pool::deserialize(&bytes, 14, table).expect("load pool");
@@ -2306,7 +2559,7 @@ fn main() {
         let mut width = 14usize;
         let mut seed = 0x2026_0811u64;
         let mut out_path = String::from("fl_pool_14.jfl1");
-        let table = [0.0f64, 10.7, 29.9, 63.5];
+        let table = fl_ev_table_from_config();
         let mut index = 2;
         while index < args.len() {
             match args[index].as_str() {
@@ -2491,5 +2744,41 @@ fn frontier_bench(hands: usize, cards: usize, fl_ev: f64, boards: usize, check: 
     }));
     if mismatches > 0 || bucket_mismatches > 0 {
         std::process::exit(1);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// **A T4 action key round-trips into the board it names.**
+    ///
+    /// `finish-t4` reads its foul, royalty and Fantasyland width off the key
+    /// rather than off the placement, so if the key and the reader ever
+    /// disagreed about which row is which, every one of those three would be
+    /// wrong at once and all three would still look plausible.  Checked on
+    /// dealt boards including two-joker ones, where the names collapse.
+    #[test]
+    fn an_action_key_names_the_board_it_leaves() {
+        for index in 0..400u64 {
+            let cards = pool::deal(0x0B1E_2026, index, 14);
+            let rows = [
+                cards[0..3].to_vec(),
+                cards[3..8].to_vec(),
+                cards[8..13].to_vec(),
+            ];
+            let key = t3_labels::board_key(&rows, &cards[13]);
+            let parsed = rows_of_action_key(&key);
+            assert_eq!(
+                t3_labels::rows_key(&parsed),
+                t3_labels::rows_key(&rows),
+                "key {key} parsed into a different board"
+            );
+            assert_eq!(
+                t3_labels::hero_terminal(&parsed).busted,
+                t3_labels::hero_terminal(&rows).busted,
+                "key {key} changed whether the board fouls"
+            );
+        }
     }
 }

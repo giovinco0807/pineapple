@@ -1,0 +1,224 @@
+{
+  "name": "t3_balanced400_pool_20260608",
+  "objective": "Experimental T3 pool using old action-value models plus balanced200 and balanced400 exact-T3 specialists.",
+  "turn": 3,
+  "status": {
+    "summary": "Three-source action-value union trained from balanced multi-root T2-derived T3 exact data.",
+    "serving_recommendation": "Use Top20 + exact rerank when correctness matters. External root1000 holdout confirms Top20 is EV-safe, while Top10 still has a 6.0782 EV tail and Top15 still has a 0.2936 EV tail.",
+    "default_serving": false
+  },
+  "candidate_pool_policy": {
+    "fast": {
+      "sources": ["old_action_value", "balanced200_specialist", "balanced400_specialist"],
+      "per_source_top_k": 10,
+      "exact_rerank": true,
+      "balanced400_final_holdout": {
+        "recall": 0.9916666666666667,
+        "ev_loss_mean": 0.0011935557606094313,
+        "ev_loss_max": 0.1788654060066741,
+        "avg_pool_size": 11.075,
+        "max_pool_size": 16
+      },
+      "known_risk": "not strictly EV-safe; one final-holdout row loses 0.1789 EV"
+    },
+    "conservative": {
+      "sources": ["old_action_value", "balanced200_specialist", "balanced400_specialist"],
+      "per_source_top_k": 20,
+      "exact_rerank": true,
+      "balanced400_final_holdout": {
+        "recall": 1.0,
+        "ev_loss_mean": 0.0,
+        "ev_loss_max": 0.0,
+        "avg_pool_size": 16.245833333333334,
+        "max_pool_size": 21
+      }
+    },
+    "speed_only": {
+      "sources": ["old_action_value", "balanced200_specialist", "balanced400_specialist"],
+      "per_source_top_k": 5,
+      "exact_rerank": true,
+      "balanced400_final_holdout": {
+        "recall": 0.9458333333333333,
+        "ev_loss_mean": 0.09962278085519638,
+        "ev_loss_max": 11.15421096816123,
+        "avg_pool_size": 6.333333333333333,
+        "max_pool_size": 10
+      },
+      "known_risk": "large EV-loss tails remain; do not use when correctness matters"
+    }
+  },
+  "action_value_checkpoints": {
+    "bb": [
+      "D:\\ofc-pineapple-data\\t3_jokerfix_extra_20260605\\models\\t3-20k-plus-gen5k-hardneginit-bb\\action_value_best.pt",
+      "D:\\ofc-pineapple-data\\t3_exact_from_t2_rows_20260608\\models\\t3-bb-balanced200-a2-d2-20260608\\action_value_best.pt",
+      "D:\\ofc-pineapple-data\\t3_exact_from_t2_rows_20260608\\models\\t3-bb-balanced400-a2-d2-20260608\\action_value_best.pt"
+    ],
+    "btn": [
+      "D:\\ofc-pineapple-data\\t3_jokerfix_extra_20260605\\models\\t3-20k-plus-gen5k-hardneginit-btn\\action_value_best.pt",
+      "D:\\ofc-pineapple-data\\t3_exact_from_t2_rows_20260608\\models\\t3-btn-balanced200-a2-d2-20260608\\action_value_best.pt",
+      "D:\\ofc-pineapple-data\\t3_exact_from_t2_rows_20260608\\models\\t3-btn-balanced400-a2-d2-20260608\\action_value_best.pt"
+    ]
+  },
+  "data": {
+    "source_t2_rows": "D:\\ofc-pineapple-data\\t3_exact_from_t2_rows_20260608\\source_multi_root10_balanced_rows400\\t2_t3_model_rows.jsonl",
+    "teacher_root": "D:\\ofc-pineapple-data\\t3_exact_from_t2_rows_20260608\\balanced_rows400_a2_d2",
+    "source_roots": 10,
+    "source_rows": 400,
+    "per_root_rows": "20 BB + 20 BTN",
+    "t3_records": {
+      "mine_train": 1120,
+      "dev": 240,
+      "final_holdout": 240
+    },
+    "candidate_samples": {
+      "mine_train": 18510,
+      "dev": 4044,
+      "final_holdout": 3966
+    },
+    "elapsed_seconds": {
+      "source_generation": 42.7,
+      "exact_teacher_generation": 324.5,
+      "bb_training": 181,
+      "btn_training": 182
+    }
+  },
+  "balanced400_model_metrics": {
+    "final_holdout_single_model": {
+      "old_action_value": {
+        "top1": 0.3875,
+        "top3": 0.7083333333333334,
+        "top5": 0.8125,
+        "top10": 0.9333333333333333,
+        "ev_loss_mean": 1.7494824198635006,
+        "ev_loss_p95": 10.041874486429,
+        "ev_loss_max": 30.420435852045998
+      },
+      "balanced400_specialist": {
+        "top1": 0.4375,
+        "top3": 0.7458333333333333,
+        "top5": 0.8625,
+        "top10": 0.9541666666666667,
+        "ev_loss_mean": 1.5509433939492163,
+        "ev_loss_p95": 9.283265694247206,
+        "ev_loss_max": 30.420435852045998
+      }
+    },
+    "final_holdout_union_old_balanced200_balanced400": {
+      "top3": {
+        "recall": 0.9083333333333333,
+        "ev_loss_mean": 0.15221827302119345,
+        "ev_loss_max": 11.15421096816123,
+        "avg_pool_size": 4.0625,
+        "max_pool_size": 6
+      },
+      "top5": {
+        "recall": 0.9458333333333333,
+        "ev_loss_mean": 0.09962278085519638,
+        "ev_loss_max": 11.15421096816123,
+        "avg_pool_size": 6.333333333333333,
+        "max_pool_size": 10
+      },
+      "top10": {
+        "recall": 0.9916666666666667,
+        "ev_loss_mean": 0.0011935557606094313,
+        "ev_loss_max": 0.1788654060066741,
+        "avg_pool_size": 11.075,
+        "max_pool_size": 16
+      },
+      "top15": {
+        "recall": 0.9958333333333333,
+        "ev_loss_mean": 0.0007452725250278088,
+        "ev_loss_max": 0.1788654060066741,
+        "avg_pool_size": 14.091666666666667,
+        "max_pool_size": 20
+      },
+      "top20": {
+        "recall": 1.0,
+        "ev_loss_mean": 0.0,
+        "ev_loss_max": 0.0,
+        "avg_pool_size": 16.245833333333334,
+        "max_pool_size": 21
+      }
+    }
+  },
+  "external_holdout_20260608": {
+    "description": "Fresh local external-style holdout generated from root_start 1000, roots 1000-1009, seed 20260609. This split was not used for training.",
+    "source_t2_rows": "D:\\ofc-pineapple-data\\t3_external_holdout_20260608\\source_root1000_seed20260609_rows400\\t2_t3_model_rows.jsonl",
+    "teacher_root": "D:\\ofc-pineapple-data\\t3_external_holdout_20260608\\root1000_seed20260609_rows400_a2_d2",
+    "source_rows": 400,
+    "t3_records": {
+      "mine_train": 1120,
+      "dev": 240,
+      "final_holdout": 240
+    },
+    "candidate_samples": {
+      "mine_train": 18642,
+      "dev": 3966,
+      "final_holdout": 3822
+    },
+    "final_holdout_three_source_union": {
+      "top3": {
+        "recall": 0.7541666666666667,
+        "ev_loss_mean": 0.6270211793431649,
+        "ev_loss_p99": 5.862580849464538,
+        "ev_loss_max": 96.83113726751014,
+        "ev_loss_gt_0p1": 31,
+        "avg_pool_size": 3.625,
+        "max_pool_size": 6
+      },
+      "top5": {
+        "recall": 0.9,
+        "ev_loss_mean": 0.4747132592521774,
+        "ev_loss_p99": 2.1779342224111526,
+        "ev_loss_max": 96.83113726751014,
+        "ev_loss_gt_0p1": 13,
+        "avg_pool_size": 5.8125,
+        "max_pool_size": 9
+      },
+      "top8": {
+        "recall": 0.9666666666666667,
+        "ev_loss_mean": 0.03688399298577148,
+        "ev_loss_p99": 0.22500690160784415,
+        "ev_loss_max": 6.078187109062982,
+        "ev_loss_gt_0p1": 4,
+        "avg_pool_size": 8.858333333333333,
+        "max_pool_size": 15
+      },
+      "top10": {
+        "recall": 0.975,
+        "ev_loss_mean": 0.03665781575180782,
+        "ev_loss_p99": 0.22500690160784415,
+        "ev_loss_max": 6.078187109062982,
+        "ev_loss_gt_0p1": 4,
+        "avg_pool_size": 10.358333333333333,
+        "max_pool_size": 16
+      },
+      "top15": {
+        "recall": 0.9958333333333333,
+        "ev_loss_mean": 0.0012234237536656867,
+        "ev_loss_p99": 0.0,
+        "ev_loss_max": 0.2936217008797648,
+        "ev_loss_gt_0p1": 1,
+        "avg_pool_size": 13.279166666666667,
+        "max_pool_size": 20
+      },
+      "top20": {
+        "recall": 1.0,
+        "ev_loss_mean": 0.0,
+        "ev_loss_p99": 0.0,
+        "ev_loss_max": 0.0,
+        "ev_loss_gt_0p1": 0,
+        "avg_pool_size": 15.583333333333334,
+        "max_pool_size": 21
+      }
+    }
+  },
+  "evaluation_outputs": {
+    "single_model_dev": "D:\\ofc-pineapple-data\\t3_exact_from_t2_rows_20260608\\balanced_rows400_a2_d2\\dev\\model_pool_eval_old_vs_balanced400.json",
+    "single_model_final_holdout": "D:\\ofc-pineapple-data\\t3_exact_from_t2_rows_20260608\\balanced_rows400_a2_d2\\final_holdout\\model_pool_eval_old_vs_balanced400.json",
+    "union_old_balanced400_dev": "D:\\ofc-pineapple-data\\t3_exact_from_t2_rows_20260608\\balanced_rows400_a2_d2\\dev\\union_old_balanced400_pool_eval.json",
+    "union_old_balanced400_final_holdout": "D:\\ofc-pineapple-data\\t3_exact_from_t2_rows_20260608\\balanced_rows400_a2_d2\\final_holdout\\union_old_balanced400_pool_eval.json",
+    "union_three_source_dev": "D:\\ofc-pineapple-data\\t3_exact_from_t2_rows_20260608\\balanced_rows400_a2_d2\\dev\\union_old_balanced200_balanced400_pool_eval.json",
+    "union_three_source_final_holdout": "D:\\ofc-pineapple-data\\t3_exact_from_t2_rows_20260608\\balanced_rows400_a2_d2\\final_holdout\\union_old_balanced200_balanced400_pool_eval.json"
+  }
+}

@@ -17,7 +17,7 @@ from collections import Counter
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from ai.engine.encoding import ALL_CARDS
-from ai.engine.game_engine import RANK_VALUES
+from ai.engine.game_engine import RANK_VALUES, evaluate_board_with_joker_constraint
 
 
 def fast_game(deck: list) -> list:
@@ -215,32 +215,23 @@ def heuristic_turn(cards: list, board: dict) -> tuple:
 
 
 def fast_score(boards: list) -> dict:
-    """Quick scoring without full hand evaluation."""
+    """Score completed boards through the canonical Joker evaluator."""
     busted = [False, False]
     royalties = [{"top": 0, "middle": 0, "bottom": 0, "total": 0},
                  {"top": 0, "middle": 0, "bottom": 0, "total": 0}]
     fl_entry = [False, False]
     raw_score = [0, 0]
+    line_vals = [{}, {}]
 
     for seat in [0, 1]:
         b = boards[seat]
-        top_val = quick_eval(b["top"], 3)
-        mid_val = quick_eval(b["middle"], 5)
-        bot_val = quick_eval(b["bottom"], 5)
-
-        if top_val > mid_val or mid_val > bot_val:
-            busted[seat] = True
-        else:
-            royalties[seat]["top"] = quick_top_royalty(b["top"])
-            royalties[seat]["middle"] = quick_mid_royalty(b["middle"])
-            royalties[seat]["bottom"] = quick_bot_royalty(b["bottom"])
-            royalties[seat]["total"] = (royalties[seat]["top"] +
-                                        royalties[seat]["middle"] +
-                                        royalties[seat]["bottom"])
-
-            # Check FL entry: QQ+ (royalty >= 7) or trips (royalty >= 10)
-            if royalties[seat]["top"] >= 7:  # QQ+
-                fl_entry[seat] = True
+        evaluated = evaluate_board_with_joker_constraint(
+            b["top"], b["middle"], b["bottom"]
+        )
+        busted[seat] = bool(evaluated["busted"])
+        royalties[seat] = dict(evaluated["royalties"])
+        fl_entry[seat] = bool(evaluated["fl_entry"])
+        line_vals[seat] = dict(evaluated["values"])
 
     # Line comparison + scoop + royalty difference
     if busted[0] and busted[1]:
@@ -251,14 +242,6 @@ def fast_score(boards: list) -> dict:
         raw_score = [6 + royalties[0]["total"], -6 - royalties[0]["total"]]
     else:
         # Both not busted: compare lines
-        line_vals = [{}, {}]
-        for seat in [0, 1]:
-            b = boards[seat]
-            line_vals[seat] = {
-                "top": quick_eval(b["top"], 3),
-                "middle": quick_eval(b["middle"], 5),
-                "bottom": quick_eval(b["bottom"], 5),
-            }
         line_total = 0
         for line in ["top", "middle", "bottom"]:
             if line_vals[0][line] > line_vals[1][line]:

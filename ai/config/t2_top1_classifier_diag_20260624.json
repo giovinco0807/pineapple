@@ -1,0 +1,1134 @@
+{
+  "name": "t2_top1_classifier_diag_20260624",
+  "status": "diagnostic",
+  "purpose": "Diagnostic for improving T2 model-only Top1 accuracy by training direct best-action classifiers after adding seed37 hard exact rows. This is not a runtime default because seed38 hard Top10 safety is still below 100%.",
+  "base_run": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/t2_selector_retrain_seed27_29_34_seed28resid12_exttop200_exttop300_seed35_seed36top20_rankeronly_20260624",
+  "ranker_only_seed37hard_run": {
+    "path": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/t2_selector_retrain_seed27_29_34_seed28resid12_exttop200_exttop300_seed35_seed36_seed37hard20_rankeronly_20260624",
+    "training_time_sec": 37.397,
+    "decision": "Not promotable. Latest EV-rank did not generalize to seed38 hard rows."
+  },
+  "classifier_run": {
+    "path": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/t2_selector_retrain_seed27_29_34_seed28resid12_exttop200_exttop300_seed35_seed36_seed37hard20_withcls_20260624",
+    "training_time_sec": 178.925,
+    "models": {
+      "hgb_cls_l31_state": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/t2_selector_retrain_seed27_29_34_seed28resid12_exttop200_exttop300_seed35_seed36_seed37hard20_withcls_20260624/hgb_cls_l31_state.joblib",
+      "extra_trees_cls_d12_state": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/t2_selector_retrain_seed27_29_34_seed28resid12_exttop200_exttop300_seed35_seed36_seed37hard20_withcls_20260624/extra_trees_cls_d12_state.joblib"
+    }
+  },
+  "training_data_added": {
+    "seed37_zblendhard_top20_exact": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/eval_data/seed20260637_both500_zblendhard_top20_cap100_dim789"
+  },
+  "external_data": {
+    "seed38_source": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/inputs/t2_fresh_after1000_seed20260638_both500_source1000_all_actions.jsonl",
+    "seed38_first20_exact": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/eval_data/seed20260638_first20_cap100_dim789",
+    "seed38_latest_ev_hard20_exact": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/eval_data/seed20260638_both500_latestevhard_top20_cap100_dim789",
+    "seed38_btn_hgbcls_hard20_exact": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/eval_data/seed20260638_btn_hgbcls_hard_top20_cap100_dim789"
+  },
+  "seed38_external_metrics": {
+    "first20_clean": {
+      "hgb_cls_l31_state": {
+        "top1_ev_hit": 1.0,
+        "reg1": 0.0,
+        "top3": 1.0,
+        "top5": 1.0,
+        "top10": 1.0,
+        "reg10": 0.0,
+        "top20": 1.0
+      },
+      "extra_trees_cls_d12_state": {
+        "top1_ev_hit": 1.0,
+        "reg1": 0.0,
+        "top3": 1.0,
+        "top5": 1.0,
+        "top10": 1.0,
+        "reg10": 0.0,
+        "top20": 1.0
+      },
+      "old_score_ranker": {
+        "top1_ev_hit": 0.95,
+        "reg1": 0.2741875648498535,
+        "top3": 1.0,
+        "top5": 1.0,
+        "top10": 1.0,
+        "reg10": 0.0,
+        "top20": 1.0
+      }
+    },
+    "latest_ev_hard20": {
+      "hgb_cls_l31_state": {
+        "top1_ev_hit": 0.8,
+        "reg1": 1.3281425952911377,
+        "top3": 0.8,
+        "top5": 0.85,
+        "top10": 0.95,
+        "reg10": 0.6336100101470947,
+        "top20": 1.0
+      },
+      "extra_trees_cls_d12_state": {
+        "top1_ev_hit": 0.8,
+        "reg1": 1.5126484632492065,
+        "top3": 0.8,
+        "top5": 0.9,
+        "top10": 0.9,
+        "reg10": 1.279737901687622,
+        "top20": 1.0
+      },
+      "old_score_ranker": {
+        "top1_ev_hit": 0.7,
+        "reg1": 1.89023699760437,
+        "top3": 0.8,
+        "top5": 0.9,
+        "top10": 0.95,
+        "reg10": 0.6461278915405273,
+        "top20": 1.0
+      },
+      "latest_ev_ranker": {
+        "top1_ev_hit": 0.15,
+        "reg1": 4.5856891632080075,
+        "top3": 0.65,
+        "top5": 0.9,
+        "top10": 0.9,
+        "reg10": 1.279737901687622,
+        "top20": 1.0
+      }
+    },
+    "btn_hgbcls_hard20": {
+      "extra_trees_cls_d12_state": {
+        "top1_ev_hit": 0.6,
+        "reg1": 0.17370979338884354,
+        "max_reg1": 1.5267177820205688,
+        "top3": 0.95,
+        "top5": 0.95,
+        "top8": 1.0,
+        "top10": 1.0,
+        "reg10": 0.0,
+        "top20": 1.0
+      },
+      "old_ev_ranker": {
+        "top1_ev_hit": 0.5,
+        "reg1": 0.24680724292993544,
+        "max_reg1": 1.1250391602516174,
+        "top3": 0.85,
+        "top5": 0.95,
+        "top8": 1.0,
+        "top10": 1.0,
+        "reg10": 0.0,
+        "top20": 1.0
+      },
+      "latest_ev_ranker": {
+        "top1_ev_hit": 0.5,
+        "reg1": 0.2534604385495186,
+        "max_reg1": 1.3469425439834595,
+        "top3": 0.75,
+        "top5": 0.9,
+        "top8": 1.0,
+        "top10": 1.0,
+        "reg10": 0.0,
+        "top20": 1.0
+      },
+      "hgb_cls_l31_state": {
+        "top1_ev_hit": 0.0,
+        "reg1": 0.8974413208197802,
+        "max_reg1": 2.1126758754253387,
+        "top3": 0.25,
+        "top5": 0.5,
+        "top8": 0.9,
+        "top10": 0.95,
+        "reg10": 0.02849767208099365,
+        "top20": 1.0
+      }
+    }
+  },
+  "position_note": "Seed38 first20 and latest-EV hard20 exact samples are all position=bb. A separate seed38 BTN hard set shows hgb_cls_l31_state fails on BTN-hard while extra_trees_cls_d12_state is strongest among checked models.",
+  "position_aware_union_eval": {
+    "path": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/t2_position_aware_union_seed38_20260624/summary.json",
+    "script": "ai/training/evaluate_t2_position_aware_union.py",
+    "position_aware_top1_policy": {
+      "bb": "hgb_cls_l31_state",
+      "btn": "extra_trees_cls_d12_state"
+    },
+    "single_model_result": {
+      "seed38_bb_latest_ev_hard20": {
+        "top1_ev_hit": 0.8,
+        "reg1": 1.3281425952911377,
+        "top10": 0.95,
+        "reg10": 0.6336100101470947
+      },
+      "seed38_btn_hgbcls_hard20": {
+        "top1_ev_hit": 0.6,
+        "reg1": 0.17370979338884354,
+        "top10": 1.0,
+        "reg10": 0.0
+      },
+      "seed38_clean_first20": {
+        "top1_ev_hit": 1.0,
+        "reg1": 0.0,
+        "top10": 1.0,
+        "reg10": 0.0
+      }
+    },
+    "union_exact_rerank_result": {
+      "seed38_bb_latest_ev_hard20_all6_top10": {
+        "hit": 1.0,
+        "regret": 0.0,
+        "max_regret": 0.0,
+        "avg_pool": 12.4,
+        "max_pool": 16
+      },
+      "seed38_bb_latest_ev_hard20_all6_top8": {
+        "hit": 0.95,
+        "regret": 0.6461278915405273,
+        "max_regret": 12.922557830810547,
+        "avg_pool": 10.3,
+        "max_pool": 13
+      },
+      "seed38_btn_hgbcls_hard20_posaware1_safety3": {
+        "hit": 1.0,
+        "regret": 0.0,
+        "max_regret": 0.0,
+        "avg_pool": 5.7,
+        "max_pool": 8
+      },
+      "seed38_clean_first20_cls1_each": {
+        "hit": 1.0,
+        "regret": 0.0,
+        "max_regret": 0.0,
+        "avg_pool": 1.0,
+        "max_pool": 1
+      }
+    },
+    "decision": "Position-aware Top1 is now the best tested display policy on seed38, but BB hard still needs a larger all-model Top10 union to recover zero EV loss under exact rerank. This is not promoted until seed39/seed40 repeat the result."
+  },
+  "seed39_position_aware_union_eval": {
+    "path": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/t2_position_aware_union_seed39_hard40_20260624/summary.json",
+    "script": "ai/training/evaluate_t2_position_aware_union.py",
+    "mining_script": "ai/training/mine_t2_position_aware_source_hard.py",
+    "mining": {
+      "source": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/inputs/t2_fresh_after1000_seed20260639_both500_source1000_all_actions.jsonl",
+      "bb_selected": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/source1000_seed20260639_both500_positionaware_bb_hard20_pseudo_20260624/selected_bb_top20_for_exact.jsonl",
+      "btn_selected": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/source1000_seed20260639_both500_positionaware_btn_hard20_pseudo_20260624/selected_btn_top20_for_exact.jsonl",
+      "bb_policy_model": "hgb_cls_l31_state",
+      "btn_policy_model": "extra_trees_cls_d12_state",
+      "note": "Rows were mined by pseudo Top1 EV loss from T3-model source labels, then exact/cap100 labeled before evaluation."
+    },
+    "exact_labeling": {
+      "bb_hard20": {
+        "records": 20,
+        "source_top1_same_rate": 0.0,
+        "avg_exact_elapsed_ms": 57510.341174999994,
+        "max_source_top1_exact_regret": 8.05086638563013,
+        "eval_data": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/eval_data/seed20260639_bb_positionaware_hard_top20_cap100_dim789"
+      },
+      "btn_hard20": {
+        "records": 20,
+        "source_top1_same_rate": 0.25,
+        "avg_exact_elapsed_ms": 39489.12042,
+        "max_source_top1_exact_regret": 8.554601557285896,
+        "eval_data": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/eval_data/seed20260639_btn_positionaware_hard_top20_cap100_dim789"
+      }
+    },
+    "single_model_result": {
+      "seed39_bb_hard20_hgb_cls_l31_state": {
+        "top1_ev_hit": 0.4,
+        "reg1": 1.615606391429901,
+        "top3": 0.4,
+        "top5": 0.4,
+        "top8": 0.55,
+        "top10": 0.75,
+        "reg10": 0.08168797492980957,
+        "top20": 1.0
+      },
+      "seed39_bb_hard20_extra_trees_cls_d12_state": {
+        "top1_ev_hit": 0.4,
+        "reg1": 1.4250720620155335,
+        "top3": 0.45,
+        "top5": 0.75,
+        "top8": 1.0,
+        "top10": 1.0,
+        "reg10": 0.0,
+        "top20": 1.0
+      },
+      "seed39_btn_hard20_extra_trees_cls_d12_state": {
+        "top1_ev_hit": 0.4,
+        "reg1": 1.408386415243149,
+        "top3": 0.5,
+        "top5": 0.65,
+        "top8": 0.8,
+        "top10": 0.9,
+        "reg10": 0.06187868118286133,
+        "top20": 1.0
+      },
+      "seed39_btn_hard20_old_score": {
+        "top1_ev_hit": 0.7,
+        "reg1": 0.5147886037826538,
+        "top3": 0.9,
+        "top5": 1.0,
+        "top8": 1.0,
+        "top10": 1.0,
+        "reg10": 0.0,
+        "top20": 1.0
+      },
+      "seed39_btn_hard20_old_ev": {
+        "top1_ev_hit": 0.65,
+        "reg1": 0.4675561398267746,
+        "top3": 0.9,
+        "top5": 1.0,
+        "top8": 1.0,
+        "top10": 1.0,
+        "reg10": 0.0,
+        "top20": 1.0
+      }
+    },
+    "union_exact_rerank_result": {
+      "seed39_bb_hard20_posaware1_safety3": {
+        "hit": 1.0,
+        "regret": 0.0,
+        "max_regret": 0.0,
+        "avg_pool": 4.8,
+        "max_pool": 7
+      },
+      "seed39_btn_hard20_posaware1_safety3": {
+        "hit": 1.0,
+        "regret": 0.0,
+        "max_regret": 0.0,
+        "avg_pool": 4.55,
+        "max_pool": 6
+      },
+      "seed39_bb_hard20_all6_top5": {
+        "hit": 1.0,
+        "regret": 0.0,
+        "max_regret": 0.0,
+        "avg_pool": 7.75,
+        "max_pool": 10
+      },
+      "seed39_btn_hard20_all6_top5": {
+        "hit": 1.0,
+        "regret": 0.0,
+        "max_regret": 0.0,
+        "avg_pool": 7.35,
+        "max_pool": 11
+      }
+    },
+    "decision": "Seed39 hard40 does not confirm standalone position-aware classifier strength: BB HGB and BTN ExtraTrees both drop to 40% Top1. However, union pools recover zero EV loss on both BB and BTN hard20, even with position-aware top1 plus safety3. Keep Top1 work diagnostic and use seed39 hard labels for the next hard-negative retrain."
+  },
+  "largepool_external_eval_20260624": {
+    "path": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/t2_position_aware_union_largepool_external_20260624/summary.json",
+    "script": "ai/training/evaluate_t2_position_aware_union.py",
+    "datasets": [
+      "seed38_bb_hard",
+      "seed38_btn_hard",
+      "seed39_bb_hard",
+      "seed39_btn_hard"
+    ],
+    "oldnew6_top10": {
+      "seed38_bb_hard": {
+        "hit": 1.0,
+        "regret": 0.0,
+        "max_regret": 0.0,
+        "avg_pool": 12.85,
+        "max_pool": 15
+      },
+      "seed38_btn_hard": {
+        "hit": 1.0,
+        "regret": 0.0,
+        "max_regret": 0.0,
+        "avg_pool": 15.0,
+        "max_pool": 18
+      },
+      "seed39_bb_hard": {
+        "hit": 1.0,
+        "regret": 0.0,
+        "max_regret": 0.0,
+        "avg_pool": 13.9,
+        "max_pool": 17
+      },
+      "seed39_btn_hard": {
+        "hit": 1.0,
+        "regret": 0.0,
+        "max_regret": 0.0,
+        "avg_pool": 12.8,
+        "max_pool": 16
+      }
+    },
+    "decision": "If the five-second target is treated as approximate instead of strict, oldnew6_top10 is the best current safety baseline: all four external hard checks recovered zero EV loss with average pools about 13-15. This still does not make standalone Top1 accurate enough."
+  },
+  "seed38bb_residual_morecls_20260624": {
+    "miss_rows": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/t2_selector_retrain_seed39hard40_plus_seed38bb_residual_20260624/seed38bb_seed39_top1_residual_miss_rows_20260624.jsonl",
+    "residual_train_run": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/t2_selector_retrain_seed39hard40_plus_seed38bb_residual_20260624",
+    "more_classifiers_train_run": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/t2_selector_retrain_seed39hard40_plus_seed38bb_residual_morecls_20260624",
+    "more_classifiers_eval": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/t2_position_aware_union_morecls_eval_20260624/summary.json",
+    "miss_row_summary": {
+      "total_rows": 51,
+      "seed38_bb_hard20_residual": {
+        "selected_rows": 19,
+        "max_ev_loss": 13.692752838134766,
+        "mean_ev_loss": 5.726287816700182
+      },
+      "seed39_bb_hard20": {
+        "selected_rows": 19,
+        "max_ev_loss": 6.4591827392578125,
+        "mean_ev_loss": 3.754530586694416
+      },
+      "seed39_btn_hard20": {
+        "selected_rows": 13,
+        "max_ev_loss": 4.952432155609131,
+        "mean_ev_loss": 1.9179526154811566
+      }
+    },
+    "best_single_results": {
+      "seed38_bb_hard_traincheck": {
+        "hgb_cls_l31_state": {
+          "top1": 0.85,
+          "reg1": 1.3145328044891358
+        },
+        "hgb_cls_l63_state": {
+          "top1": 0.85,
+          "reg1": 1.3145328044891358
+        }
+      },
+      "seed38_btn_hard_external": {
+        "hgb_cls_l63_state": {
+          "top1": 0.8,
+          "reg1": 0.06344200968742371
+        }
+      },
+      "seed39_bb_hard_traincheck": {
+        "new_score": {
+          "top1": 0.85,
+          "reg1": 0.2504859685897827
+        },
+        "hgb_cls_l63_state": {
+          "top1": 0.6,
+          "reg1": 0.21115479469299317
+        }
+      },
+      "seed39_btn_hard_traincheck": {
+        "rf_cls_d12_state": {
+          "top1": 0.95,
+          "reg1": 0.1811115026473999
+        },
+        "hgb_cls_l63_state": {
+          "top1": 0.9,
+          "reg1": 0.28313236236572265
+        }
+      }
+    },
+    "candidate_pool_result": {
+      "all8_top3": {
+        "seed38_bb_hard_traincheck": {
+          "hit": 1.0,
+          "regret": 0.0
+        },
+        "seed38_btn_hard_external": {
+          "hit": 1.0,
+          "regret": 0.0
+        },
+        "seed39_bb_hard_traincheck": {
+          "hit": 1.0,
+          "regret": 0.0
+        },
+        "seed39_btn_hard_traincheck": {
+          "hit": 1.0,
+          "regret": 0.0
+        }
+      }
+    },
+    "decision": "Adding seed38 BB residual miss weights and larger classifier families improved several Top1 checks: HGB L63 is stronger on seed38 BTN and seed39 BB, and RF reaches 95% on seed39 BTN. It still does not solve standalone Top1 because seed38 BB keeps a large tail loss and seed39 BB still prefers a different model family. Keep this run as the new diagnostic baseline, not the final model-only policy."
+  },
+  "pool_switcher_20260624": {
+    "script": "ai/training/train_t2_pool_switcher.py",
+    "source_train_run": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/t2_selector_retrain_seed39hard40_plus_seed38bb_residual_morecls_20260624",
+    "all8_top2_eval": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/t2_pool_switcher_all8_top2_20260624/summary.json",
+    "all8_top2_external_holdouts": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/t2_pool_switcher_all8_top2_external_holdouts_20260624/summary.json",
+    "all8_top3_external_holdouts": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/t2_pool_switcher_all8_top3_external_holdouts_20260624/summary.json",
+    "all8_top5_external_holdouts": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/t2_pool_switcher_all8_top5_external_holdouts_20260624/summary.json",
+    "all8_top5_seed40_pseudo_external": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/t2_pool_switcher_all8_top5_seed40_source200_pseudo_20260624/summary.json",
+    "all8_top5_seed40_exact_probe": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/t2_pool_switcher_all8_top5_seed40_exact_top15_20260624/summary.json",
+    "all8_top5_seed40_balanced30_exact": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/t2_pool_switcher_all8_top5_seed40_balanced30_exact_20260624/summary.json",
+    "seed41_plus_train_run": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/t2_selector_retrain_plus_seed41_probe20_morecls_20260624",
+    "all8_top4_baseline_external_exact151": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/t2_pool_switcher_all8_top4_external_exact_151_20260624/summary.json",
+    "all8_top4_plus_seed41_external_exact151": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/t2_pool_switcher_all8_top4_plus_seed41_external_exact_151_20260624/summary.json",
+    "all8_top3_plus_seed41_external_exact151": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/t2_pool_switcher_all8_top3_plus_seed41_external_exact_151_20260624/summary.json",
+    "multi20_top3_external_exact151": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/t2_pool_switcher_multi20_top3_external_exact_151_20260624/summary.json",
+    "seed42_probe20_exact": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/eval_data/seed20260642_probe20_cap100_dim789",
+    "multi26_top3_external_exact171": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/t2_pool_switcher_multi26_top3_external_exact_171_20260624/summary.json",
+    "seed43_balanced20_exact": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/eval_data/seed20260643_balanced20_cap100_dim789",
+    "multi26_top3_seed43_balanced20_exact": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/t2_pool_switcher_multi26_top3_seed43_balanced20_exact_20260624/summary.json",
+    "seed44_balanced50_exact": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/eval_data/seed20260644_pseudomiss6_balanced50_cap100_dim789",
+    "multi26_top3_seed44_balanced50_exact": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/t2_pool_switcher_multi26_top3_seed44_balanced50_exact_20260624/summary.json",
+    "checked_external_holdouts": [
+      "seed28_top16_holdout",
+      "seed28_btn_top10_holdout",
+      "seed37_first20_external",
+      "seed38_first20_external",
+      "seed38_btn_hard_external"
+    ],
+    "top2_result": {
+      "traincheck_and_seed38btn": {
+        "top1": 1.0,
+        "reg1": 0.0,
+        "datasets": [
+          "seed38_bb_hard_traincheck",
+          "seed38_btn_hard_external",
+          "seed38_clean_first20",
+          "seed39_bb_hard_traincheck",
+          "seed39_btn_hard_traincheck"
+        ]
+      },
+      "external_holdout_misses": {
+        "seed28_top16_holdout": {
+          "pool_upper_hit": 0.9375,
+          "top1": 0.9375,
+          "reg1": 0.01837068237364292,
+          "max_reg1": 0.29393091797828674
+        },
+        "seed28_btn_top10_holdout": {
+          "pool_upper_hit": 0.9,
+          "top1": 0.9,
+          "reg1": 0.0773483157157898,
+          "max_reg1": 0.773483157157898
+        }
+      }
+    },
+    "top3_result": {
+      "external_holdout_miss": {
+        "seed28_top16_holdout": {
+          "pool_upper_hit": 0.9375,
+          "top1": 0.9375,
+          "reg1": 0.01837068237364292,
+          "max_reg1": 0.29393091797828674
+        }
+      },
+      "external_holdout_zero_loss_sets": [
+        "seed28_btn_top10_holdout",
+        "seed37_first20_external",
+        "seed38_first20_external",
+        "seed38_btn_hard_external"
+      ]
+    },
+    "top5_result": {
+      "external_holdout_top1": 1.0,
+      "external_holdout_reg1": 0.0,
+      "external_holdout_max_reg1": 0.0,
+      "checked_exact_external_groups_including_seed40": 131,
+      "checked_exact_external_misses_including_seed40": 0,
+      "model": "hgb_l31",
+      "note": "All five checked external holdouts reached pool upper hit 100% and switcher Top1 100%; average candidates ranged from about 7.15 to 10.38 per spot."
+    },
+    "seed40_fresh_probe": {
+      "source200_pseudo": {
+        "source": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/inputs/t2_fresh_after1000_seed20260640_both100_source200_all_actions.jsonl",
+        "positions": {
+          "bb": 100,
+          "btn": 100
+        },
+        "all8_top5_switcher_top1": 0.975,
+        "all8_top5_switcher_reg1": 0.0132,
+        "all8_top5_switcher_max_reg1": 1.7554,
+        "pseudo_miss_count": 5,
+        "note": "Pseudo source-model labels are not authoritative; this was used only to select probe rows."
+      },
+      "selected_exact_cap100_probe": {
+        "source": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/source200_seed20260640_pool_switcher_pseudo_misses_20260624/selected_source_top15_for_exact.jsonl",
+        "teacher": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/source200_seed20260640_pool_switcher_pseudo_misses_20260624/selected_top15_alllegal_cap100.teacher.jsonl",
+        "exact_oracle": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/source200_seed20260640_pool_switcher_pseudo_misses_20260624/exact_cap100_top15/t2_oracle_cap100_limit15.jsonl",
+        "groups": 15,
+        "position_mix": {
+          "bb": 14,
+          "btn": 1
+        },
+        "avg_exact_elapsed_ms": 44787.617,
+        "source_top1_changed": 15,
+        "all8_top5_switcher_top1": 1.0,
+        "all8_top5_switcher_reg1": 0.0,
+        "all8_top5_switcher_max_reg1": 0.0,
+        "miss_count": 0,
+        "note": "Fresh hard/probe holdout selected from seed40 pseudo misses plus controls. It supports the Top5 pool path but is too small and selected to claim broad external 100%."
+      },
+      "balanced30_exact_cap100": {
+        "source": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/source200_seed20260640_random_balanced30_20260624/selected_source_balanced30_for_exact.jsonl",
+        "teacher": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/source200_seed20260640_random_balanced30_20260624/balanced30_alllegal_cap100.teacher.jsonl",
+        "exact_oracle": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/source200_seed20260640_random_balanced30_20260624/exact_cap100_balanced30/t2_oracle_cap100_limit30.jsonl",
+        "groups": 30,
+        "position_mix": {
+          "bb": 15,
+          "btn": 15
+        },
+        "avg_exact_elapsed_ms": 28118.54,
+        "source_top1_changed": 17,
+        "all8_top5_switcher_top1": 1.0,
+        "all8_top5_switcher_reg1": 0.0,
+        "all8_top5_switcher_max_reg1": 0.0,
+        "miss_count": 0,
+        "note": "Fresh balanced holdout selected from unused seed40 rows independent of exact labels. No hard-negative retraining was done because no all8_top5 switcher miss was found."
+      }
+    },
+    "seed41_fresh_probe": {
+      "source200_pseudo": {
+        "source": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/inputs/t2_fresh_after1000_seed20260641_both100_source200_all_actions.jsonl",
+        "positions": {
+          "bb": 100,
+          "btn": 100
+        },
+        "all8_top5_switcher_top1": 0.98,
+        "all8_top5_switcher_reg1": 0.019150460958480834,
+        "all8_top5_switcher_max_reg1": 2.0458881855010986,
+        "pseudo_miss_count": 4,
+        "note": "Pseudo labels were used only to select probe rows."
+      },
+      "probe20_exact_cap100": {
+        "source": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/source200_seed20260641_pseudo_misses_probe20_20260624/selected_source_probe20_for_exact.jsonl",
+        "teacher": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/source200_seed20260641_pseudo_misses_probe20_20260624/probe20_alllegal_cap100.teacher.jsonl",
+        "exact_oracle": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/source200_seed20260641_pseudo_misses_probe20_20260624/exact_cap100_probe20/t2_oracle_cap100_limit20.jsonl",
+        "groups": 20,
+        "position_mix": {
+          "bb": 10,
+          "btn": 10
+        },
+        "avg_exact_elapsed_ms": 28058.695,
+        "source_top1_changed": 12,
+        "all8_top5_switcher_top1": 1.0,
+        "all8_top5_switcher_reg1": 0.0,
+        "all8_top5_switcher_max_reg1": 0.0,
+        "miss_count": 0
+      }
+    },
+    "top4_improvement_20260624": {
+      "baseline_morecls_top4_exact151": {
+        "top1": 0.9867549668874173,
+        "reg1": 0.03063027274529665,
+        "max_reg1": 2.3125855922698975,
+        "miss_count": 2,
+        "note": "Before adding seed41 exact rows, Top4 failed on seed41 probe20."
+      },
+      "plus_seed41_top4_exact151": {
+        "train_run": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/t2_selector_retrain_plus_seed41_probe20_morecls_20260624",
+        "top1": 1.0,
+        "reg1": 0.0,
+        "max_reg1": 0.0,
+        "miss_count": 0,
+        "groups": 151,
+        "candidate_samples": 1153,
+        "avg_candidates_per_group": 7.635761589403973,
+        "note": "Adding seed41 probe20 exact rows allowed all8_top4 + switcher to reach zero EV loss on the same 151 checked exact groups."
+      },
+      "plus_seed41_top3_exact151": {
+        "top1": 0.9735099337748344,
+        "reg1": 0.0338242734899584,
+        "max_reg1": 2.3125855922698975,
+        "miss_count": 4,
+        "note": "Top3 is still too narrow."
+      }
+    },
+    "top3_hardening_20260624": {
+      "hard_negative_training": {
+        "top3_hard4": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/eval_data/top3_miss_hard4_cap100_dim789",
+        "seed41_hard2_x20": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/eval_data/top3_seed41_hard2_x20_cap100_dim789",
+        "seed42_hard3_x20": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/eval_data/top3_seed42_hard3_x20_cap100_dim789",
+        "seed42_specialist_run": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/t2_selector_retrain_plus_top3hard4_seed41hard2x20_seed42hard3x20_morecls_20260624"
+      },
+      "multi20_top3_exact151": {
+        "groups": 151,
+        "candidate_samples": 1115,
+        "avg_candidates_per_group": 7.384105960264901,
+        "top1": 1.0,
+        "reg1": 0.0,
+        "max_reg1": 0.0,
+        "miss_count": 0,
+        "note": "Combining the old, seed41, seed41-hard, and seed28-hard model families recovered zero EV loss on the previously checked 151 exact/cap100 groups."
+      },
+      "seed42_external_probe_before_hardening": {
+        "groups": 20,
+        "candidate_samples": 167,
+        "avg_candidates_per_group": 8.35,
+        "top1": 0.85,
+        "reg1": 0.1591399520635605,
+        "max_reg1": 1.0609334707260132,
+        "miss_count": 3,
+        "note": "Fresh seed42 exact/cap100 probe showed that multi20 Top3 did not generalize perfectly."
+      },
+      "multi26_top3_exact171": {
+        "groups": 171,
+        "candidate_samples": 1326,
+        "avg_candidates_per_group": 7.754385964912281,
+        "top1": 1.0,
+        "reg1": 0.0,
+        "max_reg1": 0.0,
+        "miss_count": 0,
+        "note": "After adding seed42 hard3 x20 and using the 26-source model union, Top3 recovered zero EV loss across the 151 prior checked exact groups plus the 20 fresh seed42 exact groups."
+      },
+      "seed43_untrained_balanced20_exact": {
+        "source_records": 100,
+        "selected_records": 20,
+        "position_mix": {
+          "bb": 10,
+          "btn": 10
+        },
+        "source_top1_same_rate": 0.1,
+        "source_top1_changed": 18,
+        "avg_exact_elapsed_ms": 30143.50907,
+        "max_source_top1_exact_regret": 4.155565249266925,
+        "candidate_samples": 156,
+        "avg_candidates_per_group": 7.8,
+        "top1": 1.0,
+        "reg1": 0.0,
+        "max_reg1": 0.0,
+        "miss_count": 0,
+        "note": "Seed43 was not fed back into training. The saved multi26 Top3 switcher recovered zero EV loss on this fresh random balanced exact/cap100 holdout."
+      },
+      "multi26_top3_checked_exact191": {
+        "groups": 191,
+        "top1": 1.0,
+        "reg1": 0.0,
+        "max_reg1": 0.0,
+        "miss_count": 0,
+        "note": "Aggregate of the prior exact171 check plus seed43 balanced20 exact. This is still empirical validation, not a mathematical guarantee."
+      },
+      "seed44_untrained_pseudomiss6_balanced50_exact": {
+        "source_records": 200,
+        "selected_records": 50,
+        "position_mix": {
+          "bb": 25,
+          "btn": 25
+        },
+        "pseudo_miss_count": 6,
+        "source_top1_same_rate": 0.14,
+        "source_top1_changed": 43,
+        "avg_exact_elapsed_ms": 30255.423832,
+        "max_source_top1_exact_regret": 8.924168255131626,
+        "candidate_samples": 312,
+        "avg_candidates_per_group": 6.24,
+        "top1": 1.0,
+        "reg1": 0.0,
+        "max_reg1": 0.0,
+        "miss_count": 0,
+        "note": "Seed44 was not fed back into training. The exact holdout includes all 6 pseudo misses plus random balanced controls, and the saved multi26 Top3 switcher recovered zero EV loss."
+      },
+      "multi26_top3_checked_exact241": {
+        "groups": 241,
+        "top1": 1.0,
+        "reg1": 0.0,
+        "max_reg1": 0.0,
+        "miss_count": 0,
+        "note": "Aggregate of the prior exact191 checks plus seed44 pseudo-miss-balanced50 exact. This is still empirical validation, not a mathematical guarantee.",
+        "superseded_by": "multi32_top3_after_seed45hard"
+      },
+      "seed45_external_break_before_hardening": {
+        "source_records": 200,
+        "selected_records": 50,
+        "position_mix": {
+          "bb": 25,
+          "btn": 25
+        },
+        "pseudo_miss_count": 11,
+        "source_top1_same_rate": 0.44,
+        "source_top1_changed": 28,
+        "avg_exact_elapsed_ms": 31113.275934,
+        "max_source_top1_exact_regret": 8.714183651025815,
+        "candidate_samples": 416,
+        "avg_candidates_per_group": 8.32,
+        "multi26_top3_before_hardening": {
+          "top1": 0.82,
+          "reg1": 0.030991884171962737,
+          "max_reg1": 0.6981246471405029,
+          "miss_count": 9
+        },
+        "hard_negative_dataset": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/eval_data/top3_seed45_hard9_x20_cap100_dim789",
+        "note": "Seed45 was initially a fresh external exact/cap100 check and broke multi26 Top3. Its 9 exact misses were fed back as x20 hard negatives, so seed45 is no longer a clean external holdout after this point."
+      },
+      "multi32_top3_after_seed45hard": {
+        "train_run": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/t2_selector_retrain_plus_seed45hard9x20_morecls_20260624",
+        "pool_switcher_check": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/t2_pool_switcher_multi32_top3_seed46_random50_external_20260624/summary.json",
+        "seed43_balanced20_external": {
+          "groups": 20,
+          "top1": 1.0,
+          "reg1": 0.0,
+          "max_reg1": 0.0,
+          "miss_count": 0
+        },
+        "seed44_balanced50_external": {
+          "groups": 50,
+          "top1": 1.0,
+          "reg1": 0.0,
+          "max_reg1": 0.0,
+          "miss_count": 0
+        },
+        "seed45_known_after_hardening": {
+          "groups": 50,
+          "top1": 1.0,
+          "reg1": 0.0,
+          "max_reg1": 0.0,
+          "miss_count": 0
+        },
+        "seed46_random50_fresh_external": {
+          "source_records": 200,
+          "selected_records": 50,
+          "position_mix": {
+            "bb": 25,
+            "btn": 25
+          },
+          "source_top1_same_rate": 0.4,
+          "source_top1_changed": 30,
+          "avg_exact_elapsed_ms": 66463.452978,
+          "max_source_top1_exact_regret": 48.540256062291476,
+          "candidate_samples": 413,
+          "avg_candidates_per_group": 8.26,
+          "top1": 1.0,
+          "reg1": 0.0,
+          "max_reg1": 0.0,
+          "miss_count": 0
+        },
+        "fresh_external_aggregate_excluding_seed45": {
+          "groups": 320,
+          "top1": 1.0,
+          "reg1": 0.0,
+          "max_reg1": 0.0,
+          "miss_count": 0,
+          "datasets": [
+            "seed43_balanced20_external",
+            "seed44_balanced50_external",
+            "seed46_random50_fresh_external",
+            "seed47_random100_fresh_external",
+            "seed48_pseudomiss4_balanced100_fresh_external"
+          ]
+        },
+        "note": "After adding seed45 hard9 x20 and expanding to multi32 sources, the fresh external aggregate excluding seed45 is 320 exact/cap100 groups with zero observed EV loss. Seed48 added a source400 pseudo pass with 4 pseudo misses; all 4 were included in balanced exact100 and still had zero exact EV loss under multi32 Top3. This is still empirical, not a proof.",
+        "seed47_random100_fresh_external": {
+          "source_records": 400,
+          "selected_records": 100,
+          "position_mix": {
+            "bb": 50,
+            "btn": 50
+          },
+          "source_top1_same_rate": 0.52,
+          "source_top1_changed": 48,
+          "avg_exact_elapsed_ms": 112337.50899,
+          "max_source_top1_exact_regret": 3.5834943270300443,
+          "candidate_samples": 613,
+          "avg_candidates_per_group": 6.13,
+          "top1": 1.0,
+          "reg1": 0.0,
+          "max_reg1": 0.0,
+          "miss_count": 0,
+          "pseudo_source400_precheck": {
+            "groups": 400,
+            "top1": 1.0,
+            "reg1": 0.0,
+            "max_reg1": 0.0,
+            "miss_count": 0
+          }
+        },
+        "seed48_pseudomiss4_balanced100_fresh_external": {
+          "source_records": 400,
+          "selected_records": 100,
+          "position_mix": {
+            "bb": 50,
+            "btn": 50
+          },
+          "pseudo_source400_precheck": {
+            "groups": 400,
+            "top1": 0.99,
+            "reg1": 0.005008294694125653,
+            "max_reg1": 0.7516869902610779,
+            "miss_count": 4
+          },
+          "pseudo_miss_source_indices": [
+            236,
+            242,
+            246,
+            277
+          ],
+          "source_top1_same_rate": 0.14,
+          "source_top1_changed": 86,
+          "avg_exact_elapsed_ms": 116046.773319,
+          "max_source_top1_exact_regret": 8.180515579179197,
+          "candidate_samples": 910,
+          "avg_candidates_per_group": 9.1,
+          "top1": 1.0,
+          "reg1": 0.0,
+          "max_reg1": 0.0,
+          "miss_count": 0,
+          "note": "Exact set includes all 4 pseudo misses plus balanced controls. The pseudo misses did not become exact misses under multi32 Top3."
+        }
+      },
+      "multi38_top3_after_seed49hard": {
+        "train_run": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/t2_selector_retrain_plus_seed45hard9x20_seed49hard4x20_morecls_20260624",
+        "pool_switcher_check": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/t2_pool_switcher_multi38_top3_seed49hard4x20_external_20260624/summary.json",
+        "seed49_external_break_before_hardening": {
+          "source_records": 400,
+          "selected_records": 100,
+          "position_mix": {
+            "bb": 50,
+            "btn": 50
+          },
+          "pseudo_miss_count": 2,
+          "pseudo_miss_source_indices": [
+            53,
+            154
+          ],
+          "source_top1_same_rate": 0.35,
+          "source_top1_changed": 65,
+          "avg_exact_elapsed_ms": 92610.325304,
+          "max_source_top1_exact_regret": 20.311977456010403,
+          "multi32_top3_before_hardening": {
+            "groups": 100,
+            "top1": 0.96,
+            "reg1": 0.03989288330078125,
+            "max_reg1": 1.196163535118103,
+            "miss_count": 4
+          },
+          "hard_negative_dataset": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/eval_data/top3_seed49_hard4_x20_cap100_dim789",
+          "note": "Seed49 was initially a fresh exact/cap100 check and broke multi32 Top3 with 4 exact misses. Its misses were fed back as x20 hard negatives, so seed49 is no longer a clean external holdout after this point."
+        },
+        "clean_external_aggregate_excluding_seed45_and_seed49": {
+          "groups": 320,
+          "top1": 1.0,
+          "reg1": 0.0,
+          "max_reg1": 0.0,
+          "miss_count": 0,
+          "datasets": [
+            "seed43_balanced20_external",
+            "seed44_balanced50_external",
+            "seed46_random50_fresh_external",
+            "seed47_random100_fresh_external",
+            "seed48_pseudomiss4_balanced100_fresh_external"
+          ]
+        },
+        "seed49_known_after_hardening": {
+          "groups": 100,
+          "top1": 1.0,
+          "reg1": 0.0,
+          "max_reg1": 0.0,
+          "miss_count": 0
+        },
+        "all_eval_including_seed49_known": {
+          "groups": 420,
+          "top1": 1.0,
+          "reg1": 0.0,
+          "max_reg1": 0.0,
+          "miss_count": 0,
+          "note": "This includes seed49 after its misses were fed back. Use the 320-group clean external aggregate for external-only claims."
+        },
+        "final_switcher_models_checked": [
+          "extra_trees_d14",
+          "hgb_l31",
+          "hgb_l63",
+          "rf_d14"
+        ],
+        "note": "After adding seed49 hard4 x20 and expanding to multi38 sources, all four switcher variants recovered zero EV loss on the clean 320-group external aggregate and on the 100-row seed49 known fixed set. This is empirical validation, not proof."
+      },
+      "multi44_top3_after_seed50hard": {
+        "train_run": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/t2_selector_retrain_plus_seed45hard9x20_seed49hard4x20_seed50hard3x20_morecls_20260624",
+        "pool_switcher_check": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/t2_pool_switcher_multi44_top3_seed50hard3x20_external_20260624/summary.json",
+        "seed50_external_break_before_hardening": {
+          "source_records": 400,
+          "selected_records": 100,
+          "position_mix": {
+            "bb": 50,
+            "btn": 50
+          },
+          "pseudo_miss_count": 16,
+          "source_top1_same_rate": 0.14,
+          "source_top1_changed": 86,
+          "avg_exact_elapsed_ms": 33308.868881,
+          "max_source_top1_exact_regret": 12.502101223581768,
+          "multi38_top3_before_hardening": {
+            "groups": 100,
+            "top1": 0.97,
+            "reg1": 0.002104182429611683,
+            "max_reg1": 0.07084538415074348,
+            "miss_count": 3
+          },
+          "hard_negative_dataset": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/eval_data/top3_seed50_hard3_x20_cap100_dim789",
+          "note": "Seed50 was initially a fresh exact/cap100 check and found 3 small-EV-loss misses under multi38 Top3. Its misses were fed back as x20 hard negatives, so seed50 is no longer a clean external holdout after this point."
+        },
+        "clean_external_aggregate_excluding_seed45_seed49_and_seed50": {
+          "groups": 420,
+          "top1": 1.0,
+          "reg1": 0.0,
+          "max_reg1": 0.0,
+          "miss_count": 0,
+          "datasets": [
+            "seed43_balanced20_external",
+            "seed44_balanced50_external",
+            "seed46_random50_fresh_external",
+            "seed47_random100_fresh_external",
+            "seed48_pseudomiss4_balanced100_fresh_external",
+            "seed51_pseudomiss8_balanced100_fresh_external"
+          ]
+        },
+        "seed51_pseudomiss8_balanced100_fresh_external": {
+          "source_records": 400,
+          "selected_records": 100,
+          "position_mix": {
+            "bb": 50,
+            "btn": 50
+          },
+          "pseudo_source400_precheck": {
+            "groups": 400,
+            "top1": 0.98,
+            "reg1": 0.01567432940006256,
+            "max_reg1": 1.8683586120605469,
+            "miss_count": 8
+          },
+          "pseudo_miss_source_indices": [
+            203,
+            234,
+            242,
+            255,
+            265,
+            324,
+            350,
+            359
+          ],
+          "source_top1_same_rate": 0.27,
+          "source_top1_changed": 73,
+          "avg_exact_elapsed_ms": 33548.735817,
+          "max_source_top1_exact_regret": 15.071632881230638,
+          "candidate_samples": 851,
+          "top1": 1.0,
+          "reg1": 0.0,
+          "max_reg1": 0.0,
+          "miss_count": 0,
+          "note": "Seed51 remains a clean external check because no seed51 rows were fed back into training. Exact set includes all 8 pseudo misses plus balanced controls."
+        },
+        "seed52_pseudomiss6_balanced100_fresh_external": {
+          "source_records": 400,
+          "selected_records": 100,
+          "position_mix": {
+            "bb": 50,
+            "btn": 50
+          },
+          "pseudo_source400_precheck": {
+            "groups": 400,
+            "top1": 0.985,
+            "reg1": 0.0025768124312162397,
+            "max_reg1": 0.5589631795883179,
+            "miss_count": 6
+          },
+          "pseudo_miss_source_indices": [
+            305,
+            309,
+            353,
+            360,
+            380,
+            387
+          ],
+          "source_top1_same_rate": 0.44,
+          "source_top1_changed": 56,
+          "avg_cap100_elapsed_ms": 112634.994073,
+          "avg_exact_regret_of_source_top1": 0.693949,
+          "max_source_top1_exact_regret": 6.4500005498530175,
+          "candidate_samples": 1151,
+          "top1": 1.0,
+          "reg1": 0.0,
+          "max_reg1": 0.0,
+          "miss_count": 0,
+          "switchers_checked": [
+            "extra_trees_d14",
+            "hgb_l31",
+            "hgb_l63",
+            "rf_d14"
+          ],
+          "note": "Seed52 remains a clean external cap100 check because no seed52 rows were fed back into training. All four switchers recovered the cap100-best action on all 100 groups."
+        },
+        "clean_external_aggregate_through_seed52": {
+          "groups": 520,
+          "top1": 1.0,
+          "reg1": 0.0,
+          "max_reg1": 0.0,
+          "miss_count": 0,
+          "datasets": [
+            "seed43_balanced20_external",
+            "seed44_balanced50_external",
+            "seed46_random50_fresh_external",
+            "seed47_random100_fresh_external",
+            "seed48_pseudomiss4_balanced100_fresh_external",
+            "seed51_pseudomiss8_balanced100_fresh_external",
+            "seed52_pseudomiss6_balanced100_fresh_external"
+          ]
+        },
+        "known_after_hardening": {
+          "groups": 250,
+          "top1": 1.0,
+          "reg1": 0.0,
+          "max_reg1": 0.0,
+          "miss_count": 0,
+          "datasets": [
+            "seed45_known_after_hardening",
+            "seed49_known_after_hardening",
+            "seed50_known_after_hardening"
+          ]
+        },
+        "all_eval_including_known_fixed_sets": {
+          "groups": 770,
+          "top1": 1.0,
+          "reg1": 0.0,
+          "max_reg1": 0.0,
+          "miss_count": 0,
+          "note": "This includes seed45, seed49, and seed50 after their misses were fed back. Use the 520-group clean external aggregate for external-only claims."
+        },
+        "final_switcher_models_checked": [
+          "extra_trees_d14",
+          "hgb_l31",
+          "hgb_l63",
+          "rf_d14"
+        ],
+        "note": "After adding seed50 hard3 x20 and expanding to multi44 sources, all four switcher variants recovered zero EV loss on the clean 520-group external aggregate and on the seed45/49/50 known fixed sets. This is empirical validation against cap100 labels, not proof."
+      }
+    },
+    "decision": "The pool switcher remains the strongest current Top1 route. Multi26 Top3 reached zero EV loss on 241 checked exact/cap100 groups, then failed on fresh seed45 with 9 misses. Multi32 fixed seed45 and held zero EV loss on seed43+seed44+seed46+seed47+seed48. Fresh seed49 then found 4 multi32 misses, and fresh seed50 found 3 small-EV-loss multi38 misses. After feeding those miss families back as x20 hard negatives and expanding to multi44 sources, seed51 and seed52 both passed as clean external checks. The clean external aggregate now has 520 exact/cap100 groups with zero observed EV loss, and the seed45/49/50 known fixed sets are also clean. Runtime promotion still requires portable artifact packaging, a production loader, and a five-second latency gate.",
+    "seed45_balanced50_exact": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/eval_data/seed20260645_pseudomiss11_balanced50_cap100_dim789",
+    "multi26_top3_seed45_balanced50_exact": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/t2_pool_switcher_multi26_top3_seed45_balanced50_exact_20260624/summary.json",
+    "seed46_random50_exact": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/eval_data/seed20260646_random_balanced50_cap100_dim789",
+    "multi32_top3_seed46_random50_external": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/t2_pool_switcher_multi32_top3_seed46_random50_external_20260624/summary.json",
+    "seed47_source400_pseudo": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/eval_data/seed20260647_both200_source400_model_dim789",
+    "seed47_random100_exact": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/eval_data/seed20260647_random_balanced100_cap100_dim789",
+    "multi32_top3_seed47_random100_external": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/t2_pool_switcher_multi32_top3_seed47_random100_external_20260624/summary.json",
+    "seed48_source400_pseudo": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/eval_data/seed20260648_both200_source400_model_dim789",
+    "seed48_pseudomiss4_balanced100_exact": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/eval_data/seed20260648_pseudomiss4_balanced100_cap100_dim789",
+    "multi32_top3_seed48_pseudomiss4_balanced100_external": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/t2_pool_switcher_multi32_top3_seed48_pseudomiss4_balanced100_external_20260624/summary.json",
+    "seed50_source400_pseudo": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/eval_data/seed20260650_both200_source400_model_dim789",
+    "seed50_pseudomiss16_balanced100_exact": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/eval_data/seed20260650_pseudomiss16_balanced100_cap100_dim789",
+    "multi38_top3_seed50_pseudomiss16_balanced100_external": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/t2_pool_switcher_multi38_top3_seed50_pseudomiss16_balanced100_external_20260624/summary.json",
+    "multi44_top3_seed50hard3x20_external": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/t2_pool_switcher_multi44_top3_seed50hard3x20_external_20260624/summary.json",
+    "seed51_source400_pseudo": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/eval_data/seed20260651_both200_source400_model_dim789",
+    "seed51_pseudomiss8_balanced100_exact": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/eval_data/seed20260651_pseudomiss8_balanced100_cap100_dim789",
+    "multi44_top3_seed51_pseudomiss8_balanced100_external": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/t2_pool_switcher_multi44_top3_seed51_pseudomiss8_balanced100_external_20260710/summary.json",
+    "seed52_source400_pseudo": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/eval_data/seed20260652_both200_source400_model_dim789",
+    "seed52_pseudomiss6_balanced100_exact": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/eval_data/seed20260652_pseudomiss6_balanced100_cap100_dim789",
+    "multi44_top3_seed52_pseudomiss6_balanced100_external": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/t2_pool_switcher_multi44_top3_seed52_pseudomiss6_balanced100_external_20260711/summary.json"
+  },
+  "evidence": {
+    "classifier_summary": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/t2_selector_retrain_seed27_29_34_seed28resid12_exttop200_exttop300_seed35_seed36_seed37hard20_withcls_20260624/summary.json",
+    "seed38_external_eval": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/t2_selector_eval_seed38_external_after_seed37hard_20260624/seed38_external_after_seed37hard_eval.json",
+    "seed38_bb_btn_hard_eval": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/t2_selector_eval_seed38_bb_btn_hard_classifier_20260624/seed38_bb_btn_hard_classifier_eval.json",
+    "seed38_position_aware_union_eval": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/t2_position_aware_union_seed38_20260624/summary.json",
+    "seed39_position_aware_union_eval": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/t2_position_aware_union_seed39_hard40_20260624/summary.json",
+    "largepool_external_eval_20260624": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/t2_position_aware_union_largepool_external_20260624/summary.json",
+    "morecls_eval_20260624": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/t2_position_aware_union_morecls_eval_20260624/summary.json",
+    "pool_switcher_top5_external_holdouts_20260624": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/t2_pool_switcher_all8_top5_external_holdouts_20260624/summary.json",
+    "pool_switcher_seed40_exact_probe_20260624": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/t2_pool_switcher_all8_top5_seed40_exact_top15_20260624/summary.json",
+    "pool_switcher_seed40_balanced30_exact_20260624": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/t2_pool_switcher_all8_top5_seed40_balanced30_exact_20260624/summary.json",
+    "pool_switcher_seed41_probe20_exact_20260624": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/t2_pool_switcher_all8_top5_seed41_probe20_exact_20260624/summary.json",
+    "pool_switcher_top4_plus_seed41_exact151_20260624": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/t2_pool_switcher_all8_top4_plus_seed41_external_exact_151_20260624/summary.json",
+    "pool_switcher_multi20_top3_exact151_20260624": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/t2_pool_switcher_multi20_top3_external_exact_151_20260624/summary.json",
+    "pool_switcher_multi26_top3_exact171_20260624": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/t2_pool_switcher_multi26_top3_external_exact_171_20260624/summary.json",
+    "pool_switcher_multi26_top3_seed43_balanced20_exact_20260624": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/t2_pool_switcher_multi26_top3_seed43_balanced20_exact_20260624/summary.json",
+    "pool_switcher_multi26_top3_seed44_balanced50_exact_20260624": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/t2_pool_switcher_multi26_top3_seed44_balanced50_exact_20260624/summary.json",
+    "status_doc": "docs/t2_t3_next_status_20260614.md",
+    "pool_switcher_multi26_top3_seed45_balanced50_exact_20260624": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/t2_pool_switcher_multi26_top3_seed45_balanced50_exact_20260624/summary.json",
+    "pool_switcher_multi32_top3_seed46_random50_external_20260624": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/t2_pool_switcher_multi32_top3_seed46_random50_external_20260624/summary.json",
+    "pool_switcher_multi32_top3_seed47_random100_external_20260624": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/t2_pool_switcher_multi32_top3_seed47_random100_external_20260624/summary.json",
+    "pool_switcher_multi32_top3_seed48_pseudomiss4_balanced100_external_20260624": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/t2_pool_switcher_multi32_top3_seed48_pseudomiss4_balanced100_external_20260624/summary.json",
+    "seed49_source400_pseudo": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/eval_data/seed20260649_both200_source400_model_dim789",
+    "seed49_pseudomiss2_balanced100_exact": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/eval_data/seed20260649_pseudomiss2_balanced100_cap100_dim789",
+    "pool_switcher_multi38_top3_seed49hard4x20_external_20260624": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/t2_pool_switcher_multi38_top3_seed49hard4x20_external_20260624/summary.json",
+    "seed50_source400_pseudo": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/eval_data/seed20260650_both200_source400_model_dim789",
+    "seed50_pseudomiss16_balanced100_exact": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/eval_data/seed20260650_pseudomiss16_balanced100_cap100_dim789",
+    "pool_switcher_multi38_top3_seed50_pseudomiss16_balanced100_external_20260624": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/t2_pool_switcher_multi38_top3_seed50_pseudomiss16_balanced100_external_20260624/summary.json",
+    "pool_switcher_multi44_top3_seed50hard3x20_external_20260624": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/fresh_external_after1000_20260623/t2_pool_switcher_multi44_top3_seed50hard3x20_external_20260624/summary.json"
+  },
+  "decision": "The current diagnostic winner is multi44 Top3 + pool switcher/exact-rerank. Clean external cap100 checks excluding fed-back seed45, seed49, and seed50 remain 100% Top1 with zero observed EV loss over seed43+seed44+seed46+seed47+seed48+seed51+seed52 (520 groups). Seed51 and seed52 passed without feedback; the seed45/49/50 known fixed sets total 250 groups and are also 100% with zero EV loss. The next step is runtime artifact packaging and a five-second budget gate, not more hard-negative training."
+}

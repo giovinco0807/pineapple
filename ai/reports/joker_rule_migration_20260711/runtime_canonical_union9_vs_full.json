@@ -1,0 +1,65 @@
+{
+  "baseline": "ai\\data\\joker_rule_migration_20260711\\holdout\\branch_t3_exact_400.jsonl",
+  "candidate": "ai\\data\\joker_rule_migration_20260711\\holdout\\runtime_canonical_union9_400.jsonl",
+  "input": "ai\\data\\joker_rule_migration_20260711\\holdout\\branch_t3_input_400.jsonl",
+  "threshold": 1e-09,
+  "baseline_records": 400,
+  "candidate_records": 400,
+  "matched_records": 400,
+  "missing_from_candidate": 0,
+  "missing_from_baseline": 0,
+  "best_action_changed": 0,
+  "best_action_changed_rate": 0.0,
+  "old_policy_suboptimal_under_candidate": 0,
+  "old_policy_suboptimal_under_candidate_rate": 0.0,
+  "candidate_policy_suboptimal_vs_baseline": 0,
+  "candidate_policy_suboptimal_vs_baseline_rate": 0.0,
+  "records_with_any_metric_change": 0,
+  "records_with_any_metric_change_rate": 0.0,
+  "avg_old_policy_regret_under_candidate": 0.0,
+  "max_old_policy_regret_under_candidate": 0.0,
+  "avg_candidate_policy_regret_vs_baseline": 0.0,
+  "max_candidate_policy_regret_vs_baseline": 0.0,
+  "best_metric_delta": {
+    "score": {
+      "mean": 0.0,
+      "mean_abs": 0.0,
+      "max_abs": 0.0
+    },
+    "raw_score": {
+      "mean": 0.0,
+      "mean_abs": 0.0,
+      "max_abs": 0.0
+    },
+    "royalty": {
+      "mean": 0.0,
+      "mean_abs": 0.0,
+      "max_abs": 0.0
+    },
+    "bust_rate": {
+      "mean": 0.0,
+      "mean_abs": 0.0,
+      "max_abs": 0.0
+    },
+    "fl_rate": {
+      "mean": 0.0,
+      "mean_abs": 0.0,
+      "max_abs": 0.0
+    }
+  },
+  "visible_joker": {
+    "records": 159,
+    "best_action_changed": 0,
+    "records_with_any_metric_change": 0
+  },
+  "future_joker_reachable": {
+    "records": 360,
+    "best_action_changed": 0,
+    "records_with_any_metric_change": 0
+  },
+  "joker_relevant": {
+    "records": 400,
+    "best_action_changed": 0,
+    "records_with_any_metric_change": 0
+  }
+}

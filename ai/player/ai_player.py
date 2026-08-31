@@ -20,7 +20,7 @@ import numpy as np
 from ai.engine.encoding import Board, Observation, encode_state
 from ai.engine.action_space import (
     Action, get_initial_actions, get_turn_actions,
-    create_action_mask, MAX_ACTIONS,
+    create_action_mask, get_action_from_semantic_index_if_valid, MAX_ACTIONS,
 )
 from ai.models.networks import PolicyNetwork
 
@@ -130,7 +130,7 @@ class AIPlayer:
         # Encode state
         state_vec = encode_state(obs)
         state_t = torch.FloatTensor(state_vec).unsqueeze(0).to(self.device)
-        mask = create_action_mask(valid_actions)
+        mask = create_action_mask(valid_actions, turn=self.turn, dealt_cards=dealt_cards)
         mask_t = torch.BoolTensor(mask).unsqueeze(0).to(self.device)
 
         # Select action
@@ -139,8 +139,14 @@ class AIPlayer:
                 state_t, mask_t, temperature=self.temperature
             ).item()
 
-        action_idx = min(action_idx, len(valid_actions) - 1)
-        action = valid_actions[action_idx]
+        if self.turn == 0:
+            action_idx = min(action_idx, len(valid_actions) - 1)
+            action = valid_actions[action_idx]
+        else:
+            action = get_action_from_semantic_index_if_valid(action_idx, dealt_cards, self.board_self)
+            if action is None:
+                print(f"[AIPlayer] Warning: Selected invalid semantic slot {action_idx}, falling back to {valid_actions[0]}")
+                action = valid_actions[0]
 
         # Update local state
         for card, pos in action.placements:

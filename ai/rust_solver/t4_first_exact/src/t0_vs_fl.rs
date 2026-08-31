@@ -41,6 +41,9 @@ pub struct T0VsFlRequest {
     /// Absent plays every line out; see `playout::Context`.
     #[serde(default)]
     pub truncate_depth: Option<usize>,
+    /// Price terminals by hero's own worth; see `playout::Context::own_only`.
+    #[serde(default)]
+    pub own_only: bool,
     /// Opponents drawn from the pool for this root, shared by every action.
     /// Ignored on the library path, which filters the whole shelf per leaf
     /// instead of sampling it.
@@ -127,7 +130,9 @@ pub(crate) fn t0_candidates(cards: &[Card; 5]) -> Vec<[usize; 5]> {
             .map(|slot| (rows[slot] as u64) << 6 | card_id(&cards[slot]))
             .collect();
         pairs.sort_unstable();
-        let key = pairs.iter().fold(0u64, |accum, pair| accum * 199 + pair + 1);
+        let key = pairs
+            .iter()
+            .fold(0u64, |accum, pair| accum * 199 + pair + 1);
         if seen.insert(key) {
             out.push(rows);
         }
@@ -209,6 +214,10 @@ pub fn solve(
         t4_draw_sample: request.t4_draw_sample,
         rowwise_memo: std::sync::Mutex::new(std::collections::HashMap::new()),
         truncate_depth: request.truncate_depth,
+        own_only: request.own_only,
+        // Label generation prices every action itself; a fence that cut the
+        // field here would cut the labels, not the cost of serving them.
+        t2_fence: None,
     };
 
     let candidates = t0_candidates(&dealt);
@@ -251,7 +260,11 @@ pub fn solve(
                     .collect();
                 names.sort();
                 key_rows.push(
-                    names.iter().map(|s| s.as_str()).collect::<Vec<_>>().join(","),
+                    names
+                        .iter()
+                        .map(|s| s.as_str())
+                        .collect::<Vec<_>>()
+                        .join(","),
                 );
             }
             Ok(T0VsFlActionValue {

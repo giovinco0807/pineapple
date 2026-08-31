@@ -1,0 +1,72 @@
+{
+  "artifact_sha256": "5f4375a67fa21d7bd55107c888ff589895b17f9309bef61cb01cc780a8b1e22f",
+  "behavior_prior_promotion_eligible": false,
+  "evidence_sha256": "c6f37f5ea680d0019b390759116739687deda1099ae29675045935edc3983e1d",
+  "execution_smoke_passed": true,
+  "failures": [],
+  "full_card_policy_promoted": false,
+  "gate_id": "promotion_gate_m3_full_card_smoke",
+  "m3_promotion_passed": false,
+  "pass_scope": "six_stratum_execution_smoke_only",
+  "passed": true,
+  "promotion_blockers": [
+    "behavior_prior_not_promotion_eligible",
+    "smoke_only_no_strength_or_exploitability_gate",
+    "solver_contract_explicitly_nonpromoted"
+  ],
+  "required_strata": [
+    "bb_joker0",
+    "bb_joker1",
+    "bb_joker2",
+    "btn_joker0",
+    "btn_joker1",
+    "btn_joker2"
+  ],
+  "result_sha256": "5b9ba7c4a54d8d9c7a835e9ea47f749e24462339f1d8ad989a198b13272fec54",
+  "schema": "ofc_m3_full_card_smoke_gate_result/v1",
+  "status": "m3_full_card_smoke_ready_nonpromoted",
+  "strata": {
+    "bb_joker0": {
+      "behavior_promotion_eligible": false,
+      "execution_passed": true,
+      "failures": [],
+      "range_content_sha256": "06fe392d8afd5f27b824db9e4fa65e052913376319834e6ba7be84a02022bd2b",
+      "solver_manifest_sha256": "fe842064d5743fa5d116c616d4456ae2c72a4aaab8cb5b0744491625eeadf06a"
+    },
+    "bb_joker1": {
+      "behavior_promotion_eligible": false,
+      "execution_passed": true,
+      "failures": [],
+      "range_content_sha256": "cc3c889cfa3ae29fa09caf345c0cb3ea1a79df878412ae1f7c6cdd31ef513278",
+      "solver_manifest_sha256": "f8613796346dcdc850f4fb238e8e541766bd26b65978ddaa2a45b7f1e27d4dde"
+    },
+    "bb_joker2": {
+      "behavior_promotion_eligible": false,
+      "execution_passed": true,
+      "failures": [],
+      "range_content_sha256": "ecc3f4966c4d9838a882afdb05bc306a4d3a03f4e2afd01f4693509e1c9eb2f8",
+      "solver_manifest_sha256": "ddc49887415366f6e1d4d5b1d16d7225658dd5116872dd126236b31087f231b4"
+    },
+    "btn_joker0": {
+      "behavior_promotion_eligible": false,
+      "execution_passed": true,
+      "failures": [],
+      "range_content_sha256": "fcb8662752ccef9b7e4157c0d9398316c9babb3636e50e23ebc82a55c47a3441",
+      "solver_manifest_sha256": "1684d0a29e7ab42e14a8fc341d54a2baecf923678120823ee02bf255a30e0cb8"
+    },
+    "btn_joker1": {
+      "behavior_promotion_eligible": false,
+      "execution_passed": true,
+      "failures": [],
+      "range_content_sha256": "e4946ae507294132fa39137cc942edb761233b88103a3cf6afc76888a2d98bea",
+      "solver_manifest_sha256": "4df794bafc7e3998b0be6b62bd16a1ca10723e87a04d62f2635c1992ef84936d"
+    },
+    "btn_joker2": {
+      "behavior_promotion_eligible": false,
+      "execution_passed": true,
+      "failures": [],
+      "range_content_sha256": "d14c693100ab01fd315c5d647a8efba176a3ef38a2fac3e34c15e9098fe95176",
+      "solver_manifest_sha256": "3c59bb8a8938cba2d0817d8ef6db132fdf897d0a1b6ac5aedce3e9fe8643a01c"
+    }
+  }
+}

@@ -52,12 +52,7 @@ pub struct T3VsFlResponse {
 }
 
 /// FL context block (12 dims), pinned to `t4_vs_fl.encode_action`.
-pub(crate) fn fl_context(
-    pool: &[Card],
-    opp_count: u8,
-    fl_ev: &FlEv,
-    out: &mut Vec<f32>,
-) {
+pub(crate) fn fl_context(pool: &[Card], opp_count: u8, fl_ev: &FlEv, out: &mut Vec<f32>) {
     let mut jokers = 0u32;
     let (mut aces, mut kings, mut queens) = (0u32, 0u32, 0u32);
     for card in pool {
@@ -162,8 +157,7 @@ pub fn solve(
         .par_iter()
         .map(|action| {
             let after = apply(&base, action)?;
-            let mut seen: std::collections::BTreeSet<String> =
-                std::collections::BTreeSet::new();
+            let mut seen: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
             for card in request
                 .board
                 .top

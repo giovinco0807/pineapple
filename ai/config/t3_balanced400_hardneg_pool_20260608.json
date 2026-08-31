@@ -1,0 +1,266 @@
+{
+  "name": "t3_balanced400_hardneg_pool_20260608",
+  "objective": "Experimental T3 pool adding a hard-negative fine-tuned balanced400 specialist to reduce EV-loss tails before exact reranking.",
+  "turn": 3,
+  "status": {
+    "summary": "Four-source action-value union: old + balanced200 + balanced400 + balanced400 hardneg.",
+    "serving_recommendation": "Use Top20 + exact rerank when correctness matters. External root1000 holdout confirms Top20 is EV-safe, while Top8/Top10 still have a 6.0782 EV tail and Top15 still has a 0.2936 EV tail.",
+    "default_serving": false
+  },
+  "candidate_pool_policy": {
+    "fast_top8": {
+      "sources": ["old_action_value", "balanced200_specialist", "balanced400_specialist", "balanced400_hardneg_specialist"],
+      "per_source_top_k": 8,
+      "exact_rerank": true,
+      "balanced400_final_holdout": {
+        "recall": 0.9875,
+        "ev_loss_mean": 0.0018109083746250046,
+        "ev_loss_max": 0.1788654060066741,
+        "avg_pool_size": 10.0875,
+        "max_pool_size": 15
+      },
+      "known_risk": "not strictly EV-safe; three final-holdout rows lose more than 0.1 EV"
+    },
+    "fast": {
+      "sources": ["old_action_value", "balanced200_specialist", "balanced400_specialist", "balanced400_hardneg_specialist"],
+      "per_source_top_k": 10,
+      "exact_rerank": true,
+      "balanced400_final_holdout": {
+        "recall": 0.9916666666666667,
+        "ev_loss_mean": 0.0011935557606094313,
+        "ev_loss_max": 0.1788654060066741,
+        "avg_pool_size": 11.804166666666667,
+        "max_pool_size": 17
+      },
+      "known_risk": "not strictly EV-safe; two final-holdout rows lose more than 0.1 EV"
+    },
+    "conservative": {
+      "sources": ["old_action_value", "balanced200_specialist", "balanced400_specialist", "balanced400_hardneg_specialist"],
+      "per_source_top_k": 20,
+      "exact_rerank": true,
+      "balanced400_final_holdout": {
+        "recall": 1.0,
+        "ev_loss_mean": 0.0,
+        "ev_loss_max": 0.0,
+        "avg_pool_size": 16.391666666666666,
+        "max_pool_size": 21
+      }
+    },
+    "speed_only": {
+      "sources": ["old_action_value", "balanced200_specialist", "balanced400_specialist", "balanced400_hardneg_specialist"],
+      "per_source_top_k": 5,
+      "exact_rerank": true,
+      "balanced400_final_holdout": {
+        "recall": 0.9583333333333334,
+        "ev_loss_mean": 0.05268249692686421,
+        "ev_loss_max": 7.229655666418807,
+        "avg_pool_size": 7.0125,
+        "max_pool_size": 14
+      },
+      "known_risk": "large EV-loss tails remain; do not use when correctness matters"
+    }
+  },
+  "action_value_checkpoints": {
+    "bb": [
+      "D:\\ofc-pineapple-data\\t3_jokerfix_extra_20260605\\models\\t3-20k-plus-gen5k-hardneginit-bb\\action_value_best.pt",
+      "D:\\ofc-pineapple-data\\t3_exact_from_t2_rows_20260608\\models\\t3-bb-balanced200-a2-d2-20260608\\action_value_best.pt",
+      "D:\\ofc-pineapple-data\\t3_exact_from_t2_rows_20260608\\models\\t3-bb-balanced400-a2-d2-20260608\\action_value_best.pt",
+      "D:\\ofc-pineapple-data\\t3_exact_from_t2_rows_20260608\\models\\t3-bb-balanced400-hardneg-top10sec5-20260608\\action_value_best.pt"
+    ],
+    "btn": [
+      "D:\\ofc-pineapple-data\\t3_jokerfix_extra_20260605\\models\\t3-20k-plus-gen5k-hardneginit-btn\\action_value_best.pt",
+      "D:\\ofc-pineapple-data\\t3_exact_from_t2_rows_20260608\\models\\t3-btn-balanced200-a2-d2-20260608\\action_value_best.pt",
+      "D:\\ofc-pineapple-data\\t3_exact_from_t2_rows_20260608\\models\\t3-btn-balanced400-a2-d2-20260608\\action_value_best.pt",
+      "D:\\ofc-pineapple-data\\t3_exact_from_t2_rows_20260608\\models\\t3-btn-balanced400-hardneg-top10sec5-20260608\\action_value_best.pt"
+    ]
+  },
+  "hard_negative_training": {
+    "source_pool_rows": "D:\\ofc-pineapple-data\\t3_exact_from_t2_rows_20260608\\hardneg_balanced400_three_source_20260608\\mine_train\\rows.jsonl",
+    "weighted_data": "D:\\ofc-pineapple-data\\t3_exact_from_t2_rows_20260608\\hardneg_balanced400_three_source_20260608\\weighted_mine_train_top10sec5",
+    "primary": {
+      "miss_k": 10,
+      "min_ev_loss": 0.05,
+      "miss_groups": 7
+    },
+    "secondary": {
+      "miss_k": 5,
+      "min_ev_loss": 0.25,
+      "miss_groups": 11
+    },
+    "weighted_candidates": 210,
+    "confusers_boosted": 192,
+    "models": {
+      "bb": "D:\\ofc-pineapple-data\\t3_exact_from_t2_rows_20260608\\models\\t3-bb-balanced400-hardneg-top10sec5-20260608\\action_value_best.pt",
+      "btn": "D:\\ofc-pineapple-data\\t3_exact_from_t2_rows_20260608\\models\\t3-btn-balanced400-hardneg-top10sec5-20260608\\action_value_best.pt"
+    }
+  },
+  "balanced400_final_holdout_metrics": {
+    "hardneg_single_model": {
+      "top1": 0.5166666666666667,
+      "top3": 0.8083333333333333,
+      "top5": 0.8875,
+      "top10": 0.9625,
+      "ev_loss_mean": 1.308524814787297,
+      "ev_loss_p95": 8.077158031616667,
+      "ev_loss_max": 31.43112065049199
+    },
+    "four_source_union": {
+      "top3": {
+        "recall": 0.9291666666666667,
+        "ev_loss_mean": 0.1377009225376337,
+        "ev_loss_max": 11.15421096816123,
+        "avg_pool_size": 4.5375,
+        "max_pool_size": 9
+      },
+      "top5": {
+        "recall": 0.9583333333333334,
+        "ev_loss_mean": 0.05268249692686421,
+        "ev_loss_max": 7.229655666418807,
+        "avg_pool_size": 7.0125,
+        "max_pool_size": 14
+      },
+      "top8": {
+        "recall": 0.9875,
+        "ev_loss_mean": 0.0018109083746250046,
+        "ev_loss_max": 0.1788654060066741,
+        "avg_pool_size": 10.0875,
+        "max_pool_size": 15
+      },
+      "top10": {
+        "recall": 0.9916666666666667,
+        "ev_loss_mean": 0.0011935557606094313,
+        "ev_loss_max": 0.1788654060066741,
+        "avg_pool_size": 11.804166666666667,
+        "max_pool_size": 17
+      },
+      "top15": {
+        "recall": 0.9958333333333333,
+        "ev_loss_mean": 0.0007452725250278088,
+        "ev_loss_max": 0.1788654060066741,
+        "avg_pool_size": 14.666666666666666,
+        "max_pool_size": 21
+      },
+      "top20": {
+        "recall": 1.0,
+        "ev_loss_mean": 0.0,
+        "ev_loss_max": 0.0,
+        "avg_pool_size": 16.391666666666666,
+        "max_pool_size": 21
+      }
+    }
+  },
+  "external_holdout_20260608": {
+    "description": "Fresh local external-style holdout generated from root_start 1000, roots 1000-1009, seed 20260609. This split was not used for training or hard-negative mining.",
+    "source_t2_rows": "D:\\ofc-pineapple-data\\t3_external_holdout_20260608\\source_root1000_seed20260609_rows400\\t2_t3_model_rows.jsonl",
+    "teacher_root": "D:\\ofc-pineapple-data\\t3_external_holdout_20260608\\root1000_seed20260609_rows400_a2_d2",
+    "source_rows": 400,
+    "t3_records": {
+      "mine_train": 1120,
+      "dev": 240,
+      "final_holdout": 240
+    },
+    "candidate_samples": {
+      "mine_train": 18642,
+      "dev": 3966,
+      "final_holdout": 3822
+    },
+    "final_holdout_single_model": {
+      "old_action_value": {
+        "top1": 0.3875,
+        "top3": 0.6291666666666667,
+        "top5": 0.7791666666666667,
+        "top10": 0.9333333333333333,
+        "top15": 0.9833333333333333,
+        "top20": 0.9958333333333333,
+        "ev_loss_mean": 1.8879745,
+        "ev_loss_p95": 9.3673,
+        "ev_loss_max": 105.1386
+      },
+      "balanced400_specialist": {
+        "top1": 0.3875,
+        "top3": 0.6708333333333333,
+        "top5": 0.8083333333333333,
+        "top10": 0.9458333333333333,
+        "top15": 0.9833333333333333,
+        "top20": 0.9958333333333333,
+        "ev_loss_mean": 1.9187901,
+        "ev_loss_p95": 9.2453,
+        "ev_loss_max": 105.1386
+      },
+      "hardneg_specialist": {
+        "top1": 0.39166666666666666,
+        "top3": 0.6583333333333333,
+        "top5": 0.7958333333333333,
+        "top10": 0.9416666666666667,
+        "top15": 0.975,
+        "top20": 0.9958333333333333,
+        "ev_loss_mean": 1.9461989,
+        "ev_loss_p95": 9.1439,
+        "ev_loss_max": 105.1386
+      }
+    },
+    "final_holdout_four_source_union": {
+      "top3": {
+        "recall": 0.7666666666666667,
+        "ev_loss_mean": 0.6246690745005385,
+        "ev_loss_p99": 5.862580849464538,
+        "ev_loss_max": 96.83113726751014,
+        "ev_loss_gt_0p1": 30,
+        "avg_pool_size": 3.9291666666666667,
+        "max_pool_size": 7
+      },
+      "top5": {
+        "recall": 0.9041666666666667,
+        "ev_loss_mean": 0.4747132592521774,
+        "ev_loss_p99": 2.1779342224111526,
+        "ev_loss_max": 96.83113726751014,
+        "ev_loss_gt_0p1": 13,
+        "avg_pool_size": 6.208333333333333,
+        "max_pool_size": 11
+      },
+      "top8": {
+        "recall": 0.9708333333333333,
+        "ev_loss_mean": 0.03688399298577148,
+        "ev_loss_p99": 0.22500690160784415,
+        "ev_loss_max": 6.078187109062982,
+        "ev_loss_gt_0p1": 4,
+        "avg_pool_size": 9.308333333333334,
+        "max_pool_size": 16
+      },
+      "top10": {
+        "recall": 0.975,
+        "ev_loss_mean": 0.03665781575180782,
+        "ev_loss_p99": 0.22500690160784415,
+        "ev_loss_max": 6.078187109062982,
+        "ev_loss_gt_0p1": 4,
+        "avg_pool_size": 10.775,
+        "max_pool_size": 19
+      },
+      "top15": {
+        "recall": 0.9958333333333333,
+        "ev_loss_mean": 0.0012234237536656867,
+        "ev_loss_p99": 0.0,
+        "ev_loss_max": 0.2936217008797648,
+        "ev_loss_gt_0p1": 1,
+        "avg_pool_size": 13.6375,
+        "max_pool_size": 20
+      },
+      "top20": {
+        "recall": 1.0,
+        "ev_loss_mean": 0.0,
+        "ev_loss_p99": 0.0,
+        "ev_loss_max": 0.0,
+        "ev_loss_gt_0p1": 0,
+        "avg_pool_size": 15.7125,
+        "max_pool_size": 21
+      }
+    }
+  },
+  "evaluation_outputs": {
+    "mine_train_three_source_rows": "D:\\ofc-pineapple-data\\t3_exact_from_t2_rows_20260608\\hardneg_balanced400_three_source_20260608\\mine_train\\rows.jsonl",
+    "dev_single": "D:\\ofc-pineapple-data\\t3_exact_from_t2_rows_20260608\\hardneg_balanced400_three_source_20260608\\dev_single_balanced400_vs_hardneg.json",
+    "final_single": "D:\\ofc-pineapple-data\\t3_exact_from_t2_rows_20260608\\hardneg_balanced400_three_source_20260608\\final_single_balanced400_vs_hardneg.json",
+    "dev_four_source": "D:\\ofc-pineapple-data\\t3_exact_from_t2_rows_20260608\\hardneg_balanced400_three_source_20260608\\dev_union_four_source.json",
+    "final_four_source": "D:\\ofc-pineapple-data\\t3_exact_from_t2_rows_20260608\\hardneg_balanced400_three_source_20260608\\final_union_four_source.json"
+  }
+}

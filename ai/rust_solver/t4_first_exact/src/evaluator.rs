@@ -8,8 +8,8 @@
 
 use anyhow::{anyhow, bail, Result};
 use ofc_core::{
-    check_fl_entry, evaluate_board_with_joker_constraint, evaluate_hand_value,
-    get_bottom_royalty, get_middle_royalty, get_top_royalty, Card,
+    check_fl_entry, evaluate_board_with_joker_constraint, evaluate_hand_value, get_bottom_royalty,
+    get_middle_royalty, get_top_royalty, Card,
 };
 
 pub const CATEGORIES: usize = 9;
@@ -17,6 +17,8 @@ pub const HERO_SIZE: usize = 42;
 pub const OPPONENT_SIZE: usize = 49;
 /// The T3 acting seat's own-board block (t3_second_features.actor_block).
 pub const ACTOR_SIZE: usize = 48;
+/// FL14 v2's suffix: two made-rank tiebreaks per row.
+pub const ALLOCATION_RANK_SIZE: usize = 6;
 pub const JOINT_SIZE: usize = 12;
 pub const CONTEXT_SIZE: usize = 6;
 /// The FL14 teachers' deck block (encode_fl14_teacher.context_block).
@@ -87,6 +89,384 @@ pub fn partial_category(cards: &[Card], capacity: usize) -> usize {
     }
 }
 
+fn rank_with_at_least(counts: &[u8; 15], copies: u8, exclude: Option<usize>) -> usize {
+    (2usize..=14)
+        .rev()
+        .find(|rank| Some(*rank) != exclude && counts[*rank] >= copies)
+        .unwrap_or(0)
+}
+
+/// Two category-aware leading ranks for a placed, possibly-open row.
+///
+/// Complete rows reuse the exact encoded hand tiebreaks.  On an open row,
+/// jokers join the largest natural rank group (highest rank breaks a tie),
+/// after which pair/trips/two-pair ranks precede kickers.  This mirrors
+/// `fl14_allocation_features.partial_tiebreaks` and deliberately leaves the
+/// historical 48-dim actor block unchanged.
+fn partial_tiebreaks(cards: &[Card], capacity: usize) -> (f32, f32) {
+    if cards.is_empty() {
+        return (0.0, 0.0);
+    }
+    if cards.len() == capacity {
+        let value = evaluate_hand_value(cards, capacity);
+        return (
+            ((value / B.pow(4)) % B) as f32 / 14.0,
+            ((value / B.pow(3)) % B) as f32 / 14.0,
+        );
+    }
+
+    let category = partial_category(cards, capacity);
+    let mut counts = [0u8; 15];
+    let mut jokers = 0u8;
+    for card in cards {
+        if card.is_joker() {
+            jokers += 1;
+        } else {
+            counts[card.rank as usize] += 1;
+        }
+    }
+    if let Some(anchor) = (2usize..=14)
+        .max_by_key(|rank| (counts[*rank], *rank))
+        .filter(|rank| counts[*rank] > 0)
+    {
+        counts[anchor] += jokers;
+    } else if jokers > 0 {
+        counts[14] = jokers;
+    }
+
+    let (first, second) = match category {
+        0 => {
+            let first = rank_with_at_least(&counts, 1, None);
+            (first, rank_with_at_least(&counts, 1, Some(first)))
+        }
+        1 => {
+            let first = rank_with_at_least(&counts, 2, None);
+            (first, rank_with_at_least(&counts, 1, Some(first)))
+        }
+        2 => {
+            let first = rank_with_at_least(&counts, 2, None);
+            (first, rank_with_at_least(&counts, 2, Some(first)))
+        }
+        3 => {
+            let first = rank_with_at_least(&counts, 3, None);
+            (first, rank_with_at_least(&counts, 1, Some(first)))
+        }
+        6 => {
+            let first = rank_with_at_least(&counts, 3, None);
+            (first, rank_with_at_least(&counts, 2, Some(first)))
+        }
+        7 => {
+            let first = rank_with_at_least(&counts, 4, None);
+            (first, rank_with_at_least(&counts, 1, Some(first)))
+        }
+        _ => {
+            let first = rank_with_at_least(&counts, 1, None);
+            (first, rank_with_at_least(&counts, 1, Some(first)))
+        }
+    };
+    (first as f32 / 14.0, second as f32 / 14.0)
+}
+
+/// Rank-aware FL14 v2 suffix, appended after the unchanged 104 v1 columns.
+pub fn allocation_rank_block(rows: &[Vec<Card>; 3], out: &mut Vec<f32>) {
+    for row in 0..3 {
+        let tiebreaks = partial_tiebreaks(&rows[row], ROW_CAPACITY[row]);
+        out.push(tiebreaks.0);
+        out.push(tiebreaks.1);
+    }
+}
+
+pub const CHEAP_DRAW_SIZE: usize = 16;
+
+/// The five-rank runs a straight can occupy, wheel first.
+const STRAIGHT_WINDOWS: [[u8; 5]; 10] = [
+    [14, 2, 3, 4, 5],
+    [2, 3, 4, 5, 6],
+    [3, 4, 5, 6, 7],
+    [4, 5, 6, 7, 8],
+    [5, 6, 7, 8, 9],
+    [6, 7, 8, 9, 10],
+    [7, 8, 9, 10, 11],
+    [8, 9, 10, 11, 12],
+    [9, 10, 11, 12, 13],
+    [10, 11, 12, 13, 14],
+];
+
+/// How full a row already is toward one five-rank window, as a fraction of
+/// five, taking the best window.
+///
+/// A window scores zero unless every placed natural in the row lies inside it
+/// with a distinct rank: a row holding a card outside the run, or a pair,
+/// cannot become that straight at all, and scoring it on the cards that do fit
+/// would report progress toward a hand the row can no longer make.  Jokers
+/// count toward every window, having no rank to conflict.  With `single_suit`
+/// the naturals must also share a suit, which turns the same walk into
+/// straight-flush (and, over one window, royal) progress.
+fn window_occupancy(cards: &[Card], jokers: u32, single_suit: bool, windows: &[[u8; 5]]) -> f32 {
+    let naturals: Vec<&Card> = cards.iter().filter(|card| !card.is_joker()).collect();
+    if single_suit {
+        if let Some(first) = naturals.first() {
+            if naturals.iter().any(|card| card.suit != first.suit) {
+                return 0.0;
+            }
+        }
+    }
+    let mut best = 0.0f32;
+    for window in windows {
+        let mut filled = [false; 5];
+        let mut inside = 0u32;
+        let mut reachable = true;
+        for card in &naturals {
+            match window.iter().position(|rank| *rank == card.rank) {
+                Some(slot) if !filled[slot] => {
+                    filled[slot] = true;
+                    inside += 1;
+                }
+                // A duplicate rank or a card outside the run kills the window.
+                _ => {
+                    reachable = false;
+                    break;
+                }
+            }
+        }
+        if reachable {
+            best = best.max((inside + jokers) as f32 / 5.0);
+        }
+    }
+    best.min(1.0)
+}
+
+/// Suit counts of a row's naturals, and the suit it is closest to a flush in.
+///
+/// Ties break on the lowest suit index -- arbitrary, but it has to be written
+/// down and obeyed identically on both sides, because the liveness dim reads
+/// the deck through whichever suit this returns.
+fn best_suit(cards: &[Card]) -> (u32, Option<usize>) {
+    let mut counts = [0u32; 4];
+    for card in cards {
+        if !card.is_joker() {
+            counts[card.suit as usize] += 1;
+        }
+    }
+    let mut best = None;
+    for suit in 0..4 {
+        if counts[suit] > 0 && (best.is_none() || counts[suit] > counts[best.unwrap()]) {
+            best = Some(suit);
+        }
+    }
+    (best.map_or(0, |suit| counts[suit]), best)
+}
+
+pub const CHEAP_DRAW_V2_SIZE: usize = 24;
+
+/// Best straight window for a row, as (fill fraction, outs filling the gaps).
+///
+/// Ties on fill break toward the window with more outs and then on window
+/// order, so the pair is a function of the board rather than of iteration
+/// luck -- the same rule the Python twin applies by comparing the tuple.
+fn best_window(cards: &[Card], jokers: u32, unseen_rank: &[u32; 15]) -> (f64, f64) {
+    let naturals: Vec<&Card> = cards.iter().filter(|card| !card.is_joker()).collect();
+    let mut best = (-1.0f64, -1.0f64);
+    for window in STRAIGHT_WINDOWS.iter() {
+        let mut filled = [false; 5];
+        let mut count = 0u32;
+        let mut reachable = true;
+        for card in &naturals {
+            match window.iter().position(|rank| *rank == card.rank) {
+                Some(slot) if !filled[slot] => {
+                    filled[slot] = true;
+                    count += 1;
+                }
+                _ => {
+                    reachable = false;
+                    break;
+                }
+            }
+        }
+        if !reachable {
+            continue;
+        }
+        let outs: u32 = window
+            .iter()
+            .enumerate()
+            .filter(|(slot, _)| !filled[*slot])
+            .map(|(_, rank)| unseen_rank[*rank as usize])
+            .sum();
+        let cand = (
+            ((count + jokers) as f64 / 5.0).min(1.0),
+            outs as f64 / 20.0,
+        );
+        if cand > best {
+            best = cand;
+        }
+    }
+    if best.0 < 0.0 {
+        (0.0, 0.0)
+    } else {
+        best
+    }
+}
+
+/// Deterministic draw descriptors, second design: continuous and per-rank.
+///
+/// v1 (`cheap_draw_block`) reached the right serving cost but quantised
+/// everything to multiples of 1/5, 1/2, 1/3 and 1/8, so distinct openings
+/// collided: on the audit holdout, 14 of 97 roots had the referee's best
+/// placement carrying a vector identical to a strictly worse one, which no
+/// amount of training can separate.  The sampled 110-dim block collided on
+/// none -- not because it sampled, but because it emitted continuous
+/// high-entropy values.
+///
+/// So this keeps the determinism and drops the buckets: raw sums of ranks and
+/// squared ranks per row (which nearly determine which cards went where), a
+/// suit signature, raw out-counts for flushes, straights and pairs, and the
+/// top row's Fantasyland material.  Measured on the same holdout it collides
+/// on zero roots and zero candidates.
+///
+/// Arithmetic is f64 throughout and narrowed only on the way out: the
+/// divisors here (70, 980, 13, 20, 9) are not exactly representable, so
+/// computing in f32 would round differently from the Python twin's doubles
+/// and break parity in the last ulp.
+///
+/// Mirrored in `ai/tutor/cheap_draw_features.py::cheap_draw_block_v2`.
+pub fn cheap_draw_block_v2(rows: &[Vec<Card>; 3], unseen: &[Card], out: &mut Vec<f32>) {
+    let mut unseen_suit = [0u32; 4];
+    let mut unseen_rank = [0u32; 15];
+    for card in unseen {
+        if !card.is_joker() {
+            unseen_suit[card.suit as usize] += 1;
+            unseen_rank[card.rank as usize] += 1;
+        }
+    }
+    let mut jokers = [0u32; 3];
+    for row in 0..3 {
+        jokers[row] = rows[row].iter().filter(|card| card.is_joker()).count() as u32;
+    }
+    let natural = |row: usize| -> Vec<&Card> {
+        rows[row].iter().filter(|card| !card.is_joker()).collect()
+    };
+
+    // Rank and suit content per row.  Two openings that differ only by which
+    // card went where differ here, which is exactly what v1 could not see.
+    for row in 0..3 {
+        let nat = natural(row);
+        let sum: u32 = nat.iter().map(|c| c.rank as u32).sum();
+        let squares: u32 = nat.iter().map(|c| (c.rank as u32) * (c.rank as u32)).sum();
+        let top = nat.iter().map(|c| c.rank).max();
+        let suits: u32 = nat.iter().map(|c| c.suit as u32 + 1).sum();
+        out.push((sum as f64 / 70.0) as f32);
+        out.push((squares as f64 / 980.0) as f32);
+        out.push(top.map_or(0.0, |rank| (rank as f64 / 14.0) as f32));
+        out.push((suits as f64 / 20.0) as f32);
+    }
+    // Flush outs for middle and bottom: the raw count, and it weighted by how
+    // far the row already is.
+    for row in 1..3 {
+        let (count, suit) = best_suit(&rows[row]);
+        let outs = suit.map_or(0, |suit| unseen_suit[suit]);
+        out.push((outs as f64 / 13.0) as f32);
+        out.push((((count + jokers[row]) as f64 / 5.0) * (outs as f64 / 13.0)) as f32);
+    }
+    // Straight fill and the outs that would complete it.
+    for row in 1..3 {
+        let (fill, outs) = best_window(&rows[row], jokers[row], &unseen_rank);
+        out.push(fill as f32);
+        out.push(outs as f32);
+    }
+    // Pairing outs per row.
+    for row in 0..3 {
+        let outs: u32 = natural(row)
+            .iter()
+            .map(|card| unseen_rank[card.rank as usize])
+            .sum();
+        out.push((outs as f64 / 9.0) as f32);
+    }
+    // The top row's Fantasyland material: copies still live of the queens-up
+    // ranks it already holds.
+    let top = natural(0);
+    let queens_up: u32 = (12..=14u8)
+        .filter(|rank| top.iter().any(|card| card.rank == *rank))
+        .map(|rank| unseen_rank[rank as usize])
+        .sum();
+    out.push((queens_up as f64 / 9.0) as f32);
+}
+
+/// Deterministic draw descriptors: what each row is building toward, and how
+/// much of the deck still supports it.
+///
+/// Sixteen dims, every one a count over the board and the unseen pool.  This
+/// exists because the 110-dim encoder bought its accuracy with a
+/// 400-completion sampled joint block: about 50 ms per candidate, which the
+/// no-thinking-time-at-serve rule forbids (owner, 2026-08-30).  Most of what
+/// that block summarised -- can these rows still reach a flush, a straight, a
+/// Fantasyland top, and does the deck still hold the cards for it -- is
+/// reachable by counting, and counting is free.
+///
+/// Mirrored dim for dim in `ai/tutor/cheap_draw_features.py`.  The two are
+/// checked against each other on every audited vector, because a drift
+/// between them serves a model a vector it never trained on, and nothing
+/// downstream would report it.
+pub fn cheap_draw_block(rows: &[Vec<Card>; 3], unseen: &[Card], out: &mut Vec<f32>) {
+    let mut unseen_suit = [0u32; 4];
+    let mut unseen_rank = [0u32; 15];
+    for card in unseen {
+        if !card.is_joker() {
+            unseen_suit[card.suit as usize] += 1;
+            unseen_rank[card.rank as usize] += 1;
+        }
+    }
+    let mut jokers = [0u32; 3];
+    for row in 0..3 {
+        jokers[row] = rows[row].iter().filter(|card| card.is_joker()).count() as u32;
+    }
+
+    // 0-1 flush progress, 2-3 flush liveness, for middle and bottom.  The top
+    // row holds three cards and cannot make a flush, so it is not asked.
+    let mut suited = [(0u32, None); 3];
+    for row in 1..3 {
+        suited[row] = best_suit(&rows[row]);
+    }
+    for row in 1..3 {
+        out.push((suited[row].0 + jokers[row]) as f32 / 5.0);
+    }
+    for row in 1..3 {
+        out.push(match suited[row].1 {
+            Some(suit) => (unseen_suit[suit] as f32 / 8.0).min(1.0),
+            // No natural in the row, so no suit is established yet.
+            None => 0.0,
+        });
+    }
+    // 4-5 straight, 6-7 straight flush, for middle and bottom.
+    for row in 1..3 {
+        out.push(window_occupancy(&rows[row], jokers[row], false, &STRAIGHT_WINDOWS));
+    }
+    for row in 1..3 {
+        out.push(window_occupancy(&rows[row], jokers[row], true, &STRAIGHT_WINDOWS));
+    }
+    // 8 the royal run, bottom only: the one window worth its own dim.
+    out.push(window_occupancy(&rows[2], jokers[2], true, &STRAIGHT_WINDOWS[9..10]));
+    // 9-11 jokers per row.
+    for row in 0..3 {
+        out.push(jokers[row] as f32 / 2.0);
+    }
+    // 12-14 the top row, which is what Fantasyland entry is decided on.
+    let top_max = rows[0]
+        .iter()
+        .filter(|card| !card.is_joker())
+        .map(|card| card.rank)
+        .max();
+    out.push(top_max.map_or(0.0, |rank| rank as f32 / 14.0));
+    let mut queens_up = 0u32;
+    for rank in 12..=14u8 {
+        let count = rows[0].iter().filter(|card| card.rank == rank).count() as u32;
+        queens_up = queens_up.max(count);
+    }
+    out.push((queens_up + jokers[0]).min(2) as f32 / 2.0);
+    out.push(top_max.map_or(0.0, |rank| unseen_rank[rank as usize] as f32 / 3.0));
+    // 15 jokers anywhere on the board.
+    out.push(jokers.iter().sum::<u32>() as f32 / 2.0);
+}
+
 /// The acting seat's own 11-card board at T3: per-row made value / royalty /
 /// room, ordering slack, bottom-suit concentration, FL entry facts, jokers.
 /// Byte-for-byte port of `t3_second_features.actor_block`.
@@ -115,8 +495,16 @@ pub fn actor_block(rows: &[Vec<Card>; 3], out: &mut Vec<f32>) {
     // still open to fix it.
     out.push((categories[1] as f32 - categories[2] as f32) / 8.0);
     out.push((categories[0] as f32 - categories[1] as f32) / 8.0);
-    out.push(if categories[0] > categories[1] { 1.0 } else { 0.0 });
-    out.push(if categories[1] > categories[2] { 1.0 } else { 0.0 });
+    out.push(if categories[0] > categories[1] {
+        1.0
+    } else {
+        0.0
+    });
+    out.push(if categories[1] > categories[2] {
+        1.0
+    } else {
+        0.0
+    });
     let mut suits = [0u8; 4];
     for card in &rows[2] {
         if !card.is_joker() {
@@ -175,12 +563,7 @@ pub fn hero_eval(rows: &[Vec<Card>; 3]) -> HeroEval {
 }
 
 /// Exact terminal facts of the completed hero board (42 dims).
-pub fn hero_block(
-    rows: &[Vec<Card>; 3],
-    eval: &HeroEval,
-    fl_table: &FlTable,
-    out: &mut Vec<f32>,
-) {
+pub fn hero_block(rows: &[Vec<Card>; 3], eval: &HeroEval, fl_table: &FlTable, out: &mut Vec<f32>) {
     let busted = eval.busted;
     let final_rows = &eval.rows;
     let royalties: [i32; 3] = if busted {
@@ -235,15 +618,18 @@ pub fn joint_block(
     let locked_top = rooms[1] == 0 && opponent_categories[0] > opponent_categories[1];
     out.push(if locked_middle { 1.0 } else { 0.0 });
     out.push(if locked_top { 1.0 } else { 0.0 });
-    out.push(if locked_middle || locked_top { 1.0 } else { 0.0 });
+    out.push(if locked_middle || locked_top {
+        1.0
+    } else {
+        0.0
+    });
     out.push((opponent_categories[1] as f32 - opponent_categories[2] as f32) / 8.0);
     out.push((opponent_categories[0] as f32 - opponent_categories[1] as f32) / 8.0);
 
     let mut wins = 0;
     for index in 0..3 {
         let sign = if rooms[index] == 0 {
-            let opponent_value =
-                evaluate_hand_value(&opponent_rows[index], ROW_CAPACITY[index]);
+            let opponent_value = evaluate_hand_value(&opponent_rows[index], ROW_CAPACITY[index]);
             (hero_values[index] > opponent_value) as i32
                 - (hero_values[index] < opponent_value) as i32
         } else {
@@ -275,6 +661,10 @@ struct Layer {
 
 pub struct Model {
     pub input_dim: usize,
+    /// Width of the last layer.  Every evaluator in this crate is 1; the T0
+    /// policy net is 243.  Kept explicit so `predict` can keep meaning "the
+    /// scalar this model scores with" and refuse to average a vector.
+    pub output_dim: usize,
     mean: Vec<f32>,
     inverse_std: Vec<f32>,
     layers: Vec<Layer>,
@@ -318,7 +708,19 @@ impl<'a> Reader<'a> {
 }
 
 impl Model {
+    /// The scalar evaluators: anything wider is a loading mistake, and a
+    /// mistake that would otherwise be served as a silently different net.
     pub fn load(bytes: &[u8]) -> Result<Self> {
+        let model = Self::load_wide(bytes)?;
+        if model.output_dim != 1 {
+            bail!("model image must end in a single output");
+        }
+        Ok(model)
+    }
+
+    /// The same image with any output width; used by the T0 policy net, whose
+    /// last layer is one logit per action.
+    pub fn load_wide(bytes: &[u8]) -> Result<Self> {
         if bytes.len() < 16 || &bytes[..4] != b"T4F1" {
             bail!("model image does not start with the expected magic");
         }
@@ -352,11 +754,12 @@ impl Model {
             });
             expected = outputs;
         }
-        if expected != 1 {
-            bail!("model image must end in a single output");
+        if expected == 0 {
+            bail!("model image has no outputs");
         }
         Ok(Self {
             input_dim,
+            output_dim: expected,
             mean,
             inverse_std,
             layers,
@@ -390,6 +793,18 @@ impl Model {
         let value = current[0];
         *scratch = current;
         value
+    }
+
+    /// The whole last layer rather than its first element: the policy net's
+    /// 243 logits.  Same arithmetic and same order as `predict`, so a scalar
+    /// model read through here gives exactly what `predict` gives.
+    pub fn predict_all(&self, features: &[f32], out: &mut Vec<f32>) {
+        let mut scratch: Vec<f32> = Vec::new();
+        let value = self.predict(features, &mut scratch);
+        debug_assert_eq!(scratch.len(), self.output_dim);
+        debug_assert_eq!(scratch[0], value);
+        out.clear();
+        out.extend_from_slice(&scratch);
     }
 }
 
@@ -537,8 +952,7 @@ pub fn opponent_rowwise_block_shared(
         // threads should not wait on it.  A racing duplicate insert is
         // harmless -- both compute the same numbers.
         let mut scratch: Vec<f32> = Vec::with_capacity(12);
-        let category =
-            rowwise_single_row(row, &opponent_rows[row], pool, fl_table, &mut scratch);
+        let category = rowwise_single_row(row, &opponent_rows[row], pool, fl_table, &mut scratch);
         let mut slice = [0.0f32; 12];
         slice.copy_from_slice(&scratch);
         memo.lock().unwrap().insert(key, (slice, category));
@@ -694,4 +1108,75 @@ pub fn context_block(pool: &[Card], dead_count: usize, out: &mut Vec<f32>) {
     out.push(jokers as f32 / 2.0);
     out.push(*ranks.iter().max().unwrap_or(&0) as f32 / 4.0);
     out.push(distinct as f32 / 13.0);
+}
+
+#[cfg(test)]
+mod allocation_rank_tests {
+    use super::*;
+
+    fn card(rank: u8) -> Card {
+        Card { rank, suit: 0 }
+    }
+
+    fn joker() -> Card {
+        Card { rank: 0, suit: 4 }
+    }
+
+    #[test]
+    fn open_pair_and_kicker_are_visible() {
+        let pair_aces = vec![card(14), card(14)];
+        assert_eq!(partial_tiebreaks(&pair_aces, 3), (1.0, 0.0));
+
+        let middle = vec![card(3), card(3), card(8), card(12)];
+        let got = partial_tiebreaks(&middle, 5);
+        assert!((got.0 - 3.0 / 14.0).abs() < 1e-7);
+        assert!((got.1 - 12.0 / 14.0).abs() < 1e-7);
+    }
+
+    #[test]
+    fn joker_joins_the_highest_tied_group() {
+        let cards = vec![card(14), joker()];
+        assert_eq!(partial_tiebreaks(&cards, 3), (1.0, 0.0));
+    }
+
+    #[test]
+    fn suffix_is_six_columns_in_row_order() {
+        let rows = [
+            vec![card(14)],
+            vec![card(3), card(3), card(8), card(12)],
+            vec![card(6), card(6), card(12), card(12)],
+        ];
+        let mut out = Vec::new();
+        allocation_rank_block(&rows, &mut out);
+        assert_eq!(out.len(), ALLOCATION_RANK_SIZE);
+        let expected = [1.0, 0.0, 3.0 / 14.0, 12.0 / 14.0, 12.0 / 14.0, 6.0 / 14.0];
+        for (actual, expected) in out.iter().zip(expected) {
+            assert!((*actual - expected).abs() < 1e-7);
+        }
+    }
+
+    #[test]
+    fn complete_wheel_and_joker_row_use_exact_tiebreaks() {
+        let wheel = vec![
+            Card { rank: 14, suit: 0 },
+            Card { rank: 2, suit: 1 },
+            Card { rank: 3, suit: 2 },
+            Card { rank: 4, suit: 3 },
+            Card { rank: 5, suit: 0 },
+        ];
+        let wheel_value = evaluate_hand_value(&wheel, 5);
+        let wheel_expected = (
+            ((wheel_value / B.pow(4)) % B) as f32 / 14.0,
+            ((wheel_value / B.pow(3)) % B) as f32 / 14.0,
+        );
+        assert_eq!(partial_tiebreaks(&wheel, 5), wheel_expected);
+
+        let joker_top = vec![card(14), card(14), joker()];
+        let joker_value = evaluate_hand_value(&joker_top, 3);
+        let joker_expected = (
+            ((joker_value / B.pow(4)) % B) as f32 / 14.0,
+            ((joker_value / B.pow(3)) % B) as f32 / 14.0,
+        );
+        assert_eq!(partial_tiebreaks(&joker_top, 3), joker_expected);
+    }
 }

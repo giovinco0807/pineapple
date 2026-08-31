@@ -18,8 +18,8 @@ use sha2::{Digest, Sha256};
 
 use super::evaluator;
 use super::{
-    all_cards, apply, legal_actions, opponent_self_value, terminal_of, BoardStr, CoreBoard,
-    FlEv, Terminal,
+    all_cards, apply, legal_actions, opponent_self_value, terminal_of, BoardStr, CoreBoard, FlEv,
+    Terminal,
 };
 
 #[derive(Deserialize)]
@@ -155,10 +155,7 @@ pub(crate) fn joint_block(board: &CoreBoard, pool: &[Card], fl_ev: &FlEv) -> Res
                             parts = if terminal.busted {
                                 (0.0, 0.0)
                             } else {
-                                (
-                                    terminal.royalty as f64,
-                                    fl_ev.value(terminal.fl_card_count),
-                                )
+                                (terminal.royalty as f64, fl_ev.value(terminal.fl_card_count))
                             };
                         }
                     }
@@ -176,7 +173,11 @@ pub(crate) fn joint_block(board: &CoreBoard, pool: &[Card], fl_ev: &FlEv) -> Res
     }
     let count = best_self.len() as f64;
     let mean = best_self.iter().sum::<f64>() / count;
-    let variance = best_self.iter().map(|v| (v - mean) * (v - mean)).sum::<f64>() / count;
+    let variance = best_self
+        .iter()
+        .map(|v| (v - mean) * (v - mean))
+        .sum::<f64>()
+        / count;
     let denominator = survivors.max(1) as f64;
     const MAX_ROYALTY: f64 = 25.0;
     const MAX_FL_EV: f64 = 63.5;
@@ -241,8 +242,7 @@ pub fn solve(
         .iter()
         .map(|btn_action| {
             let btn_after = apply(&btn_base, btn_action)?;
-            let mut known: std::collections::BTreeSet<String> =
-                std::collections::BTreeSet::new();
+            let mut known: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
             for card in request
                 .bb
                 .top
@@ -265,12 +265,8 @@ pub fn solve(
                 .collect::<Result<Vec<_>>>()?;
 
             let mut shared: Vec<f32> = Vec::with_capacity(evaluator::OPPONENT_SIZE);
-            let categories = evaluator::opponent_rowwise_block(
-                &btn_after.rows,
-                &pool,
-                fl_table,
-                &mut shared,
-            );
+            let categories =
+                evaluator::opponent_rowwise_block(&btn_after.rows, &pool, fl_table, &mut shared);
             for value in joint_block(&btn_after, &pool, fl_ev)? {
                 shared.push(value as f32);
             }
@@ -296,12 +292,7 @@ pub fn solve(
                     features.clear();
                     evaluator::hero_block(&final_bb.rows, &hero, fl_table, &mut features);
                     features.extend_from_slice(&shared);
-                    evaluator::joint_block(
-                        &hero,
-                        &btn_after.rows,
-                        &categories,
-                        &mut features,
-                    );
+                    evaluator::joint_block(&hero, &btn_after.rows, &categories, &mut features);
                     features.extend_from_slice(&context);
                     if features.len() != evaluator::FEATURE_SIZE {
                         bail!("feature width drifted");

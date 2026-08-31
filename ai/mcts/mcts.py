@@ -100,6 +100,7 @@ class MCTS:
         value_net: torch.nn.Module,
         config: MCTSConfig = MCTSConfig(),
         device: str = "cpu",
+        norm_stats: Optional[dict] = None,
     ):
         self.policy_net = policy_net
         self.value_net = value_net
@@ -107,6 +108,9 @@ class MCTS:
         self.device = device
         self.policy_net.eval()
         self.value_net.eval()
+        # Score normalization stats from training data
+        self.score_mean = norm_stats.get('score_mean', 0.0) if norm_stats else 0.0
+        self.score_std = norm_stats.get('score_std', 1.0) if norm_stats else 1.0
 
     def search(
         self,
@@ -166,6 +170,11 @@ class MCTS:
 
         return best_action_idx, action_probs, valid_actions
 
+    def select_action(self, obs: Observation) -> Tuple[int, Action]:
+        """Compatibility wrapper matching RolloutEvaluator interface."""
+        best_idx, action_probs, valid_actions = self.search(obs, {})
+        return best_idx, valid_actions[best_idx]
+
     def _get_priors(self, obs: Observation, valid_actions: List[Action]) -> np.ndarray:
         """Get policy network priors for valid actions."""
         state_vec = encode_state(obs)
@@ -224,11 +233,10 @@ class MCTS:
 
     def _evaluate(self, node: MCTSNode, root_obs: Observation) -> float:
         """
-        Evaluate a leaf node using the value network.
+        Evaluate a leaf node using the trained value network.
 
-        Uses a composite value from BC-trained heads (royalty_ev, bust_prob,
-        fl_prob) rather than the untrained 'value' head. The value head
-        only becomes meaningful after self-play training updates it.
+        Uses the value_head trained on (obs, final_score) pairs from
+        collect_value_data.py. Output is normalized to roughly [-1, 1].
         """
         # Build observation for this node by simulating the action path
         obs = self._build_node_observation(node, root_obs)
@@ -241,17 +249,11 @@ class MCTS:
         with torch.no_grad():
             pred = self.value_net(state_tensor)
 
-        # Composite value from BC-learned heads:
-        #   royalty_ev: expected total royalties (directly additive to score)
-        #   bust_prob: probability of busting (penalty ≈ -6 scoop - ~5 opp royalty)
-        #   fl_prob: probability of FL entry (bonus ≈ +8 expected advantage)
-        royalty = pred["royalty_ev"].item()
-        bust = pred["bust_prob"].item()
-        fl = pred["fl_prob"].item()
-        value = royalty - bust * 11.0 + fl * 8.0
-
-        # Normalize to [-1, 1] range (typical game values ~[-20, 30])
-        return max(-1.0, min(1.0, value / 20.0))
+        # value_head outputs normalized score (mean=0, std=1)
+        # Denormalize to raw score, then normalize to [-1, 1] range
+        raw_value = pred['value'].item() * self.score_std + self.score_mean
+        # Typical raw scores: [-30, 60]; normalize to [-1, 1]
+        return max(-1.0, min(1.0, raw_value / 30.0))
 
     def _build_node_observation(
         self, node: MCTSNode, root_obs: Observation
@@ -300,6 +302,8 @@ class MCTS:
             known_discards_self=list(root_obs.known_discards_self),
             turn=root_obs.turn,
             is_btn=root_obs.is_btn,
+            is_fl=root_obs.is_fl,
+            opp_is_fl=root_obs.opp_is_fl,
             chips_self=root_obs.chips_self,
             chips_opponent=root_obs.chips_opponent,
         )

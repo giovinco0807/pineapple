@@ -1,0 +1,42 @@
+[
+  {
+    "iteration": 14,
+    "games": 500,
+    "total_turns": 86460,
+    "bust_rate": 4.9,
+    "fl_rate": 3.2,
+    "avg_royalty": 2.49,
+    "model": "C:\\Users\\Owner\\.gemini\\antigravity\\scratch\\ofc-pineapple\\ai\\models\\selfplay_iter14\\bc_policy_best.pt",
+    "accepted": true
+  },
+  {
+    "iteration": 15,
+    "games": 500,
+    "total_turns": 91460,
+    "bust_rate": 6.4,
+    "fl_rate": 1.4,
+    "avg_royalty": 2.58,
+    "model": "C:\\Users\\Owner\\.gemini\\antigravity\\scratch\\ofc-pineapple\\ai\\models\\selfplay_iter15\\bc_policy_best.pt",
+    "accepted": true
+  },
+  {
+    "iteration": 16,
+    "games": 500,
+    "total_turns": 96460,
+    "bust_rate": 4.3,
+    "fl_rate": 2.0,
+    "avg_royalty": 2.57,
+    "model": "C:\\Users\\Owner\\.gemini\\antigravity\\scratch\\ofc-pineapple\\ai\\models\\selfplay_iter16\\bc_policy_best.pt",
+    "accepted": true
+  },
+  {
+    "iteration": 17,
+    "games": 500,
+    "total_turns": 101460,
+    "bust_rate": 4.6,
+    "fl_rate": 2.5,
+    "avg_royalty": 2.75,
+    "model": "C:\\Users\\Owner\\.gemini\\antigravity\\scratch\\ofc-pineapple\\ai\\models\\selfplay_iter17\\bc_policy_best.pt",
+    "accepted": true
+  }
+]

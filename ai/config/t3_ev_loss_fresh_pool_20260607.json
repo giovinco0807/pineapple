@@ -1,0 +1,333 @@
+{
+  "name": "t3_ev_loss_fresh_pool_20260607",
+  "objective": "Fresh exact T3 EV-loss specialist for safe TopK candidate pools before exact reranking.",
+  "base_preset": "ai/config/t3_ev_loss_pool_20260607.json",
+  "turn": 3,
+  "status": {
+    "summary": "Union8 Top10 now expands to all legal actions when at most five actions are missing from the pool.",
+    "fresh_final_holdout": "Top10 union + exact rerank has max EV loss 0 for BB and BTN. Top8 max EV loss is <= 0.1. Top5 still has rare misses.",
+    "canonical_joker_final_holdout": "The fixed Top10 plus near-full-gap-5 policy recovered 1000/1000 exact-best actions with zero EV loss on the unused 20260711 final holdout.",
+    "serving_recommendation": "Use per-source Top10 with near_full_expand_gap=5, exact-rerank the resulting pool, and keep Top20 as the conservative fallback."
+  },
+  "candidate_pool_policy": {
+    "fast": {
+      "per_source_top_k": 10,
+      "exact_rerank": true,
+      "near_full_expand_gap": 5,
+      "expected_avg_pool_size": {
+        "bb": 15.988,
+        "btn": 15.556
+      },
+      "fresh_final_holdout_max_ev_loss": 0.0,
+      "canonical_joker_final_holdout_max_ev_loss": 0.0
+    },
+    "conservative": {
+      "per_source_top_k": 20,
+      "exact_rerank": true,
+      "fresh_final_holdout_max_ev_loss": 0.0
+    },
+    "speed_only": {
+      "per_source_top_k": 5,
+      "exact_rerank": true,
+      "known_risk": "rare EV-loss tails remain; do not use when correctness matters"
+    }
+  },
+  "fresh_data": {
+    "root": "D:\\ofc-pineapple-data\\t3_evloss_fresh_20260607",
+    "seed": 20260607,
+    "sources": {
+      "bb": "D:\\ofc-pineapple-data\\branch_expanded_t0top50_t1t2top10_20260605\\teacher\\bb_root1_t3_teacher.jsonl",
+      "btn": "D:\\ofc-pineapple-data\\branch_expanded_t0top50_t1t2top10_20260605\\teacher\\btn_root1_t3_teacher.jsonl"
+    },
+    "split_summary": "D:\\ofc-pineapple-data\\t3_evloss_fresh_20260607\\split_summary.json",
+    "splits": {
+      "bb": {
+        "mine_train_records": 2995,
+        "dev_records": 998,
+        "final_holdout_records": 999,
+        "avg_candidates": {
+          "mine_train": 16.117863105175292,
+          "dev": 16.15130260521042,
+          "final_holdout": 16.25825825825826
+        }
+      },
+      "btn": {
+        "mine_train_records": 3000,
+        "dev_records": 1000,
+        "final_holdout_records": 1000,
+        "avg_candidates": {
+          "mine_train": 17.455,
+          "dev": 17.505,
+          "final_holdout": 17.463
+        }
+      }
+    }
+  },
+  "mining": {
+    "source_pool": "union7 on fresh mine_train",
+    "primary": {
+      "miss_k": 8,
+      "min_ev_loss": 0.05
+    },
+    "secondary": {
+      "miss_k": 5,
+      "min_ev_loss": 0.25
+    },
+    "reason_for_top8_primary": "Top10 EV-loss misses were too sparse, especially for BTN, so the planned fallback was used.",
+    "weighted_data": {
+      "bb": "D:\\ofc-pineapple-data\\t3_evloss_fresh_20260607\\weighted\\mine_train_bb_top8sec5_evloss",
+      "btn": "D:\\ofc-pineapple-data\\t3_evloss_fresh_20260607\\weighted\\mine_train_btn_top8sec5_evloss"
+    },
+    "weighted_stats": {
+      "bb": {
+        "groups": 2995,
+        "primary_miss_groups": 62,
+        "secondary_miss_groups": 52,
+        "weighted_candidates": 1857,
+        "confusers_boosted": 1743
+      },
+      "btn": {
+        "groups": 3000,
+        "primary_miss_groups": 15,
+        "secondary_miss_groups": 9,
+        "weighted_candidates": 423,
+        "confusers_boosted": 399
+      }
+    }
+  },
+  "action_value_checkpoints": {
+    "bb": [
+      "D:\\ofc-pineapple-data\\t3_jokerfix_extra_20260605\\models\\t3-20k-plus-gen5k-hardneginit-bb\\action_value_best.pt",
+      "D:\\ofc-pineapple-data\\branch_t0t2_top10_100k_20260605\\models\\t3-top10-100k-bb-20260605\\action_value_best.pt",
+      "D:\\ofc-pineapple-data\\branch_t0t2_top10_100k_20260605\\models\\t3-top10-100k-hardneg-w10-bb-20260606\\action_value_best.pt",
+      "D:\\ofc-pineapple-data\\branch_t0t2_top10_100k_20260605\\models\\t3-top10-100k-top5miss-w10-bb-20260606\\action_value_best.pt"
+    ],
+    "btn": [
+      "D:\\ofc-pineapple-data\\t3_jokerfix_extra_20260605\\models\\t3-20k-plus-gen5k-hardneginit-btn\\action_value_best.pt",
+      "D:\\ofc-pineapple-data\\branch_t0t2_top10_100k_20260605\\models\\t3-top10-100k-btn-20260605\\action_value_best.pt",
+      "D:\\ofc-pineapple-data\\branch_t0t2_top10_100k_20260605\\models\\t3-top10-100k-hardneg-w10-btn-20260606\\action_value_best.pt",
+      "D:\\ofc-pineapple-data\\branch_t0t2_top10_100k_20260605\\models\\t3-top10-100k-top5miss-w10-btn-20260606\\action_value_best.pt"
+    ]
+  },
+  "set_checkpoints_union8": {
+    "bb": [
+      "D:\\ofc-pineapple-data\\branch_t0t2_top10_100k_20260605\\models\\t3-set-top5-w10-bb-20260606\\action_value_set_best.pt",
+      "D:\\ofc-pineapple-data\\branch_t0t2_top10_100k_20260605\\models\\t3-set-poolmiss-union5-bb-20260606\\action_value_set_best.pt",
+      "D:\\ofc-pineapple-data\\branch_t0t2_top10_100k_20260605\\models\\t3-set-evloss-w11-top10-bb-20260607\\action_value_set_best.pt",
+      "D:\\ofc-pineapple-data\\t3_evloss_fresh_20260607\\models\\t3-set-evloss-fresh-top8-bb-20260607\\action_value_set_best.pt"
+    ],
+    "btn": [
+      "D:\\ofc-pineapple-data\\branch_t0t2_top10_100k_20260605\\models\\t3-set-top5-w10-btn-20260606\\action_value_set_best.pt",
+      "D:\\ofc-pineapple-data\\branch_t0t2_top10_100k_20260605\\models\\t3-set-poolmiss-union5-btn-20260606\\action_value_set_best.pt",
+      "D:\\ofc-pineapple-data\\branch_t0t2_top10_100k_20260605\\models\\t3-set-evloss-w11-top10-btn-20260607\\action_value_set_best.pt",
+      "D:\\ofc-pineapple-data\\t3_evloss_fresh_20260607\\models\\t3-set-evloss-fresh-top8-btn-20260607\\action_value_set_best.pt"
+    ]
+  },
+  "fresh_specialist_training": {
+    "bb": {
+      "checkpoint": "D:\\ofc-pineapple-data\\t3_evloss_fresh_20260607\\models\\t3-set-evloss-fresh-top8-bb-20260607\\action_value_set_best.pt",
+      "best_epoch": 22,
+      "val_top3": 0.7224080267558528,
+      "val_top5": 0.903010033444816,
+      "val_top10": 0.9966555183946488,
+      "elapsed_s_final_epoch": 42.36883282661438
+    },
+    "btn": {
+      "checkpoint": "D:\\ofc-pineapple-data\\t3_evloss_fresh_20260607\\models\\t3-set-evloss-fresh-top8-btn-20260607\\action_value_set_best.pt",
+      "best_epoch": 18,
+      "val_top3": 0.75,
+      "val_top5": 0.9033333333333333,
+      "val_top10": 0.9933333333333333,
+      "elapsed_s_final_epoch": 42.02222013473511
+    }
+  },
+  "fresh_final_holdout_metrics_union8": {
+    "bb": {
+      "groups": 999,
+      "top5": {
+        "recall": 0.992992992992993,
+        "ev_loss_mean": 0.001446,
+        "ev_loss_p99": 0.0,
+        "ev_loss_max": 0.539555,
+        "avg_pool_size": 10.10,
+        "max_pool_size": 17,
+        "ev_loss_gt_0p1": 3
+      },
+      "top8": {
+        "recall": 0.998998998998999,
+        "ev_loss_mean": 0.000062,
+        "ev_loss_p99": 0.0,
+        "ev_loss_max": 0.061846,
+        "avg_pool_size": 12.77,
+        "max_pool_size": 20,
+        "ev_loss_gt_0p1": 0
+      },
+      "top10": {
+        "recall": 1.0,
+        "ev_loss_mean": 0.0,
+        "ev_loss_p99": 0.0,
+        "ev_loss_max": 0.0,
+        "avg_pool_size": 14.11,
+        "max_pool_size": 21,
+        "ev_loss_gt_0p1": 0
+      },
+      "top20": {
+        "recall": 1.0,
+        "ev_loss_mean": 0.0,
+        "ev_loss_p99": 0.0,
+        "ev_loss_max": 0.0,
+        "avg_pool_size": 16.26,
+        "max_pool_size": 21,
+        "ev_loss_gt_0p1": 0
+      }
+    },
+    "btn": {
+      "groups": 1000,
+      "top5": {
+        "recall": 0.99,
+        "ev_loss_mean": 0.0005,
+        "ev_loss_p99": 0.0,
+        "ev_loss_max": 0.446634,
+        "avg_pool_size": 11.04,
+        "max_pool_size": 17,
+        "ev_loss_gt_0p1": 1
+      },
+      "top8": {
+        "recall": 0.998,
+        "ev_loss_mean": 0.0,
+        "ev_loss_p99": 0.0,
+        "ev_loss_max": 0.0,
+        "avg_pool_size": 13.73,
+        "max_pool_size": 20,
+        "ev_loss_gt_0p1": 0
+      },
+      "top10": {
+        "recall": 1.0,
+        "ev_loss_mean": 0.0,
+        "ev_loss_p99": 0.0,
+        "ev_loss_max": 0.0,
+        "avg_pool_size": 15.02,
+        "max_pool_size": 21,
+        "ev_loss_gt_0p1": 0
+      },
+      "top20": {
+        "recall": 1.0,
+        "ev_loss_mean": 0.0,
+        "ev_loss_p99": 0.0,
+        "ev_loss_max": 0.0,
+        "avg_pool_size": 17.46,
+        "max_pool_size": 21,
+        "ev_loss_gt_0p1": 0
+      }
+    }
+  },
+  "worker_replay_metrics_union8": {
+    "worker10": {
+      "bb": {
+        "top5_ev_loss_max": 0.0,
+        "top8_ev_loss_max": 0.0,
+        "top10_ev_loss_max": 0.0,
+        "top10_avg_pool_size": 14.63
+      },
+      "btn": {
+        "top5_ev_loss_max": 0.0,
+        "top8_ev_loss_max": 0.0,
+        "top10_ev_loss_max": 0.0,
+        "top10_avg_pool_size": 14.44
+      }
+    },
+    "worker11": {
+      "bb": {
+        "top5_ev_loss_max": 0.232036,
+        "top8_ev_loss_max": 0.0,
+        "top10_ev_loss_max": 0.0,
+        "top10_avg_pool_size": 13.67
+      },
+      "btn": {
+        "top5_ev_loss_max": 1.096718,
+        "top8_ev_loss_max": 0.056377,
+        "top10_ev_loss_max": 0.0,
+        "top10_avg_pool_size": 14.55
+      }
+    }
+  },
+  "evaluation_outputs": {
+    "union8_dev_bb": "D:\\ofc-pineapple-data\\t3_evloss_fresh_20260607\\eval\\union8_dev_bb",
+    "union8_dev_btn": "D:\\ofc-pineapple-data\\t3_evloss_fresh_20260607\\eval\\union8_dev_btn",
+    "union8_final_holdout_bb": "D:\\ofc-pineapple-data\\t3_evloss_fresh_20260607\\eval\\union8_final_holdout_bb",
+    "union8_final_holdout_btn": "D:\\ofc-pineapple-data\\t3_evloss_fresh_20260607\\eval\\union8_final_holdout_btn",
+    "union8_worker10_bb": "D:\\ofc-pineapple-data\\t3_evloss_fresh_20260607\\eval\\union8_worker10_bb",
+    "union8_worker10_btn": "D:\\ofc-pineapple-data\\t3_evloss_fresh_20260607\\eval\\union8_worker10_btn",
+    "union8_worker11_bb": "D:\\ofc-pineapple-data\\t3_evloss_fresh_20260607\\eval\\union8_worker11_bb",
+    "union8_worker11_btn": "D:\\ofc-pineapple-data\\t3_evloss_fresh_20260607\\eval\\union8_worker11_btn"
+  },
+  "canonical_joker_precision_gate_20260711": {
+    "dataset": "ai/data/t3_precision_gate_5k_20260711/t3_gate_teacher_5000.jsonl",
+    "records": 5000,
+    "positions": {
+      "bb": 2500,
+      "btn": 2500
+    },
+    "prior_overlap_records": 0,
+    "splits": {
+      "mine": 3000,
+      "dev": 1000,
+      "final_holdout": 1000
+    },
+    "baseline_union8_mine_dev": {
+      "exact_best_recall": 0.99825,
+      "ev_loss_mean": 0.0047348054275472415,
+      "ev_loss_max": 8.6415127919912,
+      "ev_loss_gt_0p1": 6,
+      "avg_pool_size": 15.123
+    },
+    "canonical_model_union9_mine_dev": {
+      "exact_best_recall": 0.9985,
+      "ev_loss_mean": 0.004488431590656156,
+      "ev_loss_max": 8.6415127919912,
+      "adopted": false
+    },
+    "selected_policy": {
+      "per_source_top_k": 10,
+      "near_full_expand_gap": 5,
+      "dev_exact_best_recall": 1.0,
+      "dev_ev_loss_max": 0.0,
+      "dev_avg_pool_size": 15.681
+    },
+    "final_holdout": {
+      "exact_best_recall": 1.0,
+      "ev_loss_mean": 0.0,
+      "ev_loss_max": 0.0,
+      "avg_pool_size": 15.772,
+      "bb_avg_pool_size": 15.988,
+      "btn_avg_pool_size": 15.556
+    },
+    "training_decision": "No specialist retraining: the deterministic near-full expansion removed every mine/dev miss with a small bounded pool increase."
+  },
+  "runtime": {
+    "module": "ai.tutor.t3_runtime",
+    "rust_solver_candidate_filter": "ai/rust_solver/t3_exact_solver accepts optional candidate_actions and evaluates only that subset.",
+    "smoke_outputs": {
+      "bb_limit5": "D:\\ofc-pineapple-data\\t3_evloss_fresh_20260607\\runtime_smoke\\bb_limit5_union8_top10.jsonl",
+      "btn_limit5": "D:\\ofc-pineapple-data\\t3_evloss_fresh_20260607\\runtime_smoke\\btn_limit5_union8_top10.jsonl"
+    },
+    "smoke_metrics": {
+      "bb_limit5": {
+        "n": 5,
+        "elapsed_ms_mean": 377.38,
+        "elapsed_ms_max": 952.4,
+        "candidate_pool_size_mean": 15.2,
+        "candidate_pool_size_max": 20,
+        "all_under_5s": true
+      },
+      "btn_limit5": {
+        "n": 5,
+        "elapsed_ms_mean": 359.96,
+        "elapsed_ms_max": 896.51,
+        "candidate_pool_size_mean": 14.2,
+        "candidate_pool_size_max": 20,
+        "all_under_5s": true
+      }
+    }
+  }
+}

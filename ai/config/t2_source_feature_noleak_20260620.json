@@ -1,0 +1,143 @@
+{
+  "name": "t2_source_feature_noleak_20260620",
+  "status": "diagnostic_rejected_for_top1_promotion",
+  "script": "ai/training/train_t2_source_feature_ranker.py",
+  "purpose": "Test whether explicit runtime source/T3 candidate features improve T2 model-only Top1 after removing tie-order leakage.",
+  "leak_fix": {
+    "issue": "Group-local ranks for equal-valued source features used np.argsort on teacher-ordered rows. Constant fields such as source_score, draws, and t3_raw_top1_match_rate leaked candidate order from the teacher JSON.",
+    "fix": "Constant source fields now emit neutral rank/gap/z/top-k features, and non-constant ties are broken by runtime source_index instead of teacher row order.",
+    "invalidated_artifacts": [
+      "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/source_feature_ranker_clean300_eval_no_20260620",
+      "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/source_feature_ranker_clean300_eval_def_20260620",
+      "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/source_only_ranker_clean300_eval_def_20260620"
+    ]
+  },
+  "valid_artifacts": {
+    "source_only_clean300_eval_def": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/source_only_ranker_clean300_eval_def_noleakfix_20260620/summary.json",
+    "selector_source_clean300_eval_def": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/source_feature_ranker_clean300_eval_def_noleakfix_20260620/summary.json",
+    "selector_source_clean300_eval_no": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/source_feature_ranker_clean300_eval_no_noleakfix_20260620/summary.json",
+    "selector_source_broad900_eval_no": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/source_feature_ranker_broad900_eval_no_noleakfix_20260620/summary.json",
+    "source_lgbm_clean300_eval_def": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/source_lgbm_clean300_eval_def_noleakfix_20260620/summary.json",
+    "source_lgbm_clean300_eval_no": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/source_lgbm_clean300_eval_no_noleakfix_20260620/summary.json",
+    "source_lgbm_broad900_eval_no": "D:/ofc-pineapple-data/t2_next_20260614/top1_ev_loss_goal_20260619/new_broad1000_20260619/source_lgbm_broad900_eval_no_noleakfix_20260620/summary.json"
+  },
+  "clean300_train_eval_fresh100def": {
+    "groups": 300,
+    "best_existing": {
+      "selector": "lgbm_gap63",
+      "top1": 0.7633333333,
+      "top3": 0.9266666667,
+      "top10": 0.9833333333,
+      "reg1": 0.0743204374,
+      "reg10": 0.0000325992
+    },
+    "best_source_feature": {
+      "selector": "hgb_l31_bestcls_selector_source",
+      "top1": 0.7633333333,
+      "top3": 0.9233333333,
+      "top10": 0.97,
+      "reg1": 0.0853247742,
+      "reg10": 0.0002009277
+    },
+    "decision": "Matches Top1 but has worse Reg1/Top3/Top10 than existing lgbm_gap63, so do not promote."
+  },
+  "clean300_train_eval_fresh20no": {
+    "groups": 40,
+    "best_existing": {
+      "selector": "all4_g130",
+      "top1": 0.45,
+      "top3": 0.70,
+      "top10": 0.875,
+      "reg1": 1.3584312774,
+      "reg10": 0.1000663429
+    },
+    "best_source_feature": {
+      "selector": "hgb_l31_bestcls_selector_source",
+      "top1": 0.425,
+      "top3": 0.675,
+      "top10": 0.85,
+      "reg1": 1.5168074697,
+      "reg10": 0.0969783545
+    },
+    "decision": "Does not improve the clean fresh20n+fresh20o holdout."
+  },
+  "broad900_train_eval_fresh20no": {
+    "groups": 40,
+    "best_existing": {
+      "selector": "all4_g130",
+      "top1": 0.45,
+      "reg1": 1.3584312774
+    },
+    "best_source_feature": {
+      "selector": "hgb_l31_top_weighted_selector_source",
+      "top1": 0.325,
+      "reg1": 1.4967828523
+    },
+    "decision": "More train shards did not improve fresh20n+fresh20o; the source feature model overfits distribution details."
+  },
+  "lambdarank_followup": {
+    "implementation": "ai/training/train_t2_source_feature_ranker.py now supports LightGBM LambdaRank over selector_source/source/state_source/all features.",
+    "clean300_eval_fresh100def": {
+      "groups": 300,
+      "best_existing": {
+        "selector": "lgbm_gap63",
+        "top1": 0.7633333333,
+        "top3": 0.9266666667,
+        "top10": 0.9833333333,
+        "reg1": 0.0743204374,
+        "reg10": 0.0000325992
+      },
+      "best_lambdarank": {
+        "selector": "lgbm_rank_gap_selector_source",
+        "top1": 0.74,
+        "top3": 0.92,
+        "top10": 0.9833333333,
+        "reg1": 0.0828432067,
+        "reg10": 0.0000325992
+      },
+      "best_non_lgbm_source": {
+        "selector": "hgb_l31_advantage_selector_source",
+        "top1": 0.6666666667,
+        "top3": 0.88,
+        "top10": 0.99,
+        "reg1": 0.155756117
+      },
+      "decision": "LambdaRank did not beat the existing lgbm_gap63 selector on the 300-group replay."
+    },
+    "clean300_eval_fresh20no": {
+      "groups": 40,
+      "best_existing": {
+        "selector": "all4_g130",
+        "top1": 0.45,
+        "reg1": 1.3584312774
+      },
+      "best_lambdarank": {
+        "selector": "lgbm_rank_gap_selector_source",
+        "top1": 0.40,
+        "reg1": 1.155081534
+      },
+      "decision": "LambdaRank lowered Reg1 but did not improve Top1 on fresh20n+fresh20o."
+    },
+    "broad900_eval_fresh20no": {
+      "groups": 40,
+      "best_existing": {
+        "selector": "all4_g130",
+        "top1": 0.45,
+        "reg1": 1.3584312774
+      },
+      "best_lambdarank": {
+        "selector": "lgbm_rank_rank_selector_source",
+        "top1": 0.35,
+        "reg1": 1.4262128055
+      },
+      "decision": "Adding broad900 training shards made LambdaRank worse for Top1 on fresh20n+fresh20o."
+    },
+    "overall_decision": "LambdaRank is kept as a diagnostic option, but it is not a Top1 promotion candidate."
+  },
+  "source_only_after_fix": {
+    "eval": "fresh100d+fresh100e+fresh100f",
+    "best_source_only_top1": 0.2466666667,
+    "decision": "Source/T3 raw features alone are not enough for T2 Top1."
+  },
+  "overall_decision": "Keep source-feature and LambdaRank code as diagnostic tools and leak guards. They are not Top1 promotion candidates. Current high-accuracy runtime path remains multi-selector Top10/Top13 exact rerank."
+}
