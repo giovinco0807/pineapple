@@ -912,7 +912,7 @@ pub(crate) fn descend(
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     use crate::{all_cards, terminal_of, to_core_card};
     use fl_solver::frontier::FrontierEntry;
@@ -1246,7 +1246,12 @@ mod tests {
     /// it arrives through exactly the reader a shipped model arrives through.
     /// `seed` moves every weight, which is what lets a fence rank a field
     /// differently from the evaluator it stands in front of.
-    fn linear_model(input_dim: usize, seed: u32) -> evaluator::Model {
+    ///
+    /// `pub(crate)` so other modules' tests can exercise a chooser path
+    /// without the shipped weights: this box has them, a CI box does not, and
+    /// a test that skips itself when a model is missing is a test that stops
+    /// being run.
+    pub(crate) fn linear_model(input_dim: usize, seed: u32) -> evaluator::Model {
         let mut bytes: Vec<u8> = Vec::new();
         bytes.extend_from_slice(b"T4F1");
         bytes.extend_from_slice(&1u32.to_le_bytes()); // version

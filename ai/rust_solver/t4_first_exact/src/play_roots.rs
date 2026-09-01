@@ -619,6 +619,163 @@ pub fn play_trace_forced(
     ))
 }
 
+/// The opening a played root starts from: the deal checked, and the first five
+/// placed by the T0 chooser's argmax.
+///
+/// Shared by the T1 and T2 emitters rather than written twice.  The two differ
+/// only in where they stop, and a second copy of this that drifted -- a
+/// different node seed, a different tie break -- would emit two root files
+/// claiming to describe the same chain while describing two.
+///
+/// `cards` is the whole deal, not just the opening five: the deck check has to
+/// see every card the root will name, and `t0_scores` reads only the first
+/// five itself.
+fn play_opening(
+    id: &str,
+    cards: &[String],
+    fl_ev: &FlEv,
+    fl_table: &evaluator::FlTable,
+    t0_model: &evaluator::Model,
+) -> Result<(CoreBoard, [Vec<String>; 3])> {
+    // By name, as everywhere on this path: "JK" parses as a joker and matches
+    // neither X1 nor X2, which would leave both in the unseen pool.
+    let deck: BTreeSet<String> = all_cards().into_iter().collect();
+    let mut held: BTreeSet<&str> = BTreeSet::new();
+    for name in cards {
+        if !deck.contains(name.as_str()) {
+            bail!("{name} is not a deck card; spell the jokers X1 and X2");
+        }
+        if !held.insert(name.as_str()) {
+            bail!("{name} appears twice in {id}");
+        }
+    }
+
+    let mut board = CoreBoard {
+        rows: [Vec::new(), Vec::new(), Vec::new()],
+    };
+    let mut names: [Vec<String>; 3] = [Vec::new(), Vec::new(), Vec::new()];
+
+    // The argmax of the shipped chooser's own ordering, which is the opening a
+    // hand plays -- `t0_scores` is the call a hand makes.
+    let mut dealt = [Card { rank: 0, suit: 0 }; 5];
+    for (slot, name) in cards[0..5].iter().enumerate() {
+        dealt[slot] = to_core_card(name)?;
+    }
+    let mut best = f32::NEG_INFINITY;
+    let mut opening: Option<[usize; 5]> = None;
+    for (assignment, predicted) in t0_scores(id, cards, fl_ev, fl_table, t0_model)? {
+        if predicted > best {
+            best = predicted;
+            opening = Some(assignment);
+        }
+    }
+    let opening = opening.ok_or_else(|| anyhow!("no T0 opening for {id}"))?;
+    for slot in 0..5 {
+        board.rows[opening[slot]].push(dealt[slot]);
+        names[opening[slot]].push(cards[slot].clone());
+    }
+    Ok((board, names))
+}
+
+/// The T1 decision the chain reaches from eight dealt cards.
+///
+/// `play_t2_root` stopping one street earlier: T0 places the five, and the
+/// three drawn cards are handed back unplaced because they are what the T1
+/// labeller is about to price.  Nothing is dead at T1 -- the field is kept for
+/// shape symmetry with the deeper roots, and `T1VsFlRequest` defaults it.
+pub fn play_t1_root(
+    id: &str,
+    cards: &[String],
+    fl_ev: &FlEv,
+    fl_table: &evaluator::FlTable,
+    t0_model: &evaluator::Model,
+) -> Result<PlayedT1Root> {
+    if cards.len() != 8 {
+        bail!(
+            "a played T1 root is eight cards -- five at T0 and three drawn -- \
+             but {id} has {}",
+            cards.len()
+        );
+    }
+    let (_board, names) = play_opening(id, cards, fl_ev, fl_table, t0_model)?;
+    Ok(PlayedT1Root {
+        id: id.to_string(),
+        board: played_board(&names),
+        dead: Vec::new(),
+        draw: cards[5..8].to_vec(),
+        opp_count: OPP_COUNT,
+    })
+}
+
+/// The T2 decision the chain reaches from eleven dealt cards.
+///
+/// `fl_solver teach-t2` deals eleven and *assigns* the first seven -- two to
+/// the top, three to the middle, two to the bottom, one dead -- then labels the
+/// last three as the draw.  Every one of those is a legal position and none of
+/// them is a played one, which is the same distribution complaint `play_trace`
+/// was written to answer, one street shallower.  Here the eleven are played
+/// instead: T0 places the first five, T1 places two of the next three and
+/// discards one, and the last three stay as the draw the emitted root is about.
+///
+/// Same two choosers a hand runs and the same node seeds `play_trace` gives
+/// them, so a root emitted here is a position production actually reaches
+/// rather than one a second harness reached.
+///
+/// It stops before T2 deliberately.  The T2 encode is most of a played deal
+/// (see the module header -- 1.508 s of 1.841 at the 104-dim width), and the
+/// emitted root is the *input* to that decision, not its outcome; paying for
+/// the move here would be paying for the answer the teacher is about to solve
+/// for exactly.
+pub fn play_t2_root(
+    id: &str,
+    cards: &[String],
+    fl_ev: &FlEv,
+    fl_table: &evaluator::FlTable,
+    t0_model: &evaluator::Model,
+    t1_model: &evaluator::Model,
+) -> Result<PlayedRoot> {
+    if cards.len() != 11 {
+        bail!(
+            "a played T2 root is eleven cards -- five at T0 and three at each \
+             of T1 and T2 -- but {id} has {}",
+            cards.len()
+        );
+    }
+    let (mut board, mut names) = play_opening(id, cards, fl_ev, fl_table, t0_model)?;
+
+    // T1: two of three placed, one discarded-but-seen, so the discard leaves
+    // the pool with them and the unseen set is the deal's first eight removed.
+    let memo: RowwiseMemo = std::sync::Mutex::new(std::collections::HashMap::new());
+    let mut draw = [Card { rank: 0, suit: 0 }; 3];
+    for (slot, name) in cards[5..8].iter().enumerate() {
+        draw[slot] = to_core_card(name)?;
+    }
+    let unseen = unseen_after(&cards[0..8])?;
+    let discarded = play_street(
+        t1_model,
+        &mut board,
+        &mut names,
+        &draw,
+        &cards[5..8],
+        &unseen,
+        fl_ev,
+        fl_table,
+        &memo,
+        1,
+        &format!("play/{id}/t1"),
+        // No fence: an emitted root is training material, and a cascade here
+        // would move the distribution the teacher is about to label.
+        None,
+    )?;
+
+    Ok(PlayedRoot {
+        id: id.to_string(),
+        rows: names,
+        dead: vec![discarded],
+        draw: cards[8..11].to_vec(),
+    })
+}
+
 /// Backwards-compatible T3-only entry point used by existing evaluation code.
 pub fn play(
     request: &PlayRequest,

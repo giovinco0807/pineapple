@@ -37,6 +37,12 @@ START="$(meta t2l-start)"
 COUNT="$(meta t2l-count)"
 BINSTAMP="$(meta t2l-binstamp)"
 POOL_OBJ="$(meta t2l-pool-object)"
+# When set, positions come from this artifacts object (a played-roots jsonl,
+# one root per line, global ordinal = line number) instead of teach-t2's
+# dealt (2,3,2) boards -- which are NOT play-reachable shapes and produced
+# the wrong value distribution on 2026-09-01.  Dealing stays only as the
+# legacy fallback for an empty value.
+ROOTS_OBJ="$(meta t2l-roots-object || true)"
 SEED="$(meta t2l-seed)"
 DRAWS="$(meta t2l-draws)"
 PILOT="$(meta t2l-pilot)"
@@ -65,6 +71,10 @@ EXPECT="$(awk '/fl_solver/ {print $1}' BINARIES.sha256)"
 ACTUAL="$(sha256sum fl_solver | awk '{print $1}')"
 [ -n "$EXPECT" ] && [ "$EXPECT" = "$ACTUAL" ] || { echo "FATAL: binary sha mismatch"; exit 1; }
 gcloud storage cp "gs://$BUCKET/$PREFIX/artifacts/$POOL_OBJ" pool.jfl1
+if [ -n "$ROOTS_OBJ" ]; then
+  gcloud storage cp "gs://$BUCKET/$PREFIX/artifacts/$ROOTS_OBJ" roots_all.jsonl
+  wc -l < roots_all.jsonl
+fi
 echo "PHASE:artifacts_ok"
 
 # The prev fl_ev table, matching the pool header and the 10k corpus pricing.
@@ -86,13 +96,25 @@ for ((base = START; base < START + COUNT; base += CHUNK)); do
     if [ "$HAVE" -ge "$n" ]; then echo "chunk $base already published"; continue; fi
   fi
   rm -rf out; mkdir -p out
-  ( cd ws && "$ROOT/fl_solver" teach-t2 \
-      --pool "$ROOT/pool.jfl1" \
-      --roots "$n" --root-offset "$base" --seed "$SEED" --stream-offset 0 \
-      --opponents 60 --own-only \
-      --t3-draws "$DRAWS" --t4-draws 0 \
-      --t3-pilot-draws "$PILOT" --t3-keep "$PILOT_KEEP" \
-      --out-dir "$ROOT/out" )
+  if [ -n "$ROOTS_OBJ" ]; then
+    sed -n "$((base + 1)),$((base + n))p" roots_all.jsonl > chunk_roots.jsonl
+    [ "$(wc -l < chunk_roots.jsonl)" -eq "$n" ] || { echo "FATAL: roots slice short"; exit 1; }
+    ( cd ws && "$ROOT/fl_solver" teach-t2 \
+        --pool "$ROOT/pool.jfl1" \
+        --roots-file "$ROOT/chunk_roots.jsonl" --root-offset "$base" --stream-offset 0 \
+        --opponents 60 --own-only \
+        --t3-draws "$DRAWS" --t4-draws 0 \
+        --t3-pilot-draws "$PILOT" --t3-keep "$PILOT_KEEP" \
+        --out-dir "$ROOT/out" )
+  else
+    ( cd ws && "$ROOT/fl_solver" teach-t2 \
+        --pool "$ROOT/pool.jfl1" \
+        --roots "$n" --root-offset "$base" --seed "$SEED" --stream-offset 0 \
+        --opponents 60 --own-only \
+        --t3-draws "$DRAWS" --t4-draws 0 \
+        --t3-pilot-draws "$PILOT" --t3-keep "$PILOT_KEEP" \
+        --out-dir "$ROOT/out" )
+  fi
   LINES=$(wc -l < out/t2_labels.jsonl)
   [ "$LINES" -ge "$n" ] || { echo "FATAL: chunk $base wrote $LINES of $n"; exit 1; }
   gcloud storage cp out/t2_labels.jsonl "$OBJ"

@@ -35,7 +35,13 @@ use super::FlEv;
 const RANKS: &[u8] = b"23456789TJQKA";
 const SUITS: &[u8] = b"shdc";
 
-fn name_of(card: &FlCard, jokers_named: &mut usize) -> String {
+/// This crate's spelling for a dealt card, jokers numbered in deal order.
+///
+/// `jokers_named` is a running count and not a property of the card: the two
+/// jokers compare equal, so which of X1/X2 a card is depends only on how many
+/// came before it.  Shared rather than re-written per caller, because a second
+/// naming that numbered them differently would silently deal a different hand.
+pub(crate) fn name_of(card: &FlCard, jokers_named: &mut usize) -> String {
     if card.is_joker() {
         *jokers_named += 1;
         format!("X{}", *jokers_named)

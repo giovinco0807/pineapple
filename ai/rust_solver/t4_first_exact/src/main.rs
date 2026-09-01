@@ -29,6 +29,7 @@ mod hu_match;
 mod hu_traces;
 mod self_play;
 mod fl_sim;
+mod emit_roots;
 mod fl_t0_deep;
 mod fl_t0_teach;
 mod discard_model;
@@ -1065,6 +1066,27 @@ struct Cli {
     /// Candidates the fence lets through to the serving evaluator.
     #[arg(long, default_value_t = 12)]
     own_t2_fence_topk: usize,
+    /// Emit this many PLAYED T2 roots as a `fl_solver teach-t2 --roots-file`
+    /// input.  Each ordinal deals the eleven cards `teach-t2` would have dealt
+    /// itself, then plays the first eight through the own chain (T0 places
+    /// five, T1 places two of three) instead of assigning them by position.
+    /// Wants --deal-seed, --arm-a-own and --output; see emit_roots.rs.
+    #[arg(long)]
+    emit_t2_roots: Option<usize>,
+    /// The same one street earlier: eight cards dealt, five placed by the T0
+    /// chooser, the other three left as the draw.  Records are the T1
+    /// labeller's request shape (`T1VsFlRequest`) with none of its knobs set,
+    /// so the driver that runs the labeller supplies those.
+    #[arg(long)]
+    emit_t1_roots: Option<usize>,
+    /// The deal generator's seed, passed to `pool::deal` exactly as `teach-t2`
+    /// passes its own.  Required rather than defaulted: a root file silently
+    /// built on the wrong seed is a teacher pointed at the wrong population.
+    #[arg(long)]
+    deal_seed: Option<u64>,
+    /// First root ordinal, so a fleet can shard the same seed by range.
+    #[arg(long, default_value_t = 0)]
+    root_offset: u64,
     /// Accepted and ignored.  The Fantasyland opponent's width mattered while
     /// this mode settled hero against a dealt opponent; under the own-hand
     /// objective no opponent is dealt.  Kept so saved command lines and fleet
@@ -1210,6 +1232,73 @@ fn main() -> Result<()> {
     let own_t2_fence: Option<(&evaluator::Model, usize)> = own_t2_fence_model
         .as_ref()
         .map(|model| (model, cli.own_t2_fence_topk));
+    // The two root emitters, one street apart.  One block: they differ only in
+    // how deep they play and which record they write, and a second copy of the
+    // model loading and the summary line would be two places for a chain to
+    // drift apart in.
+    if cli.emit_t1_roots.is_some() || cli.emit_t2_roots.is_some() {
+        if cli.emit_t1_roots.is_some() && cli.emit_t2_roots.is_some() {
+            bail!("--emit-t1-roots and --emit-t2-roots are one flag too many");
+        }
+        let street = if cli.emit_t1_roots.is_some() { "t1" } else { "t2" };
+        let count = cli.emit_t1_roots.or(cli.emit_t2_roots).expect("one is set");
+        let spec = cli.arm_a_own.as_deref().ok_or_else(|| {
+            anyhow!("--emit-{street}-roots requires --arm-a-own t0.bin,t1.bin,t2.bin")
+        })?;
+        let paths: Vec<&str> = spec.split(',').map(str::trim).collect();
+        if paths.len() != 3 {
+            bail!("--arm-a-own names three models (T0,T1,T2), got {}", paths.len());
+        }
+        // The streets below the one being emitted are loaded and not used:
+        // each mode stops one street short of its own, and the triple is kept
+        // so a saved command line means the same chain here as it does
+        // everywhere else --arm-a-own appears.
+        let loaded: Vec<evaluator::Model> = paths
+            .iter()
+            .map(|path| {
+                let image = std::fs::read(path)?;
+                evaluator::Model::load(&image).map_err(|e| anyhow!("{path}: {e}"))
+            })
+            .collect::<Result<Vec<_>>>()?;
+        let seed = cli
+            .deal_seed
+            .ok_or_else(|| anyhow!("--emit-{street}-roots requires --deal-seed"))?;
+        let fl_table: evaluator::FlTable = [
+            fl_ev.value(14) as f32,
+            fl_ev.value(15) as f32,
+            fl_ev.value(16) as f32,
+            fl_ev.value(17) as f32,
+        ];
+        let started = std::time::Instant::now();
+        let mut writer = BufWriter::new(File::create(&cli.output)?);
+        let written = if street == "t1" {
+            emit_roots::emit_t1(
+                count, cli.root_offset, seed, &fl_ev, &fl_table, &loaded[0], &mut writer,
+            )?
+        } else {
+            emit_roots::emit_t2(
+                count, cli.root_offset, seed, &fl_ev, &fl_table, &loaded[0], &loaded[1],
+                &mut writer,
+            )?
+        };
+        writer.flush()?;
+        let elapsed = started.elapsed().as_secs_f64();
+        eprintln!(
+            "emit-{street}-roots: {written} played roots, seed {seed} ordinals \
+             [{}, {}), choosers {}, {:.1} s ({:.0} roots/min) -> {}",
+            cli.root_offset,
+            cli.root_offset + written as u64,
+            if street == "t1" {
+                format!("{} dims", loaded[0].input_dim)
+            } else {
+                format!("{}/{} dims", loaded[0].input_dim, loaded[1].input_dim)
+            },
+            elapsed,
+            written as f64 * 60.0 / elapsed.max(1e-9),
+            cli.output.display()
+        );
+        return Ok(());
+    }
     if cli.fl_t0_teach {
         let spec = cli
             .arm_a_own
