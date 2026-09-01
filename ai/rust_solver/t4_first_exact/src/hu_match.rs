@@ -26,6 +26,7 @@ use anyhow::{anyhow, bail, Result};
 use rayon::prelude::*;
 
 use super::evaluator;
+use super::hu_fast;
 use super::hu_encode;
 use super::playout;
 use super::self_play::{settle, Finished};
@@ -214,6 +215,9 @@ pub(crate) fn openings(draw: &[String]) -> Vec<[Vec<String>; 3]> {
     out
 }
 
+/// `Clone` because a referee search forks the position at a branch point: each
+/// hero line plays on from its own copy, opponent replies included.
+#[derive(Clone)]
 struct Seat {
     board: [Vec<String>; 3],
     dead: Vec<String>,
@@ -317,25 +321,21 @@ fn closed_form_t4(
 /// Placements the harness must take as given, keyed by (street, seat).
 pub type Forced = std::collections::HashMap<(usize, usize), [Vec<String>; 3]>;
 
-/// One hand.  Returns both finished boards.
+/// The names a hand gives its thirty-four dealt cards, seventeen per seat.
 ///
-/// `forced` pins the placement at any (street, seat) instead of consulting a
-/// model: a deep evaluator judges a *placement*, so the placement under test
-/// -- and the history that led to it -- must be the one thing the harness
-/// never chooses for itself.  The discard is inferred as the drawn card the
-/// forced board does not contain.
-#[allow(clippy::too_many_arguments)]
-fn play_hand(
-    id: &str,
-    dealt: &[fl_solver::Card],
-    arms: &[&Arm<'_>; 2],
-    fl_ev: &FlEv,
-    fl_table: &evaluator::FlTable,
-    table: &[f64; 4],
-    mut trace: Option<&mut Vec<TraceStep>>,
-    forced: Option<&Forced>,
-) -> Result<[Finished; 2]> {
-    // Seat 0 is BB (acts first every street), seat 1 is BTN.
+/// Jokers are numbered X1 then X2 across the whole deal in seat order, not
+/// within a seat: the two jokers are one `Card` and two deck slots, and the
+/// only thing telling them apart downstream is this counter.  A caller pinning
+/// a placement has to spell it the way this function does, so it is shared
+/// rather than re-derived -- a second copy that numbered a joker differently
+/// would make `play_hand` reject a forced board that was in fact correct, and
+/// (worse) could make one it should have rejected look fine.
+///
+/// A consequence worth naming: which of X1/X2 a seat's joker gets depends on
+/// how many jokers precede it in the *other* seat's cards.  A BTN candidate
+/// therefore cannot be spelled once and reused across rollouts; see
+/// `t0_deep_eval`, which remaps by position instead.
+fn seat_names(dealt: &[fl_solver::Card]) -> [Vec<String>; 2] {
     let mut names: [Vec<String>; 2] = Default::default();
     let mut jokers = 0usize;
     for seat in 0..2usize {
@@ -358,6 +358,131 @@ fn play_hand(
             })
             .collect();
     }
+    names
+}
+
+/// One scored placement: the board it leaves and the card it throws.
+type ScoredMove = (f32, [Vec<String>; 3], Option<String>);
+
+/// What one (street, seat) decision produced.
+enum Decision {
+    /// Already applied to `seats`: a forced placement, or one of the exact
+    /// solvers at street 3-BTN and street 4.  Nothing here is a model's
+    /// opinion, so nothing here is branchable.
+    Settled,
+    /// A model decision, every legal placement scored and none applied.  The
+    /// caller decides: a hand takes the argmax, a referee search may open the
+    /// head of the list.
+    Scored(Vec<ScoredMove>),
+}
+
+/// This seat's draw at this street.
+fn draw_at(names: &[Vec<String>; 2], street: usize, seat: usize) -> Vec<String> {
+    if street == 0 {
+        names[seat][..5].to_vec()
+    } else {
+        names[seat][2 + street * 3..5 + street * 3].to_vec()
+    }
+}
+
+/// Put a chosen placement on the board.
+fn apply_move(seats: &mut [Seat; 2], seat: usize, after: [Vec<String>; 3], toss: Option<String>) {
+    seats[seat].board = after;
+    if let Some(toss) = toss {
+        seats[seat].dead.push(toss);
+    }
+}
+
+/// The argmax a hand plays.
+///
+/// `max_by` returns the *last* maximum, so a tie goes to the candidate the
+/// enumeration produced later.  That rule is load-bearing rather than
+/// incidental: it is what every shipped number was measured under, and
+/// `branch_order` reproduces it so a search's first line is the played one.
+fn greedy_move(scored: Vec<ScoredMove>) -> Result<([Vec<String>; 3], Option<String>)> {
+    let (_, after, toss) = scored
+        .into_iter()
+        .max_by(|a, b| a.0.partial_cmp(&b.0).unwrap())
+        .ok_or_else(|| anyhow!("no legal placement"))?;
+    Ok((after, toss))
+}
+
+/// The same field ordered for branching: best first, and the head is exactly
+/// what `greedy_move` would have picked.
+///
+/// Descending by score with ties broken by *later* enumeration index, which is
+/// `max_by`'s rule.  Getting this backwards would not error -- it would give a
+/// K>1 search whose first line is not the greedy line, quietly breaking the one
+/// property that makes a bigger K a superset of a smaller one.
+fn branch_order(scored: Vec<ScoredMove>) -> Vec<ScoredMove> {
+    let mut indexed: Vec<(usize, ScoredMove)> = scored.into_iter().enumerate().collect();
+    indexed.sort_by(|a, b| {
+        let (left, right) = (a.1 .0, b.1 .0);
+        right
+            .partial_cmp(&left)
+            .unwrap_or(std::cmp::Ordering::Equal)
+            .then(b.0.cmp(&a.0))
+    });
+    indexed.into_iter().map(|(_, item)| item).collect()
+}
+
+/// Whether a referee search opens this decision instead of playing it.
+///
+/// Only the hero, and only at streets 1 and 2:
+///
+///   * street 0 is the placement under test -- the referee pins it, so there
+///     is nothing there to choose;
+///   * street 3-BTN and both seats of street 4 are solved exactly, and a
+///     search that branched them would be second-guessing an exact answer with
+///     a model's shortlist.  Street 3-BB is a model decision but is left
+///     greedy too: it is the last street before the exact ones, where the
+///     draws it would be choosing against are almost fully known, and the
+///     lookahead bias is at its worst.
+///   * the opponent never branches -- it is the environment the hero is being
+///     measured against, and letting it search would measure a different game.
+fn branches_at(street: usize, seat: usize, hero_seat: usize, topk: usize) -> bool {
+    topk > 1 && seat == hero_seat && (street == 1 || street == 2)
+}
+
+/// One hand.  Returns both finished boards.
+///
+/// `forced` pins the placement at any (street, seat) instead of consulting a
+/// model: a deep evaluator judges a *placement*, so the placement under test
+/// -- and the history that led to it -- must be the one thing the harness
+/// never chooses for itself.  The discard is inferred as the drawn card the
+/// forced board does not contain.
+#[allow(clippy::too_many_arguments)]
+fn play_hand(
+    id: &str,
+    dealt: &[fl_solver::Card],
+    arms: &[&Arm<'_>; 2],
+    fl_ev: &FlEv,
+    fl_table: &evaluator::FlTable,
+    table: &[f64; 4],
+    trace: Option<&mut Vec<TraceStep>>,
+    forced: Option<&Forced>,
+) -> Result<[Finished; 2]> {
+    // No `fast` parameter, deliberately: every serving path goes through this
+    // function, and the distilled nets are a referee tool.  Reaching them from
+    // a match would need a new call site, not a new argument value.
+    play_hand_with(id, dealt, arms, fl_ev, fl_table, table, trace, forced, None)
+}
+
+/// `play_hand`, with the referee's optional distilled continuations.
+#[allow(clippy::too_many_arguments)]
+fn play_hand_with(
+    id: &str,
+    dealt: &[fl_solver::Card],
+    arms: &[&Arm<'_>; 2],
+    fl_ev: &FlEv,
+    fl_table: &evaluator::FlTable,
+    table: &[f64; 4],
+    mut trace: Option<&mut Vec<TraceStep>>,
+    forced: Option<&Forced>,
+    fast: Option<&hu_fast::FastNets>,
+) -> Result<[Finished; 2]> {
+    // Seat 0 is BB (acts first every street), seat 1 is BTN.
+    let names = seat_names(dealt);
     let mut seats = [
         Seat { board: Default::default(), dead: Vec::new() },
         Seat { board: Default::default(), dead: Vec::new() },
@@ -365,11 +490,47 @@ fn play_hand(
 
     for street in 0..5usize {
         for seat in 0..2usize {
-            let draw: Vec<String> = if street == 0 {
-                names[seat][..5].to_vec()
-            } else {
-                names[seat][2 + street * 3..5 + street * 3].to_vec()
-            };
+            let draw = draw_at(&names, street, seat);
+            match play_decision(
+                id, &names, &mut seats, street, seat, arms, fl_ev, fl_table, table,
+                &mut trace, forced, fast,
+            )? {
+                Decision::Settled => {}
+                Decision::Scored(scored) => {
+                    let (after, toss) = greedy_move(scored)?;
+                    apply_move(&mut seats, seat, after, toss);
+                    record(&mut trace, street, seat, &draw, &seats[seat], "model");
+                }
+            }
+        }
+    }
+    Ok([finish_of(&seats[0].board)?, finish_of(&seats[1].board)?])
+}
+
+/// One (street, seat) decision: applied where nothing is a model's choice,
+/// scored and handed back where it is.
+///
+/// Extracted from `play_hand` so the greedy driver and the referee's search
+/// read the same decision.  A second copy of this would be a second game.
+#[allow(clippy::too_many_arguments)]
+fn play_decision(
+    id: &str,
+    names: &[Vec<String>; 2],
+    seats: &mut [Seat; 2],
+    street: usize,
+    seat: usize,
+    arms: &[&Arm<'_>; 2],
+    fl_ev: &FlEv,
+    fl_table: &evaluator::FlTable,
+    table: &[f64; 4],
+    trace: &mut Option<&mut Vec<TraceStep>>,
+    forced: Option<&Forced>,
+    fast: Option<&hu_fast::FastNets>,
+) -> Result<Decision> {
+    let mut trace = trace;
+    let draw = draw_at(names, street, seat);
+    {
+        {
             if let Some(rows) = forced.and_then(|map| map.get(&(street, seat))) {
                 // Every placed card must come from this seat's board-so-far
                 // plus its draw, and exactly one drawn card is thrown after
@@ -403,7 +564,7 @@ fn play_hand(
                 seats[seat].board = rows.clone();
                 seats[seat].dead.extend(tossed);
                 record(&mut trace, street, seat, &draw, &seats[seat], "forced");
-                continue;
+                return Ok(Decision::Settled);
             }
             let opp = 1 - seat;
             let (pool_names, pool) =
@@ -458,7 +619,7 @@ fn play_hand(
                 }
                 record(&mut trace, street, seat, &draw, &seats[seat],
                        if seat == 1 { "closed-form" } else { "exact-v4" });
-                continue;
+                return Ok(Decision::Settled);
             }
 
             // T3 second actor: exact, by the swapped V4.
@@ -496,7 +657,7 @@ fn play_hand(
                 seats[1].board = after;
                 seats[1].dead.push(toss);
                 record(&mut trace, street, seat, &draw, &seats[seat], "exact-v4");
-                continue;
+                return Ok(Decision::Settled);
             }
 
             // Everything else is a model decision.
@@ -508,6 +669,36 @@ fn play_hand(
                     .map(|(rows, toss)| (rows, Some(toss)))
                     .collect()
             };
+
+            // A distilled continuation, where the referee asked for one.  It
+            // reads every candidate for microseconds, so no shortlist runs in
+            // front of it and the champion is not consulted at all -- a
+            // half-distilled decision would be a third chain.  `fast` is
+            // `None` on every serving path by construction: `play_hand` cannot
+            // pass one.
+            if let Some(net) = fast.and_then(|nets| nets.get(street, seat)) {
+                let seen = hu_fast::seen_of(
+                    &seats[seat].board, &seats[opp].board, &draw, &seats[seat].dead,
+                );
+                let unseen = hu_fast::unseen_of(&seen)?;
+                let scored: Vec<ScoredMove> = candidates
+                    .into_par_iter()
+                    .map(|(after, toss)| {
+                        let discard = toss
+                            .as_deref()
+                            .ok_or_else(|| anyhow!("a distilled street always discards"))?;
+                        let mut features: Vec<f32> = Vec::new();
+                        let mut scratch: Vec<f32> = Vec::new();
+                        hu_fast::featurise(
+                            &after, &seats[opp].board, &seen, discard, street, &unseen,
+                            &mut features,
+                        )?;
+                        let score = net.predict(&features, &mut scratch);
+                        Ok((score, after, toss))
+                    })
+                    .collect::<Result<Vec<_>>>()?;
+                return Ok(Decision::Scored(scored));
+            }
             let opp_board = board_of(&seats[opp].board)?;
             let memo: playout::RowwiseMemo =
                 std::sync::Mutex::new(std::collections::HashMap::new());
@@ -648,18 +839,114 @@ fn play_hand(
                 Ok((score, after, toss))
             })
                 .collect::<Result<Vec<_>>>()?;
-            let (_, after, toss) = scored
-                .into_iter()
-                .max_by(|a, b| a.0.partial_cmp(&b.0).unwrap())
-                .ok_or_else(|| anyhow!("no legal placement"))?;
-            seats[seat].board = after;
-            if let Some(toss) = toss {
-                seats[seat].dead.push(toss);
-            }
-            record(&mut trace, street, seat, &draw, &seats[seat], "model");
+            Ok(Decision::Scored(scored))
         }
     }
-    Ok([finish_of(&seats[0].board)?, finish_of(&seats[1].board)?])
+}
+
+/// The best value the hero can reach from this decision onward, searching its
+/// own street-1 and street-2 choices `topk` wide and playing everything else
+/// the way a hand would.
+///
+/// # What the number means
+///
+/// The maximum is taken *inside* a rollout, so the hero picks its T1 and T2
+/// knowing that rollout's future draws.  A real hero does not know them.  With
+/// `topk > 1` this is therefore an optimistic bound on the opening's worth --
+/// useful for asking "could this opening have been played into something
+/// good", never comparable with a `topk = 1` number, which is what the current
+/// bundle would actually have earned.
+///
+/// # Why it recurses rather than replaying
+///
+/// Everything before the first branch is played once and cloned into the
+/// branches.  The opponent's replies are *not* hoisted: each is computed
+/// inside the branch it belongs to, because its move reads the hero's board
+/// and a shared reply would be answering a position that no longer exists.
+/// The sequential (street, seat) order gives both properties for free -- an
+/// opponent decision that precedes the branch point genuinely does not depend
+/// on it, and every one that follows is recomputed.
+#[allow(clippy::too_many_arguments)]
+fn search_hero_lines(
+    from: usize,
+    mut seats: [Seat; 2],
+    id: &str,
+    names: &[Vec<String>; 2],
+    arms: &[&Arm<'_>; 2],
+    fl_ev: &FlEv,
+    fl_table: &evaluator::FlTable,
+    table: &[f64; 4],
+    forced: Option<&Forced>,
+    fast: Option<&hu_fast::FastNets>,
+    hero_seat: usize,
+    topk: usize,
+    value: &(dyn Fn(&[Finished; 2]) -> f64 + Sync),
+) -> Result<f64> {
+    for step in from..10usize {
+        let (street, seat) = (step / 2, step % 2);
+        let scored = match play_decision(
+            id, names, &mut seats, street, seat, arms, fl_ev, fl_table, table,
+            &mut None, forced, fast,
+        )? {
+            Decision::Settled => continue,
+            Decision::Scored(scored) => scored,
+        };
+        if !branches_at(street, seat, hero_seat, topk) || scored.len() < 2 {
+            let (after, toss) = greedy_move(scored)?;
+            apply_move(&mut seats, seat, after, toss);
+            continue;
+        }
+        let mut best = f64::NEG_INFINITY;
+        for (_, after, toss) in branch_order(scored).into_iter().take(topk) {
+            let mut branch = seats.clone();
+            apply_move(&mut branch, seat, after, toss);
+            let reached = search_hero_lines(
+                step + 1, branch, id, names, arms, fl_ev, fl_table, table, forced, fast,
+                hero_seat, topk, value,
+            )?;
+            if reached > best {
+                best = reached;
+            }
+        }
+        return Ok(best);
+    }
+    let both = [finish_of(&seats[0].board)?, finish_of(&seats[1].board)?];
+    Ok(value(&both))
+}
+
+/// One referee rollout: greedy when `topk` is 1, a hero-side search above it.
+///
+/// `topk == 1` routes to `play_hand` untouched rather than to a search that
+/// would reduce to it, so the default mode is the same code it always was and
+/// its numbers need no argument to be trusted.
+#[allow(clippy::too_many_arguments)]
+fn referee_rollout(
+    id: &str,
+    dealt: &[fl_solver::Card],
+    arms: &[&Arm<'_>; 2],
+    fl_ev: &FlEv,
+    fl_table: &evaluator::FlTable,
+    table: &[f64; 4],
+    forced: Option<&Forced>,
+    fast: Option<&hu_fast::FastNets>,
+    hero_seat: usize,
+    topk: usize,
+    value: &(dyn Fn(&[Finished; 2]) -> f64 + Sync),
+) -> Result<f64> {
+    if topk <= 1 {
+        let both =
+            play_hand_with(id, dealt, arms, fl_ev, fl_table, table, None, forced, fast)?;
+        return Ok(value(&both));
+    }
+    let names = seat_names(dealt);
+    let seats = [
+        Seat { board: Default::default(), dead: Vec::new() },
+        Seat { board: Default::default(), dead: Vec::new() },
+    ];
+    search_hero_lines(
+        0, seats, id, &names, arms, fl_ev, fl_table, table, forced, fast, hero_seat, topk,
+        value,
+    )
 }
 
 fn record(
@@ -853,6 +1140,7 @@ pub fn mirror_hands(
 /// against the one future that actually happened would grade luck.  Rollout
 /// `r` deals the same future to every candidate, so the comparison is paired.
 #[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments)]
 pub fn deep_replay(
     steps: &[(usize, usize, Vec<String>, [Vec<String>; 3])],
     street: usize,
@@ -863,6 +1151,8 @@ pub fn deep_replay(
     arms: &[Arm<'_>; 2],
     fl_ev: &FlEv,
     fl_table: &evaluator::FlTable,
+    hero_topk: usize,
+    fast: Option<&hu_fast::FastNets>,
 ) -> Result<Vec<T0DeepRow>> {
     let order = |s: usize, t: usize| s * 2 + t;
     let target = order(street, seat);
@@ -1062,12 +1352,15 @@ pub fn deep_replay(
             chosen.iter().map(|(rows, _key)| {
                 let mut forced = history.clone();
                 forced.insert((street, seat), rows.clone());
-                let both = play_hand(&id, &dealt, &seated, fl_ev, fl_table, &table,
-                                     None, Some(&forced))?;
-                let (me, them) = (&both[seat], &both[1 - seat]);
-                let sign = if seat == 0 { 1.0 } else { -1.0 };
-                Ok((sign * settle(&both[0], &both[1]) as f64
-                    + entry(me) - entry(them)) as f32)
+                let value = |both: &[Finished; 2]| -> f64 {
+                    let (me, them) = (&both[seat], &both[1 - seat]);
+                    let sign = if seat == 0 { 1.0 } else { -1.0 };
+                    sign * settle(&both[0], &both[1]) as f64 + entry(me) - entry(them)
+                };
+                Ok(referee_rollout(
+                    &id, &dealt, &seated, fl_ev, fl_table, &table, Some(&forced), fast,
+                    seat, hero_topk, &value,
+                )? as f32)
             }).collect::<Result<Vec<f32>>>()
         })
         .collect();
@@ -1125,10 +1418,42 @@ pub fn t0_model_scores(
     arm: &Arm<'_>,
     fl_ev: &FlEv,
     fl_table: &evaluator::FlTable,
+    seat: usize,
+    opp: Option<&OppOpening>,
 ) -> Result<Vec<T0ModelRow>> {
     let empty: [Vec<String>; 3] = Default::default();
-    let (pool_names, pool) = pool_of(&empty, &empty, &[], hero)?;
-    let opp_board = board_of(&empty)?;
+    // At seat 1 the audit has to read the same decision state the rollouts do:
+    // hero renumbered by position (so the keys match `t0_deep_eval`'s), and
+    // the opponent's five spelled with whatever joker numbers hero left over.
+    let (hero, opp_rows): (Vec<String>, [Vec<String>; 3]) = match opp {
+        None => (hero.to_vec(), Default::default()),
+        Some(opp) => {
+            let (hero, _cards) = normalise_hero(hero)?;
+            let mut jokers = hero.iter().filter(|name| name.starts_with('X')).count();
+            let mut rows: [Vec<String>; 3] = Default::default();
+            for row in 0..3 {
+                for slot in &opp.rows[row] {
+                    let card = opp.cards[*slot];
+                    rows[row].push(if card.is_joker() {
+                        jokers += 1;
+                        format!("X{jokers}")
+                    } else {
+                        let ranks = b"23456789TJQKA";
+                        let suits = b"shdc";
+                        format!(
+                            "{}{}",
+                            ranks[(card.rank - 2) as usize] as char,
+                            suits[card.suit as usize] as char
+                        )
+                    });
+                }
+            }
+            (hero, rows)
+        }
+    };
+    let hero: &[String] = &hero;
+    let (pool_names, pool) = pool_of(&empty, &opp_rows, &[], hero)?;
+    let opp_board = board_of(&opp_rows)?;
     let memo: playout::RowwiseMemo = std::sync::Mutex::new(std::collections::HashMap::new());
     let node_seed = "model-rank/t0";
     let model = arm
@@ -1148,7 +1473,13 @@ pub fn t0_model_scores(
     // The policy shortlist, gated exactly as `play_hand` gates it, so "no
     // policy column" here means "no policy shortlist there" -- and where it
     // fires the ranker is skipped here too.
+    // `policy.bin` is a T0-BB net: it was trained on the first-actor decision
+    // and has never seen an opponent board.  At BTN it is not applied at all,
+    // here or in the summary, so `policy_rank` stays null and the ranker fence
+    // is what selects -- reported on stderr so a BTN run is not read as
+    // policy-fenced.
     let policy_rows: std::collections::HashMap<String, (f32, usize)> = match arm.t0_policy {
+        _ if seat == 1 => std::collections::HashMap::new(),
         None => std::collections::HashMap::new(),
         Some(net) => {
             let policy = t0_policy::T0Policy::new(net, hero)?;
@@ -1172,7 +1503,7 @@ pub fn t0_model_scores(
         .and_then(|slot| slot.as_ref())
         .map(|pair| pair[0])
         .filter(|_| {
-            arm.t0_policy.is_none()
+            (seat == 1 || arm.t0_policy.is_none())
                 && arm.topk > 0
                 && candidates.len() > arm.topk
                 && model.input_dim == hu_encode::HU_FEATURE_SIZE
@@ -1191,7 +1522,7 @@ pub fn t0_model_scores(
                     let own_board = board_of(after)?;
                     let score = score_with(
                         ranker, &own_board, &opp_board, after, &None, &[], &pool_names,
-                        &empty, &pool, fl_ev, fl_table, &memo, node_seed,
+                        &opp_rows, &pool, fl_ev, fl_table, &memo, node_seed,
                         &mut features, &mut scratch, &[], arm.joint_samples,
                     )?;
                     Ok((score, t0_key_of(after)))
@@ -1216,7 +1547,7 @@ pub fn t0_model_scores(
             let own_board = board_of(after)?;
             let score = score_with(
                 model, &own_board, &opp_board, after, &None, &[], &pool_names,
-                &empty, &pool, fl_ev, fl_table, &memo, node_seed,
+                &opp_rows, &pool, fl_ev, fl_table, &memo, node_seed,
                 &mut features, &mut scratch, &opp_tail, arm.joint_samples,
             )?;
             let key = t0_key_of(after);
@@ -1308,6 +1639,77 @@ pub(crate) fn normalise_hero(hero: &[String]) -> Result<(Vec<String>, Vec<fl_sol
     Ok((hero, hero_cards))
 }
 
+/// The opponent's already-placed opening, as a BTN T0 decision state needs it.
+///
+/// At T0 the BB decision is well posed from five cards alone -- the opponent's
+/// board is empty.  The BTN decision is not: within a street BB acts first, so
+/// BTN sees five placed cards before it chooses, and the decision state is the
+/// pair (BTN's five, BB's board).  Pinning only one half would measure a
+/// position nobody is ever in.
+///
+/// `cards` is the five in the order they enter the deal, and `rows` indexes
+/// into it rather than carrying names, because the name a joker gets depends
+/// on the rollout; see `seat_names`.
+pub struct OppOpening {
+    cards: Vec<fl_solver::Card>,
+    rows: [Vec<usize>; 3],
+}
+
+/// Parse and check `--t0-opp-board "<top>|<middle>|<bottom>"`.
+///
+/// Checked against `hero` as well as against itself: the ten cards are one
+/// deal, so a board that reused one of hero's cards would describe a position
+/// that cannot be dealt, and every rollout would then silently exclude the
+/// wrong card from the deck.
+pub(crate) fn parse_opp_board(spec: &str, hero: &[String]) -> Result<OppOpening> {
+    let parts: Vec<&str> = spec.split('|').collect();
+    if parts.len() != 3 {
+        bail!(
+            "--t0-opp-board wants three rows separated by '|' (top|middle|bottom), got {}",
+            parts.len()
+        );
+    }
+    let mut cards: Vec<fl_solver::Card> = Vec::with_capacity(5);
+    let mut names: Vec<String> = Vec::with_capacity(5);
+    let mut rows: [Vec<usize>; 3] = Default::default();
+    for (row, text) in parts.iter().enumerate() {
+        for name in text.split(',').map(str::trim).filter(|s| !s.is_empty()) {
+            rows[row].push(cards.len());
+            cards.push(card_of(name)?);
+            names.push(name.to_string());
+        }
+        if rows[row].len() > ROW_CAPACITY[row] {
+            bail!(
+                "--t0-opp-board row {row} holds {} of {}",
+                rows[row].len(),
+                ROW_CAPACITY[row]
+            );
+        }
+    }
+    if cards.len() != 5 {
+        bail!(
+            "--t0-opp-board is a T0 board: exactly five cards, got {}",
+            cards.len()
+        );
+    }
+    // Naturals are compared by name and jokers by count, the same split the
+    // deck accounting uses everywhere: X1 and X2 are two slots holding one
+    // card, so "duplicate" cannot mean "equal as a Card".
+    let mut naturals: std::collections::BTreeSet<&str> = std::collections::BTreeSet::new();
+    let mut jokers = 0usize;
+    for name in names.iter().chain(hero.iter()) {
+        if name.starts_with('X') {
+            jokers += 1;
+        } else if !naturals.insert(name.as_str()) {
+            bail!("{name} appears twice across --t0-cards and --t0-opp-board");
+        }
+    }
+    if jokers > 2 {
+        bail!("{jokers} jokers across --t0-cards and --t0-opp-board; the deck holds two");
+    }
+    Ok(OppOpening { cards, rows })
+}
+
 /// The candidate boards a batch will evaluate, in the requested order.
 ///
 /// Discipline: unknown or duplicate keys are enumerated errors, never skipped
@@ -1362,7 +1764,11 @@ pub(crate) fn t0_candidate_keys(
     Ok(chosen)
 }
 
-/// Deep evaluation of a specified BB (first-actor) T0 hand.
+/// Deep evaluation of a specified T0 hand, at either seat.
+///
+/// `seat` 0 is BB, which acts first from an empty table, and is what this mode
+/// did before BTN existed.  `seat` 1 is BTN, whose decision needs `opp` -- the
+/// board BB has already placed -- pinned alongside the candidate.
 ///
 /// The regular track's restricted-evaluation lesson, translated: the sieve
 /// (street teacher, boundary-net read) proposes, but the verdict comes from
@@ -1375,6 +1781,7 @@ pub(crate) fn t0_candidate_keys(
 /// errors, never skipped -- a silently dropped candidate reads as "measured".
 /// One invocation is one batch; verdicts want 4+ seeds and a CI clear of
 /// zero.
+#[allow(clippy::too_many_arguments)]
 pub fn t0_deep_eval(
     hero: &[String],
     wanted: Option<&[String]>,
@@ -1383,9 +1790,20 @@ pub fn t0_deep_eval(
     arms: &[Arm<'_>; 2],
     fl_ev: &FlEv,
     fl_table: &evaluator::FlTable,
+    seat: usize,
+    opp: Option<&OppOpening>,
+    hero_topk: usize,
+    fast: Option<&hu_fast::FastNets>,
 ) -> Result<Vec<T0DeepRow>> {
     let (hero, hero_cards) = normalise_hero(hero)?;
     let chosen = t0_candidate_keys(&hero, wanted)?;
+    // The two halves of a BTN decision state travel together or not at all.
+    match (seat, opp) {
+        (0, None) | (1, Some(_)) => {}
+        (1, None) => bail!("--hu-t0-seat 1 requires --t0-opp-board: BB has already acted"),
+        (0, Some(_)) => bail!("--t0-opp-board is meaningless at seat 0: BB acts first"),
+        (other, _) => bail!("--hu-t0-seat is 0 (BB) or 1 (BTN), got {other}"),
+    }
 
     let table = [
         fl_ev.value(14),
@@ -1397,10 +1815,15 @@ pub fn t0_deep_eval(
     let per_rollout: Result<Vec<Vec<f32>>> = (0..rollouts as u64)
         .into_par_iter()
         .map(|rollout| {
-            // A full-deck shuffle with the hero's five removed keeps the
-            // dealing machinery identical to the match harness.
+            // A full-deck shuffle with the known cards removed keeps the
+            // dealing machinery identical to the match harness.  At seat 1
+            // the opponent's five are known too, so ten come out rather than
+            // five and each seat is dealt twelve futures.
             let shuffled = deal_names(seed, rollout, 54);
             let mut need = hero_cards.clone();
+            if let Some(opp) = opp {
+                need.extend(opp.cards.iter().copied());
+            }
             let mut rest: Vec<fl_solver::Card> = Vec::with_capacity(49);
             for card in shuffled {
                 if let Some(at) = need
@@ -1416,8 +1839,22 @@ pub fn t0_deep_eval(
                 bail!("deck exclusion failed for rollout {rollout}");
             }
             let mut dealt: Vec<fl_solver::Card> = Vec::with_capacity(34);
-            dealt.extend(hero_cards.iter().copied());
-            dealt.extend(rest[..29].iter().copied());
+            match opp {
+                // Seat 0: hero opens, and everything after its five is dealt
+                // straight off the shuffle -- unchanged.
+                None => {
+                    dealt.extend(hero_cards.iter().copied());
+                    dealt.extend(rest[..29].iter().copied());
+                }
+                // Seat 1: the opponent's pinned five open seat 0, hero's five
+                // open seat 1, and each gets twelve futures.
+                Some(opp) => {
+                    dealt.extend(opp.cards.iter().copied());
+                    dealt.extend(rest[..12].iter().copied());
+                    dealt.extend(hero_cards.iter().copied());
+                    dealt.extend(rest[12..24].iter().copied());
+                }
+            }
             // The id seeds the encoders' sample streams; candidates share it
             // so identical sub-states sample identically.
             let id = format!("d/{seed}/{rollout}");
@@ -1428,16 +1865,69 @@ pub fn t0_deep_eval(
                     0.0
                 }
             };
+            // The names this deal gives its cards.  Hero's joker can be X1 in
+            // one rollout and X2 in the next -- it depends on how many jokers
+            // fall in seat 0's seventeen -- so a candidate is respelled per
+            // rollout by position rather than carrying the canonical name.
+            let (opp_forced, respell): (Option<[Vec<String>; 3]>, Option<Vec<(String, String)>>) =
+                match opp {
+                    None => (None, None),
+                    Some(opp) => {
+                        let names = seat_names(&dealt);
+                        let mut rows: [Vec<String>; 3] = Default::default();
+                        for row in 0..3 {
+                            for slot in &opp.rows[row] {
+                                rows[row].push(names[0][*slot].clone());
+                            }
+                        }
+                        let map = hero
+                            .iter()
+                            .cloned()
+                            .zip(names[1][..5].iter().cloned())
+                            .collect();
+                        (Some(rows), Some(map))
+                    }
+                };
             chosen
                 .iter()
                 .map(|(rows, _key)| {
                     let mut forced: Forced = Forced::new();
-                    forced.insert((0, 0), rows.clone());
-                    let both = play_hand(
-                        &id, &dealt, &seated, fl_ev, fl_table, &table, None, Some(&forced),
-                    )?;
-                    Ok((settle(&both[0], &both[1]) as f64 + entry(&both[0]) - entry(&both[1]))
-                        as f32)
+                    let rows = match &respell {
+                        None => rows.clone(),
+                        Some(map) => {
+                            let mut out: [Vec<String>; 3] = Default::default();
+                            for row in 0..3 {
+                                for name in &rows[row] {
+                                    let actual = map
+                                        .iter()
+                                        .find(|(canonical, _)| canonical == name)
+                                        .map(|(_, actual)| actual.clone())
+                                        .ok_or_else(|| {
+                                            anyhow!("{name} is not one of hero's five")
+                                        })?;
+                                    out[row].push(actual);
+                                }
+                            }
+                            out
+                        }
+                    };
+                    forced.insert((0, seat), rows);
+                    if let Some(opp_rows) = &opp_forced {
+                        forced.insert((0, 0), opp_rows.clone());
+                    }
+                    // From hero's seat.  `settle` reads "points to the first
+                    // argument", so at seat 1 both the comparison and the two
+                    // entry terms flip -- a sign left at seat 0 would invert
+                    // every BTN verdict and still look like a plausible table.
+                    let value = |both: &[Finished; 2]| -> f64 {
+                        let (me, them) = (seat, 1 - seat);
+                        settle(&both[me], &both[them]) as f64 + entry(&both[me])
+                            - entry(&both[them])
+                    };
+                    Ok(referee_rollout(
+                        &id, &dealt, &seated, fl_ev, fl_table, &table, Some(&forced), fast,
+                        seat, hero_topk, &value,
+                    )? as f32)
                 })
                 .collect::<Result<Vec<f32>>>()
         })
@@ -1714,4 +2204,233 @@ pub fn run(
 fn states_label(seat_state: [State; 2], arm_at: [usize; 2], arm: usize) -> &'static str {
     let seat = if arm_at[0] == arm { 0 } else { 1 };
     seat_state[seat].label()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn hero() -> Vec<String> {
+        ["As", "Kd", "7c", "7h", "2s"]
+            .iter()
+            .map(|s| s.to_string())
+            .collect()
+    }
+
+    fn finished(busted: bool, top: u32, mid: u32, bot: u32, royalty: i32, entry: u8) -> Finished {
+        Finished { busted, top, mid, bot, royalty, entry_width: entry }
+    }
+
+    /// **The seat swap is a sign flip and nothing else.**
+    ///
+    /// `t0_deep_eval` scores a rollout as `settle(me, them) + entry(me) -
+    /// entry(them)`; at BTN the same hand must come out as exactly the
+    /// negative of the BB reading, or the mode ranks BTN openings upside down
+    /// while still printing a plausible-looking table.  Checked over pairs
+    /// that exercise every branch of `settle`: two live boards, each foul, and
+    /// the double foul that washes.
+    ///
+    /// Exact `==` rather than a bit comparison, for one reason worth writing
+    /// down: a hand that washes gives `0.0` read from one seat and `-0.0` from
+    /// the other, which are equal numbers with different bits.  Nothing
+    /// downstream can tell them apart -- they sum and sort identically -- so
+    /// the bit test would be asserting a distinction that does not exist.
+    #[test]
+    fn scoring_a_hand_from_the_other_seat_is_the_exact_negative() {
+        let table = [6.57, 16.61, 38.76, 70.07];
+        let entry = |f: &Finished| -> f64 {
+            if !f.busted && f.entry_width >= 14 {
+                table[(f.entry_width - 14) as usize]
+            } else {
+                0.0
+            }
+        };
+        let view = |me: &Finished, them: &Finished| -> f64 {
+            settle(me, them) as f64 + entry(me) - entry(them)
+        };
+        let boards = [
+            finished(false, 900, 5_000, 9_000, 12, 14),
+            finished(false, 1_200, 4_000, 9_500, 3, 0),
+            finished(true, 0, 0, 0, 0, 0),
+            finished(false, 2_000, 8_000, 9_900, 25, 17),
+        ];
+        for a in &boards {
+            for b in &boards {
+                assert_eq!(
+                    view(a, b),
+                    -view(b, a),
+                    "the two seats do not read the same hand as opposites"
+                );
+            }
+        }
+    }
+
+    /// **Jokers are numbered across the whole deal, not within a seat.**
+    ///
+    /// This is why a BTN candidate cannot be spelled once and reused: hero's
+    /// joker is X1 when it is the deal's first and X2 when the opponent's
+    /// seventeen hold one first.  `t0_deep_eval` respells by position for
+    /// exactly this reason, and the property it relies on is pinned here.
+    #[test]
+    fn a_seats_joker_name_depends_on_the_other_seats_cards() {
+        let natural = fl_solver::Card { rank: 5, suit: 1 };
+        let joker = fl_solver::Card { rank: 0, suit: 4 };
+        // Hero (seat 1) holds the only joker: it is the deal's first.
+        let mut dealt = vec![natural; 34];
+        dealt[17] = joker;
+        assert_eq!(seat_names(&dealt)[1][0], "X1");
+        // Now the opponent holds one too, earlier in the deal.
+        dealt[0] = joker;
+        let names = seat_names(&dealt);
+        assert_eq!(names[0][0], "X1", "the opponent's joker is the deal's first");
+        assert_eq!(names[1][0], "X2", "hero's joker did not renumber behind it");
+    }
+
+    /// **A BTN opponent board is five cards, legal, and disjoint from hero's.**
+    ///
+    /// Every rejection here is a position that cannot be dealt.  The one that
+    /// matters most is the overlap: a board reusing one of hero's cards would
+    /// still parse, and would then remove the wrong card from every rollout's
+    /// deck without anything failing.
+    #[test]
+    fn a_bad_opponent_board_is_refused_rather_than_dealt() {
+        let hero = hero();
+        let bad = [
+            ("Qs|Jd,Th|9c", "four cards"),
+            ("Qs|Jd,Th|9c,8c,6d", "six cards"),
+            ("Qs,Jd,Th,9c|8c|", "over the top row's capacity"),
+            ("Qs|Jd,Th", "two rows"),
+            ("Qs|Jd,Th|9c,8c|7d", "four rows"),
+            ("Qs|Qs,Th|9c,8c", "a natural twice"),
+            ("As|Jd,Th|9c,8c", "one of hero's own cards"),
+            ("7h|Jd,Th|9c,8c", "hero's other seven"),
+            ("Zz|Jd,Th|9c,8c", "not a card"),
+        ];
+        for (spec, why) in bad {
+            assert!(
+                parse_opp_board(spec, &hero).is_err(),
+                "accepted an opponent board with {why}: {spec}"
+            );
+        }
+        // Two jokers is the deck's whole supply, so hero holding one caps the
+        // board at one.
+        assert!(parse_opp_board("X1|X2,Th|9c,8c", &hero).is_ok());
+        let joker_hero: Vec<String> = ["X1", "Kd", "7c", "7h", "2s"]
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+        assert!(
+            parse_opp_board("X1|X2,Th|9c,8c", &joker_hero).is_err(),
+            "three jokers were accepted across two hands"
+        );
+        assert!(parse_opp_board("X1|Jd,Th|9c,8c", &joker_hero).is_ok());
+    }
+
+    /// **A referee search opens the hero's T1 and T2 and nothing else.**
+    ///
+    /// The two exact streets are the ones that matter: street 3-BTN and both
+    /// seats of street 4 are solved, not modelled, and a search that reached
+    /// them would be overriding an exact answer with a shortlist.  The
+    /// opponent never branches at any street -- it is the environment being
+    /// measured against.
+    #[test]
+    fn only_the_heros_middle_streets_branch() {
+        for hero in 0..2usize {
+            for street in 0..5usize {
+                for seat in 0..2usize {
+                    let opened = branches_at(street, seat, hero, 3);
+                    let want = seat == hero && (street == 1 || street == 2);
+                    assert_eq!(
+                        opened, want,
+                        "street {street} seat {seat} (hero {hero}) branch = {opened}"
+                    );
+                    // Streets 3 and 4 are never opened, for either seat.
+                    if street >= 3 {
+                        assert!(!opened, "the exact streets were branched");
+                    }
+                }
+            }
+            // K = 1 is the greedy play-out: nothing is ever opened.
+            for street in 0..5usize {
+                for seat in 0..2usize {
+                    assert!(!branches_at(street, seat, hero, 1));
+                    assert!(!branches_at(street, seat, hero, 0));
+                }
+            }
+        }
+    }
+
+    /// **A search's first line is the line the hand would have played.**
+    ///
+    /// `greedy_move` takes `max_by`, which keeps the LAST maximum; if
+    /// `branch_order` broke ties the other way its head would be a different
+    /// move, and a K=2 search would explore a set that does not contain the
+    /// K=1 line -- so a bigger K could score WORSE and the monotonicity that
+    /// makes these numbers a bound would quietly stop holding.
+    #[test]
+    fn the_branch_order_leads_with_the_greedy_move() {
+        let mv = |score: f32, tag: &str| -> ScoredMove {
+            (score, [vec![tag.to_string()], Vec::new(), Vec::new()], None)
+        };
+        // Three-way tie at the top: `max_by` keeps the last of them.
+        let field = vec![mv(2.0, "a"), mv(5.0, "b"), mv(1.0, "c"), mv(5.0, "d"), mv(5.0, "e")];
+        let (greedy, _) = greedy_move(field.clone()).expect("a move");
+        assert_eq!(greedy[0], vec!["e".to_string()], "max_by kept the wrong tie");
+        let ordered = branch_order(field);
+        assert_eq!(ordered[0].1[0], vec!["e".to_string()], "the head is not the greedy move");
+        // Descending in score, and the tied block runs latest-index-first.
+        let tags: Vec<String> = ordered.iter().map(|m| m.1[0][0].clone()).collect();
+        assert_eq!(tags, vec!["e", "d", "b", "a", "c"]);
+        assert!(
+            ordered.windows(2).all(|w| w[0].0 >= w[1].0),
+            "branch_order is not descending in score"
+        );
+    }
+
+    /// **A wider search sees a superset of a narrower one.**
+    ///
+    /// `branch_order` is one ordering, and taking K of it is a prefix, so the
+    /// K=2 field contains the K=1 field and the max over it cannot be smaller.
+    /// This is the property the empirical K=2 >= K=1 check rests on.
+    #[test]
+    fn a_wider_branch_keeps_everything_a_narrower_one_had() {
+        let mv = |score: f32, tag: &str| -> ScoredMove {
+            (score, [vec![tag.to_string()], Vec::new(), Vec::new()], None)
+        };
+        let field = vec![mv(2.0, "a"), mv(5.0, "b"), mv(1.0, "c"), mv(5.0, "d"), mv(4.0, "e")];
+        let ordered = branch_order(field);
+        for k in 1..=ordered.len() {
+            let narrow: Vec<&String> = ordered.iter().take(k).map(|m| &m.1[0][0]).collect();
+            let wide: Vec<&String> = ordered.iter().take(k + 1).map(|m| &m.1[0][0]).collect();
+            assert_eq!(&wide[..narrow.len()], &narrow[..], "K+1 is not a superset of K");
+        }
+    }
+
+    /// **A parsed board keeps its rows, and its cards keep their order.**
+    ///
+    /// `rows` indexes into `cards` rather than naming them, so the mapping has
+    /// to survive the parse intact: the deal names the cards later, and a row
+    /// that pointed at the wrong slot would place the right five cards in the
+    /// wrong rows and never fail.
+    #[test]
+    fn a_parsed_opponent_board_keeps_its_shape() {
+        let parsed = parse_opp_board("Qs|Jd,Th|9c,8c", &hero()).expect("legal board");
+        assert_eq!(parsed.cards.len(), 5);
+        assert_eq!(parsed.rows[0], vec![0]);
+        assert_eq!(parsed.rows[1], vec![1, 2]);
+        assert_eq!(parsed.rows[2], vec![3, 4]);
+        let names = ["Qs", "Jd", "Th", "9c", "8c"];
+        for (slot, name) in names.iter().enumerate() {
+            assert_eq!(
+                parsed.cards[slot],
+                card_of(name).expect("card"),
+                "slot {slot} is not {name}"
+            );
+        }
+        // An empty row is legal input, and the indices still line up.
+        let top_heavy = parse_opp_board("Qs,Jd,Th|9c|8c", &hero()).expect("legal board");
+        assert_eq!(top_heavy.rows[0], vec![0, 1, 2]);
+        assert_eq!(top_heavy.rows[1], vec![3]);
+        assert_eq!(top_heavy.rows[2], vec![4]);
+    }
 }

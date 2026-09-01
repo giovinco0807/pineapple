@@ -30,6 +30,7 @@ mod hu_traces;
 mod self_play;
 mod fl_sim;
 mod emit_roots;
+mod hu_fast;
 mod fl_t0_deep;
 mod fl_t0_teach;
 mod discard_model;
@@ -1007,6 +1008,58 @@ struct Cli {
     /// One invocation is one batch; see hu_match::t0_deep_eval.
     #[arg(long, default_value_t = false)]
     hu_t0_deep: bool,
+    /// Which seat --hu-t0-deep referees: 0 = BB (acts first from an empty
+    /// table), 1 = BTN (acts after BB has placed its five).
+    #[arg(long, default_value_t = 0)]
+    hu_t0_seat: usize,
+    /// BB's already-placed opening, "<top>|<middle>|<bottom>" with cards
+    /// comma-separated inside a row (jokers X1/X2).  A BTN T0 decision state
+    /// is the pair (BTN's five, BB's board), so this is required at
+    /// --hu-t0-seat 1 and refused at seat 0, where BB has not acted.
+    #[arg(long)]
+    t0_opp_board: Option<String>,
+    /// Referee play-out width at the HERO's streets 1 and 2.  1 (default) is
+    /// the greedy play-out: the bundle picks its own continuation, which is
+    /// what the current chain would actually earn.  Above 1 the referee
+    /// expands the model's top-K at each of those two streets, recurses (K at
+    /// both = K^2 lines), and takes the BEST line's score for the rollout.
+    ///
+    /// READ THIS BEFORE COMPARING NUMBERS: the maximum is taken inside a
+    /// rollout, so the hero chooses its T1/T2 already knowing that rollout's
+    /// future draws.  No real hero knows them.  A K>1 number is an OPTIMISTIC
+    /// BOUND on what an opening could have been played into, not what the
+    /// bundle earns, and it is NOT comparable with a K=1 number -- it is
+    /// higher by construction.  Streets 3 and 4 are solved exactly and never
+    /// branch; the opponent stays greedy and replies inside every hero branch.
+    /// Referee modes only (--hu-t0-deep, --hu-deep-replay); serving and the
+    /// match/mirror path never search.
+    #[arg(long, default_value_t = 1)]
+    hu_hero_topk: usize,
+    /// Directory of distilled fast nets (t1_bb.bin t1_btn.bin t2_bb.bin
+    /// t2_btn.bin t3_bb.bin).  Absent = the champion plays every continuation,
+    /// unchanged.  Present, a REFEREE play-out picks those five moves by
+    /// argmax over the fast net instead, which is what makes high particle
+    /// counts affordable.
+    ///
+    /// The distilled chain is weaker than the champion (dev top-1 agreement
+    /// 0.60 / 0.51 / 0.43 at t1_bb / t2_btn / t3_bb), so these numbers say
+    /// what an opening is worth when the REST IS PLAYED BY THE DISTILLED
+    /// CHAIN and are NOT comparable with a champion-continuation run.  Every
+    /// slot must be present: a part-distilled referee is a third chain.
+    /// Serving never consults these nets.
+    #[arg(long)]
+    hu_fast_nets: Option<PathBuf>,
+    /// Write the 487-dim fast-net feature vector for every candidate of every
+    /// state in this JSONL file, one record per candidate, and stop.  Exists
+    /// so the Rust encoder can be diffed against
+    /// `ai/tutor/train_hu_fast_eval.py::featurise` rather than trusted.
+    /// Input lines take the trainer's own material shape:
+    ///   {"own":[[..],[..],[..]],"opp":[[..],[..],[..]],
+    ///    "draw":[..],"own_discards":[..],"street":N}
+    /// `street` may be omitted when the file is a material dump for a known
+    /// slot; pass --replay-street then.  Wants --input and --output.
+    #[arg(long, default_value_t = false)]
+    dump_fast_features: bool,
     /// The same audit for the other half of the serving surface: hero's T0
     /// against an opponent already in Fantasyland.  Hero's chain is the
     /// shipped own-hand one (--arm-a-own) and the score is hero's own
@@ -1205,9 +1258,124 @@ fn opponents_for<'a>(
     }
 }
 
+/// Say, next to the numbers themselves, what a searched play-out measured.
+///
+/// The rows a K>1 run writes look exactly like the rows a K=1 run writes, and
+/// they mean something different: the hero picked its T1/T2 knowing that
+/// rollout's future draws.  Anyone reading the two files side by side without
+/// this line would conclude the bundle got stronger.
+fn warn_hero_topk(topk: usize) {
+    if topk > 1 {
+        eprintln!(
+            "hero-topk {topk}: the hero's T1/T2 were SEARCHED and the rollout kept its \
+             best line, chosen with that rollout's future draws already known. These \
+             means are an OPTIMISTIC BOUND, not what the bundle earns, and are NOT \
+             comparable with hero-topk 1 numbers."
+        );
+    }
+}
+
+/// One line per candidate: the trainer's action index and the 487 features.
+///
+/// Deliberately dumb and deliberately separate from the serving path: its only
+/// job is to be diffable against the Python, so it enumerates candidates the
+/// trainer's way and writes full precision.
+fn dump_fast_features(cli: &Cli) -> Result<()> {
+    #[derive(serde::Deserialize)]
+    struct State {
+        own: [Vec<String>; 3],
+        opp: [Vec<String>; 3],
+        draw: Vec<String>,
+        #[serde(default)]
+        own_discards: Vec<String>,
+        street: Option<usize>,
+    }
+    let path = cli
+        .input
+        .as_ref()
+        .ok_or_else(|| anyhow!("--dump-fast-features requires --input"))?;
+    // With a net directory given, each row also carries the score this build
+    // reads off the image -- so the HUF1 loader and the forward pass can be
+    // diffed against the checkpoint too, not just the encoder.  The slot is
+    // (--replay-street, --replay-seat).
+    let nets = match &cli.hu_fast_nets {
+        Some(dir) => Some(hu_fast::FastNets::load_dir(dir)?),
+        None => None,
+    };
+    let mut writer = BufWriter::new(File::create(&cli.output)?);
+    let mut rows = 0usize;
+    for (index, line) in BufReader::new(File::open(path)?).lines().enumerate() {
+        let line = line?;
+        if line.trim().is_empty() {
+            continue;
+        }
+        let state: State = serde_json::from_str(&line)
+            .map_err(|e| anyhow!("{}:{}: {e}", path.display(), index + 1))?;
+        let street = state.street.unwrap_or(cli.replay_street);
+        let seen = hu_fast::seen_of(&state.own, &state.opp, &state.draw, &state.own_discards);
+        let unseen = hu_fast::unseen_of(&seen)?;
+        let mut features: Vec<f32> = Vec::new();
+        for (action, after, discard) in hu_fast::python_candidates(&state.own, &state.draw) {
+            hu_fast::featurise(
+                &after, &state.opp, &seen, &discard, street, &unseen, &mut features,
+            )?;
+            let score = nets
+                .as_ref()
+                .and_then(|nets| nets.get(street, cli.replay_seat))
+                .map(|net| {
+                    let mut scratch: Vec<f32> = Vec::new();
+                    net.predict(&features, &mut scratch)
+                });
+            writeln!(
+                writer,
+                "{}",
+                serde_json::json!({
+                    "line": index,
+                    "action": action,
+                    "discard": discard,
+                    "street": street,
+                    "score": score,
+                    "features": features,
+                })
+            )?;
+            rows += 1;
+        }
+    }
+    writer.flush()?;
+    eprintln!(
+        "dump-fast-features: {rows} candidate vectors of {} dims -> {}",
+        hu_fast::FAST_FEATURES,
+        cli.output.display()
+    );
+    Ok(())
+}
+
 fn main() -> Result<()> {
     let cli = Cli::parse();
+    if cli.dump_fast_features {
+        return dump_fast_features(&cli);
+    }
     let fl_ev = FlEv::load(&cli.fl_ev_config)?;
+    // Loaded before the modes and handed only to referees.  Announced when
+    // present: a fast-net run and a champion run write the same columns and
+    // mean different things.
+    let hu_fast_nets: Option<hu_fast::FastNets> = match &cli.hu_fast_nets {
+        Some(dir) => {
+            let nets = hu_fast::FastNets::load_dir(dir)?;
+            eprintln!(
+                "hu-fast-nets: loaded {} from {}",
+                nets.loaded(),
+                dir.display()
+            );
+            eprintln!(
+                "hu-fast-nets: referee continuations are the DISTILLED chain, not the \
+                 champion. These values are NOT comparable with a champion-continuation \
+                 run, and serving never consults these nets."
+            );
+            Some(nets)
+        }
+        None => None,
+    };
     // The T2 fence, loaded once ahead of the modes because it is a serving
     // option rather than a mode of its own.  Absent the flag nothing is read,
     // and a mode that does not thread it simply never looks.  It is announced
@@ -1891,6 +2059,7 @@ fn main() -> Result<()> {
             let rows = hu_match::deep_replay(
                 &steps, cli.replay_street, cli.replay_seat, wanted.as_deref(),
                 cli.rollouts, cli.self_play_seed, &[arm_a, arm_b], &fl_ev, &fl_table,
+                cli.hu_hero_topk, hu_fast_nets.as_ref(),
             )?;
             let mut writer = BufWriter::new(File::create(&cli.output)?);
             for row in &rows {
@@ -1901,10 +2070,12 @@ fn main() -> Result<()> {
                 eprintln!("replay {:+8.3}  n={}  {}", row.mean, row.n, row.key);
             }
             eprintln!(
-                "hu-deep-replay: hand {} T{} seat {} -- {} candidates x {} rollouts -> {}",
+                "hu-deep-replay: hand {} T{} seat {} -- {} candidates x {} rollouts, \
+                 hero-topk {} -> {}",
                 cli.replay_hand, cli.replay_street, cli.replay_seat,
-                rows.len(), cli.rollouts, cli.output.display()
+                rows.len(), cli.rollouts, cli.hu_hero_topk, cli.output.display()
             );
+            warn_hero_topk(cli.hu_hero_topk);
             return Ok(());
         }
         if cli.hu_mirror {
@@ -1935,11 +2106,26 @@ fn main() -> Result<()> {
                 .map(|s| s.trim().to_string())
                 .filter(|s| !s.is_empty())
                 .collect();
+            // Both halves of the decision state, checked together: at BTN the
+            // opponent board is as much of the position as hero's five are.
+            let opp_opening = match (cli.hu_t0_seat, cli.t0_opp_board.as_deref()) {
+                (0, None) => None,
+                (1, Some(spec)) => Some(hu_match::parse_opp_board(spec, &cards)?),
+                (1, None) => {
+                    bail!("--hu-t0-seat 1 requires --t0-opp-board: BB has already acted")
+                }
+                (0, Some(_)) => {
+                    bail!("--t0-opp-board is meaningless at seat 0: BB acts first")
+                }
+                (other, _) => bail!("--hu-t0-seat is 0 (BB) or 1 (BTN), got {other}"),
+            };
             if cli.rollouts == 0 {
                 // The model's own ranking, for auditing a model-first sieve.
                 // `rank`/`score` are the evaluator's; the ranker columns say
                 // which openings serving would have let it see at all.
-                let scored = hu_match::t0_model_scores(&cards, &arm_a, &fl_ev, &fl_table)?;
+                let scored = hu_match::t0_model_scores(
+                    &cards, &arm_a, &fl_ev, &fl_table, cli.hu_t0_seat, opp_opening.as_ref(),
+                )?;
                 let mut writer = BufWriter::new(File::create(&cli.output)?);
                 for (rank, row) in scored.iter().enumerate() {
                     writeln!(
@@ -1971,11 +2157,25 @@ fn main() -> Result<()> {
                     })
                     .max_by(|a, b| a.score.partial_cmp(&b.score).unwrap());
                 eprintln!(
-                    "t0-model-rank: {} openings, {} ranker-scored (K={}), \
+                    "t0-model-rank: seat {} ({}), {} openings, {} ranker-scored (K={}), \
                      {} policy-scored (K={}) -> {}",
+                    cli.hu_t0_seat,
+                    if cli.hu_t0_seat == 1 { "BTN" } else { "BB" },
                     scored.len(), ranked, cli.hu_topk,
                     by_policy, cli.hu_t0_policy_topk, cli.output.display()
                 );
+                if cli.hu_t0_seat == 1 {
+                    // Said out loud because the columns alone cannot say it:
+                    // a null policy_rank could mean "no policy loaded" or
+                    // "policy deliberately not applied", and a BTN run read as
+                    // policy-fenced would be read as a decision nobody makes.
+                    eprintln!(
+                        "t0-model-rank: policy.bin is a T0-BB net and is NOT applied at BTN; \
+                         the ranker fence (K={}) selects. Opponent board: {}",
+                        cli.hu_topk,
+                        cli.t0_opp_board.as_deref().unwrap_or("-")
+                    );
+                }
                 if let (Some(top), Some(served)) = (scored.first(), served) {
                     eprintln!(
                         "t0-model-rank: evaluator {} {:+.4} | served {} {:+.4}",
@@ -2012,6 +2212,10 @@ fn main() -> Result<()> {
                 &[arm_a, arm_b],
                 &fl_ev,
                 &fl_table,
+                cli.hu_t0_seat,
+                opp_opening.as_ref(),
+                cli.hu_hero_topk,
+                hu_fast_nets.as_ref(),
             )?;
             let mut writer = BufWriter::new(File::create(&cli.output)?);
             for row in &rows {
@@ -2022,12 +2226,18 @@ fn main() -> Result<()> {
                 eprintln!("t0-deep {:+8.3}  n={}  {}", row.mean, row.n, row.key);
             }
             eprintln!(
-                "hu-t0-deep: {} candidates x {} rollouts, seed {:#x} -> {}",
+                "hu-t0-deep: seat {} ({}), opp board {}, {} candidates x {} rollouts, \
+                 hero-topk {}, seed {:#x} -> {}",
+                cli.hu_t0_seat,
+                if cli.hu_t0_seat == 1 { "BTN" } else { "BB" },
+                cli.t0_opp_board.as_deref().unwrap_or("-"),
                 rows.len(),
                 cli.rollouts,
+                cli.hu_hero_topk,
                 cli.self_play_seed,
                 cli.output.display()
             );
+            warn_hero_topk(cli.hu_hero_topk);
             return Ok(());
         }
         if cli.hu_trace > 0 {
