@@ -88,6 +88,22 @@ impl Arm<'_> {
             _ => self.topk,
         }
     }
+
+    /// The `t0_btn_topk` an arm built from the CLI carries, from the ship's
+    /// dial (`--hu-t0-btn-topk`, every arm) and the gate's
+    /// (`--hu-b-t0-btn-topk`, arm B only).  Arm B takes the gate's when it
+    /// is given, the ship's otherwise; every other arm takes the ship's.
+    /// Both absent: `None`, so serving is byte-identical to before.
+    pub fn t0_btn_topk_for(
+        is_arm_b: bool,
+        general: Option<usize>,
+        b_override: Option<usize>,
+    ) -> Option<usize> {
+        match (is_arm_b, b_override) {
+            (true, Some(k)) => Some(k),
+            _ => general,
+        }
+    }
 }
 
 /// Score one candidate with whatever encoding the model asks for by width:
@@ -3174,5 +3190,59 @@ mod tests {
         let btn_off = arm(4, Some(0));
         assert!(!shortlisted(&btn_off, 1), "the override did not replace topk at (0, 1)");
         assert!(shortlisted(&btn_off, 0), "topk stopped applying at (0, 0)");
+    }
+
+    /// **The ship's dial reaches every arm; the gate's still wins for B.**
+    ///
+    /// `--hu-t0-btn-topk` is what serving runs with once a Button width has
+    /// passed its gate, so it must land on arm A and arm B alike, while
+    /// `--hu-b-t0-btn-topk` keeps its meaning as the B-only experiment dial
+    /// and takes precedence there.  Absent both, nothing is set.  And the
+    /// width so chosen is still confined to (0, 1): streets != 0 and seat 0
+    /// read `topk` on every arm.
+    #[test]
+    fn the_general_button_fence_reaches_every_arm_and_yields_to_the_b_override() {
+        use crate::playout::tests::linear_model;
+        let f = Arm::t0_btn_topk_for;
+        // Absent both: None on both arms (byte-identical serving).
+        assert_eq!(f(false, None, None), None);
+        assert_eq!(f(true, None, None), None);
+        // General alone: both arms widened.
+        assert_eq!(f(false, Some(8), None), Some(8));
+        assert_eq!(f(true, Some(8), None), Some(8));
+        // B override alone: arm B only, exactly as before this flag existed.
+        assert_eq!(f(false, None, Some(8)), None);
+        assert_eq!(f(true, None, Some(8)), Some(8));
+        // Both: A on the general, B on its override -- the gate's dial wins.
+        assert_eq!(f(false, Some(8), Some(4)), Some(8));
+        assert_eq!(f(true, Some(8), Some(4)), Some(4));
+
+        // The chosen width moves (0, 1) only, on whichever arm carries it.
+        let own = linear_model(60, 0x0BADC0DE);
+        let net = linear_model(hu_encode::HU_FEATURE_SIZE, 0x1111_0000);
+        let ranker = linear_model(hu_encode::HU_FEATURE_SIZE, 0x3333_0000);
+        let arm = |t0_btn_topk: Option<usize>| Arm {
+            hu: vec![Some([&net, &net])],
+            own: [&own, &own, &own],
+            rankers: vec![Some([&ranker, &ranker])],
+            topk: 4,
+            t0_btn_topk,
+            t0_policy: None,
+            policy_topk: 0,
+            joint_samples: 8,
+        };
+        let a = arm(f(false, Some(8), Some(4)));
+        let b = arm(f(true, Some(8), Some(4)));
+        assert_eq!(a.ranker_topk(0, 1), 8, "arm A did not take the general width");
+        assert_eq!(b.ranker_topk(0, 1), 4, "arm B did not keep its override");
+        for street in 0..5 {
+            for seat in 0..2 {
+                if (street, seat) == (0, 1) {
+                    continue;
+                }
+                assert_eq!(a.ranker_topk(street, seat), 4, "arm A moved at ({street}, {seat})");
+                assert_eq!(b.ranker_topk(street, seat), 4, "arm B moved at ({street}, {seat})");
+            }
+        }
     }
 }

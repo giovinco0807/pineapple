@@ -961,6 +961,13 @@ struct Cli {
     /// there and nothing else moves -- the gate for "K=4 -> K=8 at Button".
     #[arg(long)]
     hu_b_t0_btn_topk: Option<usize>,
+    /// The same Button-opening fence width for EVERY arm built here -- both
+    /// arms of --hu-match / --hu-mirror and the single served arm of the
+    /// other modes -- so a width the gate priced through --hu-b-t0-btn-topk
+    /// can ship.  --hu-b-t0-btn-topk, when given, still wins for arm B (the
+    /// gate's dial over the ship's).  Absent both, byte-identical to before.
+    #[arg(long)]
+    hu_t0_btn_topk: Option<usize>,
     #[arg(long)]
     arm_a_own: Option<String>,
     #[arg(long)]
@@ -2016,11 +2023,11 @@ fn main() -> Result<()> {
                 own: [&o[0], &o[1], &o[2]],
                 rankers,
                 topk: cli.hu_topk,
-                t0_btn_topk: if hu_slot == 2 {
-                    None
-                } else {
-                    cli.hu_b_t0_btn_topk
-                },
+                t0_btn_topk: hu_match::Arm::t0_btn_topk_for(
+                    hu_slot != 2,
+                    cli.hu_t0_btn_topk,
+                    cli.hu_b_t0_btn_topk,
+                ),
                 t0_policy: if hu_slot == 2 {
                     t0_policy_a.as_ref()
                 } else {
