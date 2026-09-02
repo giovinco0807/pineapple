@@ -21,6 +21,7 @@ mod playout;
 mod rank_collapse;
 mod row_memo;
 mod t0_policy;
+mod t0_policy_btn;
 mod t0_vs_fl;
 mod t1_vs_fl;
 mod t2_vs_fl;
@@ -955,6 +956,24 @@ struct Cli {
     /// Arm B override; topk 1 serves the policy argmax directly.
     #[arg(long)]
     hu_b_t0_policy_topk: Option<usize>,
+    /// The T0-BTN policy net (213 -> 243 logits, T4F1 image; the Button
+    /// analogue of --hu-a-t0-policy, reading hero's five and BB's placed
+    /// five), per arm.  Given one, the Button opening's shortlist is the
+    /// policy's top --hu-t0-btn-policy-topk and neither the T0-BTN ranker
+    /// nor a Button ranker width is consulted there: --hu-t0-btn-topk /
+    /// --hu-b-t0-btn-topk would be dead on that arm, so naming both for one
+    /// arm is refused rather than one being ignored.  Every other node is
+    /// untouched, and an arm without the flag behaves exactly as before.
+    #[arg(long)]
+    hu_a_t0_btn_policy: Option<PathBuf>,
+    #[arg(long)]
+    hu_b_t0_btn_policy: Option<PathBuf>,
+    /// Openings the Button policy hands to the evaluator.
+    #[arg(long, default_value_t = 8)]
+    hu_t0_btn_policy_topk: usize,
+    /// Arm B override; topk 1 serves the Button policy argmax directly.
+    #[arg(long)]
+    hu_b_t0_btn_policy_topk: Option<usize>,
     /// Arm B override of the ranker fence width at one node only: street 0,
     /// seat 1 (the Button opening).  Absent, arm B's Button shortlist is the
     /// ranker's top --hu-topk like everywhere else; given, it is the top K
@@ -1941,6 +1960,66 @@ fn main() -> Result<()> {
         };
         let t0_policy_a = load_policy(cli.hu_a_t0_policy.as_ref())?;
         let t0_policy_b = load_policy(cli.hu_b_t0_policy.as_ref())?;
+        // The T0-BTN policy nets: the same container, checked for the Button
+        // width here so a BB image handed to the Button flag is refused by
+        // name at load rather than at the first hand.
+        let load_btn_policy =
+            |path: Option<&PathBuf>, topk: usize| -> Result<Option<evaluator::Model>> {
+                match path {
+                    None => Ok(None),
+                    Some(path) => {
+                        let image = std::fs::read(path)?;
+                        let model = evaluator::Model::load_wide(&image)
+                            .map_err(|e| anyhow!("{}: {e}", path.display()))?;
+                        if model.input_dim != t0_policy_btn::FEATURE_SIZE
+                            || model.output_dim != t0_policy::ACTION_SIZE
+                        {
+                            bail!(
+                                "{}: a T0-BTN policy image is {} -> {}, this one is {} -> {}",
+                                path.display(),
+                                t0_policy_btn::FEATURE_SIZE,
+                                t0_policy::ACTION_SIZE,
+                                model.input_dim,
+                                model.output_dim
+                            );
+                        }
+                        eprintln!(
+                            "t0-btn-policy: {} ({} -> {}), K={}",
+                            path.display(), model.input_dim, model.output_dim, topk
+                        );
+                        Ok(Some(model))
+                    }
+                }
+            };
+        let t0_btn_policy_a =
+            load_btn_policy(cli.hu_a_t0_btn_policy.as_ref(), cli.hu_t0_btn_policy_topk)?;
+        let t0_btn_policy_b = load_btn_policy(
+            cli.hu_b_t0_btn_policy.as_ref(),
+            cli.hu_b_t0_btn_policy_topk.unwrap_or(cli.hu_t0_btn_policy_topk),
+        )?;
+        // A Button policy and a Button ranker width are one fence too many:
+        // where the policy fires the ranker is not consulted at all, so a
+        // width given for the same arm would be silently dead.  The width
+        // flag named is the one `Arm::t0_btn_topk_for` would have read.
+        let width_flag_for = |is_arm_b: bool| -> Option<&'static str> {
+            match (is_arm_b, cli.hu_b_t0_btn_topk, cli.hu_t0_btn_topk) {
+                (true, Some(_), _) => Some("--hu-b-t0-btn-topk"),
+                (_, _, Some(_)) => Some("--hu-t0-btn-topk"),
+                _ => None,
+            }
+        };
+        for (is_arm_b, policy_flag, has_policy) in [
+            (false, "--hu-a-t0-btn-policy", t0_btn_policy_a.is_some()),
+            (true, "--hu-b-t0-btn-policy", t0_btn_policy_b.is_some()),
+        ] {
+            if let (true, Some(width_flag)) = (has_policy, width_flag_for(is_arm_b)) {
+                bail!(
+                    "{policy_flag} makes the Button ranker fence dead for arm {}, so \
+                     {width_flag} would be silently ignored there; give one or the other",
+                    if is_arm_b { "B" } else { "A" }
+                );
+            }
+        }
         // Every arm needs own-hand choosers: they play the hands where the
         // opponent is in Fantasyland and its board is face down.
         let eight_slots = |slot: usize, spec: Option<&str>| -> Result<Vec<Option<&evaluator::Model>>> {
@@ -2037,6 +2116,16 @@ fn main() -> Result<()> {
                     cli.hu_t0_policy_topk
                 } else {
                     cli.hu_b_t0_policy_topk.unwrap_or(cli.hu_t0_policy_topk)
+                },
+                t0_btn_policy: if hu_slot == 2 {
+                    t0_btn_policy_a.as_ref()
+                } else {
+                    t0_btn_policy_b.as_ref()
+                },
+                btn_policy_topk: if hu_slot == 2 {
+                    cli.hu_t0_btn_policy_topk
+                } else {
+                    cli.hu_b_t0_btn_policy_topk.unwrap_or(cli.hu_t0_btn_policy_topk)
                 },
                 joint_samples: if hu_slot == 2 {
                     cli.serve_joint_samples
@@ -2167,11 +2256,16 @@ fn main() -> Result<()> {
                 // arm shortlists by `policy_rank` and never by the ranker.
                 let ranked = scored.iter().filter(|row| row.ranker_rank.is_some()).count();
                 let by_policy = scored.iter().filter(|row| row.policy_rank.is_some()).count();
+                // The widths are the seat's, as serving reads them: the BB
+                // policy's at seat 0, the Button policy's at seat 1, and the
+                // ranker's Button width where one is set.
+                let policy_topk = arm_a.t0_policy_topk(cli.hu_t0_seat);
+                let ranker_topk = arm_a.ranker_topk(0, cli.hu_t0_seat);
                 let served = scored
                     .iter()
                     .filter(|row| match row.policy_rank {
-                        Some(rank) => rank <= cli.hu_t0_policy_topk,
-                        None => row.ranker_rank.is_none_or(|rank| rank <= cli.hu_topk),
+                        Some(rank) => rank <= policy_topk,
+                        None => row.ranker_rank.is_none_or(|rank| rank <= ranker_topk),
                     })
                     .max_by(|a, b| a.score.partial_cmp(&b.score).unwrap());
                 eprintln!(
@@ -2179,20 +2273,33 @@ fn main() -> Result<()> {
                      {} policy-scored (K={}) -> {}",
                     cli.hu_t0_seat,
                     if cli.hu_t0_seat == 1 { "BTN" } else { "BB" },
-                    scored.len(), ranked, cli.hu_topk,
-                    by_policy, cli.hu_t0_policy_topk, cli.output.display()
+                    scored.len(), ranked, ranker_topk,
+                    by_policy, policy_topk, cli.output.display()
                 );
                 if cli.hu_t0_seat == 1 {
                     // Said out loud because the columns alone cannot say it:
                     // a null policy_rank could mean "no policy loaded" or
                     // "policy deliberately not applied", and a BTN run read as
                     // policy-fenced would be read as a decision nobody makes.
-                    eprintln!(
-                        "t0-model-rank: policy.bin is a T0-BB net and is NOT applied at BTN; \
-                         the ranker fence (K={}) selects. Opponent board: {}",
-                        cli.hu_topk,
-                        cli.t0_opp_board.as_deref().unwrap_or("-")
-                    );
+                    // With a Button policy the columns are its, and the BB
+                    // policy and the ranker fence are what is not applied.
+                    let opp_board = cli.t0_opp_board.as_deref().unwrap_or("-");
+                    match cli.hu_a_t0_btn_policy.as_deref() {
+                        Some(path) => eprintln!(
+                            "t0-model-rank: Button policy {} selects the shortlist (K={}); \
+                             the T0-BB policy and the ranker fence are NOT applied at BTN. \
+                             Opponent board: {}",
+                            path.display(),
+                            policy_topk,
+                            opp_board
+                        ),
+                        None => eprintln!(
+                            "t0-model-rank: policy.bin is a T0-BB net and is NOT applied at BTN; \
+                             the ranker fence (K={}) selects. Opponent board: {}",
+                            ranker_topk,
+                            opp_board
+                        ),
+                    }
                 }
                 if let (Some(top), Some(served)) = (scored.first(), served) {
                     eprintln!(

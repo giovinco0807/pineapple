@@ -31,6 +31,7 @@ use super::hu_encode;
 use super::playout;
 use super::self_play::{settle, Finished};
 use super::t0_policy;
+use super::t0_policy_btn;
 use super::v4_first::{self, V4FirstRequest};
 use super::{all_cards, to_core_card, BoardStr, Card, CoreBoard, FlEv, Terminal};
 
@@ -74,6 +75,12 @@ pub struct Arm<'a> {
     /// ranker is not called at all.  `None` leaves that node on the ranker.
     pub t0_policy: Option<&'a evaluator::Model>,
     pub policy_topk: usize,
+    /// The Button analogue of `t0_policy`: T0, second actor.  Given one, the
+    /// shortlist at (0, 1) is the policy's top `btn_policy_topk`, read from
+    /// hero's five and BB's placed five, and neither the ranker nor
+    /// `t0_btn_topk` is consulted there.  `None` leaves that node as it was.
+    pub t0_btn_policy: Option<&'a evaluator::Model>,
+    pub btn_policy_topk: usize,
     /// Serve-time joint samples; 0 keeps the trained 400.  Per arm so two
     /// sample counts can be seated against each other in one match.
     pub joint_samples: usize,
@@ -86,6 +93,24 @@ impl Arm<'_> {
         match (street, seat, self.t0_btn_topk) {
             (0, 1, Some(k)) => k,
             _ => self.topk,
+        }
+    }
+
+    /// Whether a T0 policy fences the opening at `seat`: the BB policy at
+    /// seat 0, the Button policy at seat 1.  Where one does, the ranker is
+    /// not consulted at that node, whatever width it was given.
+    pub fn t0_policy_fences(&self, seat: usize) -> bool {
+        match seat {
+            0 => self.t0_policy.is_some(),
+            _ => self.t0_btn_policy.is_some(),
+        }
+    }
+
+    /// The policy shortlist width at `seat`'s T0 node.
+    pub fn t0_policy_topk(&self, seat: usize) -> usize {
+        match seat {
+            0 => self.policy_topk,
+            _ => self.btn_policy_topk,
         }
     }
 
@@ -887,12 +912,48 @@ fn play_decision(
                 }
                 _ => candidates,
             };
+            // The Button policy shortlist, where there is one: T0 second
+            // actor only.  Its decision state is the pair (hero's five, BB's
+            // placed five), both in scope here, and like the BB policy it is
+            // gated on nothing but its own presence -- where it fires the
+            // ranker below is skipped, so `ranker_topk`'s Button width has
+            // nothing to fence (the CLI refuses the two together).
+            let btn_policy = if street == 0 && seat == 1 {
+                arms[seat].t0_btn_policy
+            } else {
+                None
+            };
+            let candidates: Vec<([Vec<String>; 3], Option<String>)> = match btn_policy {
+                Some(net)
+                    if arms[seat].btn_policy_topk > 0
+                        && candidates.len() > arms[seat].btn_policy_topk =>
+                {
+                    let policy =
+                        t0_policy_btn::T0PolicyBtn::new(net, &draw, &seats[opp].board)?;
+                    let mut ranked: Vec<(f32, ([Vec<String>; 3], Option<String>))> = candidates
+                        .into_iter()
+                        .map(|(after, toss)| {
+                            policy.score(&after).map(|score| (score, (after, toss)))
+                        })
+                        .collect::<Result<Vec<_>>>()?;
+                    // The BB fence's comparator and stable sort, so ties land
+                    // on the K boundary the same way.
+                    ranked.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap());
+                    ranked
+                        .into_iter()
+                        .take(arms[seat].btn_policy_topk)
+                        .map(|(_, candidate)| candidate)
+                        .collect()
+                }
+                _ => candidates,
+            };
             let ranker = arms[seat]
                 .rankers
                 .get(street)
                 .and_then(|slot| slot.as_ref())
                 .map(|pair| pair[seat])
-                .filter(|_| policy.is_none());
+                .filter(|_| policy.is_none())
+                .filter(|_| btn_policy.is_none());
             let ranker_topk = arms[seat].ranker_topk(street, seat);
             let candidates: Vec<([Vec<String>; 3], Option<String>)> = match ranker {
                 Some(model)
@@ -1660,11 +1721,28 @@ pub fn t0_model_scores(
     // fires the ranker is skipped here too.
     // `policy.bin` is a T0-BB net: it was trained on the first-actor decision
     // and has never seen an opponent board.  At BTN it is not applied at all,
-    // here or in the summary, so `policy_rank` stays null and the ranker fence
-    // is what selects -- reported on stderr so a BTN run is not read as
-    // policy-fenced.
+    // here or in the summary; the Button node is the Button policy's, when
+    // the arm carries one, reading the same pair the serve path reads (hero's
+    // five, BB's placed five).  Without one `policy_rank` stays null there
+    // and the ranker fence is what selects -- reported on stderr so a BTN run
+    // is not read as policy-fenced.
     let policy_rows: std::collections::HashMap<String, (f32, usize)> = match arm.t0_policy {
-        _ if seat == 1 => std::collections::HashMap::new(),
+        _ if seat == 1 => match arm.t0_btn_policy {
+            None => std::collections::HashMap::new(),
+            Some(net) => {
+                let policy = t0_policy_btn::T0PolicyBtn::new(net, hero, &opp_rows)?;
+                let mut ranked: Vec<(f32, String)> = candidates
+                    .iter()
+                    .map(|after| Ok((policy.score(after)?, t0_key_of(after))))
+                    .collect::<Result<Vec<_>>>()?;
+                ranked.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap());
+                ranked
+                    .into_iter()
+                    .enumerate()
+                    .map(|(index, (score, key))| (key, (score, index + 1)))
+                    .collect()
+            }
+        },
         None => std::collections::HashMap::new(),
         Some(net) => {
             let policy = t0_policy::T0Policy::new(net, hero)?;
@@ -1688,7 +1766,7 @@ pub fn t0_model_scores(
         .and_then(|slot| slot.as_ref())
         .map(|pair| pair[seat])
         .filter(|_| {
-            (seat == 1 || arm.t0_policy.is_none())
+            !arm.t0_policy_fences(seat)
                 && arm.ranker_topk(0, seat) > 0
                 && candidates.len() > arm.ranker_topk(0, seat)
                 && model.input_dim == hu_encode::HU_FEATURE_SIZE
@@ -3079,6 +3157,8 @@ mod tests {
                 t0_btn_topk: None,
                 t0_policy: None,
                 policy_topk: 0,
+                t0_btn_policy: None,
+                btn_policy_topk: 0,
                 joint_samples: 8,
             };
             let opp = if seat == 1 { Some(opp) } else { None };
@@ -3154,6 +3234,8 @@ mod tests {
             t0_btn_topk,
             t0_policy: None,
             policy_topk: 0,
+            t0_btn_policy: None,
+            btn_policy_topk: 0,
             joint_samples: 8,
         };
 
@@ -3229,6 +3311,8 @@ mod tests {
             t0_btn_topk,
             t0_policy: None,
             policy_topk: 0,
+            t0_btn_policy: None,
+            btn_policy_topk: 0,
             joint_samples: 8,
         };
         let a = arm(f(false, Some(8), Some(4)));
@@ -3244,5 +3328,129 @@ mod tests {
                 assert_eq!(b.ranker_topk(street, seat), 4, "arm B moved at ({street}, {seat})");
             }
         }
+    }
+
+    /// **The Button policy fences the Button opening and nothing else.**
+    ///
+    /// The BB policy fences (0, 0) and the Button policy (0, 1); the audit
+    /// gate is `play_decision`'s by construction, so it is pinned here on a
+    /// synthetic 213 -> 243 net.  At seat 1 the policy columns are the net's
+    /// own reading of (hero's five, BB's placed five) -- a permutation of
+    /// 1..=232 in descending logit order, score for score what
+    /// `T0PolicyBtn` returns -- the ranker columns go null and the evaluator
+    /// column does not move.  At seat 0 the arm reads exactly as one without
+    /// the Button policy.
+    #[test]
+    fn the_button_policy_shortlists_the_button_opening_of_that_arm_only() {
+        use crate::playout::tests::linear_model;
+        use crate::t0_policy_btn::{tests::synthetic_wide_model, T0PolicyBtn, FEATURE_SIZE};
+        let fl_ev = {
+            let mut by_card_count = std::collections::BTreeMap::new();
+            for (slot, count) in [14u8, 15, 16, 17].into_iter().enumerate() {
+                by_card_count.insert(count, [6.57, 16.61, 38.76, 70.07][slot]);
+            }
+            FlEv { by_card_count, config_sha256: String::new() }
+        };
+        let fl_table: evaluator::FlTable = [6.57, 16.61, 38.76, 70.07];
+        let own = linear_model(60, 0x0BADC0DE);
+        let net = linear_model(hu_encode::HU_FEATURE_SIZE, 0x1111_0000);
+        let ranker = linear_model(hu_encode::HU_FEATURE_SIZE, 0x3333_0000);
+        let button = synthetic_wide_model(FEATURE_SIZE, 16, t0_policy::ACTION_SIZE, 0x5555_0000);
+        let plain = Arm {
+            hu: vec![Some([&net, &net])],
+            own: [&own, &own, &own],
+            rankers: vec![Some([&ranker, &ranker])],
+            topk: 4,
+            t0_btn_topk: None,
+            t0_policy: None,
+            policy_topk: 0,
+            t0_btn_policy: None,
+            btn_policy_topk: 0,
+            joint_samples: 8,
+        };
+        let fenced = Arm {
+            hu: vec![Some([&net, &net])],
+            own: [&own, &own, &own],
+            rankers: vec![Some([&ranker, &ranker])],
+            topk: 4,
+            t0_btn_topk: None,
+            t0_policy: None,
+            policy_topk: 0,
+            t0_btn_policy: Some(&button),
+            btn_policy_topk: 8,
+            joint_samples: 8,
+        };
+        // The seat lookups serving and the audit share.
+        assert!(fenced.t0_policy_fences(1) && !fenced.t0_policy_fences(0));
+        assert!(!plain.t0_policy_fences(1) && !plain.t0_policy_fences(0));
+        assert_eq!(fenced.t0_policy_topk(1), 8);
+        assert_eq!(fenced.t0_policy_topk(0), 0);
+
+        let hero = hero();
+        let opp = parse_opp_board("Qs|Jd,Th|9c,8c", &hero).expect("legal board");
+        type Row = (String, f32, Option<f32>, Option<usize>, Option<f32>, Option<usize>);
+        let audit = |arm: &Arm<'_>, seat: usize| -> Vec<Row> {
+            let opp = if seat == 1 { Some(&opp) } else { None };
+            t0_model_scores(&hero, arm, &fl_ev, &fl_table, seat, opp)
+                .expect("audit")
+                .into_iter()
+                .map(|row| {
+                    (row.key, row.score, row.ranker_score, row.ranker_rank, row.policy_score,
+                     row.policy_rank)
+                })
+                .collect()
+        };
+
+        // Seat 1: the policy columns fill, the ranker's go null, the
+        // evaluator's stay put.
+        let fenced_rows = audit(&fenced, 1);
+        let plain_rows = audit(&plain, 1);
+        assert_eq!(fenced_rows.len(), t0_policy::LEGAL_ACTIONS);
+        assert!(
+            plain_rows.iter().all(|r| r.3.is_some() && r.5.is_none()),
+            "the plain arm is not ranker-fenced at BTN"
+        );
+        assert!(
+            fenced_rows.iter().all(|r| r.2.is_none() && r.3.is_none()),
+            "the ranker was consulted beside the Button policy"
+        );
+        assert!(
+            fenced_rows.iter().all(|r| r.4.is_some() && r.5.is_some()),
+            "the policy columns are missing"
+        );
+        assert_eq!(
+            fenced_rows.iter().map(|r| (&r.0, r.1)).collect::<Vec<_>>(),
+            plain_rows.iter().map(|r| (&r.0, r.1)).collect::<Vec<_>>(),
+            "the evaluator column moved"
+        );
+        let mut ranks: Vec<usize> = fenced_rows.iter().map(|r| r.5.unwrap()).collect();
+        ranks.sort_unstable();
+        assert_eq!(ranks, (1..=t0_policy::LEGAL_ACTIONS).collect::<Vec<_>>());
+        let mut by_rank: Vec<&Row> = fenced_rows.iter().collect();
+        by_rank.sort_by_key(|r| r.5.unwrap());
+        for (row, next) in by_rank.iter().zip(by_rank.iter().skip(1)) {
+            assert!(row.4.unwrap() >= next.4.unwrap(), "policy ranks are not in score order");
+        }
+        // And they are the net's own reading of the pair the serve path reads.
+        let opp_rows: [Vec<String>; 3] = [
+            vec!["Qs".to_string()],
+            vec!["Jd".to_string(), "Th".to_string()],
+            vec!["9c".to_string(), "8c".to_string()],
+        ];
+        let direct = T0PolicyBtn::new(&button, &hero, &opp_rows).expect("policy");
+        for row in &fenced_rows {
+            let rows: Vec<Vec<String>> = row
+                .0
+                .split('|')
+                .map(|r| r.split(',').filter(|c| !c.is_empty()).map(String::from).collect())
+                .collect();
+            let placed: [Vec<String>; 3] = [rows[0].clone(), rows[1].clone(), rows[2].clone()];
+            assert_eq!(row.4, Some(direct.score(&placed).expect("scored")), "{}", row.0);
+        }
+
+        // Seat 0: the Button policy is not consulted -- the plain audit,
+        // column for column.
+        assert_eq!(audit(&fenced, 0), audit(&plain, 0), "the Button policy leaked to seat 0");
+        assert!(audit(&plain, 0).iter().all(|r| r.3.is_some() && r.5.is_none()));
     }
 }
