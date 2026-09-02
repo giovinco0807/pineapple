@@ -97,6 +97,12 @@ fast継続とチャンピオン継続で再レース:
       パイロットから見込める効果は ~0.03/hand 級で、この分解能(±0.03)の床そのもの。
       レギュラー版の裁定「1マス分は解像できない、複数レバーを束ねて1回で判定」に従い、
       **単独では出荷せず、評価器矯正と束ねて再ゲート**する候補として保持。
-- [ ] btnmine3: verdict 内訳(agree/error/model_better/undecided)、error率、マージン分布
+- [x] **btnmine3 (9/2)**: 475/480ルート(プリエンプト補充3回、32台 c4-standard-8、~$35)。
+      verdict: agree 236 (49.7%) / **error 102 (21.5%)** / undecided 130 (27.4%) / model_better 7 (1.5%)。
+      error マージン 平均+3.64・中央+3.22・最大+12.67(≥3: 57、≥5: 17)。
+      **漏れ = +0.873 点/Button決定 [+0.719, +1.041]**(全ルート平均、agree=0込み)。
+      T0-BB mine1 の +0.708±0.183 を上回る。error の 45/102 は実戦手が評価器6位以下 =
+      ランカー柵(K=4)が評価器の好みを締め出す構造。実戦手のランカー順位は1〜4に均等。
+      教材: `D:/ofc_data/hu/t0btn_mine/material_btnmine3.jsonl`。
 - [ ] 評価器矯正(`train_fl_t0_correction.py` 雛形、anchor `t0_btn_enc_both`)
 - [ ] egate(4束×20,000)
