@@ -104,5 +104,16 @@ fast継続とチャンピオン継続で再レース:
       T0-BB mine1 の +0.708±0.183 を上回る。error の 45/102 は実戦手が評価器6位以下 =
       ランカー柵(K=4)が評価器の好みを締め出す構造。実戦手のランカー順位は1〜4に均等。
       教材: `D:/ofc_data/hu/t0btn_mine/material_btnmine3.jsonl`。
-- [ ] 評価器矯正(`train_fl_t0_correction.py` 雛形、anchor `t0_btn_enc_both`)
-- [ ] egate(4束×20,000)
+- [x] **評価器矯正 (9/2)**: `encode_t0_material --seat btn`(全232手、パリティ max 1.1e-5、argmax 475/475一致)
+      → `train_t0_btn_correction` 3シード(ep8, lr1e-4, anchor 50万行, 保留47ルート/error 10):
+
+      | seed | 柵内一致 前→後 | 保留errorの回復(柵内) | 未監査手へのargmax | 動いたagree | fit error→ref |
+      |---|---|---|---|---|---|
+      | 20260902 | 40.4→44.7% | 1→2 /10 | 5→3 | 45 | 43/102 |
+      | 20260903 | 40.4→40.4% | 1→4 /10 | 5→3 | 52 | 47/102 |
+      | **20260904** | **40.4→48.9%** | 1→3 /10 | 5→**2** | 50 | 46/102 |
+
+      20260904 を採用(sha `67e78756…`)。3シードとも agree ルート約50件の柵内手を動かす —
+      対戦でしか裁けない懸念。
+- [ ] **egate btnegate1 (9/2 起動)**: 腕B = 矯正 t0_btn.bin(seed 20260904) + Button柵K=8 を束ねる。
+      腕A = ship。4束×5,000ミラー、シード 127M/128M/129M/130M。bundle `models_btnegate1.tar.gz`(`models/hu_b/t0_btn.bin`)。
