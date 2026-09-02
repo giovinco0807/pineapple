@@ -1612,7 +1612,7 @@ pub fn t0_model_scores(
         .hu
         .first()
         .and_then(|slot| slot.as_ref())
-        .map(|pair| pair[0])
+        .map(|pair| pair[seat])
         .ok_or_else(|| anyhow!("arm A has no T0 model"))?;
     let mut opp_tail: Vec<f32> = Vec::new();
     if model.input_dim == hu_encode::HU_FEATURE_SIZE {
@@ -1653,7 +1653,7 @@ pub fn t0_model_scores(
         .rankers
         .first()
         .and_then(|slot| slot.as_ref())
-        .map(|pair| pair[0])
+        .map(|pair| pair[seat])
         .filter(|_| {
             (seat == 1 || arm.t0_policy.is_none())
                 && arm.topk > 0
@@ -2996,5 +2996,96 @@ mod tests {
         assert_eq!(top_heavy.rows[0], vec![0, 1, 2]);
         assert_eq!(top_heavy.rows[1], vec![3]);
         assert_eq!(top_heavy.rows[2], vec![4]);
+    }
+
+    /// **The T0 audit reads the seated net, not the BB net.**
+    ///
+    /// `t0_model_scores` takes a seat and the arm carries `[BB, BTN]` pairs,
+    /// yet it once picked `pair[0]` for both the evaluator and the ranker: a
+    /// seat-1 audit scored BTN boards with the BB nets while `play_hand`
+    /// served them with the BTN nets, and the "served" line matched the trace
+    /// on 16 roots in 50.  Pinned with two synthetic nets that disagree on
+    /// every weight: the seat-1 rows must be what an arm seating the BTN net
+    /// in both slots produces, and not what the BB net produces -- and the
+    /// seat-0 rows must still be the BB net's, so the fix is a seat lookup
+    /// and not a swap.
+    #[test]
+    fn the_t0_audit_scores_each_seat_with_that_seats_nets() {
+        use crate::playout::tests::linear_model;
+        let fl_ev = {
+            let mut by_card_count = std::collections::BTreeMap::new();
+            for (slot, count) in [14u8, 15, 16, 17].into_iter().enumerate() {
+                by_card_count.insert(count, [6.57, 16.61, 38.76, 70.07][slot]);
+            }
+            FlEv { by_card_count, config_sha256: String::new() }
+        };
+        let fl_table: evaluator::FlTable = [6.57, 16.61, 38.76, 70.07];
+        let own = linear_model(60, 0x0BADC0DE);
+        let bb = linear_model(hu_encode::HU_FEATURE_SIZE, 0x1111_0000);
+        let btn = linear_model(hu_encode::HU_FEATURE_SIZE, 0x2222_0000);
+        let bb_ranker = linear_model(hu_encode::HU_FEATURE_SIZE, 0x3333_0000);
+        let btn_ranker = linear_model(hu_encode::HU_FEATURE_SIZE, 0x4444_0000);
+        let hero = hero();
+        let opp = parse_opp_board("Qs|Jd,Th|9c,8c", &hero).expect("legal board");
+        type Row = (String, f32, Option<f32>, Option<usize>);
+        fn audit<'a>(
+            seat: usize,
+            pair: [&'a evaluator::Model; 2],
+            rankers: [&'a evaluator::Model; 2],
+            own: &'a evaluator::Model,
+            hero: &[String],
+            opp: &OppOpening,
+            fl_ev: &FlEv,
+            fl_table: &evaluator::FlTable,
+        ) -> Vec<Row> {
+            let arm = Arm {
+                hu: vec![Some(pair)],
+                own: [own, own, own],
+                rankers: vec![Some(rankers)],
+                topk: 4,
+                t0_policy: None,
+                policy_topk: 0,
+                joint_samples: 8,
+            };
+            let opp = if seat == 1 { Some(opp) } else { None };
+            t0_model_scores(hero, &arm, fl_ev, fl_table, seat, opp)
+                .expect("audit")
+                .into_iter()
+                .map(|row| (row.key, row.score, row.ranker_score, row.ranker_rank))
+                .collect()
+        }
+        let audit = |seat: usize, pair: [&evaluator::Model; 2], rankers: [&evaluator::Model; 2]| {
+            audit(seat, pair, rankers, &own, &hero, &opp, &fl_ev, &fl_table)
+        };
+
+        // Seat 1: the mixed arm must read exactly as an all-BTN arm ...
+        let mixed = audit(1, [&bb, &btn], [&bb_ranker, &btn_ranker]);
+        let all_btn = audit(1, [&btn, &btn], [&btn_ranker, &btn_ranker]);
+        let all_bb = audit(1, [&bb, &bb], [&bb_ranker, &bb_ranker]);
+        assert!(mixed.iter().all(|row| row.3.is_some()), "the ranker column is missing");
+        assert_eq!(mixed, all_btn, "seat 1 is not scored by the seat-1 nets");
+        // ... and the two nets have to be telling different stories, or the
+        // equality above is asserting nothing.
+        assert_ne!(
+            mixed.iter().map(|row| &row.0).collect::<Vec<_>>(),
+            all_bb.iter().map(|row| &row.0).collect::<Vec<_>>(),
+            "the BB and BTN nets rank the openings identically; the test cannot tell them apart"
+        );
+        assert_ne!(
+            mixed.iter().map(|row| row.3).collect::<Vec<_>>(),
+            all_bb.iter().map(|row| row.3).collect::<Vec<_>>(),
+            "the BB and BTN rankers shortlist identically; the test cannot tell them apart"
+        );
+
+        // Seat 0: still the BB net, so the fix is a lookup and not a swap.
+        let mixed = audit(0, [&bb, &btn], [&bb_ranker, &btn_ranker]);
+        let all_bb = audit(0, [&bb, &bb], [&bb_ranker, &bb_ranker]);
+        let all_btn = audit(0, [&btn, &btn], [&btn_ranker, &btn_ranker]);
+        assert_eq!(mixed, all_bb, "seat 0 is not scored by the seat-0 nets");
+        assert_ne!(
+            mixed.iter().map(|row| &row.0).collect::<Vec<_>>(),
+            all_btn.iter().map(|row| &row.0).collect::<Vec<_>>(),
+            "the BB and BTN nets rank the openings identically at seat 0"
+        );
     }
 }
