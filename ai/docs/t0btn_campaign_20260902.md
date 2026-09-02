@@ -145,3 +145,26 @@ error 102件について、審判の最善手が配信のどこにいたか(エ�
 破壊 7/6/8、agree移動 60/46/51。元レシピ(ep8: 一致48.9%、破壊4、agree移動50)と区別不能。
 **副作用は475ルートで評価器全体を動かすこと自体に内在** → この経路のゲートは出さない。
 判断: 評価器矯正は打ち切り、**Button方策柵**(BBの順路の第1段)へ。
+
+## 8. Button 方策柵 (9/3 着手)
+
+**判断**: 評価器矯正は打ち切り、BBの順路の第1段 = 方策柵を作る。根拠は §7(漏れの54%が柵の締め出し、
+評価器の1位が審判最善なのは19/102だけ、約2割は試写雑音で手が決まる)。
+
+**データ(調査で確定)**: 密ラベル `t0r1_labels/t0_btn_l1.jsonl`(10,000) + `t0_btn_l2.jsonl`(13,103)、
+全行232手、相手の5枚盤面は `onpol_requests/t0_btn_onpol.jsonl` / `onpol2_requests/t0_btn_lap2.jsonl`
+の `opp_board` に全件記録、id結合100%。**ラップ間でidが1,685件衝突**(drawは全部違う)→ (lap,id)複合キー必須。
+`t0_btn_enc_both/fit.npz` は方策には使えない(rootsがハッシュ、opp_boardが207次元に埋没)。
+第2段の教材 = btnmine3 475ルート、稠密錨 = `t0_btn_evalfix/pairs_meta.jsonl` の `own_score`(475×232)。
+
+**正準化の契約(Python/Rust共通)**: スートごとに (hero_mask, opp_top_mask, opp_mid_mask, opp_bot_mask)
+(13bit、2=bit0)の降順で c,d,h,s を割当、残余同点は元の "cdhs" 順。集合の関数(入力順に非依存)。
+hero は (rank desc, 正準スート) 順・ジョーカーは改番して末尾、相手のジョーカーは行別カウントのみ。
+特徴 213 = hero 54 + 相手 3×52 + 相手ジョーカー行別3。行動 243 (=sum row_i·3^i)、上段>3で11マスク。
+
+**Rust**: `T0PolicyBtn`(BB経路は不変)、`--hu-{a,b}-t0-btn-policy`、`--hu-t0-btn-policy-topk`(既定8)、
+`--hu-b-t0-btn-policy-topk`。(0,1)で方策が載るとランカー柵幅(`--hu-t0-btn-topk`)は死ぬ → 同時指定は bail。
+
+**受入**: 24置換不変・入力順不変・X2→X1改番のテスト、フラグ無しバイト同一、エクスポート probe
+(≤1e-4 かつ order_gap 0)、パリティ 50局面で 232/232 順位一致、K同士ミラー ±0.0000、
+保留100ルートで回収率と**未監査手へのargmax率**、その後 pgate 型ミラー(A=ship、B=方策柵K=8、4束)。
