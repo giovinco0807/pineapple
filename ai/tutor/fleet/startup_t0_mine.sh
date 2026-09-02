@@ -69,7 +69,11 @@ ACTUAL="$(sha256sum src/ai/rust_solver/target/release/t4_first_exact | awk '{pri
 [ -n "$EXPECT" ] && [ "$EXPECT" = "$ACTUAL" ] || { echo "FATAL: binary sha mismatch"; exit 1; }
 gcloud storage cp "gs://$BUCKET/$PREFIX/artifacts/$MODELS_OBJ" models.tar.gz
 tar -xzf models.tar.gz
-MODELS_DIR="$ROOT/$(basename "$MODELS_OBJ" .tar.gz)"
+# The directory the tar actually carries, not one guessed from the object
+# name: a bundle whose top directory is `models/` (the match workers' layout)
+# sent a 32-VM fleet to "no hu/" in under a minute.  `sed` reads the whole
+# listing -- `| head -1` would SIGPIPE tar under `set -o pipefail`.
+MODELS_DIR="$ROOT/$(tar -tzf models.tar.gz | sed -n '1{s|/.*||;p;}')"
 [ -d "$MODELS_DIR/hu" ] || { echo "FATAL: models dir $MODELS_DIR has no hu/"; exit 1; }
 gcloud storage cp "gs://$BUCKET/$PREFIX/artifacts/$REQ_OBJ" requests.jsonl
 # Resume: pull whatever this shard already published so the driver skips it.
