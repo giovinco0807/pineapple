@@ -26,6 +26,9 @@ def main() -> None:
     parser.add_argument("--roots", type=int, required=True)
     parser.add_argument("--shards", type=int, required=True)
     parser.add_argument("--requests-object", default="t0_bb_onpol.jsonl")
+    parser.add_argument("--seat", choices=("bb", "btn"), default="bb",
+                        help="btn: requests object is roots_all.jsonl format "
+                             "(btn_cards/bb_board/served); passed to t0_mine.py --seat")
     parser.add_argument("--models-object", required=True)
     parser.add_argument("--src", required=True)
     parser.add_argument("--binstamp", required=True)
@@ -68,6 +71,7 @@ def main() -> None:
             f"hu-requests-object={args.requests_object}",
             f"hu-models-object={args.models_object}",
             f"hu-watchdog-seconds={args.watchdog_seconds}",
+            f"hu-seat={args.seat}",
         ])
         done = subprocess.run(
             [GCLOUD, "compute", "instances", "create", name,

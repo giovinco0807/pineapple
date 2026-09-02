@@ -30,6 +30,8 @@ BINSTAMP="$(meta hu-binstamp)"
 REQ_OBJ="$(meta hu-requests-object)"
 MODELS_OBJ="$(meta hu-models-object)"
 WATCHDOG="$(meta hu-watchdog-seconds)"
+# bb (default) or btn; absent on launches made before the seat existed.
+SEAT="$(meta hu-seat 2>/dev/null || echo bb)"
 
 ship() {
   gcloud storage cp "$LOG/startup.log" \
@@ -86,7 +88,7 @@ python3 src/ai/tutor/t0_mine.py \
   --binary "$ROOT/src/ai/rust_solver/target/release/t4_first_exact" \
   --fl-ev-config "$ROOT/src/ai/config/fl_ev.json" \
   --work "$ROOT/work" --out "$ROOT/results.jsonl" \
-  --start "$START" --count "$COUNT"
+  --start "$START" --count "$COUNT" --seat "$SEAT"
 kill "$PARTIAL_PID" 2>/dev/null || true
 [ -s "$ROOT/results.jsonl" ] || { echo "FATAL: mine wrote nothing"; exit 1; }
 echo "rows: $(wc -l < "$ROOT/results.jsonl")"
