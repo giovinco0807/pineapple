@@ -64,6 +64,11 @@ pub struct Arm<'a> {
     /// at T0: K=4 keeps 0.0003 of the EV and 1/58th of the encoding.
     pub rankers: Vec<Option<[&'a evaluator::Model; 2]>>,
     pub topk: usize,
+    /// Ranker fence width at exactly one node: T0, second actor (the Button
+    /// opening).  `Some(k)` replaces `topk` there and nowhere else -- a gate
+    /// that widens one arm's Button shortlist without moving any other
+    /// decision.  `None` leaves that node on `topk`, byte for byte.
+    pub t0_btn_topk: Option<usize>,
     /// The ranker's successor at exactly one node: T0, first actor.  Given
     /// one, the shortlist there is the policy's top `policy_topk` and the
     /// ranker is not called at all.  `None` leaves that node on the ranker.
@@ -72,6 +77,17 @@ pub struct Arm<'a> {
     /// Serve-time joint samples; 0 keeps the trained 400.  Per arm so two
     /// sample counts can be seated against each other in one match.
     pub joint_samples: usize,
+}
+
+impl Arm<'_> {
+    /// The ranker fence width serving applies at `(street, seat)`: `topk`
+    /// everywhere except (0, 1), where `t0_btn_topk` overrides it when set.
+    pub fn ranker_topk(&self, street: usize, seat: usize) -> usize {
+        match (street, seat, self.t0_btn_topk) {
+            (0, 1, Some(k)) => k,
+            _ => self.topk,
+        }
+    }
 }
 
 /// Score one candidate with whatever encoding the model asks for by width:
@@ -861,10 +877,11 @@ fn play_decision(
                 .and_then(|slot| slot.as_ref())
                 .map(|pair| pair[seat])
                 .filter(|_| policy.is_none());
+            let ranker_topk = arms[seat].ranker_topk(street, seat);
             let candidates: Vec<([Vec<String>; 3], Option<String>)> = match ranker {
                 Some(model)
-                    if arms[seat].topk > 0
-                        && candidates.len() > arms[seat].topk
+                    if ranker_topk > 0
+                        && candidates.len() > ranker_topk
                         && hu_model_dim == Some(hu_encode::HU_FEATURE_SIZE) =>
                 {
                     let mut ranked: Vec<(f32, ([Vec<String>; 3], Option<String>))> =
@@ -887,7 +904,7 @@ fn play_decision(
                     ranked.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap());
                     ranked
                         .into_iter()
-                        .take(arms[seat].topk)
+                        .take(ranker_topk)
                         .map(|(_, candidate)| candidate)
                         .collect()
                 }
@@ -1656,8 +1673,8 @@ pub fn t0_model_scores(
         .map(|pair| pair[seat])
         .filter(|_| {
             (seat == 1 || arm.t0_policy.is_none())
-                && arm.topk > 0
-                && candidates.len() > arm.topk
+                && arm.ranker_topk(0, seat) > 0
+                && candidates.len() > arm.ranker_topk(0, seat)
                 && model.input_dim == hu_encode::HU_FEATURE_SIZE
         });
     let shortlist: std::collections::HashMap<String, (f32, usize)> = match ranker {
@@ -3043,6 +3060,7 @@ mod tests {
                 own: [own, own, own],
                 rankers: vec![Some(rankers)],
                 topk: 4,
+                t0_btn_topk: None,
                 t0_policy: None,
                 policy_topk: 0,
                 joint_samples: 8,
@@ -3087,5 +3105,74 @@ mod tests {
             all_btn.iter().map(|row| &row.0).collect::<Vec<_>>(),
             "the BB and BTN nets rank the openings identically at seat 0"
         );
+    }
+
+    /// **The Button fence override moves exactly one node.**
+    ///
+    /// `--hu-b-t0-btn-topk` exists to widen arm B's shortlist at the Button
+    /// opening and nothing else, so a gate can price "K=4 -> K=8 at BTN" on
+    /// its own.  Two things are pinned: the width serving reads at every
+    /// (street, seat) is `topk` except at (0, 1) of an arm that carries the
+    /// override, and the shortlist gate that consults that width -- the T0
+    /// audit's, which is `play_decision`'s by construction -- fires at seat 1
+    /// on the override alone and stays on `topk` at seat 0.
+    #[test]
+    fn the_button_fence_override_applies_at_t0_btn_of_that_arm_only() {
+        use crate::playout::tests::linear_model;
+        let fl_ev = {
+            let mut by_card_count = std::collections::BTreeMap::new();
+            for (slot, count) in [14u8, 15, 16, 17].into_iter().enumerate() {
+                by_card_count.insert(count, [6.57, 16.61, 38.76, 70.07][slot]);
+            }
+            FlEv { by_card_count, config_sha256: String::new() }
+        };
+        let fl_table: evaluator::FlTable = [6.57, 16.61, 38.76, 70.07];
+        let own = linear_model(60, 0x0BADC0DE);
+        let net = linear_model(hu_encode::HU_FEATURE_SIZE, 0x1111_0000);
+        let ranker = linear_model(hu_encode::HU_FEATURE_SIZE, 0x3333_0000);
+        let arm = |topk: usize, t0_btn_topk: Option<usize>| Arm {
+            hu: vec![Some([&net, &net])],
+            own: [&own, &own, &own],
+            rankers: vec![Some([&ranker, &ranker])],
+            topk,
+            t0_btn_topk,
+            t0_policy: None,
+            policy_topk: 0,
+            joint_samples: 8,
+        };
+
+        // The width every node reads: arm A (no override) is `topk` at all
+        // ten nodes; arm B differs at (0, 1) and only there.
+        let a = arm(4, None);
+        let b = arm(4, Some(8));
+        for street in 0..5 {
+            for seat in 0..2 {
+                assert_eq!(a.ranker_topk(street, seat), 4, "arm A moved at ({street}, {seat})");
+                let want = if (street, seat) == (0, 1) { 8 } else { 4 };
+                assert_eq!(b.ranker_topk(street, seat), want, "arm B at ({street}, {seat})");
+            }
+        }
+
+        // The gate itself.  With `topk` 0 the shortlist is off everywhere;
+        // the override alone must switch it on at seat 1 and not at seat 0.
+        let hero = hero();
+        let opp = parse_opp_board("Qs|Jd,Th|9c,8c", &hero).expect("legal board");
+        let shortlisted = |arm: &Arm<'_>, seat: usize| -> bool {
+            let opp = if seat == 1 { Some(&opp) } else { None };
+            let rows = t0_model_scores(&hero, arm, &fl_ev, &fl_table, seat, opp).expect("audit");
+            let some = rows.iter().filter(|row| row.ranker_rank.is_some()).count();
+            assert!(some == 0 || some == rows.len(), "a half-shortlisted audit");
+            some > 0
+        };
+        let off = arm(0, None);
+        assert!(!shortlisted(&off, 0) && !shortlisted(&off, 1), "topk 0 must shortlist nothing");
+        let btn_only = arm(0, Some(4));
+        assert!(shortlisted(&btn_only, 1), "the override did not reach the Button opening");
+        assert!(!shortlisted(&btn_only, 0), "the override leaked to the first actor");
+        // And the other direction: an override of 0 closes the Button fence
+        // while `topk` keeps the first actor's open.
+        let btn_off = arm(4, Some(0));
+        assert!(!shortlisted(&btn_off, 1), "the override did not replace topk at (0, 1)");
+        assert!(shortlisted(&btn_off, 0), "topk stopped applying at (0, 0)");
     }
 }

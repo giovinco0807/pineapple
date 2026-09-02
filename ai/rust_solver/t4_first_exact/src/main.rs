@@ -955,6 +955,12 @@ struct Cli {
     /// Arm B override; topk 1 serves the policy argmax directly.
     #[arg(long)]
     hu_b_t0_policy_topk: Option<usize>,
+    /// Arm B override of the ranker fence width at one node only: street 0,
+    /// seat 1 (the Button opening).  Absent, arm B's Button shortlist is the
+    /// ranker's top --hu-topk like everywhere else; given, it is the top K
+    /// there and nothing else moves -- the gate for "K=4 -> K=8 at Button".
+    #[arg(long)]
+    hu_b_t0_btn_topk: Option<usize>,
     #[arg(long)]
     arm_a_own: Option<String>,
     #[arg(long)]
@@ -2010,6 +2016,11 @@ fn main() -> Result<()> {
                 own: [&o[0], &o[1], &o[2]],
                 rankers,
                 topk: cli.hu_topk,
+                t0_btn_topk: if hu_slot == 2 {
+                    None
+                } else {
+                    cli.hu_b_t0_btn_topk
+                },
                 t0_policy: if hu_slot == 2 {
                     t0_policy_a.as_ref()
                 } else {
