@@ -321,6 +321,132 @@ fn closed_form_t4(
 /// Placements the harness must take as given, keyed by (street, seat).
 pub type Forced = std::collections::HashMap<(usize, usize), [Vec<String>; 3]>;
 
+/// What a forced placement throws away, or a loud error naming the mismatch.
+///
+/// Every placed card must come from this seat's board-so-far plus its draw,
+/// and exactly one drawn card is thrown after street 0.  A mismatch means the
+/// forced history does not belong to this deal, which is worth failing loudly:
+/// a pinned placement is the one thing a deep evaluator must not choose for
+/// itself, so silently repairing one would grade a decision nobody made.
+///
+/// Split out of `play_decision` so the check can be exercised directly.  There
+/// is exactly one copy of it, and one wording of its message, because that
+/// message is the only signal a caller gets that its history is wrong.
+fn forced_toss(
+    id: &str,
+    street: usize,
+    seat: usize,
+    rows: &[Vec<String>; 3],
+    board: &[Vec<String>; 3],
+    draw: &[String],
+) -> Result<Vec<String>> {
+    let mut placed: Vec<String> = rows.iter().flatten().cloned().collect();
+    placed.sort();
+    let mut expect: Vec<String> = board
+        .iter()
+        .flatten()
+        .cloned()
+        .chain(draw.iter().cloned())
+        .collect();
+    expect.sort();
+    let tossed: Vec<String> = {
+        let mut left = expect.clone();
+        for card in &placed {
+            if let Some(at) = left.iter().position(|c| c == card) {
+                left.remove(at);
+            }
+        }
+        left
+    };
+    let want_toss = if street == 0 { 0 } else { 1 };
+    if tossed.len() != want_toss || placed.len() + tossed.len() != expect.len() {
+        bail!("{id}: forced ({street},{seat}) places {placed:?} against {expect:?}");
+    }
+    Ok(tossed)
+}
+
+/// One card of a forced placement, held so a re-deal can respell it.
+///
+/// A replay pins a history taken from a trace -- spelled under the deal that
+/// actually happened -- and plays it against a *re-dealt* future.  Naturals
+/// survive that unchanged, but a joker's name does not: `seat_names` numbers
+/// the deal's jokers X1 then X2 across both seats, so a seat's joker
+/// renumbers when the other seat's re-dealt cards happen to hold one in front
+/// of it.  Carrying the literal name would then make `forced_toss` reject a
+/// history that is in fact correct.
+///
+/// So a forced card is held as *where it sits in the seat's seventeen*, which
+/// the re-deal preserves for every street the replay keeps, and is spelled
+/// per rollout.  This is what `t0_deep_eval` does for its BTN candidates.
+#[derive(Clone)]
+enum ForcedSlot {
+    /// The n-th of this seat's seventeen dealt cards.
+    Dealt(usize),
+    /// A name this seat's known cards do not contain.  Kept verbatim rather
+    /// than dropped or guessed at, so a genuinely wrong history still reaches
+    /// `forced_toss` and still fails there, naming the card the caller wrote.
+    Literal(String),
+}
+
+/// Where each of a seat's known cards sits among its seventeen.
+///
+/// Only the streets a replay actually preserves are listed, under exactly the
+/// condition `replay_deal` preserves them: everything from the target decision
+/// onwards is re-dealt, and a card named there is not this deal's card at all.
+fn dealt_positions(
+    draws: &std::collections::HashMap<(usize, usize), Vec<String>>,
+    seat: usize,
+    target: usize,
+) -> std::collections::HashMap<String, usize> {
+    let mut at: std::collections::HashMap<String, usize> = Default::default();
+    for street in 0..5usize {
+        let want = if street == 0 { 5 } else { 3 };
+        if street * 2 + seat > target {
+            continue;
+        }
+        let cards = match draws.get(&(street, seat)) {
+            Some(cards) if cards.len() == want => cards,
+            _ => continue,
+        };
+        let base = if street == 0 { 0 } else { 2 + street * 3 };
+        for (offset, name) in cards.iter().enumerate() {
+            at.insert(name.clone(), base + offset);
+        }
+    }
+    at
+}
+
+/// A forced board, resolved against one seat's known cards.
+fn forced_slots(
+    rows: &[Vec<String>; 3],
+    at: &std::collections::HashMap<String, usize>,
+) -> [Vec<ForcedSlot>; 3] {
+    let mut out: [Vec<ForcedSlot>; 3] = Default::default();
+    for row in 0..3usize {
+        for name in &rows[row] {
+            out[row].push(match at.get(name) {
+                Some(index) => ForcedSlot::Dealt(*index),
+                None => ForcedSlot::Literal(name.clone()),
+            });
+        }
+    }
+    out
+}
+
+/// The same board in one rollout's own spelling.
+fn spell_forced(slots: &[Vec<ForcedSlot>; 3], names: &[String]) -> [Vec<String>; 3] {
+    let mut out: [Vec<String>; 3] = Default::default();
+    for row in 0..3usize {
+        for slot in &slots[row] {
+            out[row].push(match slot {
+                ForcedSlot::Dealt(index) => names[*index].clone(),
+                ForcedSlot::Literal(name) => name.clone(),
+            });
+        }
+    }
+    out
+}
+
 /// The names a hand gives its thirty-four dealt cards, seventeen per seat.
 ///
 /// Jokers are numbered X1 then X2 across the whole deal in seat order, not
@@ -532,35 +658,8 @@ fn play_decision(
     {
         {
             if let Some(rows) = forced.and_then(|map| map.get(&(street, seat))) {
-                // Every placed card must come from this seat's board-so-far
-                // plus its draw, and exactly one drawn card is thrown after
-                // street 0.  A mismatch means the forced history does not
-                // belong to this deal, which is worth failing loudly.
-                let mut placed: Vec<String> = rows.iter().flatten().cloned().collect();
-                placed.sort();
-                let mut expect: Vec<String> = seats[seat]
-                    .board
-                    .iter()
-                    .flatten()
-                    .cloned()
-                    .chain(draw.iter().cloned())
-                    .collect();
-                expect.sort();
-                let tossed: Vec<String> = {
-                    let mut left = expect.clone();
-                    for card in &placed {
-                        if let Some(at) = left.iter().position(|c| c == card) {
-                            left.remove(at);
-                        }
-                    }
-                    left
-                };
-                let want_toss = if street == 0 { 0 } else { 1 };
-                if tossed.len() != want_toss || placed.len() + tossed.len() != expect.len() {
-                    bail!(
-                        "{id}: forced ({street},{seat}) places {placed:?} against {expect:?}"
-                    );
-                }
+                let tossed =
+                    forced_toss(id, street, seat, rows, &seats[seat].board, &draw)?;
                 seats[seat].board = rows.clone();
                 seats[seat].dead.extend(tossed);
                 record(&mut trace, street, seat, &draw, &seats[seat], "forced");
@@ -1131,6 +1230,82 @@ pub fn mirror_hands(
     Ok(out)
 }
 
+/// The thirty-four cards one replay rollout plays.
+///
+/// The streets already played keep their real draws -- that history is the
+/// thing under test -- and a fresh shuffle supplies everything from the target
+/// decision onwards, minus what the decision already sees.  `target` is
+/// `street * 2 + seat`, so a street is kept exactly when it comes no later
+/// than the decision being graded; `dealt_positions` mirrors that condition,
+/// and the two must not drift apart or a preserved card would be respelled
+/// from a slot the shuffle refilled.
+///
+/// Jokers are counted, not name-matched: `seen` naming one as X1 and this
+/// deal naming it X2 is the whole reason the caller respells.
+fn replay_deal(
+    seed: u64,
+    rollout: u64,
+    target: usize,
+    draws: &std::collections::HashMap<(usize, usize), Vec<String>>,
+    seen: &[String],
+) -> Result<Vec<fl_solver::Card>> {
+    let shuffled = deal_names(seed, rollout, 54);
+    // A joker is admitted where the *shuffle* put it, exactly as a natural is.
+    // Anything else -- dropping them and re-inserting at chosen offsets --
+    // makes joker arrival a function of the target rather than of the rollout,
+    // and then no number of rollouts ever samples it.
+    let jokers_seen = seen.iter().filter(|c| c.starts_with('X')).count();
+    let mut jokers_left = 2usize.saturating_sub(jokers_seen);
+    let mut fresh: Vec<String> = Vec::new();
+    for card in shuffled {
+        if card.is_joker() {
+            // Indistinguishable while `seen` holds them by name, so the test
+            // a natural gets by name a joker gets by count: a history showing
+            // one admits exactly one more, one showing both admits none.
+            if jokers_left > 0 {
+                jokers_left -= 1;
+                fresh.push(format!("X{}", 2 - jokers_left));
+            }
+            continue;
+        }
+        let ranks = b"23456789TJQKA";
+        let suits = b"shdc";
+        let name = format!("{}{}", ranks[(card.rank - 2) as usize] as char,
+                           suits[card.suit as usize] as char);
+        if !seen.contains(&name) {
+            fresh.push(name);
+        }
+    }
+    let mut next = fresh.into_iter();
+    let mut names: [Vec<String>; 2] = Default::default();
+    for s in 0..5usize {
+        for t in 0..2usize {
+            let want = if s == 0 { 5 } else { 3 };
+            let known = if s * 2 + t <= target { draws.get(&(s, t)) } else { None };
+            match known {
+                Some(cards) if cards.len() == want => names[t].extend(cards.clone()),
+                _ => for _ in 0..want {
+                    names[t].push(next.next().ok_or_else(|| anyhow!("deck exhausted"))?);
+                },
+            }
+        }
+    }
+    names[0].iter().chain(names[1].iter())
+        .map(|name| {
+            if name.starts_with('X') {
+                Ok(fl_solver::Card { rank: 0, suit: 4 })
+            } else {
+                let b = name.as_bytes();
+                let rank = b"23456789TJQKA".iter().position(|r| *r == b[0])
+                    .ok_or_else(|| anyhow!("bad card {name}"))? as u8 + 2;
+                let suit = b"shdc".iter().position(|s| *s == b[1])
+                    .ok_or_else(|| anyhow!("bad card {name}"))? as u8;
+                Ok(fl_solver::Card { rank, suit })
+            }
+        })
+        .collect()
+}
+
 /// Deep-evaluate one decision out of a traced hand.
 ///
 /// The history up to that decision is replayed exactly (both seats, forced),
@@ -1291,67 +1466,44 @@ pub fn deep_replay(
         return Ok(scored);
     }
 
+    // The history and the candidates, held as deal positions.  Names are
+    // materialised inside the rollout, because the re-deal is what decides
+    // which joker is X1; see `ForcedSlot`.
+    let positions: [std::collections::HashMap<String, usize>; 2] = [
+        dealt_positions(&draws, 0, target),
+        dealt_positions(&draws, 1, target),
+    ];
+    let history_slots: Vec<((usize, usize), [Vec<ForcedSlot>; 3])> = history
+        .iter()
+        .map(|((s, t), rows)| ((*s, *t), forced_slots(rows, &positions[*t])))
+        .collect();
+    let chosen_slots: Vec<[Vec<ForcedSlot>; 3]> = chosen
+        .iter()
+        .map(|(rows, _key)| forced_slots(rows, &positions[seat]))
+        .collect();
+
     let per_rollout: Result<Vec<Vec<f32>>> = (0..rollouts as u64)
         .into_par_iter()
         .map(|rollout| {
-            // A fresh shuffle supplies every card not yet seen; the streets
-            // already played keep their real draws.
-            let shuffled = deal_names(seed, rollout, 54);
-            let mut fresh: Vec<String> = Vec::new();
-            for card in shuffled {
-                let name = if card.is_joker() {
-                    "X".to_string()
-                } else {
-                    let ranks = b"23456789TJQKA";
-                    let suits = b"shdc";
-                    format!("{}{}", ranks[(card.rank - 2) as usize] as char,
-                            suits[card.suit as usize] as char)
-                };
-                if name != "X" && !seen.contains(&name) {
-                    fresh.push(name);
-                }
+            let dealt = replay_deal(seed, rollout, target, &draws, &seen)?;
+            // What this deal calls its cards.  The streets the replay keeps
+            // hold the same physical cards, so a natural's name is unchanged
+            // and only a joker can have renumbered -- but that is enough to
+            // make a literal history look wrong.
+            let spelled = seat_names(&dealt);
+            let mut base: Forced = Forced::new();
+            for ((s, t), slots) in &history_slots {
+                base.insert((*s, *t), spell_forced(slots, &spelled[*t]));
             }
-            let jokers_seen = seen.iter().filter(|c| c.starts_with('X')).count();
-            for slot in 0..(2 - jokers_seen.min(2)) {
-                fresh.insert((slot * 7 + 3).min(fresh.len()), format!("X{}", slot + 1));
-            }
-            let mut next = fresh.into_iter();
-            let mut names: [Vec<String>; 2] = Default::default();
-            for s in 0..5usize {
-                for t in 0..2usize {
-                    let want = if s == 0 { 5 } else { 3 };
-                    let known = if order(s, t) <= target { draws.get(&(s, t)) } else { None };
-                    match known {
-                        Some(cards) if cards.len() == want => names[t].extend(cards.clone()),
-                        _ => for _ in 0..want {
-                            names[t].push(next.next().ok_or_else(|| anyhow!("deck exhausted"))?);
-                        },
-                    }
-                }
-            }
-            let dealt: Vec<fl_solver::Card> = names[0].iter().chain(names[1].iter())
-                .map(|name| {
-                    if name.starts_with('X') {
-                        Ok(fl_solver::Card { rank: 0, suit: 4 })
-                    } else {
-                        let b = name.as_bytes();
-                        let rank = b"23456789TJQKA".iter().position(|r| *r == b[0])
-                            .ok_or_else(|| anyhow!("bad card {name}"))? as u8 + 2;
-                        let suit = b"shdc".iter().position(|s| *s == b[1])
-                            .ok_or_else(|| anyhow!("bad card {name}"))? as u8;
-                        Ok(fl_solver::Card { rank, suit })
-                    }
-                })
-                .collect::<Result<Vec<_>>>()?;
             let id = format!("rp/{seed}/{rollout}");
             let entry = |f: &Finished| -> f64 {
                 if !f.busted && f.entry_width >= 14 {
                     table[(f.entry_width - 14) as usize]
                 } else { 0.0 }
             };
-            chosen.iter().map(|(rows, _key)| {
-                let mut forced = history.clone();
-                forced.insert((street, seat), rows.clone());
+            chosen_slots.iter().map(|slots| {
+                let mut forced = base.clone();
+                forced.insert((street, seat), spell_forced(slots, &spelled[seat]));
                 let value = |both: &[Finished; 2]| -> f64 {
                     let (me, them) = (&both[seat], &both[1 - seat]);
                     let sign = if seat == 0 { 1.0 } else { -1.0 };
@@ -2404,6 +2556,418 @@ mod tests {
             let wide: Vec<&String> = ordered.iter().take(k + 1).map(|m| &m.1[0][0]).collect();
             assert_eq!(&wide[..narrow.len()], &narrow[..], "K+1 is not a superset of K");
         }
+    }
+
+    /// The fifty-two naturals, in a fixed order.
+    fn deck_names() -> Vec<String> {
+        let mut out = Vec::new();
+        for rank in b"23456789TJQKA" {
+            for suit in b"shdc" {
+                out.push(format!("{}{}", *rank as char, *suit as char));
+            }
+        }
+        out
+    }
+
+    /// A traced hand as `deep_replay` reads one: each seat's seventeen, and
+    /// the ten draws sliced out of them the way `draw_at` slices a deal.
+    ///
+    /// `joker_at` puts the deal's only joker in seat 1's opening, spelled X1
+    /// because that is what it was under the deal that actually happened.
+    fn traced_hand(
+        joker_at: Option<usize>,
+    ) -> (
+        [Vec<String>; 2],
+        std::collections::HashMap<(usize, usize), Vec<String>>,
+    ) {
+        let deck = deck_names();
+        let mut hand: [Vec<String>; 2] = Default::default();
+        for seat in 0..2usize {
+            hand[seat] = deck[seat * 17..seat * 17 + 17].to_vec();
+        }
+        if let Some(index) = joker_at {
+            hand[1][index] = "X1".to_string();
+        }
+        let mut draws: std::collections::HashMap<(usize, usize), Vec<String>> =
+            Default::default();
+        for street in 0..5usize {
+            for seat in 0..2usize {
+                let base = if street == 0 { 0 } else { 2 + street * 3 };
+                let want = if street == 0 { 5 } else { 3 };
+                draws.insert((street, seat), hand[seat][base..base + want].to_vec());
+            }
+        }
+        (hand, draws)
+    }
+
+    /// What the decision under test has already seen: every card of every
+    /// street the replay keeps.
+    fn known_cards(
+        draws: &std::collections::HashMap<(usize, usize), Vec<String>>,
+        target: usize,
+    ) -> Vec<String> {
+        let mut seen: Vec<String> = Vec::new();
+        for ((street, seat), cards) in draws {
+            if street * 2 + seat <= target {
+                seen.extend(cards.clone());
+            }
+        }
+        seen.sort();
+        seen
+    }
+
+    /// **A replayed history is respelled into the rollout's joker numbers.**
+    ///
+    /// The bug this pins: `play_hand` numbers the deal's jokers X1 then X2
+    /// across both seats, so seat 1's joker is X1 only while nothing in seat
+    /// 0's seventeen precedes it.  A replay pins a history spelled under the
+    /// deal that happened and plays it against a re-dealt future, and the
+    /// re-deal drops its unseen joker into seat 0 -- which renumbers seat 1's
+    /// joker to X2 and made `forced_toss` reject a history that was correct
+    /// ("forced (0,1) places [.. X1] against [.. X2]").
+    ///
+    /// Both halves are asserted, because only the pair is evidence: the
+    /// literal history really is rejected by this deal, and the same history
+    /// held as deal positions really is accepted.
+    #[test]
+    fn a_replayed_history_is_respelled_into_the_rollouts_joker_numbers() {
+        let (hand, draws) = traced_hand(Some(4));
+        // The square the failure was found on: street 3, BB.
+        let target = 3 * 2;
+        let seen = known_cards(&draws, target);
+        let opening: [Vec<String>; 3] = [
+            vec![hand[1][0].clone()],
+            vec![hand[1][1].clone(), hand[1][2].clone()],
+            vec![hand[1][3].clone(), hand[1][4].clone()],
+        ];
+        assert_eq!(opening[2][1], "X1", "the fixture's joker is the deal's first");
+        let slots = forced_slots(&opening, &dealt_positions(&draws, 1, target));
+        let empty: [Vec<String>; 3] = Default::default();
+        // Whether the renumbering happens is now the re-deal's business: it
+        // does exactly when the shuffle drops its unseen joker into seat 0.
+        // So the assertion is per rollout on whatever this deal decided, plus
+        // a count at the end proving the renumbering branch was reached.
+        let mut renumbered = 0usize;
+        for rollout in 0..200u64 {
+            let dealt = replay_deal(4242, rollout, target, &draws, &seen).expect("a deal");
+            let spelled = seat_names(&dealt);
+            let draw = draw_at(&spelled, 0, 1);
+            let actual = spelled[1][4].clone();
+            assert!(
+                actual.starts_with('X'),
+                "rollout {rollout} lost the history's joker: {actual}"
+            );
+            if actual != "X1" {
+                renumbered += 1;
+                assert_eq!(actual, "X2", "rollout {rollout} numbered past X2");
+                assert!(
+                    forced_toss("t", 0, 1, &opening, &empty, &draw).is_err(),
+                    "rollout {rollout} accepted the trace's own spelling"
+                );
+            }
+            let respelled = spell_forced(&slots, &spelled[1]);
+            assert_eq!(respelled[2][1], actual, "the joker was not respelled");
+            assert_eq!(
+                respelled[0], opening[0],
+                "a natural was renamed"
+            );
+            forced_toss("t", 0, 1, &respelled, &empty, &draw)
+                .unwrap_or_else(|e| panic!("rollout {rollout} rejected a correct history: {e}"));
+        }
+        assert!(
+            renumbered > 0,
+            "no rollout renumbered seat 1's joker, so the respelling was never exercised"
+        );
+    }
+
+    /// A traced hand with jokers at chosen `(seat, index)` slots, numbered the
+    /// way `seat_names` numbers them: seat 0's seventeen first.
+    fn traced_hand_with(
+        jokers: &[(usize, usize)],
+    ) -> (
+        [Vec<String>; 2],
+        std::collections::HashMap<(usize, usize), Vec<String>>,
+    ) {
+        let deck = deck_names();
+        let mut hand: [Vec<String>; 2] = Default::default();
+        for seat in 0..2usize {
+            hand[seat] = deck[seat * 17..seat * 17 + 17].to_vec();
+        }
+        for (nth, (seat, index)) in jokers.iter().enumerate() {
+            hand[*seat][*index] = format!("X{}", nth + 1);
+        }
+        let mut draws: std::collections::HashMap<(usize, usize), Vec<String>> =
+            Default::default();
+        for street in 0..5usize {
+            for seat in 0..2usize {
+                let base = if street == 0 { 0 } else { 2 + street * 3 };
+                let want = if street == 0 { 5 } else { 3 };
+                draws.insert((street, seat), hand[seat][base..base + want].to_vec());
+            }
+        }
+        (hand, draws)
+    }
+
+    /// Which decision a slot of the thirty-four belongs to.
+    fn dealt_slot(index: usize) -> (usize, usize) {
+        let seat = index / 17;
+        let within = index % 17;
+        let street = if within < 5 { 0 } else { (within - 2) / 3 };
+        (street, seat)
+    }
+
+    /// This deal's name for a card, spelled as `replay_deal` spells naturals.
+    fn natural_name(card: &fl_solver::Card) -> String {
+        let ranks = b"23456789TJQKA";
+        let suits = b"shdc";
+        format!(
+            "{}{}",
+            ranks[(card.rank - 2) as usize] as char,
+            suits[card.suit as usize] as char
+        )
+    }
+
+    /// **Where a re-dealt joker lands varies with the shuffle.**
+    ///
+    /// The bug this pins: `replay_deal` used to drop every joker out of the
+    /// shuffle and re-insert the unseen ones at fixed offsets into what was
+    /// left, so every rollout of a replay dealt its jokers to the same two
+    /// squares -- a deterministic function of the target alone.  Rollouts then
+    /// never sampled the thing they exist to sample, and a candidate's score
+    /// was an average over one joker arrangement out of the many that decision
+    /// actually faces.
+    ///
+    /// Both halves are asserted: the *shape* (which squares hold a joker) is
+    /// not one fixed arrangement, and the squares reached cover most of the
+    /// board rather than a favoured pair.
+    #[test]
+    fn a_re_dealt_joker_lands_where_the_shuffle_put_it() {
+        let (_hand, draws) = traced_hand_with(&[]);
+        // Street 0 BTN: both openings are history, streets 1-4 are re-dealt,
+        // so eight squares are in play.
+        let target = 1;
+        let seen = known_cards(&draws, target);
+        let mut shapes: std::collections::BTreeSet<Vec<(usize, usize)>> = Default::default();
+        let mut squares: std::collections::BTreeSet<(usize, usize)> = Default::default();
+        for rollout in 0..200u64 {
+            let dealt = replay_deal(4242, rollout, target, &draws, &seen).expect("a deal");
+            let here: Vec<(usize, usize)> = dealt
+                .iter()
+                .enumerate()
+                .filter(|(_index, card)| card.is_joker())
+                .map(|(index, _card)| dealt_slot(index))
+                .collect();
+            squares.extend(here.iter().copied());
+            shapes.insert(here);
+        }
+        assert!(
+            shapes.len() >= 5,
+            "200 rollouts dealt their jokers into only {} arrangement(s): {shapes:?}",
+            shapes.len()
+        );
+        assert!(
+            squares.len() >= 5,
+            "the joker only ever reached {squares:?}"
+        );
+    }
+
+    /// **A re-deal admits exactly the jokers the decision has not seen.**
+    ///
+    /// Jokers are one `Card` in two deck slots, so the shuffle cannot be
+    /// name-matched against the history the way naturals are: the accounting
+    /// has to be a count.  A history showing one joker may be dealt one more,
+    /// a history showing both must be dealt none, and no deal may ever hold
+    /// three.
+    #[test]
+    fn a_re_deal_admits_only_the_jokers_the_history_has_not_seen() {
+        // Seat 1's opening index 4 and seat 0's index 2 are both street 0, so
+        // target 1 (street 0, BTN) has seen every joker the fixture holds.
+        let fixtures: [(&str, Vec<(usize, usize)>); 3] = [
+            ("none", vec![]),
+            ("one", vec![(1, 4)]),
+            ("both", vec![(0, 2), (1, 4)]),
+        ];
+        let target = 1;
+        for (label, jokers) in fixtures {
+            let held = jokers.len();
+            let (_hand, draws) = traced_hand_with(&jokers);
+            let seen = known_cards(&draws, target);
+            let (mut low, mut high) = (usize::MAX, 0usize);
+            for rollout in 0..200u64 {
+                let dealt = replay_deal(4242, rollout, target, &draws, &seen).expect("a deal");
+                let count = dealt.iter().filter(|card| card.is_joker()).count();
+                assert!(
+                    count <= 2,
+                    "{label}: rollout {rollout} dealt {count} jokers out of a 54-card deck"
+                );
+                assert!(
+                    count >= held,
+                    "{label}: rollout {rollout} lost a joker the history holds"
+                );
+                low = low.min(count);
+                high = high.max(count);
+            }
+            assert_eq!(
+                high, 2,
+                "{label}: no rollout in 200 ever dealt the unseen joker(s)"
+            );
+            assert_eq!(
+                low, held,
+                "{label}: every rollout dealt an unseen joker, so arrival is not being sampled"
+            );
+        }
+    }
+
+    /// **A history holding both jokers re-deals the shuffle untouched.**
+    ///
+    /// The control for the joker accounting: with nothing left to admit, the
+    /// re-dealt future is exactly the shuffle's naturals minus what the
+    /// decision sees, in shuffle order.  This is the case the old code and
+    /// the new one agree on card for card, so a change here would mean the
+    /// fix moved naturals around on hands that have no joker left in them.
+    #[test]
+    fn a_history_holding_both_jokers_re_deals_the_shuffle_untouched() {
+        let (_hand, draws) = traced_hand_with(&[(0, 2), (1, 4)]);
+        let target = 1;
+        let seen = known_cards(&draws, target);
+        for rollout in 0..32u64 {
+            let dealt = replay_deal(4242, rollout, target, &draws, &seen).expect("a deal");
+            let expected: Vec<fl_solver::Card> = deal_names(4242, rollout, 54)
+                .into_iter()
+                .filter(|card| !card.is_joker() && !seen.contains(&natural_name(card)))
+                .collect();
+            // Streets 1-4, in the order `replay_deal` consumes them.
+            let mut got: Vec<fl_solver::Card> = Vec::new();
+            for street in 1..5usize {
+                for seat in 0..2usize {
+                    let base = seat * 17 + 2 + street * 3;
+                    got.extend(dealt[base..base + 3].iter().copied());
+                }
+            }
+            assert_eq!(
+                got,
+                expected[..got.len()].to_vec(),
+                "rollout {rollout} did not deal the shuffle's naturals in order"
+            );
+        }
+    }
+
+    /// **A joker-free history respells to itself, card for card.**
+    ///
+    /// The control for the respelling: with no joker in the deal there is
+    /// nothing to renumber, so every board a replay pins must come back
+    /// byte-for-byte identical at every street, both seats, every rollout.  A
+    /// respelling that moved a natural would change results on hands that
+    /// have nothing to do with the bug.
+    #[test]
+    fn a_joker_free_history_is_respelled_to_itself() {
+        let (hand, draws) = traced_hand(None);
+        for target in [0usize, 3, 6, 9] {
+            let seen = known_cards(&draws, target);
+            let positions = [
+                dealt_positions(&draws, 0, target),
+                dealt_positions(&draws, 1, target),
+            ];
+            for rollout in 0..4u64 {
+                let dealt = replay_deal(31337, rollout, target, &draws, &seen).expect("a deal");
+                let spelled = seat_names(&dealt);
+                for street in 0..5usize {
+                    for seat in 0..2usize {
+                        if street * 2 + seat > target {
+                            continue;
+                        }
+                        // Everything this seat holds by the end of the street,
+                        // laid out as a board.
+                        let upto = if street == 0 { 5 } else { 5 + street * 3 };
+                        let rows: [Vec<String>; 3] = [
+                            hand[seat][..1].to_vec(),
+                            hand[seat][1..3].to_vec(),
+                            hand[seat][3..upto].to_vec(),
+                        ];
+                        let slots = forced_slots(&rows, &positions[seat]);
+                        assert_eq!(
+                            spell_forced(&slots, &spelled[seat]),
+                            rows,
+                            "T{street} seat {seat} changed under a joker-free re-deal"
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    /// **A forced board that is not this deal's still fails loudly.**
+    ///
+    /// The respelling must not become "ignore mismatches".  A card the seat
+    /// never held has no position to be respelled from, so it is carried
+    /// verbatim and `forced_toss` rejects it -- naming the card the caller
+    /// actually wrote, which is the only clue a wrong history ever gives.
+    #[test]
+    fn a_forced_board_that_is_not_this_deals_still_fails_loudly() {
+        let (hand, draws) = traced_hand(Some(4));
+        let target = 3 * 2;
+        let seen = known_cards(&draws, target);
+        let at = dealt_positions(&draws, 1, target);
+        let dealt = replay_deal(4242, 0, target, &draws, &seen).expect("a deal");
+        let spelled = seat_names(&dealt);
+        let draw = draw_at(&spelled, 0, 1);
+        let empty: [Vec<String>; 3] = Default::default();
+
+        // One of seat 0's cards, smuggled into seat 1's opening.
+        let intruder = hand[0][7].clone();
+        let wrong: [Vec<String>; 3] = [
+            vec![hand[1][0].clone()],
+            vec![hand[1][1].clone(), hand[1][2].clone()],
+            vec![hand[1][3].clone(), intruder.clone()],
+        ];
+        let respelled = spell_forced(&forced_slots(&wrong, &at), &spelled[1]);
+        assert_eq!(respelled[2][1], intruder, "an unknown card was invented");
+        let message = forced_toss("id", 0, 1, &respelled, &empty, &draw)
+            .expect_err("a foreign card was accepted")
+            .to_string();
+        assert!(
+            message.contains("id: forced (0,1) places") && message.contains(&intruder),
+            "the mismatch message lost its shape: {message}"
+        );
+
+        // A card of this seat's, but from a street it has not drawn yet.
+        let early: [Vec<String>; 3] = [
+            vec![hand[1][0].clone()],
+            vec![hand[1][1].clone(), hand[1][2].clone()],
+            vec![hand[1][3].clone(), hand[1][8].clone()],
+        ];
+        assert!(
+            forced_toss("id", 0, 1, &early, &empty, &draw).is_err(),
+            "a card from a later street was accepted at street 0"
+        );
+
+        // Right cards, wrong count: after street 0 exactly one is thrown.
+        let board: [Vec<String>; 3] = [
+            vec![hand[0][0].clone()],
+            vec![hand[0][1].clone(), hand[0][2].clone()],
+            vec![hand[0][3].clone(), hand[0][4].clone()],
+        ];
+        let street_one = draws[&(1, 0)].clone();
+        let mut kept_all = board.clone();
+        kept_all[1].extend(street_one.iter().cloned());
+        assert!(
+            forced_toss("id", 1, 0, &kept_all, &board, &street_one).is_err(),
+            "a street-1 placement that threw nothing was accepted"
+        );
+        let mut kept_one = board.clone();
+        kept_one[1].push(street_one[0].clone());
+        assert!(
+            forced_toss("id", 1, 0, &kept_one, &board, &street_one).is_err(),
+            "a street-1 placement that threw two was accepted"
+        );
+        let mut kept_two = board.clone();
+        kept_two[1].push(street_one[0].clone());
+        kept_two[2].push(street_one[1].clone());
+        assert_eq!(
+            forced_toss("id", 1, 0, &kept_two, &board, &street_one).expect("legal"),
+            vec![street_one[2].clone()],
+            "the thrown card was not inferred"
+        );
     }
 
     /// **A parsed board keeps its rows, and its cards keep their order.**
