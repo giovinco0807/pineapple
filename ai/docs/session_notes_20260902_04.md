@@ -75,3 +75,9 @@
 - [hu_fast_referee_20260902.md](hu_fast_referee_20260902.md) — 速い審判と deep_replay の欠陥追記
 - [t1_campaign_20260902.md](t1_campaign_20260902.md) — T1(対FL)戦役と出荷
 - メモリ: `t0btn-campaign`, `t0btn-sharp-handoff`, `hu-fast-referee`, `deep-replay-joker-defects`, `gcp-fleet-two-silent-failures`(6-8追記), `t1-campaign`
+
+## 7. 9/4 夜 追記: 出荷後のトレース
+
+`models_ship_20260904` の自己対戦 20,000 ハンドをローカルで取得(91分、`tr3_traces_20260904`、ルート `roots_20260904.jsonl`)。
+BTN の開始手で**ジョーカー上段が 3.7→6.3%(+14σ)** に増え、これは採掘・研ぎラベルの両方で審判が推していた向き
+(審判の指名 41〜54% に対し新モデル 35%)。次の採掘はジョーカー手を層化。詳細 `t0btn_campaign_20260902.md` §12。
