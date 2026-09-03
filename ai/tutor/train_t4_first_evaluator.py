@@ -12,6 +12,13 @@ test is touched exactly once, at the end.
 
 Usage:
     python -m ai.tutor.train_t4_first_evaluator --data-dir <dir> --out-dir <dir>
+
+Fine-tuning: `--init-from <T4F1 image or checkpoint>` starts from those
+weights AND their baked input scaler.  The scaler is never recomputed from
+the (smaller) fit split -- the T2 campaign lost a day to a recompute that
+moved regret by 0.015 (docs/t2_width128_20260831.md §9).  A dev.npz that
+carries `y1`/`y2` (two independent label passes; `build_t0_btn_sharp.py`)
+reports the label-noise SE of the dev regret next to the regret itself.
 """
 from __future__ import annotations
 
@@ -63,6 +70,41 @@ def load_split(data_dir: Path, name: str, device: torch.device):
     y = torch.tensor(payload["y"], dtype=torch.float32, device=device)
     jokers = torch.tensor(payload["jokers"].astype(np.int64), device=device)
     return x, y, jokers
+
+
+def load_passes(data_dir: Path, name: str, device: torch.device):
+    """The two independent label passes of a sharpened split, if it has them."""
+    payload = np.load(data_dir / f"{name}.npz")
+    if "y1" not in payload or "y2" not in payload:
+        return None
+    return (torch.tensor(payload["y1"], dtype=torch.float32, device=device),
+            torch.tensor(payload["y2"], dtype=torch.float32, device=device))
+
+
+def load_init(path: Path):
+    """Weights, hidden widths and the baked scaler of a T4F1 image or a
+    trainer checkpoint, for a fine-tune.
+
+    The scaler travels with the weights: a net tuned to one input_mean/std
+    pair, re-standardized from a different split, sees every feature shifted,
+    and the exported image would bake the shifted pair.
+    """
+    if path.read_bytes()[:4] == b"T4F1":
+        from ai.tutor.encode_fl_material import load_bin  # the tutor tree's T4F1 reader
+
+        mean, std, mats = load_bin(path)
+        hidden = tuple(int(w.shape[0]) for w, _ in mats[:-1])
+        model = T4FirstEvaluator(len(mean), hidden)
+        linears = [layer for layer in model.net if isinstance(layer, nn.Linear)]
+        with torch.no_grad():
+            for linear, (w, b) in zip(linears, mats):
+                linear.weight.copy_(torch.from_numpy(w))
+                linear.bias.copy_(torch.from_numpy(b))
+        return (model.state_dict(), hidden,
+                torch.from_numpy(mean).to(torch.float32), torch.from_numpy(std).to(torch.float32))
+    checkpoint = torch.load(path, map_location="cpu", weights_only=False)
+    return (checkpoint["model_state_dict"], tuple(int(h) for h in checkpoint["hidden"]),
+            checkpoint["input_mean"].to(torch.float32), checkpoint["input_std"].to(torch.float32))
 
 
 def root_groups(data_dir: Path, name: str) -> list[np.ndarray] | None:
@@ -119,12 +161,31 @@ def charged_regret(
     every action at a root and cancels in exactly the comparison that
     decides the play.
     """
-    total = 0.0
-    for group in groups:
+    if not groups:
+        return 0.0
+    return float(charged_regret_per_root(prediction, target, groups).mean())
+
+
+def charged_regret_per_root(
+    prediction: torch.Tensor, target: torch.Tensor, groups: list[np.ndarray]
+) -> np.ndarray:
+    out = np.empty(len(groups))
+    for index, group in enumerate(groups):
         truth = target[group]
         pick = group[int(torch.argmax(prediction[group]).item())]
-        total += float(truth.max().item() - target[pick].item())
-    return total / max(len(groups), 1)
+        out[index] = float(truth.max().item() - target[pick].item())
+    return out
+
+
+def label_noise_se(
+    prediction: torch.Tensor, y1: torch.Tensor, y2: torch.Tensor, groups: list[np.ndarray]
+) -> float:
+    """Standard error the labels' own noise puts on the regret: the same pick
+    graded on each independent pass, half the difference per root
+    (`t2_sharp_regrade`), summed in quadrature over roots."""
+    first = charged_regret_per_root(prediction, y1, groups)
+    second = charged_regret_per_root(prediction, y2, groups)
+    return float(np.sqrt((((first - second) / 2.0) ** 2).sum()) / max(len(groups), 1))
 
 
 def soft_regret_loss(
@@ -237,9 +298,10 @@ def run(
     best_rank_weight: float = 0.0,
     seed: int | None = None,
     evaluate_test: bool = True,
-    hidden: tuple[int, ...] = HIDDEN,
+    hidden: tuple[int, ...] | None = None,
     weight_decay: float = 0.01,
     dev_data_dir: Path | None = None,
+    init_from: Path | None = None,
 ) -> dict:
     if rank_weight < 0:
         raise ValueError("rank weight cannot be negative")
@@ -267,14 +329,29 @@ def run(
         require_roots=dev_data_dir is not None,
     )
 
-    # Standardize on the fit split only; dev and test never inform the scaler.
-    mean = fit_x.mean(dim=0)
-    std = fit_x.std(dim=0)
-    std = torch.where(std > 1e-6, std, torch.ones_like(std))
+    init = load_init(init_from) if init_from is not None else None
+    if init is not None:
+        init_state, init_hidden, init_mean, init_std = init
+        if hidden is not None and tuple(hidden) != init_hidden:
+            raise ValueError(f"--hidden {tuple(hidden)} does not match the init weights {init_hidden}")
+        if init_mean.numel() != fit_x.shape[1]:
+            raise ValueError(f"init scaler is {init_mean.numel()}-dim, fit is {fit_x.shape[1]}-dim")
+        hidden = init_hidden
+        # The scaler the weights were tuned to, in the f32 the image bakes.
+        mean = init_mean.to(device)
+        std = init_std.to(device)
+    else:
+        # Standardize on the fit split only; dev and test never inform the scaler.
+        mean = fit_x.mean(dim=0)
+        std = fit_x.std(dim=0)
+        std = torch.where(std > 1e-6, std, torch.ones_like(std))
+    hidden = tuple(hidden) if hidden else HIDDEN
     fit_x = (fit_x - mean) / std
     dev_x = (dev_x - mean) / std
 
     model = T4FirstEvaluator(fit_x.shape[1], hidden).to(device)
+    if init is not None:
+        model.load_state_dict(init_state)
     optimizer = torch.optim.AdamW(
         model.parameters(), lr=learning_rate, weight_decay=weight_decay
     )
@@ -283,6 +360,7 @@ def run(
 
     fit_groups = root_groups(data_dir, "fit")
     dev_groups = root_groups(effective_dev_dir, "dev")
+    dev_passes = load_passes(effective_dev_dir, "dev", device)
     if select_on == "regret" and not dev_groups:
         raise SystemExit("--select-on regret needs a `roots` array in dev.npz")
     if (rank_weight or best_rank_weight) and not fit_groups:
@@ -364,6 +442,10 @@ def run(
             dev_metrics = metrics(dev_prediction, dev_y)
             if dev_groups:
                 dev_metrics["regret"] = charged_regret(dev_prediction, dev_y, dev_groups)
+                if dev_passes is not None:
+                    dev_metrics["regret_noise_se"] = label_noise_se(
+                        dev_prediction, *dev_passes, dev_groups
+                    )
         epoch_metrics = {
             "epoch": epoch,
             "fit_loss": total / rows,
@@ -392,6 +474,7 @@ def run(
                     "seed": seed,
                     "data_dir": str(data_dir),
                     "dev_data_dir": str(effective_dev_dir),
+                    "init_from": str(init_from) if init_from is not None else None,
                 },
                 out_dir / "evaluator_best.pt",
             )
@@ -399,7 +482,9 @@ def run(
             print(
                 f"epoch {epoch:3d}  fit_loss {total / rows:.4f}  "
                 f"dev MAE {dev_metrics['mae']:.4f}  corr {dev_metrics['correlation']:.4f}"
-                + (f"  regret {dev_metrics['regret']:.4f}" if "regret" in dev_metrics else ""),
+                + (f"  regret {dev_metrics['regret']:.4f}" if "regret" in dev_metrics else "")
+                + (f" (noise SE {dev_metrics['regret_noise_se']:.4f})"
+                   if "regret_noise_se" in dev_metrics else ""),
                 flush=True,
             )
 
@@ -441,6 +526,7 @@ def run(
         "rank_temperature": rank_temperature,
         "best_rank_weight": best_rank_weight,
         "seed": seed,
+        "init_from": str(init_from) if init_from is not None else None,
         "parameters": sum(p.numel() for p in model.parameters()),
         "fit_rows": int(rows),
         "dev_rows": int(dev_x.shape[0]),
@@ -476,9 +562,15 @@ def main() -> None:
     parser.add_argument(
         "--hidden",
         type=parse_hidden,
-        default=HIDDEN,
+        default=None,
         metavar="N,N,...",
-        help="Dense hidden widths (default: 256,128,64).",
+        help="Dense hidden widths (default: 256,128,64; taken from --init-from when given).",
+    )
+    parser.add_argument(
+        "--init-from",
+        type=Path,
+        default=None,
+        help="fine-tune from a T4F1 image or a trainer checkpoint, keeping its baked input scaler",
     )
     parser.add_argument(
         "--weight-decay",
@@ -528,6 +620,7 @@ def main() -> None:
         hidden=args.hidden,
         weight_decay=args.weight_decay,
         dev_data_dir=args.dev_data_dir,
+        init_from=args.init_from,
     )
     print(
         json.dumps(
