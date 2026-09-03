@@ -41,7 +41,8 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
 # Fresh band, disjoint from every band in the seed registry
-# (220M/310M/600M/700M/810M/850M/860M/880M/900M/115-130M/2.1e9/3.3e9/4.4e9/5.1e9/5.2e9/6.6e9/7.7e9/8.9e9).
+# (220M/310M/600M/700M/810M/850M/860M/880M/900M/115-135M/2.1e9/3.3e9/4.4e9/5.1e9/5.2e9/6.1e9/6.6e9/7.7e9/8.9e9/
+#  9.1e9 = tr3 local champion trace 20260904, --self-play-seed 9_100_000_001).
 LABEL_BAND = 6_100_000_001
 ROOT_STRIDE = 10
 

@@ -27,7 +27,7 @@ Seats (--seat):
       Continuations are the champion's; --hu-fast-nets is never passed.
 
 Seed bands (registry: 220M/310M/600M/700M/810M/850M/860M/880M/900M/
-115-122M/2.1e9/3.3e9/4.4e9/6.6e9/7.7e9/8.888e9-8.903e9):
+115-122M/2.1e9/3.3e9/4.4e9/6.6e9/7.7e9/8.888e9-8.903e9/9.1e9 = tr3 local trace 20260904):
   seat  selection (per root i, round rnd)     scoring (per root i, batch j)
   bb    220_000_000 + i*10 + rnd              310_000_000 + i*10 + j
   btn   5_100_000_001 + i*10 + rnd            5_200_000_001 + i*10 + j

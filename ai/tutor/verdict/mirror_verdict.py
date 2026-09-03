@@ -36,6 +36,7 @@ from __future__ import annotations
 import argparse
 import glob
 import json
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -124,6 +125,13 @@ def main() -> None:
     parser.add_argument("--out", type=Path, default=None)
     args = parser.parse_args()
 
+    # The 公式 / FLゼロ labels must survive a cp932 console: on 2026-09-04 a
+    # garbled heading let the FL-zero row be read as the verdict for a week.
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except (AttributeError, ValueError):
+        pass
+
     table = load_table(args.fl_ev_config)
     arm_a, arm_b = args.arms
     report = {"schema": "ofc_mirror_verdict/v1", "label": args.label,
@@ -156,7 +164,7 @@ def main() -> None:
             continue
 
         low, high = interval(full, args.resamples, args.seed)
-        print(f"  {name}: {len(full)} deals  {full.mean():+.4f} [{low:+.4f}, {high:+.4f}]"
+        print(f"  {name}: {len(full)} deals  公式 {full.mean():+.4f} [{low:+.4f}, {high:+.4f}]"
               f"   FLゼロ採点 {zero.mean():+.4f}"
               f"   foul {rates[0]:.1%}/{rates[1]:.1%}  FL {rates[2]:.1%}/{rates[3]:.1%}"
               f"   一致 {(full == 0).mean():.1%}")
@@ -180,7 +188,7 @@ def main() -> None:
         zlow, zhigh = interval(every_zero, args.resamples, args.seed)
         verdict = call(low, high, arm_a, arm_b)
         print(f"  POOL ({len(args.runs)} sets): {len(every)} deals  "
-              f"{every.mean():+.4f} [{low:+.4f}, {high:+.4f}]  -> {verdict}")
+              f"公式 {every.mean():+.4f} [{low:+.4f}, {high:+.4f}]  -> {verdict}  <- 判定はこの行")
         print(f"  POOL FLゼロ採点: {every_zero.mean():+.4f} [{zlow:+.4f}, {zhigh:+.4f}]"
               f"  -> {call(zlow, zhigh, arm_a, arm_b)}")
         if len(args.runs) < 2:
