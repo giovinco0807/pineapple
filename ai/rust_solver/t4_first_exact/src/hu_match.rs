@@ -1073,8 +1073,8 @@ fn search_hero_lines(
     fast: Option<&hu_fast::FastNets>,
     hero_seat: usize,
     topk: usize,
-    value: &(dyn Fn(&[Finished; 2]) -> f64 + Sync),
-) -> Result<f64> {
+    value: &(dyn Fn(&[Finished; 2]) -> Parts + Sync),
+) -> Result<Parts> {
     for step in from..10usize {
         let (street, seat) = (step / 2, step % 2);
         let scored = match play_decision(
@@ -1089,7 +1089,11 @@ fn search_hero_lines(
             apply_move(&mut seats, seat, after, toss);
             continue;
         }
-        let mut best = f64::NEG_INFINITY;
+        // The line is chosen on the total; the parts ride along so a caller
+        // can re-price the chosen line under another scoring rule.  Comparing
+        // on anything but `total` would pick a line the reported number does
+        // not describe.
+        let mut best = Parts::WORST;
         for (_, after, toss) in branch_order(scored).into_iter().take(topk) {
             let mut branch = seats.clone();
             apply_move(&mut branch, seat, after, toss);
@@ -1097,7 +1101,7 @@ fn search_hero_lines(
                 step + 1, branch, id, names, arms, fl_ev, fl_table, table, forced, fast,
                 hero_seat, topk, value,
             )?;
-            if reached > best {
+            if reached.total > best.total {
                 best = reached;
             }
         }
@@ -1124,8 +1128,8 @@ fn referee_rollout(
     fast: Option<&hu_fast::FastNets>,
     hero_seat: usize,
     topk: usize,
-    value: &(dyn Fn(&[Finished; 2]) -> f64 + Sync),
-) -> Result<f64> {
+    value: &(dyn Fn(&[Finished; 2]) -> Parts + Sync),
+) -> Result<Parts> {
     if topk <= 1 {
         let both =
             play_hand_with(id, dealt, arms, fl_ev, fl_table, table, None, forced, fast)?;
@@ -1212,6 +1216,64 @@ pub fn trace_range(
     Ok(out)
 }
 
+/// One rollout's score, kept as the three terms it is made of.
+///
+/// The referee's number is `settle + own_entry - opp_entry`, and roughly
+/// seven eighths of its variance is the two entry terms: a Fantasyland seat
+/// is a coin flip worth 38.76 at width 16, against a line settlement whose
+/// whole variance is an eighth of the total (measured over the 20,000 deals
+/// of btnfence16, docs/t0btn_campaign_20260902.md 12.7).  Carrying the terms
+/// separately lets a caller re-price a finished rollout under another rule --
+/// dropping the opponent's entry, say, which cannot depend much on which
+/// opening hero chose -- without playing the hand again.
+#[derive(Clone, Copy, serde::Serialize)]
+pub struct Parts {
+    /// What the referee reports: `settle + own_entry - opp_entry`.
+    pub total: f64,
+    /// Line settlement from hero's side, already signed for the seat.
+    pub settle: f64,
+    /// Hero's Fantasyland credit, 0 when it did not enter or fouled.
+    pub own_entry: f64,
+    /// The opponent's, on the same table.
+    pub opp_entry: f64,
+}
+
+impl Parts {
+    const WORST: Parts = Parts {
+        total: f64::NEG_INFINITY,
+        settle: 0.0,
+        own_entry: 0.0,
+        opp_entry: 0.0,
+    };
+
+    fn of(settle: f64, own_entry: f64, opp_entry: f64) -> Parts {
+        Parts { total: settle + own_entry - opp_entry, settle, own_entry, opp_entry }
+    }
+}
+
+impl T0DeepRow {
+    /// One candidate's row from its rollouts, in the order they were played.
+    ///
+    /// `mean` averages the f32 scores, not the f64 totals they were rounded
+    /// from: this row already existed and the two differ in the seventh
+    /// decimal, so averaging the wider type would silently move every number
+    /// the mining and labelling pipelines have on file.
+    fn of(key: String, parts: impl Iterator<Item = Parts>) -> T0DeepRow {
+        let parts: Vec<Parts> = parts.collect();
+        let scores: Vec<f32> = parts.iter().map(|p| p.total as f32).collect();
+        let mean = scores.iter().map(|s| *s as f64).sum::<f64>() / scores.len().max(1) as f64;
+        T0DeepRow {
+            key,
+            n: parts.len(),
+            mean,
+            scores,
+            settle: parts.iter().map(|p| p.settle as f32).collect(),
+            own_entry: parts.iter().map(|p| p.own_entry as f32).collect(),
+            opp_entry: parts.iter().map(|p| p.opp_entry as f32).collect(),
+        }
+    }
+}
+
 /// One candidate's deep evaluation: full-game rollouts under a forced T0.
 #[derive(serde::Serialize)]
 pub struct T0DeepRow {
@@ -1221,6 +1283,12 @@ pub struct T0DeepRow {
     /// Per-rollout scores, index-aligned across candidates: scores[r] of two
     /// rows share the deal, so their difference is the paired statistic.
     pub scores: Vec<f32>,
+    /// The same rollouts' three terms, index-aligned with `scores`, so any
+    /// scoring rule can be re-derived offline.  `mean` stays the referee's
+    /// own number and nothing downstream has to change to ignore these.
+    pub settle: Vec<f32>,
+    pub own_entry: Vec<f32>,
+    pub opp_entry: Vec<f32>,
 }
 
 pub(crate) fn t0_key_of(rows: &[Vec<String>; 3]) -> String {
@@ -1553,7 +1621,15 @@ pub fn deep_replay(
                     &opp_rows, &pool, fl_ev, fl_table, &memo, &node_seed,
                     &mut features, &mut scratch, &opp_tail, arms[0].joint_samples,
                 )?;
-                Ok(T0DeepRow { key: key.clone(), n: 0, mean: score as f64, scores: Vec::new() })
+                Ok(T0DeepRow {
+                    key: key.clone(),
+                    n: 0,
+                    mean: score as f64,
+                    scores: Vec::new(),
+                    settle: Vec::new(),
+                    own_entry: Vec::new(),
+                    opp_entry: Vec::new(),
+                })
             })
             .collect::<Result<Vec<_>>>()?;
         scored.sort_by(|a, b| b.mean.partial_cmp(&a.mean).unwrap());
@@ -1576,7 +1652,7 @@ pub fn deep_replay(
         .map(|(rows, _key)| forced_slots(rows, &positions[seat]))
         .collect();
 
-    let per_rollout: Result<Vec<Vec<f32>>> = (0..rollouts as u64)
+    let per_rollout: Result<Vec<Vec<Parts>>> = (0..rollouts as u64)
         .into_par_iter()
         .map(|rollout| {
             let dealt = replay_deal(seed, rollout, target, &draws, &seen)?;
@@ -1598,23 +1674,21 @@ pub fn deep_replay(
             chosen_slots.iter().map(|slots| {
                 let mut forced = base.clone();
                 forced.insert((street, seat), spell_forced(slots, &spelled[seat]));
-                let value = |both: &[Finished; 2]| -> f64 {
+                let value = |both: &[Finished; 2]| -> Parts {
                     let (me, them) = (&both[seat], &both[1 - seat]);
                     let sign = if seat == 0 { 1.0 } else { -1.0 };
-                    sign * settle(&both[0], &both[1]) as f64 + entry(me) - entry(them)
+                    Parts::of(sign * settle(&both[0], &both[1]) as f64, entry(me), entry(them))
                 };
-                Ok(referee_rollout(
+                referee_rollout(
                     &id, &dealt, &seated, fl_ev, fl_table, &table, Some(&forced), fast,
                     seat, hero_topk, &value,
-                )? as f32)
-            }).collect::<Result<Vec<f32>>>()
+                )
+            }).collect::<Result<Vec<Parts>>>()
         })
         .collect();
     let per_rollout = per_rollout?;
     let mut out: Vec<T0DeepRow> = chosen.iter().enumerate().map(|(index, (_rows, key))| {
-        let scores: Vec<f32> = per_rollout.iter().map(|row| row[index]).collect();
-        let mean = scores.iter().map(|s| *s as f64).sum::<f64>() / scores.len().max(1) as f64;
-        T0DeepRow { key: key.clone(), n: scores.len(), mean, scores }
+        T0DeepRow::of(key.clone(), per_rollout.iter().map(|row| row[index]))
     }).collect();
     out.sort_by(|a, b| b.mean.partial_cmp(&a.mean).unwrap());
     Ok(out)
@@ -2075,7 +2149,7 @@ pub fn t0_deep_eval(
         fl_ev.value(17),
     ];
     let seated: [&Arm<'_>; 2] = [&arms[0], &arms[1]];
-    let per_rollout: Result<Vec<Vec<f32>>> = (0..rollouts as u64)
+    let per_rollout: Result<Vec<Vec<Parts>>> = (0..rollouts as u64)
         .into_par_iter()
         .map(|rollout| {
             // A full-deck shuffle with the known cards removed keeps the
@@ -2182,17 +2256,20 @@ pub fn t0_deep_eval(
                     // argument", so at seat 1 both the comparison and the two
                     // entry terms flip -- a sign left at seat 0 would invert
                     // every BTN verdict and still look like a plausible table.
-                    let value = |both: &[Finished; 2]| -> f64 {
+                    let value = |both: &[Finished; 2]| -> Parts {
                         let (me, them) = (seat, 1 - seat);
-                        settle(&both[me], &both[them]) as f64 + entry(&both[me])
-                            - entry(&both[them])
+                        Parts::of(
+                            settle(&both[me], &both[them]) as f64,
+                            entry(&both[me]),
+                            entry(&both[them]),
+                        )
                     };
-                    Ok(referee_rollout(
+                    referee_rollout(
                         &id, &dealt, &seated, fl_ev, fl_table, &table, Some(&forced), fast,
                         seat, hero_topk, &value,
-                    )? as f32)
+                    )
                 })
-                .collect::<Result<Vec<f32>>>()
+                .collect::<Result<Vec<Parts>>>()
         })
         .collect();
     let per_rollout = per_rollout?;
@@ -2201,14 +2278,7 @@ pub fn t0_deep_eval(
         .iter()
         .enumerate()
         .map(|(index, (_rows, key))| {
-            let scores: Vec<f32> = per_rollout.iter().map(|row| row[index]).collect();
-            let mean = scores.iter().map(|s| *s as f64).sum::<f64>() / scores.len().max(1) as f64;
-            T0DeepRow {
-                key: key.clone(),
-                n: scores.len(),
-                mean,
-                scores,
-            }
+            T0DeepRow::of(key.clone(), per_rollout.iter().map(|row| row[index]))
         })
         .collect();
     out.sort_by(|a, b| b.mean.partial_cmp(&a.mean).unwrap());

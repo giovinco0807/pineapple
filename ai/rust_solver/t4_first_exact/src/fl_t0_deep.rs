@@ -204,6 +204,12 @@ pub fn deep_eval(
                 n: scores.len(),
                 mean,
                 scores,
+                // The vs-Fantasyland referee scores hero's own finished board
+                // and never reads the opponent (owner ruling 2026-08-30), so
+                // there are no entry terms to split out here.
+                settle: Vec::new(),
+                own_entry: Vec::new(),
+                opp_entry: Vec::new(),
             }
         })
         .collect();
