@@ -33,6 +33,9 @@ WATCHDOG="$(meta hu-watchdog-seconds)"
 # bb (default) or btn; absent on launches made before the seat existed.
 ROLLOUTS="$(meta hu-rollouts 2>/dev/null || echo 128)"
 PASSES="$(meta hu-passes 2>/dev/null || echo 1)"
+# The label recipe, defaulted to lap 1's so an old launcher still reproduces it.
+FIELD="$(meta hu-field 2>/dev/null || echo wide)"
+SCORE="$(meta hu-score 2>/dev/null || echo full)"
 
 ship() {
   gcloud storage cp "$LOG/startup.log" \
@@ -90,6 +93,7 @@ PARTIAL_PID=$!
 python3 src/ai/tutor/t0_btn_label.py \
   --roots "$ROOT/requests.jsonl" --start "$START" --count "$COUNT" \
   --rollouts "$ROLLOUTS" --passes "$PASSES" \
+  --field "$FIELD" --score "$SCORE" \
   --models "$MODELS_DIR" --binary "$ROOT/src/ai/rust_solver/target/release/t4_first_exact" \
   --fl-ev-config "$ROOT/src/ai/config/fl_ev.json" \
   --work "$ROOT/work" --out "$ROOT/results.jsonl"

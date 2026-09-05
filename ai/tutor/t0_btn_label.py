@@ -93,21 +93,38 @@ class Teacher:
         return [json.loads(l) for l in out.read_text(encoding="utf-8").splitlines() if l.strip()]
 
 
-def choose_field(scored, served: str, eval_top: int, ranker_top: int):
-    """The openings worth a sharp label, and why each is there."""
+def choose_field(scored, served: str, eval_top: int, ranker_top: int, field: str):
+    """The openings worth a sharp label, and why each is there.
+
+    `wide` is lap 1's field: the evaluator's top 32, the ranker's top 16, the
+    best of each top-row-count stratum, and the served move -- about 40
+    openings at 128 rollouts each.
+
+    `fence` is the ranker's top-K and the served move, nothing else.  It exists
+    because the ranker fence shipped at K=16 on 2026-09-04: serving cannot
+    choose an opening outside the ranker's top 16, so labelling the rest buys
+    nothing a trained model can act on, and the budget it frees buys depth.
+    Measured over 20 dev roots at equal cost (16 openings x 316 rollouts vs
+    39.5 x 128), the middle/bottom orderings that lap 1 could not resolve
+    reproduce on an independent pass 75.1% -> 86.0% of the time
+    (docs/t0btn_campaign_20260902.md 12.11).  Widening the fence again would
+    mean widening this field with it.
+    """
     sources: dict[str, list[str]] = {}
-    by_eval = sorted(scored, key=lambda r: r["rank"])
-    for r in by_eval[:eval_top]:
-        sources.setdefault(r["key"], []).append("eval_top")
     ranked = [r for r in scored if r.get("ranker_rank")]
+    if field == "wide":
+        by_eval = sorted(scored, key=lambda r: r["rank"])
+        for r in by_eval[:eval_top]:
+            sources.setdefault(r["key"], []).append("eval_top")
     for r in sorted(ranked, key=lambda r: r["ranker_rank"])[:ranker_top]:
         sources.setdefault(r["key"], []).append("ranker_top")
-    seen = set()
-    for r in sorted(ranked, key=lambda r: r["ranker_rank"]):
-        t = top_count(r["key"])
-        if t not in seen:
-            seen.add(t)
-            sources.setdefault(r["key"], []).append(f"stratum_top{t}")
+    if field == "wide":
+        seen = set()
+        for r in sorted(ranked, key=lambda r: r["ranker_rank"]):
+            t = top_count(r["key"])
+            if t not in seen:
+                seen.add(t)
+                sources.setdefault(r["key"], []).append(f"stratum_top{t}")
     hit = next((r["key"] for r in scored if joker_blind(r["key"]) == joker_blind(served)), None)
     if hit is None:
         raise RuntimeError(f"served move {served} not among the audit's openings")
@@ -115,20 +132,48 @@ def choose_field(scored, served: str, eval_top: int, ranker_top: int):
     return hit, sources
 
 
+def priced(row: dict, score: str) -> float:
+    """One opening's label under the chosen scoring rule.
+
+    `full` is what the referee reports: the zero-sum settlement plus hero's
+    Fantasyland credit minus the opponent's.  `own_fl` drops the opponent's
+    entry term.  The opponent's board is pinned before hero opens and its
+    play barely answers hero's placement, so that term carries almost no
+    signal about which opening is better -- and about half the variance: a
+    Fantasyland seat is a coin flip worth 38.76 at width 16.  Dropping it
+    halved the per-opening variance at T0 with no measurable cost to the
+    objective (docs/t0btn_campaign_20260902.md 12.7, 12.10).
+    """
+    if score == "full":
+        return float(row["mean"])
+    parts = (row.get("settle"), row.get("own_entry"))
+    if not parts[0] or not parts[1]:
+        raise RuntimeError(
+            "--score own_fl needs the referee's per-rollout components; this "
+            "binary predates hu_match::Parts and reports only the total"
+        )
+    settle, own = parts
+    return sum(s + o for s, o in zip(settle, own)) / len(settle)
+
+
 def label_root(teacher: Teacher, index: int, root: dict, args) -> dict:
     cards = ",".join(root["btn_cards"])
     opp = root["bb_board"]
     scored = teacher.run(cards, opp, 0, 0, None, f"enum_{index}")
-    served_key, sources = choose_field(scored, root["served"], args.eval_top, args.ranker_top)
+    served_key, sources = choose_field(
+        scored, root["served"], args.eval_top, args.ranker_top, args.field)
     keys = list(sources)
     passes = []
     for p in range(args.passes):
         seed = LABEL_BAND + index * ROOT_STRIDE + p
         rows = teacher.run(cards, opp, args.rollouts, seed, keys, f"lab_{index}_p{p}")
-        passes.append({r["key"]: r["mean"] for r in rows})
+        passes.append({r["key"]: priced(r, args.score) for r in rows})
     record = {"id": root["id"], "index": index, "cards": cards, "opp_board": opp,
               "served": served_key, "field_size": len(keys), "rollouts": args.rollouts,
               "passes": args.passes, "sources": sources,
+              # Stamped on every row: a corpus that mixes scoring rules or
+              # field widths is two corpora, and nothing downstream could tell.
+              "field_kind": args.field, "score": args.score,
               "field": passes[0]}
     if args.passes > 1:
         record["field_pass2"] = passes[1]
@@ -148,8 +193,16 @@ def main() -> None:
     ap.add_argument("--fl-ev-config", type=Path, default=REPO / "ai/config/fl_ev.json")
     ap.add_argument("--rollouts", type=int, default=128)
     ap.add_argument("--passes", type=int, default=1)
-    ap.add_argument("--eval-top", type=int, default=32)
-    ap.add_argument("--ranker-top", type=int, default=16)
+    ap.add_argument("--eval-top", type=int, default=32,
+                    help="wide field only: how many of the evaluator's own top openings to label")
+    ap.add_argument("--ranker-top", type=int, default=16,
+                    help="how much of the ranker's order to label; must cover the served fence")
+    ap.add_argument("--field", choices=("wide", "fence"), default="wide",
+                    help="wide: lap 1's ~40 openings. fence: the ranker's top-K and the "
+                         "served move, which is everything serving can choose at K=16")
+    ap.add_argument("--score", choices=("full", "own_fl"), default="full",
+                    help="full: the referee's own number. own_fl: drop the opponent's "
+                         "Fantasyland credit (needs a binary that emits components)")
     args = ap.parse_args()
     args.work.mkdir(parents=True, exist_ok=True)
 
