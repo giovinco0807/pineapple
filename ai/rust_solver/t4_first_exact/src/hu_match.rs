@@ -1291,6 +1291,30 @@ pub struct T0DeepRow {
     pub opp_entry: Vec<f32>,
 }
 
+/// A canonical opening in one rollout's own spelling of hero's five.
+///
+/// Hero's joker is X1 in one rollout and X2 in the next depending on how many
+/// jokers fell in seat 0's seventeen, so a candidate is respelled per rollout
+/// rather than carrying the canonical name.
+fn respell_rows(
+    rows: &[Vec<String>; 3],
+    respell: &Option<Vec<(String, String)>>,
+) -> Result<[Vec<String>; 3]> {
+    let Some(map) = respell else { return Ok(rows.clone()) };
+    let mut out: [Vec<String>; 3] = Default::default();
+    for row in 0..3 {
+        for name in &rows[row] {
+            let actual = map
+                .iter()
+                .find(|(canonical, _)| canonical == name)
+                .map(|(_, actual)| actual.clone())
+                .ok_or_else(|| anyhow!("{name} is not one of hero's five"))?;
+            out[row].push(actual);
+        }
+    }
+    Ok(out)
+}
+
 pub(crate) fn t0_key_of(rows: &[Vec<String>; 3]) -> String {
     rows.iter()
         .map(|row| {
@@ -1490,6 +1514,7 @@ pub fn deep_replay(
     fl_table: &evaluator::FlTable,
     hero_topk: usize,
     fast: Option<&hu_fast::FastNets>,
+    freeze_opp: bool,
 ) -> Result<Vec<T0DeepRow>> {
     let order = |s: usize, t: usize| s * 2 + t;
     let target = order(street, seat);
@@ -1671,8 +1696,44 @@ pub fn deep_replay(
                     table[(f.entry_width - 14) as usize]
                 } else { 0.0 }
             };
+            // Freezing the opponent: play the rollout once under the FIRST
+            // candidate, keep every placement the opponent made from this
+            // decision onwards, and force those on all the others.  Two
+            // candidates then differ only in hero's own line, which is the
+            // thing being priced -- the opponent's answer is noise that a
+            // shared deal does not cancel, because a different board in front
+            // of it makes it choose differently.  Measured over 20 T0-BTN
+            // roots, two candidates on one deal correlate only 0.45, so the
+            // common random numbers were buying almost nothing (0.96x on the
+            // paired standard error).  The reference line costs one extra
+            // rollout in sixteen.
+            let opp_line: Forced = if !freeze_opp {
+                Forced::new()
+            } else {
+                let mut probe = base.clone();
+                let first = chosen_slots
+                    .first()
+                    .ok_or_else(|| anyhow!("no candidates to reference"))?;
+                probe.insert((street, seat), spell_forced(first, &spelled[seat]));
+                let mut trace: Vec<TraceStep> = Vec::new();
+                play_hand_with(
+                    &id, &dealt, &seated, fl_ev, fl_table, &table, Some(&mut trace),
+                    Some(&probe), fast,
+                )?;
+                let mut line = Forced::new();
+                for step in &trace {
+                    if step.seat != 1 - seat || order(step.street, step.seat) <= target {
+                        continue;
+                    }
+                    line.insert((step.street, step.seat), step.board.clone());
+                }
+                line
+            };
             chosen_slots.iter().map(|slots| {
                 let mut forced = base.clone();
+                for (k, v) in &opp_line {
+                    forced.insert(*k, v.clone());
+                }
                 forced.insert((street, seat), spell_forced(slots, &spelled[seat]));
                 let value = |both: &[Finished; 2]| -> Parts {
                     let (me, them) = (&both[seat], &both[1 - seat]);
@@ -2131,6 +2192,7 @@ pub fn t0_deep_eval(
     opp: Option<&OppOpening>,
     hero_topk: usize,
     fast: Option<&hu_fast::FastNets>,
+    freeze_opp: bool,
 ) -> Result<Vec<T0DeepRow>> {
     let (hero, hero_cards) = normalise_hero(hero)?;
     let chosen = t0_candidate_keys(&hero, wanted)?;
@@ -2225,29 +2287,50 @@ pub fn t0_deep_eval(
                         (Some(rows), Some(map))
                     }
                 };
+            // The opponent's line, pinned once per rollout so every candidate
+            // meets the same answer; see --hu-freeze-opp.  At seat 1 the
+            // opponent's opening is already pinned, so this adds its streets
+            // 1..4 -- four decisions that otherwise re-answer each candidate.
+            let opp_line: Forced = if !freeze_opp {
+                Forced::new()
+            } else {
+                let mut probe: Forced = Forced::new();
+                let (first_rows, _) = chosen
+                    .first()
+                    .ok_or_else(|| anyhow!("no candidates to reference"))?;
+                let respelled = respell_rows(first_rows, &respell)?;
+                probe.insert((0, seat), respelled);
+                if let Some(opp_rows) = &opp_forced {
+                    probe.insert((0, 0), opp_rows.clone());
+                }
+                let mut trace: Vec<TraceStep> = Vec::new();
+                play_hand_with(
+                    &id, &dealt, &seated, fl_ev, fl_table, &table, Some(&mut trace),
+                    Some(&probe), fast,
+                )?;
+                let mut line = Forced::new();
+                for step in &trace {
+                    // Streets 1..3 only.  The exact V4 that plays street 4
+                    // names a joker X1 whichever of the two it holds, so a
+                    // seat holding both writes X1 twice into the trace (571
+                    // of 20,000 traced hands) -- legal to play, impossible to
+                    // force back.  The opponent's street-4 answer is left
+                    // free; it is an exact solve from a board this already
+                    // pins, so what it adds is small.
+                    if step.seat == 1 - seat && (1..=3).contains(&step.street) {
+                        line.insert((step.street, step.seat), step.board.clone());
+                    }
+                }
+                line
+            };
             chosen
                 .iter()
                 .map(|(rows, _key)| {
                     let mut forced: Forced = Forced::new();
-                    let rows = match &respell {
-                        None => rows.clone(),
-                        Some(map) => {
-                            let mut out: [Vec<String>; 3] = Default::default();
-                            for row in 0..3 {
-                                for name in &rows[row] {
-                                    let actual = map
-                                        .iter()
-                                        .find(|(canonical, _)| canonical == name)
-                                        .map(|(_, actual)| actual.clone())
-                                        .ok_or_else(|| {
-                                            anyhow!("{name} is not one of hero's five")
-                                        })?;
-                                    out[row].push(actual);
-                                }
-                            }
-                            out
-                        }
-                    };
+                    for (k, v) in &opp_line {
+                        forced.insert(*k, v.clone());
+                    }
+                    let rows = respell_rows(rows, &respell)?;
                     forced.insert((0, seat), rows);
                     if let Some(opp_rows) = &opp_forced {
                         forced.insert((0, 0), opp_rows.clone());

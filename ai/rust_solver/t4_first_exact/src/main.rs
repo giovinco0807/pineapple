@@ -1081,6 +1081,23 @@ struct Cli {
     /// Serving never consults these nets.
     #[arg(long)]
     hu_fast_nets: Option<PathBuf>,
+    /// Referee only: pin the OPPONENT's line so every candidate meets the same
+    /// answer.  The rollout is played once under the first candidate, the
+    /// opponent's placements from the graded decision onwards are kept, and
+    /// the rest of the candidates are forced to face exactly those.
+    ///
+    /// Why: two candidates sharing a deal correlate only 0.45 at T0-BTN, so
+    /// the common random numbers buy almost nothing -- the paired standard
+    /// error is 0.96x the unpaired one.  A different board in front of the
+    /// opponent makes it place differently, and that answer is noise for the
+    /// question "which opening is worth more".  Pinning it is a change of
+    /// question, not just of variance: the opening is now priced against an
+    /// opponent that does not adapt to it, so the cost has to be measured the
+    /// way `own_fl` scoring was (regret under the unfrozen objective) before
+    /// any label is made this way.
+    #[arg(long, default_value_t = false)]
+    hu_freeze_opp: bool,
+
     /// Write the 487-dim fast-net feature vector for every candidate of every
     /// state in this JSONL file, one record per candidate, and stop.  Exists
     /// so the Rust encoder can be diffed against
@@ -2166,7 +2183,7 @@ fn main() -> Result<()> {
             let rows = hu_match::deep_replay(
                 &steps, cli.replay_street, cli.replay_seat, wanted.as_deref(),
                 cli.rollouts, cli.self_play_seed, &[arm_a, arm_b], &fl_ev, &fl_table,
-                cli.hu_hero_topk, hu_fast_nets.as_ref(),
+                cli.hu_hero_topk, hu_fast_nets.as_ref(), cli.hu_freeze_opp,
             )?;
             let mut writer = BufWriter::new(File::create(&cli.output)?);
             for row in &rows {
@@ -2341,6 +2358,7 @@ fn main() -> Result<()> {
                 opp_opening.as_ref(),
                 cli.hu_hero_topk,
                 hu_fast_nets.as_ref(),
+                cli.hu_freeze_opp,
             )?;
             let mut writer = BufWriter::new(File::create(&cli.output)?);
             for row in &rows {
