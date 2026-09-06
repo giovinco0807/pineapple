@@ -36,6 +36,18 @@ PASSES="$(meta hu-passes 2>/dev/null || echo 1)"
 # The label recipe, defaulted to lap 1's so an old launcher still reproduces it.
 FIELD="$(meta hu-field 2>/dev/null || echo wide)"
 SCORE="$(meta hu-score 2>/dev/null || echo full)"
+# Racing (adaptive budget): off unless the launcher asks; every knob scalar so
+# gcloud's comma-splitting of --metadata never sees a list.
+RACE="$(meta hu-race 2>/dev/null || echo 0)"
+RACE_BATCH="$(meta hu-race-batch 2>/dev/null || echo 64)"
+RACE_Z="$(meta hu-race-z 2>/dev/null || echo 3.0)"
+RACE_FLOOR="$(meta hu-race-floor 2>/dev/null || echo 128)"
+RACE_CAP="$(meta hu-race-cap 2>/dev/null || echo 8192)"
+RACE_TSE="$(meta hu-race-target-se 2>/dev/null || echo 0.35)"
+RACE_ARGS=""
+if [ "$RACE" = "1" ]; then
+  RACE_ARGS="--race --race-batch $RACE_BATCH --race-z $RACE_Z --race-floor $RACE_FLOOR --race-cap $RACE_CAP --race-target-se $RACE_TSE"
+fi
 
 ship() {
   gcloud storage cp "$LOG/startup.log" \
@@ -93,7 +105,7 @@ PARTIAL_PID=$!
 python3 src/ai/tutor/t0_btn_label.py \
   --roots "$ROOT/requests.jsonl" --start "$START" --count "$COUNT" \
   --rollouts "$ROLLOUTS" --passes "$PASSES" \
-  --field "$FIELD" --score "$SCORE" \
+  --field "$FIELD" --score "$SCORE" $RACE_ARGS \
   --models "$MODELS_DIR" --binary "$ROOT/src/ai/rust_solver/target/release/t4_first_exact" \
   --fl-ev-config "$ROOT/src/ai/config/fl_ev.json" \
   --work "$ROOT/work" --out "$ROOT/results.jsonl"

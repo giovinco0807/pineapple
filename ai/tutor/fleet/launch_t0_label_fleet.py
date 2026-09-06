@@ -30,6 +30,12 @@ def main() -> None:
     parser.add_argument("--passes", type=int, default=1)
     parser.add_argument("--field", choices=("wide", "fence"), default="wide",
                         help="the labelled opening set; see t0_btn_label.choose_field")
+    parser.add_argument("--race", action="store_true", help="adaptive racing; see t0_btn_label.race_field")
+    parser.add_argument("--race-batch", type=int, default=64)
+    parser.add_argument("--race-z", type=float, default=3.0)
+    parser.add_argument("--race-floor", type=int, default=128)
+    parser.add_argument("--race-cap", type=int, default=8192)
+    parser.add_argument("--race-target-se", type=float, default=0.35)
     parser.add_argument("--score", choices=("full", "own_fl"), default="full",
                         help="own_fl drops the opponent's Fantasyland credit and needs "
                              "a binary from binstamp 20260905a or later")
@@ -80,6 +86,9 @@ def main() -> None:
             f"hu-watchdog-seconds={args.watchdog_seconds}",
             f"hu-seat={args.seat}", f"hu-rollouts={args.rollouts}", f"hu-passes={args.passes}",
             f"hu-field={args.field}", f"hu-score={args.score}",
+            f"hu-race={1 if args.race else 0}", f"hu-race-batch={args.race_batch}",
+            f"hu-race-z={args.race_z}", f"hu-race-floor={args.race_floor}",
+            f"hu-race-cap={args.race_cap}", f"hu-race-target-se={args.race_target_se}",
         ])
         done = subprocess.run(
             [GCLOUD, "compute", "instances", "create", name,

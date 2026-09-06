@@ -158,6 +158,71 @@ def priced(row: dict, score: str) -> float:
     return sum(s + o for s, o in zip(settle, own)) / len(settle)
 
 
+def per_rollout(row: dict, score: str):
+    """Every rollout's value for one opening, under the scoring rule."""
+    if score == "full":
+        return [float(x) for x in row["scores"]]
+    settle, own = row.get("settle"), row.get("own_entry")
+    if not settle or not own:
+        raise RuntimeError("--score own_fl needs a binary that emits components")
+    return [float(s) + float(o) for s, o in zip(settle, own)]
+
+
+def race_field(teacher, cards, opp, keys, index, pass_index, args):
+    """Price a field by racing: keep spending only where the answer is open.
+
+    Every candidate gets a batch; after each batch a candidate is dropped once
+    it trails the leader by more than `z` combined standard errors (and has
+    had its floor), and the race stops when the two leaders are resolved to
+    `target_se`, or every survivor has hit the cap.  A position whose best is
+    obvious finishes in two batches; one where three openings sit within a
+    point of each other gets the whole budget, which is where a validation
+    set needs it.  Each batch draws its own seeds, so a leader's early luck
+    does not survive into its final value, and every reported number carries
+    the standard error it was actually measured to.
+    """
+    alive = list(keys)
+    n = {k: 0 for k in keys}
+    sums = {k: 0.0 for k in keys}
+    sq = {k: 0.0 for k in keys}
+    batches = 0
+    stop = ""
+    while True:
+        seed = LABEL_BAND + index * ROOT_STRIDE + pass_index + STAGE_STRIDE * (batches + 1)
+        rows = teacher.run(cards, opp, args.race_batch, seed, alive,
+                           f"lab_{index}_p{pass_index}_b{batches}")
+        got = {r["key"]: per_rollout(r, args.score) for r in rows}
+        missing = [k for k in alive if k not in got]
+        if missing:
+            raise RuntimeError(f"batch {batches} lost {len(missing)} openings: {missing[:3]}")
+        for k, vals in got.items():
+            n[k] += len(vals)
+            sums[k] += sum(vals)
+            sq[k] += sum(v * v for v in vals)
+        batches += 1
+        mean = {k: sums[k] / n[k] for k in alive}
+        se = {k: (max(sq[k] / n[k] - mean[k] ** 2, 1e-9) / n[k]) ** 0.5 for k in alive}
+        lead = max(alive, key=lambda k: mean[k])
+        alive = [k for k in alive
+                 if k == lead or n[k] < args.race_floor
+                 or mean[lead] - mean[k] <= args.race_z * (se[lead] ** 2 + se[k] ** 2) ** 0.5]
+        if len(alive) <= 1:
+            stop = "decided"
+            break
+        top = sorted(alive, key=lambda k: -mean[k])[:2]
+        gap_se = (se[top[0]] ** 2 + se[top[1]] ** 2) ** 0.5
+        if gap_se < args.race_target_se:
+            stop = "resolved"
+            break
+        if all(n[k] >= args.race_cap for k in alive):
+            stop = "capped"
+            break
+    values = {k: sums[k] / n[k] for k in keys}
+    errors = {k: (max(sq[k] / n[k] - values[k] ** 2, 1e-9) / n[k]) ** 0.5 for k in keys}
+    return values, {"se": errors, "n": dict(n), "batches": batches, "stop": stop,
+                    "survivors": alive}
+
+
 def price_field(teacher, cards, opp, keys, index, pass_index, args):
     """One pass over the field, under whichever budget the schedule asks for.
 
@@ -205,8 +270,15 @@ def label_root(teacher: Teacher, index: int, root: dict, args) -> dict:
         scored, root["served"], args.eval_top, args.ranker_top, args.field)
     keys = list(sources)
     passes = []
+    race_info = None
     for p in range(args.passes):
-        passes.append(price_field(teacher, cards, opp, keys, index, p, args))
+        if args.race:
+            values, info = race_field(teacher, cards, opp, keys, index, p, args)
+            passes.append(values)
+            if p == 0:
+                race_info = info
+        else:
+            passes.append(price_field(teacher, cards, opp, keys, index, p, args))
     record = {"id": root["id"], "index": index, "cards": cards, "opp_board": opp,
               "served": served_key, "field_size": len(keys), "rollouts": args.rollouts,
               "passes": args.passes, "sources": sources,
@@ -215,6 +287,14 @@ def label_root(teacher: Teacher, index: int, root: dict, args) -> dict:
               "field_kind": args.field, "score": args.score,
               "schedule": args.schedule,
               "field": passes[0]}
+    if race_info is not None:
+        record["race"] = {"batch": args.race_batch, "z": args.race_z, "floor": args.race_floor,
+                          "cap": args.race_cap, "target_se": args.race_target_se}
+        record["field_se"] = race_info["se"]
+        record["field_n"] = race_info["n"]
+        record["race_batches"] = race_info["batches"]
+        record["race_stop"] = race_info["stop"]
+        record["race_survivors"] = race_info["survivors"]
     if args.passes > 1:
         record["field_pass2"] = passes[1]
     return record
@@ -243,6 +323,16 @@ def main() -> None:
     ap.add_argument("--schedule", default="",
                     help="staged budget as rollouts:keep,... e.g. 64:8,250:3,700:1 . "
                          "Empty spends --rollouts flat on the whole field")
+    ap.add_argument("--race", action="store_true",
+                    help="adaptive racing instead of a fixed budget; see race_field")
+    ap.add_argument("--race-batch", type=int, default=64, help="rollouts per candidate per round")
+    ap.add_argument("--race-z", type=float, default=3.0,
+                    help="drop a candidate trailing the leader by more than this many combined SEs")
+    ap.add_argument("--race-floor", type=int, default=128,
+                    help="rollouts every candidate gets before it can be dropped")
+    ap.add_argument("--race-cap", type=int, default=8192, help="rollouts per survivor at most")
+    ap.add_argument("--race-target-se", type=float, default=0.35,
+                    help="stop once the leaders' gap is measured to this SE")
     ap.add_argument("--score", choices=("full", "own_fl"), default="full",
                     help="full: the referee's own number. own_fl: drop the opponent's "
                          "Fantasyland credit (needs a binary that emits components)")
