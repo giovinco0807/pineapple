@@ -6,6 +6,12 @@
       "runtimeExecutable": "python",
       "runtimeArgs": ["-m", "http.server", "8971", "--directory", "C:/tmp"],
       "port": 8971
+    },
+    {
+      "name": "trainer",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "uvicorn", "trainer.app:app", "--app-dir", "regular-ofc-pineapple", "--host", "127.0.0.1", "--port", "8093"],
+      "port": 8093
     }
   ]
 }
