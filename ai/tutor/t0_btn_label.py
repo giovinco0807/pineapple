@@ -45,6 +45,8 @@ REPO = Path(__file__).resolve().parents[2]
 #  9.1e9 = tr3 local champion trace 20260904, --self-play-seed 9_100_000_001).
 LABEL_BAND = 6_100_000_001
 ROOT_STRIDE = 10
+# Far enough apart that a staged root's seeds never meet another root's.
+STAGE_STRIDE = 1_000_000_007
 
 
 def model_args(models: Path):
@@ -156,6 +158,45 @@ def priced(row: dict, score: str) -> float:
     return sum(s + o for s, o in zip(settle, own)) / len(settle)
 
 
+def price_field(teacher, cards, opp, keys, index, pass_index, args):
+    """One pass over the field, under whichever budget the schedule asks for.
+
+    Flat spends the same rollouts on all sixteen openings.  Staged spends a
+    little on all of them, keeps the leaders, and spends the rest on those --
+    which is where the budget belongs: a 316-rollout pass already names the
+    true best 16 times in 20 and its misses are the runner-up, so what a label
+    gets wrong is almost always the top two or three, and the twelve openings
+    that were never in contention are being measured to a precision nobody
+    reads.  Simulated over the 20 dev roots, at the same ~5,000 rollouts, a
+    staged budget cuts the label's own regret 1.083 -> 0.884, and is worth
+    about twice the rollouts spent flat (docs/t0btn_campaign_20260902.md 12.15).
+
+    Each stage draws its own seeds, so the value a survivor is finally
+    reported at was not the one that selected it -- otherwise the leader of a
+    shallow stage carries its own good luck into the label (the winner's curse
+    the miner spends a whole scoring stage avoiding).  An opening eliminated
+    early keeps the shallow value it was eliminated on: it is far from the top
+    by construction, and its exact depth is what nobody reads.
+    """
+    if not args.schedule:
+        seed = LABEL_BAND + index * ROOT_STRIDE + pass_index
+        rows = teacher.run(cards, opp, args.rollouts, seed, keys, f"lab_{index}_p{pass_index}")
+        return {r["key"]: priced(r, args.score) for r in rows}
+    values: dict[str, float] = {}
+    alive = list(keys)
+    for stage, (rollouts, keep) in enumerate(args.schedule):
+        seed = LABEL_BAND + index * ROOT_STRIDE + pass_index + STAGE_STRIDE * (stage + 1)
+        rows = teacher.run(cards, opp, rollouts, seed, alive,
+                           f"lab_{index}_p{pass_index}_s{stage}")
+        got = {r["key"]: priced(r, args.score) for r in rows}
+        missing = [k for k in alive if k not in got]
+        if missing:
+            raise RuntimeError(f"stage {stage} lost {len(missing)} openings: {missing[:3]}")
+        values.update(got)
+        alive = sorted(alive, key=lambda k: -got[k])[:keep]
+    return values
+
+
 def label_root(teacher: Teacher, index: int, root: dict, args) -> dict:
     cards = ",".join(root["btn_cards"])
     opp = root["bb_board"]
@@ -165,15 +206,14 @@ def label_root(teacher: Teacher, index: int, root: dict, args) -> dict:
     keys = list(sources)
     passes = []
     for p in range(args.passes):
-        seed = LABEL_BAND + index * ROOT_STRIDE + p
-        rows = teacher.run(cards, opp, args.rollouts, seed, keys, f"lab_{index}_p{p}")
-        passes.append({r["key"]: priced(r, args.score) for r in rows})
+        passes.append(price_field(teacher, cards, opp, keys, index, p, args))
     record = {"id": root["id"], "index": index, "cards": cards, "opp_board": opp,
               "served": served_key, "field_size": len(keys), "rollouts": args.rollouts,
               "passes": args.passes, "sources": sources,
               # Stamped on every row: a corpus that mixes scoring rules or
               # field widths is two corpora, and nothing downstream could tell.
               "field_kind": args.field, "score": args.score,
+              "schedule": args.schedule,
               "field": passes[0]}
     if args.passes > 1:
         record["field_pass2"] = passes[1]
@@ -200,10 +240,22 @@ def main() -> None:
     ap.add_argument("--field", choices=("wide", "fence"), default="wide",
                     help="wide: lap 1's ~40 openings. fence: the ranker's top-K and the "
                          "served move, which is everything serving can choose at K=16")
+    ap.add_argument("--schedule", default="",
+                    help="staged budget as rollouts:keep,... e.g. 64:8,250:3,700:1 . "
+                         "Empty spends --rollouts flat on the whole field")
     ap.add_argument("--score", choices=("full", "own_fl"), default="full",
                     help="full: the referee's own number. own_fl: drop the opponent's "
                          "Fantasyland credit (needs a binary that emits components)")
     args = ap.parse_args()
+    if args.schedule:
+        args.schedule = [tuple(int(x) for x in part.split(":"))
+                         for part in args.schedule.split(",")]
+        if any(len(s) != 2 for s in args.schedule):
+            raise SystemExit("--schedule wants rollouts:keep pairs")
+        if args.schedule[-1][1] != 1:
+            raise SystemExit("--schedule must end keeping exactly one opening")
+    else:
+        args.schedule = []
     args.work.mkdir(parents=True, exist_ok=True)
 
     done_ids = set()
