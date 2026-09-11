@@ -36,6 +36,12 @@ def main() -> None:
     parser.add_argument("--race-floor", type=int, default=128)
     parser.add_argument("--race-cap", type=int, default=8192)
     parser.add_argument("--race-target-se", type=float, default=0.35)
+    parser.add_argument("--street", type=int, default=0, choices=(0, 1, 2, 3),
+                        help="0: openings; 1..3: traced street decisions (roots from hu_street_roots)")
+    parser.add_argument("--schedule", default="",
+                        help="staged budget rollouts:keep,... (t0_btn_label --schedule); "
+                             "travels as hu-schedule with '/' for ',' because gcloud "
+                             "splits --metadata on commas")
     parser.add_argument("--score", choices=("full", "own_fl"), default="full",
                         help="own_fl drops the opponent's Fantasyland credit and needs "
                              "a binary from binstamp 20260905a or later")
@@ -89,6 +95,8 @@ def main() -> None:
             f"hu-race={1 if args.race else 0}", f"hu-race-batch={args.race_batch}",
             f"hu-race-z={args.race_z}", f"hu-race-floor={args.race_floor}",
             f"hu-race-cap={args.race_cap}", f"hu-race-target-se={args.race_target_se}",
+            f"hu-schedule={args.schedule.replace(',', '/')}",
+            f"hu-street={args.street}",
         ])
         done = subprocess.run(
             [GCLOUD, "compute", "instances", "create", name,

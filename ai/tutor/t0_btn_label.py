@@ -42,7 +42,8 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 # Fresh band, disjoint from every band in the seed registry
 # (220M/310M/600M/700M/810M/850M/860M/880M/900M/115-135M/2.1e9/3.3e9/4.4e9/5.1e9/5.2e9/6.1e9/6.6e9/7.7e9/8.9e9/
-#  9.1e9 = tr3 local champion trace 20260904, --self-play-seed 9_100_000_001).
+#  9.1e9 = tr3 local champion trace 20260904, --self-play-seed 9_100_000_001;
+#  9.3e9 = fence duel; 9.4e9 = t0_bb_roots deal sampling; 9.5e9 = hu_street_roots sampling).
 LABEL_BAND = 6_100_000_001
 ROOT_STRIDE = 10
 # Far enough apart that a staged root's seeds never meet another root's.
@@ -56,10 +57,16 @@ def model_args(models: Path):
     rk = ",".join(str(models / "rankers" / n) for n in names)
     own = ",".join(str(models / "own_lap4" / n) for n in ("t0.bin", "t1.bin", "t2.bin"))
     return ["--hu-a-models", hu, "--hu-b-models", hu,
-            "--hu-a-rankers", rk, "--hu-b-rankers", rk, "--hu-topk", "4",
+            # Serving contract v2 (models_ship_20260911): fences wide open at the
+            # streets (27), Button opening ranker top-16, BB opening policy top-16.
+            # The referee's continuation replays the champion as it is served.
+            # Before 2026-09-11 this read 4 / (4) / 8; labels made under either
+            # contract are separate instruments and must not be pooled.
+            "--hu-a-rankers", rk, "--hu-b-rankers", rk, "--hu-topk", "27",
+            "--hu-t0-btn-topk", "16",
             "--hu-a-t0-policy", str(models / "policy.bin"),
             "--hu-b-t0-policy", str(models / "policy.bin"),
-            "--hu-t0-policy-topk", "8",
+            "--hu-t0-policy-topk", "16",
             "--serve-joint-samples", "200", "--serve-joint-samples-b", "200",
             "--arm-a-own", own, "--arm-b-own", own]
 
@@ -73,17 +80,35 @@ def top_count(key: str) -> int:
 
 
 class Teacher:
-    def __init__(self, binary: Path, models: Path, fl_ev: Path, work: Path):
+    def __init__(self, binary: Path, models: Path, fl_ev: Path, work: Path, seat: int = 1,
+                 street: int = 0):
         self.binary, self.models, self.fl_ev, self.work = binary, models, fl_ev, work
+        # 1 = Button (hero's five + BB's placed board); 0 = Big Blind, whose
+        # opening is decided by hero's five alone (docs/t0_bb_opponent_block_20260824.md).
+        self.seat = seat
+        # Street 0 prices openings with --hu-t0-deep; streets 1..3 replay a
+        # traced hand up to the decision with --hu-deep-replay, so the root is
+        # the trace line itself (`self.hand_file`, set per root by label_root).
+        self.street = street
+        self.hand_file: Path | None = None
         self.calls, self.seconds = 0, 0.0
 
     def run(self, cards: str, opp: str, rollouts: int, seed: int, keys, tag: str):
         out = self.work / f"{tag}.jsonl"
-        cmd = [str(self.binary), "--hu-match", "--hu-t0-deep"] + model_args(self.models)
-        cmd += ["--fl-ev-config", str(self.fl_ev), "--hu-t0-seat", "1",
-                "--t0-cards", cards, "--t0-opp-board", opp,
-                "--rollouts", str(rollouts), "--self-play-seed", str(seed),
-                "--output", str(out)]
+        if self.street == 0:
+            cmd = [str(self.binary), "--hu-match", "--hu-t0-deep"] + model_args(self.models)
+            cmd += ["--fl-ev-config", str(self.fl_ev), "--t0-cards", cards,
+                    "--rollouts", str(rollouts), "--self-play-seed", str(seed),
+                    "--output", str(out)]
+            if self.seat == 1:
+                cmd += ["--hu-t0-seat", "1", "--t0-opp-board", opp]
+        else:
+            cmd = [str(self.binary), "--hu-match", "--hu-deep-replay"] + model_args(self.models)
+            cmd += ["--fl-ev-config", str(self.fl_ev), "--input", str(self.hand_file),
+                    "--replay-hand", "0", "--replay-street", str(self.street),
+                    "--replay-seat", str(self.seat),
+                    "--rollouts", str(rollouts), "--self-play-seed", str(seed),
+                    "--output", str(out)]
         if keys is not None:
             cmd += ["--t0-keys-inline", ";".join(keys)]
         started = time.time()
@@ -95,7 +120,8 @@ class Teacher:
         return [json.loads(l) for l in out.read_text(encoding="utf-8").splitlines() if l.strip()]
 
 
-def choose_field(scored, served: str, eval_top: int, ranker_top: int, field: str):
+def choose_field(scored, served, eval_top: int, ranker_top: int, field: str,
+                 serve_top: int = 8):
     """The openings worth a sharp label, and why each is there.
 
     `wide` is lap 1's field: the evaluator's top 32, the ranker's top 16, the
@@ -113,25 +139,34 @@ def choose_field(scored, served: str, eval_top: int, ranker_top: int, field: str
     mean widening this field with it.
     """
     sources: dict[str, list[str]] = {}
-    ranked = [r for r in scored if r.get("ranker_rank")]
+    # The fence is whichever shortlist the serve consulted: at BB (and any
+    # bundle carrying policy.bin) the T0 policy's order, else the ranker's.
+    fence_key = "policy_rank" if any(r.get("policy_rank") for r in scored) else "ranker_rank"
+    ranked = [r for r in scored if r.get(fence_key)]
     if field == "wide":
         by_eval = sorted(scored, key=lambda r: r["rank"])
         for r in by_eval[:eval_top]:
             sources.setdefault(r["key"], []).append("eval_top")
-    for r in sorted(ranked, key=lambda r: r["ranker_rank"])[:ranker_top]:
+    for r in sorted(ranked, key=lambda r: r[fence_key])[:ranker_top]:
         sources.setdefault(r["key"], []).append("ranker_top")
     if field == "wide":
         seen = set()
-        for r in sorted(ranked, key=lambda r: r["ranker_rank"]):
+        for r in sorted(ranked, key=lambda r: r[fence_key]):
             t = top_count(r["key"])
             if t not in seen:
                 seen.add(t)
                 sources.setdefault(r["key"], []).append(f"stratum_top{t}")
-    hit = next((r["key"] for r in scored if joker_blind(r["key"]) == joker_blind(served)), None)
-    if hit is None:
-        raise RuntimeError(f"served move {served} not among the audit's openings")
+    if served is None:
+        # No trace behind this root (BB roots are bare deals): the served move
+        # is the serve's own pick, the evaluator's best inside the fence.
+        inside = [r for r in ranked if r[fence_key] <= serve_top]
+        hit = min(inside, key=lambda r: r["rank"])["key"]
+    else:
+        hit = next((r["key"] for r in scored if joker_blind(r["key"]) == joker_blind(served)), None)
+        if hit is None:
+            raise RuntimeError(f"served move {served} not among the audit's openings")
     sources.setdefault(hit, []).append("served")
-    return hit, sources
+    return hit, sources, fence_key
 
 
 def priced(row: dict, score: str) -> float:
@@ -262,12 +297,54 @@ def price_field(teacher, cards, opp, keys, index, pass_index, args):
     return values
 
 
+def canonical_jokers(cards: list[str]) -> list[str]:
+    """Spell hero's jokers by position: the first one X1, the second X2.
+
+    The two jokers are the same card.  `--rollouts 0` enumerates openings in
+    the deal's spelling, but the deep referee renumbers hero's jokers by
+    position, so a lone joker dealt as X2 makes every key the enumeration
+    produced "unknown" to the pricing call (bbdev shard 001800, 2026-09-07).
+    Renaming on the way in makes both paths spell the same card the same way.
+    """
+    out, seen = [], 0
+    for c in cards:
+        if c.startswith("X"):
+            seen += 1
+            out.append(f"X{seen}")
+        else:
+            out.append(c)
+    return out
+
+
+def street_field(scored, served: str):
+    """Streets 1..3: the referee enumerates every legal placement (27 at T1/T2,
+    12 at T3), few enough to label whole, so the field is all of them and the
+    served move is the board the trace recorded."""
+    sources = {r["key"]: ["all"] for r in scored}
+    hit = next((k for k in sources if joker_blind(k) == joker_blind(served)), None)
+    if hit is None:
+        raise RuntimeError(f"served board {served} not among the {len(sources)} enumerated placements")
+    sources[hit].append("served")
+    return hit, sources, "all"
+
+
 def label_root(teacher: Teacher, index: int, root: dict, args) -> dict:
-    cards = ",".join(root["btn_cards"])
-    opp = root["bb_board"]
-    scored = teacher.run(cards, opp, 0, 0, None, f"enum_{index}")
-    served_key, sources = choose_field(
-        scored, root["served"], args.eval_top, args.ranker_top, args.field)
+    if args.street:
+        # A traced decision: hand line -> one-hand trace file for deep-replay.
+        hand = root["trace"]
+        teacher.hand_file = teacher.work / f"hand_{index}.jsonl"
+        hand = dict(hand, hand=0)  # deep-replay selects --replay-hand 0
+        teacher.hand_file.write_text(json.dumps(hand) + "\n", encoding="utf-8")
+        cards = ",".join(root.get("draw") or [])
+        opp = ""
+        scored = teacher.run(cards, opp, 0, 0, None, f"enum_{index}")
+        served_key, sources, fence_key = street_field(scored, root["served"])
+    else:
+        cards = ",".join(canonical_jokers(list(root.get("btn_cards") or root["draw"])))
+        opp = root.get("bb_board") or "||"
+        scored = teacher.run(cards, opp, 0, 0, None, f"enum_{index}")
+        served_key, sources, fence_key = choose_field(
+            scored, root.get("served"), args.eval_top, args.ranker_top, args.field, args.serve_top)
     keys = list(sources)
     passes = []
     race_info = None
@@ -286,6 +363,8 @@ def label_root(teacher: Teacher, index: int, root: dict, args) -> dict:
               # field widths is two corpora, and nothing downstream could tell.
               "field_kind": args.field, "score": args.score,
               "schedule": args.schedule,
+              "seat": args.seat, "street": args.street, "fence_by": fence_key,
+              "stratum": root.get("stratum"),
               "field": passes[0]}
     if race_info is not None:
         record["race"] = {"batch": args.race_batch, "z": args.race_z, "floor": args.race_floor,
@@ -333,6 +412,16 @@ def main() -> None:
     ap.add_argument("--race-cap", type=int, default=8192, help="rollouts per survivor at most")
     ap.add_argument("--race-target-se", type=float, default=0.35,
                     help="stop once the leaders' gap is measured to this SE")
+    ap.add_argument("--seat", choices=("bb", "btn"), default="btn",
+                    help="btn: roots carry btn_cards/bb_board/served. bb: roots carry "
+                         "draw (five cards); the served move is the serve's own fenced pick")
+    ap.add_argument("--street", type=int, default=0, choices=(0, 1, 2, 3),
+                    help="0: openings (--hu-t0-deep). 1..3: traced street decisions replayed "
+                         "with --hu-deep-replay; roots carry trace/street/seat/served "
+                         "(ai/tutor/hu_street_roots.py) and the field is every placement")
+    ap.add_argument("--serve-top", type=int, default=8,
+                    help="serving fence width used to name the served move on roots "
+                         "without a trace (BB serves the policy's top 8)")
     ap.add_argument("--score", choices=("full", "own_fl"), default="full",
                     help="full: the referee's own number. own_fl: drop the opponent's "
                          "Fantasyland credit (needs a binary that emits components)")
@@ -366,7 +455,8 @@ def main() -> None:
             if line.strip():
                 roots.append((i, json.loads(line)))
 
-    teacher = Teacher(args.binary, args.models, args.fl_ev_config, args.work)
+    teacher = Teacher(args.binary, args.models, args.fl_ev_config, args.work,
+                      seat=1 if args.seat == "btn" else 0, street=args.street)
     written = errors = 0
     with args.out.open("a", encoding="utf-8") as fh:
         for index, root in roots:

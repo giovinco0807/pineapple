@@ -55,8 +55,10 @@ from ai.tutor.encode_t0_material import (
 from ai.tutor.t0_btn_label import joker_blind
 
 OPENINGS = 232
-SEAT_BTN = 1
-SHIP_BIN = "hu/t0_btn.bin"
+# Seat 1 is the Button (hero's five + BB's placed board, ranker fence); seat 0
+# the Big Blind (hero's five alone, policy fence).  The parity oracle is the
+# bundle's evaluator for that seat.
+SEATS = {"btn": (1, "hu/t0_btn.bin", "ranker_rank"), "bb": (0, "hu/t0_bb.bin", "policy_rank")}
 
 
 def label_files(spec: Path) -> list[Path]:
@@ -175,7 +177,12 @@ def main() -> None:
                     help="max |py - rust| allowed over every row (observed 1.1e-5 on 110k rows)")
     ap.add_argument("--batch", type=int, default=2000)
     ap.add_argument("--rank-workers", type=int, default=4)
+    ap.add_argument("--seat", choices=tuple(SEATS), default="btn")
+    ap.add_argument("--encode-all", action="store_true",
+                    help="also encode every one of the 232 openings per root and write "
+                         "enc_pairs.npz + pairs_meta.jsonl (the audits' all-openings input)")
     args = ap.parse_args()
+    seat, ship_bin, fence_by = SEATS[args.seat]
     fl_ev = args.fl_ev_config or args.models_dir / "fl_ev.json"
     ranks_dir = args.ranks_dir or args.out_dir / "ranks"
     args.out_dir.mkdir(parents=True, exist_ok=True)
@@ -190,8 +197,8 @@ def main() -> None:
     # encodings, so a few side by side fill the box.
     def ranked(rec):
         wid = rec["id"].replace("/", "_")
-        return rec["id"], rank_root(args.binary, args.models_dir, fl_ev, rec["cards"], SEAT_BTN,
-                                    rec["opp_board"], SERVE_JOINT_SAMPLES, args.topk,
+        return rec["id"], rank_root(args.binary, args.models_dir, fl_ev, rec["cards"], seat,
+                                    rec.get("opp_board") or "||", SERVE_JOINT_SAMPLES, args.topk,
                                     ranks_dir / f"{wid}.jsonl")
 
     ranks: dict[str, list[dict]] = {}
@@ -202,6 +209,39 @@ def main() -> None:
                 print(f"  ranked {done}/{len(records)} roots ({time.time() - started:.0f}s)",
                       flush=True)
     print(f"ranked {len(ranks)} roots in {time.time() - started:.0f}s", flush=True)
+
+    if args.encode_all:
+        # Every opening of every root, in file order: what the fence sweep and
+        # the race audit read (t0_btn_race_audit / t0_btn_sharp_audit.load_meta).
+        all_pairs, meta_rows = [], []
+        for rec in records:
+            opp_rows_all = rows_of(rec.get("opp_board") or "||")
+            served_blind = joker_blind(rec["served"])
+            blind_field = {joker_blind(k): v for k, v in rec["field"].items()}
+            for entry in ranks[rec["id"]]:
+                all_pairs.append((opening_key_rows(entry["key"]), opp_rows_all))
+                y = blind_field.get(joker_blind(entry["key"]))
+                meta_rows.append(dict(
+                    id=f"{rec['id']}/{entry['key']}", root=rec["id"], key=entry["key"],
+                    seat=args.seat, opp_board=rec.get("opp_board") or "||",
+                    own_rank=int(entry["rank"]), own_score=float(entry["score"]),
+                    ranker_rank=entry.get("ranker_rank") or 0,
+                    policy_rank=entry.get("policy_rank") or 0,
+                    labelled=y is not None, y=y,
+                    is_serving=joker_blind(entry["key"]) == served_blind))
+        x_all = encode(args.binary, fl_ev, all_pairs, SERVE_JOINT_SAMPLES, SERVE_NODE_SEED, args.batch)
+        mean_a, std_a, mats_a = load_bin(args.models_dir / ship_bin)
+        py_all = forward(mats_a, (x_all - mean_a) / std_a)
+        rust_all = np.asarray([m["own_score"] for m in meta_rows], np.float32)
+        gap = float(np.abs(py_all - rust_all).max())
+        print(f"encode-all: {len(x_all)} rows over {len(records)} roots, parity max {gap:.3e}",
+              flush=True)
+        if gap > args.parity_tol:
+            raise SystemExit(f"PARITY FAILED on the all-openings encoding (tol {args.parity_tol:g})")
+        np.savez_compressed(args.out_dir / "enc_pairs.npz", x=x_all)
+        with open(args.out_dir / "pairs_meta.jsonl", "w", encoding="utf-8") as handle:
+            for m in meta_rows:
+                handle.write(json.dumps(m) + "\n")
 
     pairs, rows = [], []
     field_sizes: Counter = Counter()
@@ -231,7 +271,8 @@ def main() -> None:
                 split=split, id=rec["id"], index=int(rec["index"]), key=entry["key"],
                 label_key=label_key, y=(v1 + v2) / 2.0 if second else v1, y1=v1,
                 y2=v2 if second else None, passes=2 if second else 1, served=served,
-                ranker_rank=entry.get("ranker_rank") or 0, own_rank=int(entry["rank"]),
+                ranker_rank=entry.get("ranker_rank") or 0,
+                policy_rank=entry.get("policy_rank") or 0, own_rank=int(entry["rank"]),
                 own_score=float(entry["score"]), jokers=jokers,
                 sources=sources.get(label_key, [])))
         served_missing += not served_seen
@@ -248,7 +289,7 @@ def main() -> None:
     # Parity on every row: the vector must reproduce the score the serving
     # path published for the same placement, or this file is not the
     # serving encoder and nothing downstream may be trusted.
-    bin_path = args.models_dir / SHIP_BIN
+    bin_path = args.models_dir / ship_bin
     mean, std, mats = load_bin(bin_path)
     if len(mean) != FEATURE_SIZE:
         raise SystemExit(f"{bin_path} reads {len(mean)} dims, this encoder writes {FEATURE_SIZE}")
@@ -270,7 +311,8 @@ def main() -> None:
     manifest = dict(
         labels=str(args.labels), models_dir=str(args.models_dir), bin=str(bin_path),
         feature_size=FEATURE_SIZE, joint_samples=SERVE_JOINT_SAMPLES, joint_seed=SERVE_NODE_SEED,
-        fence=["ranker_rank", args.topk], split=args.split,
+        seat=args.seat, fence=[fence_by, args.topk], split=args.split,
+        encode_all=bool(args.encode_all),
         roots=len(records), rows=len(rows), skipped=dict(skipped),
         field_size_histogram={str(k): v for k, v in sorted(field_sizes.items())},
         parity_max_abs=float(delta.max()), parity_mean_abs=float(delta.mean()),
@@ -288,6 +330,7 @@ def main() -> None:
             jokers=np.asarray([r["jokers"] for r in sub], np.int8),
             passes=np.asarray([r["passes"] for r in sub], np.int8),
             ranker_rank=np.asarray([r["ranker_rank"] for r in sub], np.int16),
+            policy_rank=np.asarray([r["policy_rank"] for r in sub], np.int16),
             own_rank=np.asarray([r["own_rank"] for r in sub], np.int16),
             own_score=np.asarray([r["own_score"] for r in sub], np.float32),
             served=np.asarray([r["served"] for r in sub], bool))

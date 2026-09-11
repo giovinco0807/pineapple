@@ -56,8 +56,11 @@ def load_material(path: Path) -> dict[str, dict]:
     return rows
 
 
-def load_meta(path: Path) -> dict[str, dict]:
-    """Row indices, keys and ranker ranks of every encoded opening, per root."""
+def load_meta(path: Path, fence_by: str = "ranker_rank") -> dict[str, dict]:
+    """Row indices, keys and fence ranks of every encoded opening, per root.
+
+    `fence_by` names the shortlist the serve consults: ranker_rank at Button,
+    policy_rank at BB (a bundle with policy.bin never calls the BB ranker)."""
     roots: dict[str, dict] = {}
     for index, line in enumerate(path.open(encoding="utf-8")):
         if not line.strip():
@@ -66,7 +69,7 @@ def load_meta(path: Path) -> dict[str, dict]:
         group = roots.setdefault(m["root"], dict(rows=[], keys=[], ranker=[], own_score=[]))
         group["rows"].append(index)
         group["keys"].append(m["key"])
-        group["ranker"].append(m.get("ranker_rank") or 0)
+        group["ranker"].append(m.get(fence_by) or 0)
         group["own_score"].append(m["own_score"])
     for group in roots.values():
         group["rows"] = np.asarray(group["rows"])

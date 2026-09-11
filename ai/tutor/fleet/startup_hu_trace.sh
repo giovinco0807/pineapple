@@ -10,6 +10,8 @@
 # Sibling of `startup_t1_labelgen.sh`.  Same discipline: sha-verified binary,
 # chunked resumable output, log shipped on any exit, instance deletes itself.
 # The work unit is a seed window -- hand h of this run is `--self-play-seed`
+# Serving contract v2 (models_ship_20260911, 2026-09-11): every ranker fence open (27),
+# Button opening ranker top-16, BB opening policy top-16. Earlier: 4 / 4 / 8.
 # SEED with `--hu-trace` covering [start, start+count), and hu-trace numbers
 # hands from zero, so each shard runs its own seed and the shards cannot
 # collide.
@@ -94,9 +96,9 @@ OWN="$MODELS_DIR/own_lap4/t0.bin,$MODELS_DIR/own_lap4/t1.bin,$MODELS_DIR/own_lap
 ( cd ws && "$ROOT/t4_first_exact" --hu-match --hu-trace "$HANDS" \
     --trace-chunk "$CHUNK" --self-play-seed "$SEED" \
     --hu-a-models "$HU" --hu-b-models "$HU" \
-    --hu-a-rankers "$RK" --hu-b-rankers "$RK" --hu-topk 4 \
+    --hu-a-rankers "$RK" --hu-b-rankers "$RK" --hu-topk 27 --hu-t0-btn-topk 16 \
     --hu-a-t0-policy "$MODELS_DIR/policy.bin" \
-    --hu-b-t0-policy "$MODELS_DIR/policy.bin" --hu-t0-policy-topk 8 \
+    --hu-b-t0-policy "$MODELS_DIR/policy.bin" --hu-t0-policy-topk 16 \
     --serve-joint-samples 200 --serve-joint-samples-b 200 \
     --arm-a-own "$OWN" --arm-b-own "$OWN" \
     --fl-ev-config ai/config/fl_ev.json \

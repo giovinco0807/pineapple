@@ -30,7 +30,10 @@ BINSTAMP="$(meta hu-binstamp)"
 REQ_OBJ="$(meta hu-requests-object)"
 MODELS_OBJ="$(meta hu-models-object)"
 WATCHDOG="$(meta hu-watchdog-seconds)"
-# bb (default) or btn; absent on launches made before the seat existed.
+# btn (the labeller's default) or bb; absent on launches made before the seat existed.
+SEAT="$(meta hu-seat 2>/dev/null || echo btn)"
+# 0 = openings (--hu-t0-deep); 1..3 = traced street decisions (--hu-deep-replay).
+STREET="$(meta hu-street 2>/dev/null || echo 0)"
 ROLLOUTS="$(meta hu-rollouts 2>/dev/null || echo 128)"
 PASSES="$(meta hu-passes 2>/dev/null || echo 1)"
 # The label recipe, defaulted to lap 1's so an old launcher still reproduces it.
@@ -44,10 +47,26 @@ RACE_Z="$(meta hu-race-z 2>/dev/null || echo 3.0)"
 RACE_FLOOR="$(meta hu-race-floor 2>/dev/null || echo 128)"
 RACE_CAP="$(meta hu-race-cap 2>/dev/null || echo 8192)"
 RACE_TSE="$(meta hu-race-target-se 2>/dev/null || echo 0.35)"
+# Staged budget: '/' stands in for ',' in metadata (see the launcher).
+SCHEDULE="$(meta hu-schedule 2>/dev/null | tr '/' ',' || echo '')"
+SCHED_ARGS=""
+if [ -n "$SCHEDULE" ]; then
+  SCHED_ARGS="--schedule $SCHEDULE"
+fi
 RACE_ARGS=""
 if [ "$RACE" = "1" ]; then
   RACE_ARGS="--race --race-batch $RACE_BATCH --race-z $RACE_Z --race-floor $RACE_FLOOR --race-cap $RACE_CAP --race-target-se $RACE_TSE"
 fi
+
+# The metadata server can hand out the service account a few seconds after
+# boot; until then every gcloud call dies with "no active account selected",
+# including the EXIT trap's self-delete, which leaves a zombie VM billing for
+# nothing (jkdev shard 35, 2026-09-11: 6.5 h at zero output). Wait for it.
+for _ in $(seq 1 60); do
+  if gcloud auth list --format='value(account)' 2>/dev/null | grep -q .; then break; fi
+  echo "waiting for the service account"; sleep 2
+done
+echo "PHASE:auth_ok $(gcloud auth list --format='value(account)' 2>/dev/null | head -1)"
 
 ship() {
   gcloud storage cp "$LOG/startup.log" \
@@ -105,7 +124,7 @@ PARTIAL_PID=$!
 python3 src/ai/tutor/t0_btn_label.py \
   --roots "$ROOT/requests.jsonl" --start "$START" --count "$COUNT" \
   --rollouts "$ROLLOUTS" --passes "$PASSES" \
-  --field "$FIELD" --score "$SCORE" $RACE_ARGS \
+  --field "$FIELD" --score "$SCORE" --seat "$SEAT" --street "$STREET" $RACE_ARGS $SCHED_ARGS \
   --models "$MODELS_DIR" --binary "$ROOT/src/ai/rust_solver/target/release/t4_first_exact" \
   --fl-ev-config "$ROOT/src/ai/config/fl_ev.json" \
   --work "$ROOT/work" --out "$ROOT/results.jsonl"
