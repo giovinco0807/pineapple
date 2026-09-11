@@ -243,3 +243,25 @@ T3-BB は 12 手前後、T1/T2 は 24〜27 手なので「柵なし」= 全配�
 - 束 `models_ship_20260911` の `SHIP_20260911.txt` に v2 を追記して tar を作り直し(sha256 `e5226097b597cb52…`、19,079,703 bytes、旧 `033e333d…` を上書き)、GCS `hu-street/artifacts/` に再公開。
 - 規約を読む台本を更新: `ai/tutor/fleet/startup_hu_trace.sh`(トレース艦隊)、`ai/tutor/t0_btn_label.py` の `model_args`(審判の継続手 = 配信どおりのチャンピオン)。
   **注意**: 旧規約(4/4/8)で作った審判ラベルと v2 で作るラベルは別の計器。既存の固定集合(t0btn_race480、t0bb eval 480、街 5 スロット)は旧規約の継続手で採点されたまま使う。
+
+### T1-BB 試金石 (2026-09-11 22:30Z 開始、オーナー「任せます」)
+
+v2 出荷後の漏れ地図(審判集合、1 決定あたり、柵は配信どおり): T0-BB 0.13、T0-BTN 0.52、T1-BB 0.52、T1-BTN 0.58、T2-BB 0.42、
+T2-BTN 0.39、T3-BB 0.17。合計 約 2.7/ハンド、うち街が 2.1(77%)。街の評価器 4 本は 8 月の境界ネット教師で from scratch
+(lr 1e-3、`t1_bb_lap2` は epoch 6 選択)に訓練され、レース審判のラベルを見ていない。T0 で効いた「ラベルの質 × lr 3e-3」を
+街へ移植する試金石として T1-BB を選ぶ(計画 C1、ジョーカー層の漏れ 0.56 が A2 型レシピの得意領域)。
+
+- **規約の判断**: 審判の継続手を v2 にすると 1 ラベルが **2.27 倍**高い(同根・同 2 手・512 本: 旧規約 254 s、v2 576 s、16 コア)。
+  試金石の fit/dev は**旧規約**(`--contract old` = `--hu-topk 4`、`--hu-t0-policy-topk 8`)で採り、既存の街審判集合と同じ計器に揃える。
+  T1 以降の根では T0 の柵は再生済みで無関係、効くのは街のランカー柵だけ。`t0_btn_label.py` に `CONTRACTS` 表と `--contract` を追加し、
+  行に `contract` を刻む(艦隊: launcher `--contract` → metadata `hu-contract` → startup)。
+- **材料**: `hu_street_roots --exclude roots_t1s0.jsonl --salt 1 --dev 50` で fit 600(無作為 300 + ジョーカー 300)と dev 100(50 + 50)。
+  審判集合の 480 ハンドとも互いにも重複なし。GCS `street_roots_t1s0_pilot_20260912.jsonl` / `..._pilotdev_...`。
+- **符号化**: `ai/tutor/build_street_sharp.py` がレースラベルを配信そのもののベクトル(`hu_match::pool_of` の山札、乱数種
+  `replay-rank/{S}/{T}`、joint 200)に組む。一致検査: 審判集合 30 局面 798 行で max |py − rust| **7.6e-6**、argmax 30/30。
+  審判集合の符号化 `enc_t1s0_eval/eval.npz`(12,786 行)で出荷 bin の regret 0.516 ±0.054 = 柵掃引の値。判定は `ai/tutor/hu_street_verdict.py`。
+- **艦隊**: `p1fit` 40 シャード × 15 根(1 パス、watchdog 72000)、`p1dev` 10 × 10 根(2 パス、86400)。c4-standard-8 Spot、
+  束 models_ship_20260911、binstamp 20260905a、src hu_src_20260912a。街の審判は約 1 h/根なので 16〜22 h、約 $250 見込み。
+- 手元のバイナリを 9/11 に再ビルド(旧 9/3 版は own_fl の内訳を出さず試走が落ちた)。試走: dev 1 根、cap 256、27 配置、6.6 分。
+- **次**: 回収 → `build_street_sharp --split fit/dev` → `train_t4_first_evaluator --init-from hu/t1_bb.bin --learning-rate 3e-3
+  --select-on regret` 3 シード → `hu_street_verdict`(分解能 ±0.07)。効けば T1-BTN → T2 両席へ横展開。

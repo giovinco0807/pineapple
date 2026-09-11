@@ -50,23 +50,36 @@ ROOT_STRIDE = 10
 STAGE_STRIDE = 1_000_000_007
 
 
-def model_args(models: Path):
+CONTRACTS = {
+    # Serving contract v2 (models_ship_20260911, 2026-09-11): fences wide open
+    # at the streets (27), Button opening ranker top-16, BB opening policy top-16.
+    "v2": ["--hu-topk", "27", "--hu-t0-btn-topk", "16", "--hu-t0-policy-topk", "16"],
+    # The 20260829..20260904 contract: ranker top-4 everywhere, BB opening policy
+    # top-8, no Button width.  Every fixed raced set (t0btn_race480, the T0-BB
+    # eval 480, the five street slots) was priced under this continuation, and it
+    # is 2.3x cheaper per rollout (2 keys x 512 rollouts: 254 s against v2's
+    # 576 s, 2026-09-11) -- so a corpus that has to sit on the same instrument
+    # as those sets, or be bought cheaply, is labelled here.
+    "old": ["--hu-topk", "4", "--hu-t0-policy-topk", "8"],
+}
+
+
+def model_args(models: Path, contract: str = "v2"):
+    """The champion as the referee's continuation: the bundle's nets under one
+    serving contract.  Labels made under different contracts are separate
+    instruments and must not be pooled; every row stamps its contract."""
     names = ("t0_bb.bin", "t0_btn.bin", "t1_bb.bin", "t1_btn.bin",
              "t2_bb.bin", "t2_btn.bin", "t3_bb.bin", "t3_btn.bin")
     hu = ",".join(str(models / "hu" / n) for n in names)
     rk = ",".join(str(models / "rankers" / n) for n in names)
     own = ",".join(str(models / "own_lap4" / n) for n in ("t0.bin", "t1.bin", "t2.bin"))
+    if contract not in CONTRACTS:
+        raise ValueError(f"unknown serving contract {contract!r}; one of {sorted(CONTRACTS)}")
     return ["--hu-a-models", hu, "--hu-b-models", hu,
-            # Serving contract v2 (models_ship_20260911): fences wide open at the
-            # streets (27), Button opening ranker top-16, BB opening policy top-16.
-            # The referee's continuation replays the champion as it is served.
-            # Before 2026-09-11 this read 4 / (4) / 8; labels made under either
-            # contract are separate instruments and must not be pooled.
-            "--hu-a-rankers", rk, "--hu-b-rankers", rk, "--hu-topk", "27",
-            "--hu-t0-btn-topk", "16",
+            "--hu-a-rankers", rk, "--hu-b-rankers", rk,
             "--hu-a-t0-policy", str(models / "policy.bin"),
             "--hu-b-t0-policy", str(models / "policy.bin"),
-            "--hu-t0-policy-topk", "16",
+            *CONTRACTS[contract],
             "--serve-joint-samples", "200", "--serve-joint-samples-b", "200",
             "--arm-a-own", own, "--arm-b-own", own]
 
@@ -81,8 +94,9 @@ def top_count(key: str) -> int:
 
 class Teacher:
     def __init__(self, binary: Path, models: Path, fl_ev: Path, work: Path, seat: int = 1,
-                 street: int = 0):
+                 street: int = 0, contract: str = "v2"):
         self.binary, self.models, self.fl_ev, self.work = binary, models, fl_ev, work
+        self.contract = contract
         # 1 = Button (hero's five + BB's placed board); 0 = Big Blind, whose
         # opening is decided by hero's five alone (docs/t0_bb_opponent_block_20260824.md).
         self.seat = seat
@@ -96,14 +110,14 @@ class Teacher:
     def run(self, cards: str, opp: str, rollouts: int, seed: int, keys, tag: str):
         out = self.work / f"{tag}.jsonl"
         if self.street == 0:
-            cmd = [str(self.binary), "--hu-match", "--hu-t0-deep"] + model_args(self.models)
+            cmd = [str(self.binary), "--hu-match", "--hu-t0-deep"] + model_args(self.models, self.contract)
             cmd += ["--fl-ev-config", str(self.fl_ev), "--t0-cards", cards,
                     "--rollouts", str(rollouts), "--self-play-seed", str(seed),
                     "--output", str(out)]
             if self.seat == 1:
                 cmd += ["--hu-t0-seat", "1", "--t0-opp-board", opp]
         else:
-            cmd = [str(self.binary), "--hu-match", "--hu-deep-replay"] + model_args(self.models)
+            cmd = [str(self.binary), "--hu-match", "--hu-deep-replay"] + model_args(self.models, self.contract)
             cmd += ["--fl-ev-config", str(self.fl_ev), "--input", str(self.hand_file),
                     "--replay-hand", "0", "--replay-street", str(self.street),
                     "--replay-seat", str(self.seat),
@@ -364,6 +378,7 @@ def label_root(teacher: Teacher, index: int, root: dict, args) -> dict:
               "field_kind": args.field, "score": args.score,
               "schedule": args.schedule,
               "seat": args.seat, "street": args.street, "fence_by": fence_key,
+              "contract": args.contract,
               "stratum": root.get("stratum"),
               "field": passes[0]}
     if race_info is not None:
@@ -419,6 +434,9 @@ def main() -> None:
                     help="0: openings (--hu-t0-deep). 1..3: traced street decisions replayed "
                          "with --hu-deep-replay; roots carry trace/street/seat/served "
                          "(ai/tutor/hu_street_roots.py) and the field is every placement")
+    ap.add_argument("--contract", choices=tuple(CONTRACTS), default="v2",
+                    help="serving contract the referee's continuation plays under (see CONTRACTS); "
+                         "old = the 4/(4)/8 fences every fixed raced set was priced with, 2.3x cheaper")
     ap.add_argument("--serve-top", type=int, default=8,
                     help="serving fence width used to name the served move on roots "
                          "without a trace (BB serves the policy's top 8)")
@@ -456,7 +474,8 @@ def main() -> None:
                 roots.append((i, json.loads(line)))
 
     teacher = Teacher(args.binary, args.models, args.fl_ev_config, args.work,
-                      seat=1 if args.seat == "btn" else 0, street=args.street)
+                      seat=1 if args.seat == "btn" else 0, street=args.street,
+                      contract=args.contract)
     written = errors = 0
     with args.out.open("a", encoding="utf-8") as fh:
         for index, root in roots:

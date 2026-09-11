@@ -45,6 +45,10 @@ def main() -> None:
     parser.add_argument("--score", choices=("full", "own_fl"), default="full",
                         help="own_fl drops the opponent's Fantasyland credit and needs "
                              "a binary from binstamp 20260905a or later")
+    parser.add_argument("--contract", choices=("v2", "old"), default="v2",
+                        help="serving contract of the referee's continuation (t0_btn_label "
+                             "CONTRACTS): v2 = 27/16/16, old = 4/(4)/8 (the fixed sets' footing, "
+                             "2.3x cheaper per rollout)")
     parser.add_argument("--seat", choices=("bb", "btn"), default="btn",
                         help="btn: requests object is roots_all.jsonl format "
                              "(btn_cards/bb_board/served); passed to t0_mine.py --seat")
@@ -96,7 +100,7 @@ def main() -> None:
             f"hu-race-z={args.race_z}", f"hu-race-floor={args.race_floor}",
             f"hu-race-cap={args.race_cap}", f"hu-race-target-se={args.race_target_se}",
             f"hu-schedule={args.schedule.replace(',', '/')}",
-            f"hu-street={args.street}",
+            f"hu-street={args.street}", f"hu-contract={args.contract}",
         ])
         done = subprocess.run(
             [GCLOUD, "compute", "instances", "create", name,

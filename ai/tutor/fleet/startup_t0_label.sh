@@ -34,6 +34,9 @@ WATCHDOG="$(meta hu-watchdog-seconds)"
 SEAT="$(meta hu-seat 2>/dev/null || echo btn)"
 # 0 = openings (--hu-t0-deep); 1..3 = traced street decisions (--hu-deep-replay).
 STREET="$(meta hu-street 2>/dev/null || echo 0)"
+# Serving contract the referee's continuation plays under (t0_btn_label CONTRACTS):
+# v2 = 27/16/16 (models_ship_20260911), old = 4/(4)/8, the fixed raced sets' footing.
+CONTRACT="$(meta hu-contract 2>/dev/null || echo v2)"
 ROLLOUTS="$(meta hu-rollouts 2>/dev/null || echo 128)"
 PASSES="$(meta hu-passes 2>/dev/null || echo 1)"
 # The label recipe, defaulted to lap 1's so an old launcher still reproduces it.
@@ -124,7 +127,8 @@ PARTIAL_PID=$!
 python3 src/ai/tutor/t0_btn_label.py \
   --roots "$ROOT/requests.jsonl" --start "$START" --count "$COUNT" \
   --rollouts "$ROLLOUTS" --passes "$PASSES" \
-  --field "$FIELD" --score "$SCORE" --seat "$SEAT" --street "$STREET" $RACE_ARGS $SCHED_ARGS \
+  --field "$FIELD" --score "$SCORE" --seat "$SEAT" --street "$STREET" --contract "$CONTRACT" \
+  $RACE_ARGS $SCHED_ARGS \
   --models "$MODELS_DIR" --binary "$ROOT/src/ai/rust_solver/target/release/t4_first_exact" \
   --fl-ev-config "$ROOT/src/ai/config/fl_ev.json" \
   --work "$ROOT/work" --out "$ROOT/results.jsonl"
